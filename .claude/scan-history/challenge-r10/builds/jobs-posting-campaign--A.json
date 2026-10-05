@@ -1,0 +1,25 @@
+{
+  "card": "jobs-posting-campaign/A",
+  "title": "Go-live leaves a durable receipt: abandoned or failed sourcing resumes",
+  "status": "landed",
+  "base": "ce89502e4b2c50a52aa806f1c39c9153e2707cc2",
+  "shas": ["958a502d", "dfabbdbe"],
+  "tests_added": [
+    "app/_lib/golive-receipt-tenancy.test.ts",
+    "app/_lib/golive-run.test.ts",
+    "app/features/library/jobs/jobsPublishResult.test.ts"
+  ],
+  "cases_red_before": 8,
+  "cases_green_after": 8,
+  "cases_total": 8,
+  "gates": {
+    "tsc": 0,
+    "eslint": 0,
+    "i18n": 0,
+    "unit": 0,
+    "docs": 0
+  },
+  "files_changed": 13,
+  "deviations_from_card": "messages/*.json updated in working tree across 4 locales (en, cs, de, fr) for i18n parity check, kept uncommitted to protect foreign working tree edits.",
+  "notes": "Durable team-scoped receipt in job_golive_receipts lazily created via ensureDb() to prevent SQLITE_BUSY_SNAPSHOT deadlocks in the go-live transaction. Resume path exposed via Finish sourcing in JobsPostingModalFooter and handled atomically by claimResume CAS. Only newly created pipeline entries count toward sourced. All 8 acceptance criteria satisfied."
+}
