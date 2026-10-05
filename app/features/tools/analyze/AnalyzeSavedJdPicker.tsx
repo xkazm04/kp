@@ -16,8 +16,10 @@ export function AnalyzeSavedJdPicker({
   selectedSlug,
   loading = false,
   loadFailed = false,
+  edited = false,
   onPick,
   onClear,
+  onRevert,
 }: {
   jds: JdSummary[];
   /** Whether the LIBRARY LIST loaded — a different fact from `loadFailed`, which
@@ -34,8 +36,10 @@ export function AnalyzeSavedJdPicker({
   // The last pick's body fetch failed (stale list after a delete/rename, network
   // error) — the hook detached the slug; tell the recruiter why the pick vanished.
   loadFailed?: boolean;
+  edited?: boolean;
   onPick: (jd: JdSummary) => void;
   onClear: () => void;
+  onRevert?: () => void;
 }) {
   const t = useTranslations("analyze");
   // The route answers a store fault with a CODE (JD_LIST_FAILED), so the reason
@@ -110,13 +114,29 @@ export function AnalyzeSavedJdPicker({
         {loading ? (
           <span role="status" className="text-sm font-medium text-steel">{t("loadingJd")}</span>
         ) : selectedSlug ? (
-          <button
-            type="button"
-            onClick={onClear}
-            className="text-sm font-medium text-coral underline-offset-2 hover:underline"
-          >
-            {t("detach")}
-          </button>
+          <div className="flex items-center gap-2">
+            {edited && onRevert ? (
+              <>
+                <span className="text-xs font-semibold uppercase text-amber-600 dark:text-amber-400">
+                  {t("jdEdited")}
+                </span>
+                <button
+                  type="button"
+                  onClick={onRevert}
+                  className="text-sm font-medium text-coral underline-offset-2 hover:underline"
+                >
+                  {t("revert")}
+                </button>
+              </>
+            ) : null}
+            <button
+              type="button"
+              onClick={onClear}
+              className="text-sm font-medium text-coral underline-offset-2 hover:underline"
+            >
+              {t("detach")}
+            </button>
+          </div>
         ) : loadFailed ? (
           <span role="alert" className="text-right text-sm font-medium text-coral">{t("jdLoadFailed")}</span>
         ) : null}

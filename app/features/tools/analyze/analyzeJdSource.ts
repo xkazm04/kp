@@ -161,7 +161,8 @@ type LibraryEntry = { slug: string; title: string };
 export type JdStatus =
   | { tone: "optional"; key: "optional" }
   | { tone: "attached"; key: "loadingJd" }
-  | { tone: "attached"; key: "jdLinkedTo" | "jdEditedFrom"; title: string }
+  | { tone: "attached"; key: "jdLinkedTo"; title: string }
+  | { tone: "attached"; key: "jdEditedFrom"; title: string }
   | { tone: "attached"; key: "file"; name: string }
   | { tone: "attached"; key: "charsCount"; count: number };
 
@@ -194,3 +195,31 @@ export function reconcileRestoredLink(
   if (library.jds.some((jd) => jd.slug === source.slug)) return { source: { ...source, restored: false }, notice: null };
   return { source: fromText(source.text), notice: "linkGone" };
 }
+
+export function isValidSlug(slug: unknown): slug is string {
+  return typeof slug === "string" && /^[a-z0-9]+(?:[-_][a-z0-9]+)*$/i.test(slug.trim());
+}
+
+/**
+ * Recreate a JdSource from a restored draft. A valid jdSlug with text yields a
+ * 'saved' source; an invalid or missing slug restores the text as 'typed'.
+ */
+export function restoreJdSource(
+  draft: { jd?: string; jdSlug?: string; jdEdited?: boolean } | null | undefined,
+): JdSource {
+  if (!draft) return JD_NONE;
+  const text = draft.jd ?? "";
+  if (draft.jdSlug && isValidSlug(draft.jdSlug)) {
+    return {
+      kind: "saved",
+      slug: draft.jdSlug,
+      text,
+      baseline: draft.jdEdited ? null : text,
+      state: "ready",
+      edited: Boolean(draft.jdEdited),
+      restored: true,
+    };
+  }
+  return text.trim() ? { kind: "typed", text } : JD_NONE;
+}
+

@@ -24,7 +24,6 @@ export function AnalyzeFormOptionalColumns({
   const t = useTranslations("analyze");
   const { refs, inputs, setters, handlers, flags, statuses, library } = state;
   const { setJobDescriptionFile, setJobDescriptionText, setCompanyFile, setCompanyText, setGithubProfile } = setters;
-  const { setSelectedJdSlug } = library;
 
   return (
     <div className="grid gap-4 border-t border-stone-200 pt-4 sm:grid-cols-2 lg:grid-cols-3 xl:col-span-3 xl:border-l xl:border-t-0 xl:pl-4 xl:pt-0">
@@ -52,24 +51,20 @@ export function AnalyzeFormOptionalColumns({
           selectedSlug={library.selectedJdSlug}
           loading={flags.jdLoading}
           loadFailed={library.jdLoadFailed}
+          edited={flags.jdEdited}
           // The hook owns the load-full-JD-by-slug flow (fetch + textarea +
           // slug bookkeeping); the form just hands it the picked slug.
           onPick={(jd) => library.pickJd(jd.slug)}
-          onClear={() => setSelectedJdSlug(null)}
+          onClear={handlers.unlinkJd}
+          onRevert={handlers.revertJd}
         />
         <div className="mt-auto">
           <AnalyzePasteRow
             ariaLabel={t("jobTextAria")}
             inputId="job-description-paste"
             text={inputs.jobDescriptionText}
-            onChange={(value) => {
-              setJobDescriptionText(value);
-              setSelectedJdSlug(null);
-            }}
-            onClear={() => {
-              setJobDescriptionText("");
-              setSelectedJdSlug(null);
-            }}
+            onChange={(value) => setJobDescriptionText(value)}
+            onClear={() => setJobDescriptionText("")}
           />
         </div>
       </AnalyzeColumn>

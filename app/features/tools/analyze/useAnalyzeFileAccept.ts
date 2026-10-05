@@ -51,15 +51,14 @@ export function useRefusalText() {
 export function useAnalyzeIntake(state: AnalyzeFormState) {
   const describe = useRefusalText();
   const [refusals, setRefusals] = useState<string[]>([]);
-  const { inputs, setters, handlers, library } = state;
+  const { inputs, setters, handlers } = state;
 
   function apply(plan: DropPlan | null): DropPlan | null {
     if (!plan) return null;
     for (const file of plan.cv) void handlers.addCvFile(file);
     if (plan.jd) {
-      // The picker's rule, kept by every path: a JD file detaches the saved-JD slug.
+      // The single JD source door: an attached file replaces any picked slug.
       setters.setJobDescriptionFile(plan.jd.file);
-      library.setSelectedJdSlug(null);
     }
     if (plan.company) setters.setCompanyFile(plan.company.file);
     setRefusals(plan.refused.map(describe));

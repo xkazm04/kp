@@ -17,11 +17,16 @@
 // landed result is its own layer (analyzeSession.ts, which declares all four).
 
 import { isLocale } from "@/i18n/locales";
+import { isValidSlug, restoreJdSource } from "./analyzeJdSource";
+
+export { isValidSlug, restoreJdSource };
 
 export const ANALYZE_DRAFT_KEY = "kp.analyzeDraft";
 
 export type AnalyzeDraft = {
   jd?: string;
+  jdSlug?: string;
+  jdEdited?: boolean;
   company?: string;
   github?: string;
   reportLang?: string;
@@ -37,6 +42,7 @@ export type AnalyzeDraftField = (typeof ANALYZE_DRAFT_FIELDS)[number];
  * to be a string and non-string fields are DROPPED rather than the whole draft
  * refused — a corrupted `github` should not cost the recruiter their JD.
  * `reportLang` must pass `isLocale`; `blind` is kept only as a real boolean.
+ * `jdSlug` must pass `isValidSlug`; `jdEdited` is kept only as a real boolean.
  */
 export function parseAnalyzeDraft(raw: string | null | undefined): AnalyzeDraft | null {
   if (!raw) return null;
@@ -55,6 +61,12 @@ export function parseAnalyzeDraft(raw: string | null | undefined): AnalyzeDraft 
     const value = source[field];
     if (typeof value === "string" && value !== "") draft[field] = value;
   }
+  if (typeof source.jdSlug === "string" && isValidSlug(source.jdSlug)) {
+    draft.jdSlug = source.jdSlug;
+  }
+  if (typeof source.jdEdited === "boolean") {
+    draft.jdEdited = source.jdEdited;
+  }
   if (isLocale(source.reportLang)) draft.reportLang = source.reportLang;
   if (typeof source.blind === "boolean") draft.blind = source.blind;
   return Object.keys(draft).length > 0 ? draft : null;
@@ -72,6 +84,12 @@ export function serializeAnalyzeDraft(draft: AnalyzeDraft): string | null {
   for (const field of ANALYZE_DRAFT_FIELDS) {
     const value = draft[field];
     if (typeof value === "string" && value !== "") kept[field] = value;
+  }
+  if (typeof draft.jdSlug === "string" && isValidSlug(draft.jdSlug)) {
+    kept.jdSlug = draft.jdSlug;
+  }
+  if (typeof draft.jdEdited === "boolean") {
+    kept.jdEdited = draft.jdEdited;
   }
   if (isLocale(draft.reportLang)) kept.reportLang = draft.reportLang;
   if (draft.blind === true) kept.blind = true;

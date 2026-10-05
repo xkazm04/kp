@@ -7,8 +7,12 @@ import {
   readJdLibraryPayload,
   type JdLibraryState,
 } from "./analyzeJdLibraryState";
+import type { JdAction } from "./analyzeJdSource";
 
-export function useAnalyzeJdLibrary(setJobDescriptionText: (value: string) => void) {
+export function useAnalyzeJdLibrary(
+  onJdAction?: (action: JdAction) => void,
+  setJobDescriptionText?: (value: string) => void,
+) {
   const [jdLibrary, setJdLibrary] = useState<JdSummary[]>([]);
   // The library's honest load state. It used to be inferred from `jdLibrary.length`,
   // which cannot tell "still loading" from "this workspace has no saved JDs" from
@@ -94,6 +98,7 @@ export function useAnalyzeJdLibrary(setJobDescriptionText: (value: string) => vo
       setJdLoadFailed(false);
       const seq = ++jdPickSeqRef.current;
       setJdLoading(true);
+      onJdAction?.({ type: "pickSaved", slug });
       // A failed body fetch must DETACH the pick, not just skip the textarea write:
       // the slug rides along in the submit, so keeping it recorded would persist a
       // JD-blind run as a role-specific match (analyze-run logs jd_present:false
@@ -102,6 +107,7 @@ export function useAnalyzeJdLibrary(setJobDescriptionText: (value: string) => vo
         if (seq !== jdPickSeqRef.current) return; // a newer pick owns the slug now
         setSelectedJdSlug(null);
         setJdLoadFailed(true);
+        onJdAction?.({ type: "bodyFailed", slug });
       };
       fetch(`/api/jds/${encodeURIComponent(slug)}`)
         .then((response) => (response.ok ? response.json() : null))
@@ -115,7 +121,8 @@ export function useAnalyzeJdLibrary(setJobDescriptionText: (value: string) => vo
           // ?jd= URL). Guard the write — and treat it as a failed load (the run
           // would otherwise proceed JD-blind), same as a 404/network error.
           if (full && typeof full.body === "string") {
-            setJobDescriptionText(full.body);
+            onJdAction?.({ type: "bodyLoaded", slug, body: full.body });
+            if (setJobDescriptionText) setJobDescriptionText(full.body);
           } else {
             fail();
           }
@@ -127,7 +134,7 @@ export function useAnalyzeJdLibrary(setJobDescriptionText: (value: string) => vo
           if (seq === jdPickSeqRef.current) setJdLoading(false);
         });
     },
-    [setJobDescriptionText]
+    [onJdAction, setJobDescriptionText]
   );
 
   // Load the JD named by a shareable ?jd= URL on mount, through the same loader.

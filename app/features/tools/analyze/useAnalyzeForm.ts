@@ -22,6 +22,22 @@ import { executeAnalysis, executeGithubAnalysis, finalizeStages, resumeAnalysis 
 import { githubViewFromDeepDive, resolveAnalyzeErrorText, type VariantProgress } from "./AnalyzeApi";
 import { githubStatusAfterCancel, shouldRunGithubDeepDive } from "./analyzeGithubRunPolicy";
 import {
+  JD_NONE,
+  jdEdited,
+  jdFile,
+  jdLoadFailed,
+  jdLoading,
+  jdStatus,
+  jdSubmission,
+  jdText,
+  linkedSlug,
+  nextJdSource,
+  reconcileRestoredLink,
+  restoreJdSource,
+  type JdAction,
+  type JdSource,
+} from "./analyzeJdSource";
+import {
   ANALYZE_DRAFT_KEY,
   parseAnalyzeDraft,
   restoreDraftBlind,
@@ -100,8 +116,38 @@ export function useAnalyzeForm() {
 
   const { cvFiles, addCvFile, replaceCvFile, removeCvFile, clearCvFiles, syncCvFilesRef } = useAnalyzeCvFiles();
   // Attachments come back from module memory after a tab switch (never from storage).
-  const [jobDescriptionFile, setJobDescriptionFile] = useState<File | null>(() => takeAnalyzeAttachments().jobDescriptionFile);
-  const [jobDescriptionText, setJobDescriptionText] = useState("");
+  const [jdSource, setJdSource] = useState<JdSource>(() => {
+    const file = takeAnalyzeAttachments().jobDescriptionFile;
+    return file ? { kind: "file", file } : JD_NONE;
+  });
+
+  const dispatchJd = useCallback((action: JdAction) => {
+    setJdSource((current) => nextJdSource(current, action));
+  }, []);
+
+  const jobDescriptionFile = jdFile(jdSource);
+  const jobDescriptionText = jdText(jdSource);
+  const selectedJdSlug = linkedSlug(jdSource);
+  const isJdLoading = jdLoading(jdSource);
+  const isJdLoadFailed = jdLoadFailed(jdSource);
+  const isJdEdited = jdEdited(jdSource);
+
+  const setJobDescriptionFile = useCallback(
+    (file: File | null) => {
+      dispatchJd(file ? { type: "attachFile", file } : { type: "removeFile" });
+      if (!file && jobInputRef.current) jobInputRef.current.value = "";
+    },
+    [dispatchJd]
+  );
+
+  const setJobDescriptionText = useCallback((text: string | ((prev: string) => string)) => {
+    setJdSource((current) => {
+      const prev = jdText(current);
+      const nextText = typeof text === "function" ? text(prev) : text;
+      return nextJdSource(current, { type: "edit", text: nextText });
+    });
+  }, []);
+
   const [companyFile, setCompanyFile] = useState<File | null>(() => takeAnalyzeAttachments().companyFile);
   const [companyText, setCompanyText] = useState("");
   const [githubProfile, setGithubProfile] = useState("");
@@ -130,13 +176,20 @@ export function useAnalyzeForm() {
     jdLibraryState,
     jdLibraryTruncated,
     reloadJdLibrary,
-    selectedJdSlug,
-    setSelectedJdSlug,
     pickJd,
-    jdLoading,
-    jdLoadFailed,
-  } =
-    useAnalyzeJdLibrary(setJobDescriptionText);
+  } = useAnalyzeJdLibrary(dispatchJd, setJobDescriptionText);
+
+  // Reconcile a restored link against the library once loaded (during render, React adjust-state pattern)
+  if (jdSource.kind === "saved" && jdSource.restored && jdLibraryState === "ready") {
+    const { source: reconciled } = reconcileRestoredLink(jdSource, {
+      state: jdLibraryState,
+      truncated: jdLibraryTruncated,
+      jds: jdLibrary,
+    });
+    if (reconciled !== jdSource) {
+      setJdSource(reconciled);
+    }
+  }
 
   const hasJobDescription = Boolean(jobDescriptionFile || jobDescriptionText.trim());
   const hasCompany = Boolean(companyFile || companyText.trim());
@@ -148,12 +201,16 @@ export function useAnalyzeForm() {
     return { tone: "attached", label: t("cvVariants", { count: cvFiles.length }) };
   }, [cvFiles, t]);
 
-  const jobStatus: ColumnStatus = hasJobDescription
-    ? {
-        tone: "attached",
-        label: jobDescriptionFile?.name ?? t("charsCount", { count: jobDescriptionText.trim().length }),
-      }
-    : { tone: "optional", label: t("optional") };
+  const jobStatus: ColumnStatus = useMemo(() => {
+    const s = jdStatus(jdSource, jdLibrary);
+    if (s.tone === "optional") return { tone: "optional", label: t("optional") };
+    if (s.key === "file") return { tone: "attached", label: s.name };
+    if (s.key === "loadingJd") return { tone: "attached", label: t("loadingJd") };
+    if (s.key === "jdLinkedTo") return { tone: "attached", label: t("jdLinkedTo", { title: s.title }) };
+    if (s.key === "jdEditedFrom") return { tone: "attached", label: t("jdEditedFrom", { title: s.title }) };
+    if (s.key === "charsCount") return { tone: "attached", label: t("charsCount", { count: s.count }) };
+    return { tone: "optional", label: t("optional") };
+  }, [jdSource, jdLibrary, t]);
 
   const companyStatus: ColumnStatus = hasCompany
     ? { tone: "attached", label: companyFile?.name ?? t("charsCount", { count: companyText.trim().length }) }
@@ -178,9 +235,7 @@ export function useAnalyzeForm() {
   }, [cvFiles, jobDescriptionFile, companyFile]);
 
   function clearJobDescription() {
-    setJobDescriptionFile(null);
-    setJobDescriptionText("");
-    setSelectedJdSlug(null);
+    dispatchJd({ type: "clear" });
     if (jobInputRef.current) jobInputRef.current.value = "";
   }
 
@@ -379,10 +434,13 @@ export function useAnalyzeForm() {
          behaviour and nothing an operator would act on. */
     }
     if (!draft) return;
-    const { jd, company, github, reportLang: draftedLang, blind: draftedBlind } = draft;
+    const { company, github, reportLang: draftedLang, blind: draftedBlind } = draft;
     const localeDefault = isLocale(appLocale) ? appLocale : "en";
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot mount restore from sessionStorage; can't be an initializer without an SSR hydration mismatch (the render-time hydration shape needs a key that only resolves on the client, and this restore has none — it is unconditional and one-shot)
-    if (jd) setJobDescriptionText((prev) => restoreDraftValue(prev, jd));
+    const restoredJd = restoreJdSource(draft);
+    if (restoredJd.kind !== "none") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot mount restore from sessionStorage; can't be an initializer without an SSR hydration mismatch (the render-time hydration shape needs a key that only resolves on the client, and this restore has none — it is unconditional and one-shot)
+      dispatchJd({ type: "restore", source: restoredJd });
+    }
     if (company) setCompanyText((prev) => restoreDraftValue(prev, company));
     if (github) setGithubProfile((prev) => restoreDraftValue(prev, github));
     if (draftedLang) setReportLang((prev) => restoreDraftLocale(prev, draftedLang, localeDefault));
@@ -399,6 +457,8 @@ export function useAnalyzeForm() {
         // reset resurrects itself as a stale-looking entry.
         const payload = serializeAnalyzeDraft({
           jd: jobDescriptionText,
+          jdSlug: selectedJdSlug ?? undefined,
+          jdEdited: isJdEdited,
           company: companyText,
           github: githubProfile,
           reportLang,
@@ -413,7 +473,7 @@ export function useAnalyzeForm() {
       }
     }, 300);
     return () => clearTimeout(id);
-  }, [jobDescriptionText, companyText, githubProfile, reportLang, blind]);
+  }, [jobDescriptionText, companyText, githubProfile, reportLang, blind, selectedJdSlug, isJdEdited]);
 
   // Re-attach to an analyze task that was still running when the page reloaded.
   // Deferred kick-off (0 ms timer): resuming flips the loading flags, and a sync
@@ -620,14 +680,15 @@ export function useAnalyzeForm() {
     abortRef.current = controller;
     const analysisRunId = ++analysisRunIdRef.current;
 
+    const sub = jdSubmission(jdSource);
     await executeAnalysis(
       {
         cvFiles,
-        jobDescriptionFile,
-        jobDescriptionText,
+        jobDescriptionFile: sub.file,
+        jobDescriptionText: sub.text,
         companyFile,
         companyText,
-        selectedJdSlug,
+        selectedJdSlug: sub.jdSlug,
         reportLang,
         blind,
         githubProfile: githubRides ? githubProfile : undefined,
@@ -689,15 +750,35 @@ export function useAnalyzeForm() {
       reset,
       submit,
       cancel,
+      revertJd: () => dispatchJd({ type: "revert" }),
+      unlinkJd: () => dispatchJd({ type: "unlink" }),
       // GH5 — re-fire the deep-dive alone from the panel's error state.
       retryGithub: launchGithubRun,
     },
     // `githubLoading` lets the submit button block a resubmit while a GitHub run
     // is still in flight (it can outlive the main analysis), preventing a duplicate
     // full fan-out (idea-8367f051).
-    flags: { hasJobDescription, hasCompany, hasGithub, isLoading, isCompleting, githubLoading: githubStatus === "loading", jdLoading },
+    flags: {
+      hasJobDescription,
+      hasCompany,
+      hasGithub,
+      isLoading,
+      isCompleting,
+      githubLoading: githubStatus === "loading",
+      jdLoading: isJdLoading,
+      jdEdited: isJdEdited,
+    },
     statuses: { cvStatus, jobStatus, companyStatus, githubStatusLabel },
-    library: { jdLibrary, jdLibraryState, jdLibraryTruncated, reloadJdLibrary, selectedJdSlug, setSelectedJdSlug, pickJd, jdLoadFailed },
+    library: {
+      jdLibrary,
+      jdLibraryState,
+      jdLibraryTruncated,
+      reloadJdLibrary,
+      selectedJdSlug,
+      setSelectedJdSlug: (slug: string | null) => dispatchJd(slug ? { type: "pickSaved", slug } : { type: "unlink" }),
+      pickJd,
+      jdLoadFailed: isJdLoadFailed,
+    },
     result: { analysis, githubAnalysis, githubStatus, githubError, githubWarning, error, stageState, variantProgress, restored },
   };
 }

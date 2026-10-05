@@ -312,7 +312,12 @@ can hold anything another tab or an older build left behind, so a non-string
 field is dropped rather than pushed into a controlled `<textarea>` (a corrupted
 `github` never costs the recruiter their JD), an all-empty draft removes the key
 instead of writing a hollow one, and a restore only fills a field still empty so
-a saved-JD pick always beats a stale draft. `blind` and `reportLang` ride the
+a saved-JD pick always beats a stale draft. `jdSlug` and `jdEdited` also ride the
+draft codec: `restoreJdSource` restores whether the draft was linked to a saved JD
+and whether it was edited. In the form itself (`useAnalyzeForm.ts`), a unified reducer
+over `AnalyzeJdSource` (`analyzeJdSource.ts`: `none` | `typed` | `file` | `saved`)
+ensures role linkage survives text edits, file attaches detach cleanly, and
+clearing/reverting are first-class actions. `blind` and `reportLang` ride the
 same codec (`reportLang` validated with `isLocale`); they restore only when
 still at the mount default, so a configured run survives the workspace tab
 unmount the draft was built for.
