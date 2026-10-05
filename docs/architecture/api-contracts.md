@@ -328,6 +328,17 @@ Where it applies:
   absent row as "no health to show").
 - `/diagrams`: another org's seat gets the same `notFound()` a demo cookie does.
 
+**A revoked session is no reader either** (2026-10-05 scan). `isHomeOrgReader()`
+verified the signature and re-read the account but did not consult
+`isSessionRevoked`, which `isOperator()` has asked since the store shipped. That
+mattered on exactly this tier because it is the only one reachable **without**
+`requireOperator()` above it — `/diagrams` and `app/api/palette/preview` ask
+`isHomeOrgReader()` alone — so `proxy.ts` was the single check in the path, and
+proxy.ts fails open on the revocation question when its dynamic import does
+(deliberate; see `session-revocation.ts`). Open mode's early return and the
+fail-closed `catch` are unchanged. Cases:
+`app/_lib/auth/require-operator.test.ts`.
+
 **Single-org installs are unchanged.** `org` is minted only at login, invite
 accept, switch-workspace and register, and register is the only door that creates a
 non-home org, behind `KP_SIGNUP_ENABLED` (default off). With signup off every

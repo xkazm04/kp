@@ -101,6 +101,25 @@ issuer, the login throttle or logout.
 | `npm run test:unit -- app/api/auth/switch-workspace/route.test.ts` | 1 file | **6 tests, 6 pass, 0 fail** |
 | `npm run test:unit -- "app/api/**/*.test.ts"` | the whole api suite | **1949 tests, 1945 pass, 4 fail** — the four inherited reds, below |
 | `npm run test:unit -- app/api/auth/switch-workspace/route.test.ts app/api/rate-limit-contract.test.ts app/api/route-capability-coverage.test.ts app/api/error-response-contract.test.ts app/api/public-body-cap-contract.test.ts app/_lib/auth/public-routes.test.ts` | 6 files | **382 tests, 382 pass, 0 fail** |
+| `npm run test:unit -- app/_lib/auth/*.test.ts "app/api/**/*.test.ts"` (final, on the committed tree) | the 14 auth files + the whole api suite | **2094 tests, 2090 pass, 4 fail** — the same four inherited reds |
+| `npm run docs:check` | `scripts/docs/check-adrs.mjs` | **pass** — 12 decision records valid, every `sources:` path exists |
+| `npm run i18n:check` | `scripts/i18n-check.mjs` | **pass** — 13825 strings/locale, 4 locales in parity (no catalog key was added) |
+
+### Doc sync
+
+`scripts/docs/feature-doc-map.json` couples both touched source files to a doc, so both
+were updated in the same change:
+
+- `app/_lib/auth/require-operator.ts` → **`docs/architecture/api-contracts.md`** §1.2, a
+  new "A revoked session is no reader either" paragraph under the home-org tier.
+- `app/api/auth/switch-workspace/**` → **`docs/features/organization/README.md`**: the
+  revocation bullet went from "three seams consult it" to five and states why the two new
+  ones were blind spots; the surface table's Workspace-switch row now names the revoked
+  cookie beside the disabled account.
+
+The three `app/_lib/*.generated.ts` files show as modified after any `typecheck` run —
+`schemas:gen` rewrites them with CRLF and **no content change** (`git diff --stat` is
+empty). They were restored rather than committed.
 
 ### The four failures are inherited from main
 

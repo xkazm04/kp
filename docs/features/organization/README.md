@@ -84,11 +84,24 @@ edit is not discarded.
     the authority to revoke, so an anonymous caller writes nothing. It reports
     `{ revoked }` truthfully rather than claiming a server-side sign-out it did not
     perform.
-  - **Three seams consult it**, because each stands in front of routes the others do
+  - **Five seams consult it**, because each stands in front of routes the others do
     not: `proxy.ts` (the gate, ahead of the 177 routes with no second check — via a
     dynamic import, since Next 16 runs Proxy on the Node runtime), `currentSession()`
-    (and therefore every capability gate), and `isOperator()`. A revoked cookie reads
-    as **no session**: 401, never 403.
+    (and therefore every capability gate), `isOperator()`, `isHomeOrgReader()` and
+    `POST /api/auth/switch-workspace`. A revoked cookie reads as **no session**: 401,
+    never 403.
+  - The last two were added by the 2026-10-05 scan, and both were blind spots of the
+    same shape — **a credential that is already minted**, which no source ratchet asks
+    about. `isHomeOrgReader()` is the one tier reachable with no `requireOperator()`
+    above it (`/diagrams`, the palette preview's deployment-wide tabs), so proxy.ts
+    was the only check a revoked cookie met there — and proxy.ts fails open on the
+    revocation question. `switch-workspace` was worse: it is **public** (the
+    `/api/auth/` prefix), so proxy.ts never ran on it at all, and it is a *renewal* —
+    it hands back a fresh 7-day token on a new `iat`. A revocation names
+    `(principal, iat)`, so an exact row named the old `iat` and a cutoff matched
+    `iat < cutoff` while the re-mint's `iat` was now: **one POST reversed "sign out
+    all devices"**. `issueSession`'s account re-read did not cover it either, because
+    signing out all devices deliberately leaves the account active.
   - A per-user revocation deliberately follows the **person**, not the workspace their
     cookie sits on, which is why `session_revocations` is tenancy-EXEMPT: scoping it by
     `workspace_id` would leave the same human's other teams' cookies alive. The cutoff
@@ -496,7 +509,7 @@ routes below. The switch route now refuses on the workspace the session came fro
 |---|---|
 | Org/member/invite API | `app/api/org/members/route.ts`, `app/api/org/members/[userId]/route.ts`, `app/api/org/invites/route.ts`, `app/api/org/invites/[token]/route.ts` |
 | Workspace API | `app/api/workspaces/route.ts` (GET org-filtered list + memberCount/role/canManage; POST `team:manage`-gated, stamps the caller's org, seats the creator as owner), `app/api/workspaces/[id]/route.ts` (rename), `app/api/workspaces/[id]/members/[userId]/route.ts` (PUT seat/re-role — delegation-capped, and last-owner-guarded when it demotes an existing owner; DELETE unseat) |
-| Workspace switch | `app/api/auth/switch-workspace/route.ts` — membership + org required; a `demo`-workspace session is refused outright (403); a disabled account is refused the renewal (401, cookie cleared) |
+| Workspace switch | `app/api/auth/switch-workspace/route.ts` — membership + org required; a `demo`-workspace session is refused outright (403); a disabled account **and a revoked one** are refused the renewal (401, cookie cleared) |
 | Session issuer | `app/_lib/auth/session-issuer.ts` — `issueSession` / `clearSession` / `landingWorkspaceFor`; the only mint site (source ratchet in its test) |
 | Org backup/restore | `app/api/workspace/export/route.ts`, `app/api/workspace/import/route.ts`, `app/_lib/db-portability.ts` (`dumpOrg`, `restoreOrg`, `planOrgRestore`) |
 | DB — identity | `app/_lib/db/organizations.ts`, `app/_lib/db/users.ts`, `app/_lib/db/memberships.ts`, `app/_lib/db/invites.ts`, `app/_lib/db/workspaces.ts` (`listWorkspacesForUser`, `renameWorkspace`) |
