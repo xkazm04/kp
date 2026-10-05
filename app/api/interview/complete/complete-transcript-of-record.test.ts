@@ -158,7 +158,7 @@ test("one array feeds both writes: the persist and the scorecard read the merged
   assert.doesNotMatch(src, /submitted\.map\(\s*\(t\)\s*=>\s*\{\s*const \{ turn/, "the raw body is no longer what gets clamped");
   assert.match(src, /capTranscriptTurns\(clamped\)/);
   assert.match(src, /completeInterviewSession\(sessionId, \{ transcript, status \}\)/);
-  assert.match(src, /runInterviewScorecard\(session\.entryId, transcript, ws\)/);
+  assert.match(src, /finalizeCandidateInterviewScoring\(session, transcript\)/);
   assert.match(src, /discardedTurnCount\(session\.transcript, transcript\)/, "the terminal duplicate check compares the merged record");
   assert.match(src, /discardedTurnCount\(persisted\?\.transcript, transcript\)/, "so does the lost-race check");
   assert.doesNotMatch(src, /discardedTurnCount\([^)]*submitted\)/, "never the raw body");
