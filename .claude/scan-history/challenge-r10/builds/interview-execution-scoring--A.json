@@ -1,0 +1,23 @@
+{
+  "card": "interview-execution-scoring/A",
+  "title": "Voice scorecard commits once: attach, gate, seal in one locked unit",
+  "status": "landed",
+  "base": "7735dfca",
+  "shas": ["d2ad9240", "a474100e"],
+  "tests_added": [
+    "app/_lib/interview-scorecard-commit.test.ts"
+  ],
+  "cases_red_before": 10,
+  "cases_green_after": 10,
+  "cases_total": 12,
+  "gates": {
+    "tsc": 0,
+    "eslint": 0,
+    "i18n": 0,
+    "unit": 0,
+    "docs": 0
+  },
+  "files_changed": 7,
+  "deviations_from_card": "messages/*.json updated in working tree across 4 locales (en, cs, de, fr) for i18n parity check, kept uncommitted to protect foreign working tree edits. Per critic note, sealDecisionSafe executes immediately after the core immediate transaction to avoid SQLITE_BUSY on decision-record-store connection.",
+  "notes": "Voice scorecard attach, gate check (scorecardGateOpen) and approval are unified into a single immediate transaction in commitCandidateScorecard. Sealing decision record happens post-commit on the decision ledger connection. Observed skills minting is deferred until attach succeeds, and re-attaches under CAS. Drawer manual Synthesize scorecard is guarded against closed gates (skipped_gate_closed). All acceptance criteria satisfied."
+}
