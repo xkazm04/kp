@@ -305,7 +305,7 @@ export function loadBaseline(dirOrFile: string): DiffRun & { file: string } {
 
 // ---- rendering -----------------------------------------------------------------------------------
 
-const esc = (s: string) => s.replace(/\|/g, "\\|");
+const esc = (s: string) => s.replace(/\\/g, "\\\\").replace(/\|/g, "\\|");
 const rateOf = (s: DiffSide | null) => (s === null ? "—" : s.evaluable === 0 ? `– (n=${s.samples})` : `${s.fail}/${s.evaluable} fail (n=${s.samples})`);
 
 function section(title: string, note: string, cells: readonly DiffCell[]): string[] {

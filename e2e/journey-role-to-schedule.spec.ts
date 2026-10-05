@@ -134,7 +134,9 @@ async function advanceStep(source: Locator, button: Locator, target: Locator): P
 async function openCandidateModal(page: Page, label: string): Promise<Locator> {
   await page.goto(`/?tab=pipeline&q=${encodeURIComponent(label)}`);
   const modal = page.getByRole("dialog", { name: label, exact: true });
-  const rows = page.getByRole("row").filter({ hasText: label });
+  // The Orbit page also draws an Activity table, which lists the same person once per recorded
+  // event (a booking adds rows there), so the board's rows are those of the "Matches" table only.
+  const rows = page.getByRole("table", { name: "Matches", exact: true }).getByRole("row").filter({ hasText: label });
   const row = rows.first();
   await expect(row).toBeVisible({ timeout: 30_000 });
   await expect(

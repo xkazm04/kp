@@ -271,10 +271,14 @@ test("the candidate applies through the assignment's own link — and never sees
       data: { token: applyToken, candidateRef: CANDIDATE },
     });
     expect(session.ok(), `POST /api/devcase/session responded ${session.status()}`).toBe(true);
-    const sessionId = ((await session.json()) as { sessionId: string }).sessionId;
+    const minted = (await session.json()) as { sessionId: string; sessionKey: string };
+    const sessionId = minted.sessionId;
+    // A keyed attempt accepts ONLY its own key (479f3fa3e), sent as a header, never in the URL.
+    const keyHeaders = { "x-devcase-session-key": minted.sessionKey };
 
     const now = new Date().toISOString();
     const flush = await candidatePage.request.post(`/api/devcase/session/${sessionId}`, {
+      headers: keyHeaders,
       data: {
         token: applyToken,
         events: [
@@ -293,6 +297,7 @@ test("the candidate applies through the assignment's own link — and never sees
     expect(flush.ok(), `POST /api/devcase/session/[id] responded ${flush.status()}`).toBe(true);
 
     const submitted = await candidatePage.request.post(`/api/devcase/session/${sessionId}/submit`, {
+      headers: keyHeaders,
       data: { token: applyToken, candidate: CANDIDATE, contact: CANDIDATE_EMAIL },
     });
     expect(submitted.ok(), `POST /api/devcase/session/[id]/submit responded ${submitted.status()}`).toBe(true);
@@ -392,8 +397,12 @@ test("evaluate and promote join the REAL job and ONE real person", async ({ page
   await page.goto(`/?tab=pipeline&q=${encodeURIComponent(CANDIDATE)}`);
   const row = page.getByRole("row").filter({ hasText: CANDIDATE }).first();
   await expect(row).toBeVisible({ timeout: 30_000 });
-  // Cells: mark, candidate, stage, source, MATCH, age, act.
-  await expect(row.getByRole("cell").nth(4)).toHaveText("—");
+  // Cells: mark, candidate, stage, source, MATCH, age. The quiet source column folds away at a
+  // narrow viewport (DataTable foldClass), taking its cell out of the accessibility tree, so MATCH
+  // is addressed from the end (second to last) and not by an absolute index.
+  await expect
+    .poll(async () => (await row.getByRole("cell").allTextContents()).at(-2))
+    .toBe("—");
 });
 
 test("the voice screen is offered from the assignment, on the same entry", async ({ page }) => {
