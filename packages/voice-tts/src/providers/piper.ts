@@ -8,6 +8,7 @@ import path from "node:path";
 import { resolveBinary, sidecarHome } from "../node/resolve-bin.ts";
 import { readWav, runSidecar, withScratchDir } from "../node/spawn.ts";
 import { primaryLanguage } from "../validate.ts";
+import { pickVoice } from "../voice-pick.ts";
 import { TtsError, type TtsAudio, type TtsHost, type TtsProbe, type TtsProvider, type TtsRequest, type TtsVoice } from "../types.ts";
 
 const TIMEOUT_MS = 60_000;
@@ -71,7 +72,8 @@ export class PiperTts implements TtsProvider {
       if (!voices.length) probe = { state: "absent", reason: `no voices in ${this.voiceDirs().join(" or ")}`, setup: INSTALL_HINT };
       else {
         const ok = await stat(voices[0].model).then((s) => s.size > 1_000_000).catch(() => false);
-        probe = ok ? { state: "ready", detail: `${voices.length} voice(s)` } : { state: "broken", reason: `${voices[0].model} is truncated` };
+        const languages = [...new Set(voices.map((v) => v.language).filter((l): l is string => Boolean(l)))].sort();
+        probe = ok ? { state: "ready", detail: `${voices.length} voice(s)`, languages } : { state: "broken", reason: `${voices[0].model} is truncated` };
       }
     }
     this.host.log?.({ type: "probe", provider: this.id, probe, ms: Date.now() - started });
@@ -86,10 +88,11 @@ export class PiperTts implements TtsProvider {
     const bin = this.binary();
     if (!bin) throw new TtsError("unavailable", "piper binary not found", this.id);
     const voices = await this.catalog();
+    if (!voices.length) throw new TtsError("unavailable", "no piper voice installed", this.id);
     const lang = primaryLanguage(req.language);
-    const voice = (req.voiceId && voices.find((v) => v.id === req.voiceId)) || (lang && voices.find((v) => v.language === lang)) || voices[0];
-    if (!voice) throw new TtsError("unavailable", "no piper voice installed", this.id);
-    if (req.voiceId && voice.id !== req.voiceId) throw new TtsError("invalid_voice", `unknown voice ${req.voiceId}`, this.id);
+    const pick = pickVoice(voices, { voiceId: req.voiceId, language: lang });
+    if (!pick) throw new TtsError("invalid_voice", `unknown voice ${req.voiceId}`, this.id);
+    const voice = pick.voice;
     return withScratchDir("voice-tts-piper-", async (dir) => {
       const out = path.join(dir, "out.wav");
       const args = ["--model", voice.model, "--output_file", out];

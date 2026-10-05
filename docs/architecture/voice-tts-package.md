@@ -49,14 +49,16 @@ and its listening half by the STT one, once a streaming local engine is worth it
   first allowed+ready and returns `fallbackFrom`; the route forwards it as
   `X-Tts-Fallback-From` and the panel says "fell back from X". Nothing ready → typed
   `TtsError("unavailable")` with the last reason, never an empty 200.
-- **The declared language is part of readiness (2026-09-05).** The walk used to consider
-  probe state alone, so a `cs` request that landed on Kokoro — whose `capabilities.languages`
-  lists no `cs`/`de` — was read out in an English accent with no error, no `fallbackFrom` and
-  nothing logged. A ready engine that DECLARES the requested primary tag now wins over one
-  that does not (`"any"` and a language-less request match everything); when none declares
-  it, the first ready engine still serves — silence is worse than an accent — but the
-  resolution carries `unsupportedLanguage`, the host logs a `language_fallback` event, and
-  the route sends `X-Tts-Unsupported-Language`. Pinned in `packages/voice-tts/src/registry.test.ts`.
+- **Language coverage is probed from installed voices, not a hardcoded list (2026-10-04).**
+  The walk considers the PROBED languages returned by each ready adapter's `probe().languages`
+  (falling back to `capabilities.languages` when a probe declares none, e.g. cloud providers).
+  Piper probes the distinct primary language tags of the ONNX models actually installed in its
+  voice directories; Kokoro derives its probed languages from its curated built-ins (`['en']`) plus
+  any extended voices defined via `KOKORO_VOICES="name:sid[:lang]"`. A ready engine that covers the
+  requested primary tag wins over one that does not (`"any"` and a language-less request match everything);
+  when none covers it, the first ready engine still serves — silence is worse than an accent — but the
+  resolution carries `unsupportedLanguage`, the host logs a `language_fallback` event, and the route sends
+  `X-Tts-Unsupported-Language`. Pinned in `packages/voice-tts/src/providers/local-inventory.test.ts`.
 - **An unknown id is a misconfiguration, not an absence.** Unset or empty takes the default;
   a present `KP_TTS_PROVIDER`/`KP_TTS_PROVIDERS` naming an unregistered id makes
   `preferenceFromEnv` throw with the variable, the token and the registered set. Dropping it
@@ -120,8 +122,8 @@ and its listening half by the STT one, once a streaming local engine is worth it
 | id | kind | Engine | Languages | Needs | Notes |
 | --- | --- | --- | --- | --- | --- |
 | `elevenlabs` | cloud | hosted TTS REST (`/v1/text-to-speech/{voice}`), PCM 24 kHz wrapped to WAV | any | `ELEVENLABS_API_KEY`, optional `ELEVENLABS_VOICE_ID`, `ELEVENLABS_TTS_MODEL` (default `eleven_flash_v2_5`), `ELEVENLABS_BASE_URL` | probe = `GET /v1/user`, cached 60 s; 401 → broken |
-| `piper` | local | Piper ONNX via the `piper` CLI, text on stdin, WAV | en, cs (whatever voices are installed) | `piper` on PATH / `PIPER_BIN`; voices in `data/piper` (`PIPER_VOICE_DIR`) or `~/.personas/companion-tts/piper/*` | the only local Czech voice; a language hint picks the voice |
-| `kokoro` | local | Kokoro through the `sherpa-onnx-offline-tts` sidecar, text as trailing arg, 24 kHz WAV | en es fr hi it ja pt zh (no cs/de) | sidecar + `kokoro-multi-lang-v1_0` in `~/.personas/companion-tts/{bin,kokoro}` (`KOKORO_BIN`, `KOKORO_MODEL_DIR`) | the same install the Personas desktop app makes — one download serves both apps; curated voice `af_heart` (sid 3), extend with `KOKORO_VOICES="id:sid,…"` |
+| `piper` | local | Piper ONNX via the `piper` CLI, text on stdin, WAV | probed from installed voice models (e.g. en, cs, de) | `piper` on PATH / `PIPER_BIN`; voices in `data/piper` (`PIPER_VOICE_DIR`) or `~/.personas/companion-tts/piper/*` | the only local Czech voice; language coverage probed from installed `.onnx.json` manifests |
+| `kokoro` | local | Kokoro through the `sherpa-onnx-offline-tts` sidecar, text as trailing arg, 24 kHz WAV | probed: en (built-in) + optional `lang` from `KOKORO_VOICES="id:sid[:lang],…"` | sidecar + `kokoro-multi-lang-v1_0` in `~/.personas/companion-tts/{bin,kokoro}` (`KOKORO_BIN`, `KOKORO_MODEL_DIR`) | the same install the Personas desktop app makes — one download serves both apps; curated voices (en), extend with `KOKORO_VOICES="id:sid[:lang],…"` |
 
 Shared sidecar home: `VOICE_SIDECAR_HOME` overrides `~/.personas/companion-tts`. Binary
 ladder: explicit env → shared home `bin/` → PATH.

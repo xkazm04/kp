@@ -50,7 +50,15 @@ export function TtsComparePanel() {
   const providers = tts.providers ?? [];
   const offered = providers.filter((p) => p.allowed);
   const active = picked ?? offered.find((p) => p.preferred)?.id ?? offered.find((p) => p.probe.state === "ready")?.id ?? null;
+  const activeProvider = offered.find((p) => p.id === active);
   const busy = tts.playback === "synthesizing";
+
+  const coversLang = (p?: TtsStatus | null, targetLang?: string): boolean => {
+    if (!p || p.probe.state !== "ready") return true;
+    if (!p.languages) return true;
+    if (p.languages === "any") return true;
+    return targetLang ? p.languages.includes(targetLang) : true;
+  };
 
   return (
     <section aria-labelledby="tts-compare-title">
@@ -84,6 +92,15 @@ export function TtsComparePanel() {
                 {p.preferred ? <span className="ml-2 text-meta uppercase text-coral">{t("default")}</span> : null}
               </span>
               <span className={`block text-meta ${ready ? "text-moss" : "text-coral"}`}>{probeLabel(p)}</span>
+              {ready && p.languages ? (
+                <span className="block text-micro text-steel">
+                  {p.languages === "any"
+                    ? "any"
+                    : p.languages
+                        .map((l) => (l in LANGUAGE_ENDONYM ? LANGUAGE_ENDONYM[l as Locale] : l))
+                        .join(", ")}
+                </span>
+              ) : null}
             </button>
           );
         })}
@@ -139,6 +156,15 @@ export function TtsComparePanel() {
           </button>
         ) : null}
       </div>
+
+      {!coversLang(activeProvider, lang) ? (
+        <p className="mt-2 text-meta text-amber-800" role="status">
+          {t("noVoiceFor", {
+            provider: activeProvider?.label ?? active ?? "",
+            language: LANGUAGE_ENDONYM[lang] ?? lang,
+          })}
+        </p>
+      ) : null}
 
       <textarea
         value={text}

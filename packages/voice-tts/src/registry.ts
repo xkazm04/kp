@@ -16,6 +16,7 @@ import {
   type TtsAudio,
   type TtsHost,
   type TtsPreference,
+  type TtsProbe,
   type TtsProvider,
   type TtsProviderId,
   type TtsRequest,
@@ -91,11 +92,18 @@ export function createTts(opts: { host: TtsHost; providers?: TtsProvider[]; pref
     return p;
   };
 
-  /** Does this adapter CLAIM the requested primary language? "any" is the
+  /** Does this adapter CLAIM or PROBE the requested primary language? "any" is the
    *  multilingual engines' declaration (they pick a voice per language), and a
-   *  null request asks for nothing, so both are a yes. */
-  const speaks = (provider: TtsProvider, lang: string | null): boolean =>
-    !lang || provider.capabilities.languages === "any" || provider.capabilities.languages.includes(lang);
+   *  null request asks for nothing, so both are a yes.
+   *  Prefers probe.languages when ready and present; falls back to capabilities.languages. */
+  const speaks = (provider: TtsProvider, probe: TtsProbe, lang: string | null): boolean => {
+    if (!lang) return true;
+    const languages =
+      probe.state === "ready" && probe.languages !== undefined
+        ? probe.languages
+        : provider.capabilities.languages;
+    return languages === "any" || languages.includes(lang);
+  };
 
   const resolve = async (requested?: unknown, language?: string | null): Promise<TtsResolution> => {
     const order: TtsProviderId[] = [];
@@ -119,7 +127,7 @@ export function createTts(opts: { host: TtsHost; providers?: TtsProvider[]; pref
         lastReason = `${id}: ${probe.reason}`;
         continue;
       }
-      if (speaks(provider, lang)) {
+      if (speaks(provider, probe, lang)) {
         const fallbackFrom = asked && asked !== id ? asked : null;
         if (fallbackFrom) opts.host.log?.({ type: "fallback", from: fallbackFrom, to: id, reason: lastReason });
         return { provider, fallbackFrom, reason: fallbackFrom ? lastReason : null, unsupportedLanguage: null };
@@ -146,15 +154,21 @@ export function createTts(opts: { host: TtsHost; providers?: TtsProvider[]; pref
     get,
     async status() {
       return Promise.all(
-        providers.map(async (p) => ({
-          id: p.id,
-          label: p.label,
-          kind: p.kind,
-          capabilities: p.capabilities,
-          probe: await p.probe(),
-          allowed: allowed.includes(p.id),
-          preferred: preference.preferred === p.id,
-        })),
+        providers.map(async (p) => {
+          const probe = await p.probe();
+          const languages =
+            probe.state === "ready" ? (probe.languages ?? p.capabilities.languages) : null;
+          return {
+            id: p.id,
+            label: p.label,
+            kind: p.kind,
+            capabilities: p.capabilities,
+            probe,
+            languages,
+            allowed: allowed.includes(p.id),
+            preferred: preference.preferred === p.id,
+          };
+        }),
       );
     },
     resolve,
