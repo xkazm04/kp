@@ -97,7 +97,17 @@ export async function isHomeOrgReader(): Promise<boolean> {
     const jar = await cookies();
     await connection();
     const session = verifySession(jar.get(SESSION_COOKIE)?.value);
-    return homeOrgReader(session) && (session === null || (await accountStillLive(session)));
+    if (!homeOrgReader(session)) return false;
+    if (session === null) return true;
+    // Signed out, targeted — the same clause isOperator() carries, for the same reason.
+    // The deployment-wide READS this tier gates (/diagrams, the palette preview's
+    // deployment-wide tabs, the llm_usage ledger) are reachable with isHomeOrgReader
+    // ALONE, i.e. with no requireOperator above them, so without this a revoked cookie
+    // kept them: proxy.ts was the only check in the path, and its revocation lookup
+    // fails open if its dynamic import does. Fail-open-on-store-unavailable is still
+    // session-revocation.ts's documented posture.
+    if (isSessionRevoked(session)) return false;
+    return await accountStillLive(session);
   } catch {
     return false; // fail closed: an unreadable cookie jar is no reader
   }

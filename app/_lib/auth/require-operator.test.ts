@@ -209,3 +209,52 @@ test("requireHomeOrgReader: 401 without a session, a CODED 403 for another org, 
   withCookie(signSession(TEAM, Date.now(), { sub: otherOwner.id, org: "org-b", role: "owner" }));
   assert.equal(await requireHomeOrgReader(), null, "open mode has no gate to fail");
 });
+
+// ── Revocation reaches the HOME-ORG tier too ─────────────────────────────────────
+// isOperator() has consulted the revocation list since the store shipped; this tier did
+// NOT, and it is the one surface that is reachable WITHOUT requireOperator above it:
+// /diagrams and the palette preview's deployment-wide tabs ask isHomeOrgReader() alone.
+// proxy.ts was therefore the only check a revoked cookie met on that path, and its own
+// revocation lookup fails open when its dynamic import does — so a revoked session kept
+// the deployment-wide reads. A revoked session reads as NO reader.
+
+const { revokeSession } = await import("./session-revocation.ts");
+
+test("a REVOKED home-org session is not a reader — and the live sibling device still is", async () => {
+  passwordMode(true);
+  const seat = createUser({ orgId: DEFAULT_ORG_ID, email: "op.revoked-seat@example.test", name: "Revoked Seat" });
+  const stolenAt = Date.now();
+  const stolen = signSession(TEAM, stolenAt, { sub: seat.id, org: DEFAULT_ORG_ID, role: "recruiter" });
+  const stillMine = signSession(TEAM, stolenAt + 1_000, { sub: seat.id, org: DEFAULT_ORG_ID, role: "recruiter" });
+
+  // Probe first: both cookies really are readers, so the refusal below cannot be a
+  // signature, expiry or org failure wearing a revocation's clothes.
+  withCookie(stolen);
+  assert.equal(await isHomeOrgReader(), true, "probe: a live home-org seat IS a reader");
+  withCookie(stillMine);
+  assert.equal(await isHomeOrgReader(), true, "probe: so is the second device");
+
+  revokeSession({ workspace: TEAM, sub: seat.id, iat: stolenAt }, "test:stolen-laptop", stolenAt);
+
+  withCookie(stolen);
+  assert.equal(await isHomeOrgReader(), false, "the revoked cookie must lose the deployment-wide reads");
+  assert.equal((await requireHomeOrgReader())?.status, 401, "and requireOperator refuses it first");
+
+  withCookie(stillMine);
+  assert.equal(await isHomeOrgReader(), true, "a targeted revocation signs out one device, not the seat");
+});
+
+test("open mode is unchanged by a revocation — the local-dev contract outranks it", async () => {
+  // isHomeOrgReader's first line is the open-mode early return, so there is no session
+  // to revoke: with no KP_OPERATOR_PASSWORD the app runs open by design.
+  const seat = createUser({ orgId: DEFAULT_ORG_ID, email: "op.open-mode@example.test", name: "Open Seat" });
+  const iat = Date.now();
+  passwordMode(true);
+  withCookie(signSession(TEAM, iat, { sub: seat.id, org: DEFAULT_ORG_ID, role: "recruiter" }));
+  revokeSession({ workspace: TEAM, sub: seat.id, iat }, "test:open-mode", iat);
+  assert.equal(await isHomeOrgReader(), false, "probe: revoked while the password is set");
+  passwordMode(false);
+  assert.equal(await isHomeOrgReader(), true, "open mode trusts every caller, revoked or not");
+  withCookie(null);
+  assert.equal(await isHomeOrgReader(), true, "including one with no cookie at all");
+});
