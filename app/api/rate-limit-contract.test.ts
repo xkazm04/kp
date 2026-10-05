@@ -831,6 +831,21 @@ const ROUTES: RouteSpec[] = [
     servedBefore: 'const quota = meterGate("interview_minutes"',
   },
   {
+    // ADDED challenge-r10 interview-execution-scoring/B. The session rescore door:
+    // re-runs AI scorecard synthesis on a completed interview session holding a
+    // transcript that dropped or failed scoring. Operator-gated and throttled per
+    // session ID (10/10min). The 404 (session not found) and 409 (not unscored)
+    // answer before the limiter so a rejected call costs no budget.
+    rel: "./interview/sessions/[id]/rescore/route.ts",
+    key: "`interview-rescore:${id}`",
+    limit: 10,
+    optsSrc: "RESCORE_RATE_LIMIT",
+    optsDef: "const RESCORE_RATE_LIMIT = { limit: 10, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "finalizeCandidateInterviewScoring(",
+    servedBefore: "interviewScoringState(",
+  },
+  {
     rel: "./devcase/session/[id]/chat/route.ts",
     // Per-SESSION burst. 30/10min = one message per 20s sustained — roughly 2-3x the
     // fastest honest loop (generate ~3-10s, read the reply, type a follow-up), so a
