@@ -1168,7 +1168,7 @@ const ROUTES: RouteSpec[] = [
     refusalCode: "TOO_MANY_REQUESTS",
     // The go-live's FIRST spawning step; the rediscovery alert fan-out follows it. The
     // limiter also precedes the billing transaction, so a throttled call cannot debit.
-    expensive: "await runSourceForRole(role, {",
+    expensive: "await runGoLive(",
     // The 404 and the ownership gate keep their semantics ahead of the throttle.
     servedBefore: "canWriteJobLifecycle(id, ws)",
   },
