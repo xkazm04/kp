@@ -26,6 +26,57 @@ const sqlBlocks = [...src.matchAll(/`([^`]*)`/g)].map((m) => m[1]);
 // confined to failure_code, so the exemption cannot grow into a cross-tenant read.
 const NORMALISATION_MARKER = "one-time normalisation, deployment-wide by design";
 
+// What a marked (deployment-wide) statement may look like, as a pure function of its SQL
+// text so the bad shapes can be proven red below without touching the store. Returns the
+// violations; an empty list means the statement stays inside the exemption.
+//  - a SELECT projects a constant only (`SELECT 1`): a column list could read job or
+//    workspace identity across tenants;
+//  - an UPDATE's WHOLE assignment list, SET up to WHERE (or the end), is exactly
+//    [failure_code]: a first-column-only regex lets `SET failure_code = 'X', job_id = ?` by.
+function splitTopLevel(list: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let quote: string | null = null;
+  let cur = "";
+  for (const ch of list) {
+    if (quote) {
+      if (ch === quote) quote = null;
+    } else if (ch === "'" || ch === '"') {
+      quote = ch;
+    } else if (ch === "(" || ch === "{") {
+      depth++;
+    } else if (ch === ")" || ch === "}") {
+      depth--;
+    } else if (ch === "," && depth === 0) {
+      parts.push(cur);
+      cur = "";
+      continue;
+    }
+    cur += ch;
+  }
+  parts.push(cur);
+  return parts.map((p) => p.trim()).filter(Boolean);
+}
+
+function normalisationViolations(sql: string): string[] {
+  const violations: string[] = [];
+  if (!/failure_code/i.test(sql)) violations.push("does not mention failure_code");
+  if (/^\s*select\b/i.test(sql)) {
+    const projection = /^\s*select\s+([\s\S]*?)\s+from\b/i.exec(sql)?.[1] ?? "";
+    if (!/^(\d+|'[^']*')$/.test(projection)) {
+      violations.push(`SELECT projects "${projection}", not a constant`);
+    }
+  }
+  const set = /\bset\b([\s\S]*?)(?:\bwhere\b|$)/i.exec(sql);
+  if (set) {
+    const columns = splitTopLevel(set[1]).map((a) => /^([a-z_]+)\s*=/i.exec(a)?.[1].toLowerCase() ?? a);
+    if (columns.length !== 1 || columns[0] !== "failure_code") {
+      violations.push(`SET assigns [${columns.join(", ")}], not exactly [failure_code]`);
+    }
+  }
+  return violations;
+}
+
 test("every SELECT/UPDATE/INSERT on job_golive_receipts carries workspace_id", () => {
   const statements = sqlBlocks.filter(
     (s) => /\b(from|into|update)\s+job_golive_receipts\b/i.test(s) && !s.includes(NORMALISATION_MARKER)
@@ -51,14 +102,43 @@ test("the deployment-wide exemption is only the failure_code normalisation", () 
   for (const sql of exempt) {
     // Reads a constant, writes one non-identifying column: no candidate or job data
     // crosses a workspace boundary through either statement.
-    assert.ok(/failure_code/i.test(sql), `marked statement does not mention failure_code:\n${sql}`);
-    const setColumns = [...sql.matchAll(/\bset\s+([a-z_]+)\s*=/gi)].map((m) => m[1].toLowerCase());
-    assert.deepEqual(
-      setColumns.filter((c) => c !== "failure_code"),
-      [],
-      `marked statement writes a column other than failure_code:\n${sql}`
-    );
+    assert.deepEqual(normalisationViolations(sql), [], `marked statement leaves the exemption:\n${sql}`);
   }
+});
+
+test("the exemption check fails on each bad shape and passes the real statements", () => {
+  const MARK = `-- ${NORMALISATION_MARKER}`;
+  // red: a marked SELECT that projects columns still mentions failure_code
+  assert.equal(
+    normalisationViolations(`SELECT job_id, workspace_id FROM job_golive_receipts ${MARK}
+       WHERE failure_code IS NOT NULL LIMIT 1`).length,
+    1
+  );
+  // red: a second column after failure_code (the old first-column regex never saw it)
+  assert.equal(
+    normalisationViolations(`UPDATE job_golive_receipts ${MARK}
+       SET failure_code = 'X', job_id = ?
+       WHERE failure_code IS NOT NULL`).length,
+    1
+  );
+  // red: the same with no WHERE, so the list runs to the end of the statement
+  assert.equal(
+    normalisationViolations(`UPDATE job_golive_receipts ${MARK} SET failure_code = 'X', workspace_id = ?`).length,
+    1
+  );
+  // green: the two statements the store really carries
+  assert.deepEqual(
+    normalisationViolations(`SELECT 1 FROM job_golive_receipts ${MARK}
+       WHERE failure_code IS NOT NULL AND failure_code NOT IN (?, ?)
+       LIMIT 1`),
+    []
+  );
+  assert.deepEqual(
+    normalisationViolations(`UPDATE job_golive_receipts ${MARK}
+       SET failure_code = 'UNKNOWN'
+       WHERE failure_code IS NOT NULL AND failure_code NOT IN (?, ?)`),
+    []
+  );
 });
 
 test("job_golive_receipts holds the opening's counters only — no column names a person", () => {
