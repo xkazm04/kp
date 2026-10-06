@@ -3,7 +3,8 @@ import { getEntryWorkspace, getPipelineEntry, recordAutomationEvent, setApproval
 import { attachInterviewScorecard, type InterviewSession, type VoiceTurn } from "./db/interviews";
 import { sealDecisionSafe } from "./decision-record-store";
 import { sealableRubricDimensions } from "./interview-scorecard";
-import { DEFAULT_STAGE_AXIS, stageHasRole, type StageDef } from "./pipeline-stages";
+import { stageHasRole, type StageDef } from "./pipeline-stages";
+import { scorecardGateOpen } from "./interview-scorecard-gate";
 import { getPipelineAxis } from "./pipeline-axis-server";
 import {
   AUTOMATION_VERSION,
@@ -20,18 +21,7 @@ import { devCaseIdForEntry } from "./devcase-identity";
 import { getDevCase } from "./db/devcase";
 import { STUDENT_SCRIPT, type CaseInterviewScenario } from "./student-interview";
 
-/**
- * Predicate governing the scorecard gate: active, interview role, approval null|calendar.
- * Matches the human scorecard door rule in app/api/interview-prep/scorecard/route.ts.
- */
-export function scorecardGateOpen(
-  entry: { status: string; stage: string; approvalKind?: string | null },
-  stages: readonly StageDef[] = DEFAULT_STAGE_AXIS
-): boolean {
-  if (entry.status !== "active") return false;
-  if (!stageHasRole(entry.stage, "interview", stages)) return false;
-  return entry.approvalKind === null || entry.approvalKind === undefined || entry.approvalKind === "calendar";
-}
+export { scorecardGateOpen };
 
 /**
  * Synchronous and locked write half: attachInterviewScorecard CAS, re-reads entry,

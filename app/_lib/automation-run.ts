@@ -22,7 +22,7 @@ import { getPlanGateForRole } from "./interview-plan";
 import { readLiveArchetypes } from "./archetype-live";
 import { extendDraftedOffer } from "./pipeline-entry-action";
 import { sealDecisionSafe } from "./decision-record-store";
-import { scorecardGateOpen } from "./interview-scorecard-commit";
+import { scorecardGateOpen } from "./interview-scorecard-gate";
 import { resolveCommsLocale } from "./comms-locale";
 import { getWorkspaceDefaultLocale } from "./db/workspaces";
 import { isLocale, type Locale } from "@/i18n/locales";
