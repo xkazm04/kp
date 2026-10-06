@@ -151,7 +151,15 @@ export async function deliver(
   }
   // TWO instants, and the split is the point (see TIMESTAMP_HEADER):
   //   • `sentAt` — when the DELIVERY was created. Stable across the ladder, so attempt 4
-  //     is byte-identical to attempt 1 and a receiver can dedupe on the body alone.
+  //     is byte-identical to attempt 1 and a receiver can dedupe on the body alone —
+  //     FOR AS LONG AS THE ROW STILL HAS A DELIVERY TO MAKE. The body is rebuilt from
+  //     current entry state each attempt (`retryDueAtsDeliveries`), so byte-identity is
+  //     not an unconditional promise about the bytes: it holds while the TRANSITION the
+  //     event names still holds. When that transition is reverted — a reinstated reject,
+  //     a reopened decline — the freshness check below ends the row terminally instead
+  //     of sending a re-stated body under the first attempt's key (see
+  //     EVENT_REQUIRES_STATUS; ADR 0013). So a receiver sees either the same bytes again
+  //     or nothing again, never a contradicting third version of the same delivery.
   //   • `signedAt` — when THIS attempt left. It rides as X-Kp-Timestamp and is signed
   //     WITH the body, which is what makes a captured delivery unreplayable. Freezing it
   //     too would push every retry past the five-minute tolerance, i.e. sign deliveries
@@ -221,15 +229,55 @@ function toOutcome(result: DeliveryResult): { delivered: boolean; status?: numbe
     : { delivered: false, status: result.status, reason: result.reason, ...(result.terminal ? { terminal: true } : {}) };
 }
 
-/** The consent re-read for one PREPARED delivery, as a `FreshnessCheck`. It asks the same
- *  gate `getAtsRecordResult` asks — one validation door, not a second copy of the consent
- *  rules — and converts its answer into a refusal only:
+/** The subscribable events whose JUSTIFYING TRANSITION can be undone, mapped to the
+ *  `pipeline_entries.status` the entry must still hold for the event to still be true.
+ *
+ *  F-3. Every attempt rebuilds the record from CURRENT entry state (a mirror wants the
+ *  latest), and the freshness check gated consent and existence only — never the
+ *  transition that produced the event. So a candidate REINSTATED between attempt 1 and
+ *  attempt 2 (`reinstatePipelineEntry`, or a re-add that reopens a merit terminal —
+ *  db/pipeline.ts) was still POSTed as `candidate.rejected`, under the first attempt's
+ *  Idempotency-Key, carrying `pipeline.status: "active"`: the receiver is told to reject
+ *  somebody kp has put back in the funnel, and its own dedupe cannot help because the key
+ *  did not move. `offer.declined` is the same shape on the other merit terminal — a
+ *  re-add may reopen a `declined` entry too.
+ *
+ *  THE TWO SUBSCRIBABLE EVENTS DELIBERATELY NOT LISTED:
+ *    • `candidate.hired` — a hire is marked by the board's TERMINAL STAGE while the status
+ *      stays `active` (pipeline-status.ts header), so there is no status to re-assert. Its
+ *      reversal doors do exist in the code (`setEntryStage` off the terminal column, a
+ *      reject on a hired row), but asserting a stage ROLE means resolving each workspace's
+ *      stage axis at delivery time, and an axis that drops or renames its terminal column
+ *      would then dead-letter legitimate hires. A stage-role assertion is a follow-up with
+ *      its own decision to make, not part of this fix.
+ *    • `offer.accepted` — an offer's response is immutable once written: every transition
+ *      in offers-store CASes on `status = 'extended'` and nothing sets a responded offer
+ *      back, so there is no undo to catch.
+ *
+ *  Keyed by the event so an event added to ATS_EVENT_TYPES has to be considered here
+ *  rather than silently inheriting "irreversible". */
+const EVENT_REQUIRES_STATUS: Partial<Record<AtsEventType, string>> = {
+  "candidate.rejected": "rejected",
+  "offer.declined": "declined",
+};
+
+/** The authoritative re-read for one PREPARED delivery, as a `FreshnessCheck`. It asks the
+ *  same gate `getAtsRecordResult` asks — one validation door, not a second copy of the
+ *  consent rules — and converts its answer into a refusal only:
  *    • anonymized in the window → terminal (an erasure will not become mirrorable);
  *    • entry gone in the window → retryable;
  *    • consent EXPIRED in the window → retryable, because the prepared body carries PII the
  *      gate would now withhold, and the retry rebuilds it masked. The body is never swapped
- *      here: the receiver was promised these bytes under this idempotency key. */
-function consentStillPermits(
+ *      here: the receiver was promised these bytes under this idempotency key;
+ *    • the event's own TRANSITION reverted → terminal, because there is no longer anything
+ *      to mirror and a later attempt would re-state a decision kp has withdrawn
+ *      (EVENT_REQUIRES_STATUS, ADR 0013).
+ *
+ *  The order is load-bearing: a refusal and a vanished entry are answered first, so an
+ *  erased or deleted candidate keeps the exact outcome they had before the transition
+ *  re-assert existed. */
+function deliveryStillJustified(
+  event: AtsEventType,
   prepared: AtsCandidateRecord,
   entryId: string,
   workspaceId: string | undefined,
@@ -243,6 +291,20 @@ function consentStillPermits(
       return {
         ok: false,
         reason: `consent for pipeline entry ${entryId} expired while the delivery was being prepared — the prepared body over-discloses`,
+      };
+    }
+    // TERMINAL, not retryable: a reinstatement is a human decision kp has already acted
+    // on, so waiting cannot make this event true again. The reason names an entry id and
+    // two values from a closed status vocabulary — no candidate PII (ats-egress ledger
+    // reasons are operator-visible).
+    const requiredStatus = EVENT_REQUIRES_STATUS[event];
+    if (requiredStatus && record.pipeline.status !== requiredStatus) {
+      return {
+        ok: false,
+        terminal: true,
+        reason:
+          `pipeline entry ${entryId} is no longer "${requiredStatus}" (now "${record.pipeline.status}") — ` +
+          `the ${event} transition was reversed (reinstated or reopened), so it is not mirrored`,
       };
     }
     return { ok: true };
@@ -300,7 +362,7 @@ export async function dispatchAtsEvent(event: AtsEventType, entryId: string, wor
       event,
       record,
       { id: deliveryId, createdAt: openedAt.toISOString() },
-      consentStillPermits(record, entryId, tenant, openedAt.toISOString())
+      deliveryStillJustified(event, record, entryId, tenant, openedAt.toISOString())
     );
     if (!finalizeAtsDelivery(deliveryId, toOutcome(result), lease)) {
       console.error(`[ats] ${event} #${deliveryId}: outcome dropped, lease reclaimed`);
@@ -325,8 +387,10 @@ export async function dispatchAtsEvent(event: AtsEventType, entryId: string, wor
  *  retry budget). Called by the process clock each tick (instrumentation-node.ts,
  *  under the autonomy pause), by an operator via POST /api/ats/deliveries, or by an
  *  external cron on a timer. Re-builds the record from CURRENT entry state (a mirror
- *  wants the latest), so a since-deleted entry is finalized off the queue. Never
- *  throws per row.
+ *  wants the latest), so a since-deleted entry is finalized off the queue — and so a
+ *  since-REVERSED transition is too: the freshness check re-asserts the status the event
+ *  names, and a reinstated reject is dead-lettered rather than re-stated to the receiver
+ *  (EVENT_REQUIRES_STATUS, ADR 0013). Never throws per row.
  *
  *  Two sweeps can run at once (an operator pressing Retry while the cron fires), and both
  *  read the same due list. Each row is therefore CLAIMED before it is delivered — a
@@ -375,7 +439,7 @@ export async function retryDueAtsDeliveries(
         row.event,
         record,
         { id: row.id, createdAt: row.createdAt },
-        consentStillPermits(record, row.entryId, tenant, row.createdAt)
+        deliveryStillJustified(row.event, record, row.entryId, tenant, row.createdAt)
       );
       finalizeAtsDelivery(row.id, toOutcome(result), lease);
       if (result.delivered) delivered++;

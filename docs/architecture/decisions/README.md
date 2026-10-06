@@ -23,6 +23,7 @@ to be true for it to change?*
 - move the candidate voice interview onto the relay plane, or let the provider run it undirected → [0010](0010-candidate-interview-keeps-provider-brain-plus-director.md)
 - chain hiring stages together, add a human approval gate, or put candidate data in a run record → [0011](0011-one-role-runs-end-to-end.md)
 - add a second funnel, a second candidate board, or a per-population score → [0012](0012-need-role-slate-one-board.md)
+- change what an ATS delivery retry sends, or add a subscribable lifecycle event → [0013](0013-ats-mirror-retry-reasserts-its-transition.md)
 
 ## Index
 
@@ -40,6 +41,7 @@ to be true for it to change?*
 | [0010](0010-candidate-interview-keeps-provider-brain-plus-director.md) | The candidate interview keeps the provider brain and adds our director | accepted | 2026-09-18 |
 | [0011](0011-one-role-runs-end-to-end.md) | A role runs end to end as a ledger of stage artifacts; only person-affecting decisions gate | accepted | 2026-09-14 |
 | [0012](0012-need-role-slate-one-board.md) | A need composes a role; the role's slate is one board and one rubric | accepted | 2026-09-14 |
+| [0013](0013-ats-mirror-retry-reasserts-its-transition.md) | An ATS mirror retry re-asserts its transition; a reverted decision ends the row | accepted | 2026-10-06 |
 
 ## Writing a new one
 

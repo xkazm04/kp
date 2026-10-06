@@ -260,6 +260,19 @@ ping (`POST /api/ats/test`).
   before delivering — an operator pressing Retry while a cron POSTs the same route used to
   send the hire twice. `finalizeAtsDelivery` re-asserts the attempt count it read in the
   UPDATE's `WHERE` for the same reason.
+- **…and an attempt re-asserts the TRANSITION its event names** (ADR
+  [0013](../../architecture/decisions/0013-ats-mirror-retry-reasserts-its-transition.md)).
+  The body is rebuilt from current entry state each attempt, so byte-identity holds while
+  the transition holds, not unconditionally. `EVENT_REQUIRES_STATUS` (`ats-egress.ts`) maps
+  `candidate.rejected` → status `rejected` and `offer.declined` → status `declined`; when
+  the freshness re-read finds the entry no longer in that status — a reinstatement
+  (`reinstatePipelineEntry`) or a re-add that reopened the terminal — the row is
+  **dead-lettered terminally** and nothing is sent. Telling a receiver to reject a candidate
+  kp has put back in the funnel is the same lie as mirroring a decline that never
+  transitioned, and is refused for the same reason. An erasure still wins the race for the
+  reason the operator reads. `candidate.hired` (marked by terminal STAGE, status stays
+  `active`) and `offer.accepted` (an offer response is immutable) are deliberately not in
+  the table — the ADR says why for each.
 - **A claim is a lease, so a crash mid-POST cannot strand a hire.** Every attempt passes
   through `pending`, and before the lease only the process that entered `pending` could
   leave it: a deploy or crash during the awaited delivery left the row pending forever —
