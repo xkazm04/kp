@@ -8,6 +8,7 @@
 // closes) and the batch bar, exactly as the section it replaces did.
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { LoadingGap } from "@/app/_components/ui/LoadingGap";
 import { NOTICE } from "@/app/_components/ui/recipes";
 import { KitTipLayer } from "@/app/_components/kit/KitTipLayer";
 import { LevelTransition, layerModeAt } from "@/app/_components/kit/scene";
@@ -146,7 +147,7 @@ export function DocketSurface(p: Props) {
       ) : p.entries == null ? (
         // The queue's fetch is in flight and there is nothing to show yet: hold its rough height and
         // stay invisible for 150ms so a warm response never flashes a placeholder.
-        <div className="reveal-quiet min-h-[24rem]" aria-hidden />
+        <LoadingGap className="min-h-[24rem]" />
       ) : p.pending.length === 0 ? (
         <DecisionsEmptyHandoff
           title={t("caughtUpTitle")}
