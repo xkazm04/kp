@@ -5,13 +5,17 @@
 // is the instrument that PRODUCES a run to read, because no role has ever been run end to end
 // outside a test.
 //
-//   node --import ./scripts/test-alias-loader.mjs --experimental-transform-types --disable-warning=ExperimentalWarning scripts/kpi/role-demo-run.mjs [--job <id>] [--json] [--approve-gates]
+//   node --import ./scripts/test-alias-loader.mjs --experimental-transform-types --disable-warning=ExperimentalWarning scripts/kpi/role-demo-run.mjs [--job <id>] [--json] [--approve-gates | --approve-all]
 //
 //   --job <id>          which job to run (default job-001)
 //   --workspace <id>    which workspace's board (default: the default workspace)
 //   --json              the whole record: the reading, every stage produced, coverage, dwell, source
-//   --approve-gates     opt in: after each pass, approve every branch parked at a gate with a
-//                       labelled stand-in ("demo-stand-in"), then advance again — see below
+//   --approve-gates     opt in: after each pass, a labelled stand-in ("demo-stand-in") carries out
+//                       the engine's own recorded proposal at each parked gate — see below. The
+//                       only mode whose reading can count for goal 1
+//   --approve-all       MECHANICS ONLY: the stand-in approves every parked branch with no policy.
+//                       Reports the stages reached per branch; its goal-1 verdict is withheld,
+//                       never "met"
 //
 // WHAT RUNS. getOrCreateRoleRun with a fresh cycle ("demo-<timestamp>", so an existing run is
 // never resumed), then advanceRoleRun with DEFAULT_STAGE_RUNNERS and nothing else — no runner
@@ -23,15 +27,29 @@
 // --approve-gates. The three Art. 22 gates are allowed steps for goal 1 (ADR-0011 amendment
 // 2026-10-06), but a run that is never approved stops at the rejection gate and says nothing
 // about stages 3 to 6. With the flag, the CHILD half — the temp copy, never the real database —
-// resolves each branch the pass listed as `awaiting` through commitRoleRunStageGate, decision
-// "approved", approver "demo-stand-in", with a token minted over that branch's own subject ref
+// resolves each branch the pass listed as `awaiting` through commitRoleRunStageGate, with
+// approver "demo-stand-in" and a token minted over that branch's own subject ref
 // (roleRunGateToken, the same call the engine's tests make), then advances again, until a pass
-// produces nothing and approves nothing, the run stops running, or MAX_PASSES. Policy versions:
-// the rejection gate's is the one the screen artifact itself recorded; the engine records none
-// for the invite and offer gates, so those use the labels its tests sign with ("invite-1",
-// "offer-1") — nothing is invented. Every reading says the gates were approved by the stand-in,
-// not a person, and counts the approvals per gate. No stage runner is stubbed or overridden: a
-// default runner that throws is the finding, and the reading names the stage and the error.
+// produces nothing and resolves nothing, the run stops running, or MAX_PASSES.
+//
+// WHAT THE STAND-IN DECIDES is standInDecision in role-demo-run-reading.mjs, a stated policy,
+// not "approve everything": it carries out the engine's recorded proposal and adds no judgment.
+// It reads each branch's screen route and scorecard recommendation off the ledger and
+// approves, declines (decision "declined") or LEAVES the branch parked. A hold is never decided
+// — the fairness rule reserves it for a person — so a held branch stays parked and the
+// reading counts it as held. An offer with no positive scorecard is declined. Every reading
+// shows per gate the approved / declined / left counts and each decline and leave reason.
+// Goal 1 reads "met" only when an offer was approved on that recorded basis.
+//
+// --approve-all is the OLD behaviour, kept for mechanics: it approves every parked branch with
+// no policy, so a below-floor candidate walks on to an offer on no assessment. It reports the
+// stages reached per branch and its goal-1 verdict is WITHHELD, never "met".
+//
+// Policy versions (both flags): the rejection gate's is the one the screen artifact itself
+// recorded; the engine records none for the invite and offer gates, so those use the labels
+// its tests sign with ("invite-1", "offer-1") — nothing is invented. No stage runner is
+// stubbed or overridden: a default runner that throws is the finding, and the reading names
+// the stage and the error.
 //
 // READ-ONLY, AND IT MEANS IT — the same protocol as thread-autonomy.mjs. The source database
 // is resolved as KP_DB_PATH, else data/kp.sqlite, and is NEVER opened or migrated: the file
@@ -50,13 +68,33 @@ import { copyFileSync, existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { STAND_IN_APPROVER, formatCoverage, formatGateCounts, goalOneHeadline, standInLine, stagesReached, stoppedAt, summarizeRoleDemoRun } from "./role-demo-run-reading.mjs";
+import {
+  STAND_IN_APPROVER,
+  branchesByFurthest,
+  formatCoverage,
+  formatGateCounts,
+  formatStandInTally,
+  furthestPerBranch,
+  goalOneHeadline,
+  scorecardRecommendationOf,
+  screenRouteOf,
+  stagesReached,
+  standInDecision,
+  stoppedAt,
+  summarizeRoleDemoRun,
+  tallyStandIn,
+} from "./role-demo-run-reading.mjs";
 
 const SELF = fileURLToPath(import.meta.url);
 const REPO_ROOT = path.resolve(path.dirname(SELF), "..", "..");
 const args = process.argv.slice(2);
 const asJson = args.includes("--json");
-const approveGates = args.includes("--approve-gates");
+if (args.includes("--approve-gates") && args.includes("--approve-all")) {
+  console.error("--approve-gates and --approve-all are different stand-ins; pick one");
+  process.exit(2);
+}
+/** null: nobody passes gates; "policy": --approve-gates; "all": --approve-all (mechanics only). */
+const standInMode = args.includes("--approve-gates") ? "policy" : args.includes("--approve-all") ? "all" : null;
 const MAX_PASSES = 20;
 const RESULT_MARK = "KP_ROLE_DEMO_RESULT ";
 
@@ -90,19 +128,34 @@ if (args.includes("--run-copy")) {
   let status = run.status;
   let passes = 0;
   let failure = null;
-  // Stand-in approvals per gate; only ever non-zero under --approve-gates.
-  const standIn = Object.fromEntries(ROLE_RUN_GATES.map((g) => [g, 0]));
+  // Every decision the stand-in took, in order: { gate, branchRef, action, reason }. Empty
+  // unless a stand-in flag is on.
+  const standInDecisions = [];
+  // A branch the policy left parked shows up in every later pass's `awaiting`; it is decided
+  // (and counted) once.
+  const decidedLeft = new Set();
   // The invite and offer gates have no policy version in the ledger — the engine records one
   // only on the screen — so they sign with the labels the engine's own tests use.
   const FALLBACK_POLICY = { interview_invite: "invite-1", offer: "offer-1" };
 
-  /** Approve every branch the pass left parked; returns how many were approved. */
-  const approveAwaiting = (awaiting) => {
-    let approved = 0;
+  /** Pass the stand-in's gates for the branches the pass left parked; returns how many it
+   *  RESOLVED (approved or declined) — a branch it leaves resolves nothing. */
+  const resolveAwaiting = (awaiting) => {
+    let resolved = 0;
     for (const { branchRef, gate } of awaiting) {
-      const parked = listStageArtifacts(run.id, ws)
-        .filter((a) => a.kind === GATE_STAGE[gate] && a.branchRef === branchRef)
-        .sort((a, b) => b.seq - a.seq)[0];
+      const key = `${gate}|${branchRef}`;
+      if (decidedLeft.has(key)) continue;
+      const artifacts = listStageArtifacts(run.id, ws);
+      const decision =
+        standInMode === "all"
+          ? { action: "approve", reason: "approve-all: no policy" }
+          : standInDecision({ gate, screenRoute: screenRouteOf(artifacts, branchRef), scorecardRecommendation: scorecardRecommendationOf(artifacts, branchRef) });
+      if (decision.action === "leave") {
+        decidedLeft.add(key);
+        standInDecisions.push({ gate, branchRef, ...decision });
+        continue;
+      }
+      const parked = artifacts.filter((a) => a.kind === GATE_STAGE[gate] && a.branchRef === branchRef).sort((a, b) => b.seq - a.seq)[0];
       const recorded = parked?.payload?.policyVersion;
       const policyVersion = typeof recorded === "string" && recorded ? recorded : FALLBACK_POLICY[gate];
       if (!policyVersion) throw new Error(`no live policy version for the ${gate} gate`);
@@ -112,7 +165,7 @@ if (args.includes("--run-copy")) {
           runId: run.id,
           branchRef,
           gate,
-          decision: "approved",
+          decision: decision.action === "approve" ? "approved" : "declined",
           policyVersion,
           subjectRefs: [branchRef],
           token: roleRunGateToken(run.id, gate, policyVersion, [branchRef], now),
@@ -121,10 +174,10 @@ if (args.includes("--run-copy")) {
         },
         ws
       );
-      standIn[gate] += 1;
-      approved += 1;
+      standInDecisions.push({ gate, branchRef, ...decision });
+      resolved += 1;
     }
-    return approved;
+    return resolved;
   };
 
   /** The stage a throw most likely came from, read off the ledger: the run-wide stage still
@@ -150,12 +203,12 @@ if (args.includes("--run-copy")) {
       // or the network surfaces as a throw here, and the reading says so instead of stubbing it.
       const result = await advanceRoleRun(run.id, { runners: DEFAULT_STAGE_RUNNERS }, ws);
       status = result.status;
-      const approvedNow = approveGates ? approveAwaiting(result.awaiting) : 0;
-      if (result.produced.length === 0 && approvedNow === 0) break;
+      const resolvedNow = standInMode ? resolveAwaiting(result.awaiting) : 0;
+      if (result.produced.length === 0 && resolvedNow === 0) break;
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    const stage = approveGates ? stageOwedAfterThrow() : null;
+    const stage = standInMode ? stageOwedAfterThrow() : null;
     failure = `engine threw after ${passes} pass${passes === 1 ? "" : "es"}${stage ? ` at the ${stage} stage (inferred from the ledger)` : ""}: ${message}`;
   }
   const artifacts = listStageArtifacts(run.id, ws);
@@ -172,7 +225,7 @@ if (args.includes("--run-copy")) {
         coverage: roleRunCoverage(artifacts),
         dwell: gateDwell(artifacts),
         goalOne: roleRunGoalOneSteps(artifacts),
-        ...(approveGates ? { standIn } : {}),
+        ...(standInMode ? { standInDecisions } : {}),
       })
   );
   process.exit(0);
@@ -226,18 +279,24 @@ const reading = summarizeRoleDemoRun({
   failure: record.failure ?? (record.capped ? `run still running after ${MAX_PASSES} passes` : null),
 });
 
-const standIn = approveGates ? record.standIn : null;
+const standIn = standInMode ? { mode: standInMode, tally: tallyStandIn(record.standInDecisions) } : null;
 
 if (asJson) {
   const standInFields = standIn
-    ? { approvedBy: STAND_IN_APPROVER, standInApprovals: standIn, stagesReached: stagesReached(record.artifacts), stoppedAt: stoppedAt({ runStatus: record.status, parkedByGate: reading.parkedByGate, failure: record.failure, capped: record.capped }) }
+    ? { approvedBy: STAND_IN_APPROVER, standInMode: standIn.mode, mechanicsOnly: standIn.mode === "all", standInTally: standIn.tally, standInDecisions: record.standInDecisions, stagesReached: stagesReached(record.artifacts), furthestPerBranch: furthestPerBranch(record.artifacts), stoppedAt: stoppedAt({ runStatus: record.status, parkedByGate: reading.parkedByGate, failure: record.failure, capped: record.capped }) }
     : {};
   console.log(JSON.stringify({ ...reading, run: record.run, status: record.status, passes: record.passes, coverage: record.coverage, dwell: record.dwell, goalOne: record.goalOne, goalOneHeadline: goalOneHeadline(record.goalOne, reading, standIn), ...standInFields, artifacts: record.artifacts, source: { db: sourceDb } }, null, 2));
   process.exit(0);
 }
 
 const rel = path.relative(REPO_ROOT, sourceDb);
-console.log(approveGates ? "Role demo run — default runners, gates approved by the demo stand-in (not a person), on a copy" : "Role demo run — default runners, no human step, on a copy");
+console.log(
+  standInMode === "all"
+    ? "Role demo run — MECHANICS ONLY: default runners, every gate approved by the demo stand-in with no policy (not a person), on a copy"
+    : standInMode === "policy"
+      ? "Role demo run — default runners, gates passed by the demo stand-in under its policy (not a person), on a copy"
+      : "Role demo run — default runners, no human step, on a copy"
+);
 console.log(`  source: ${rel.startsWith("..") ? sourceDb : rel} (read from a copy; the run was deleted with it)`);
 console.log(`  job: ${record.run.jobId} · workspace: ${record.run.workspaceId} · cycle: ${record.run.cycle}`);
 console.log(`  passes: ${record.passes} · final run status: ${record.status}`);
@@ -269,7 +328,9 @@ console.log(`  open gates: ${formatGateCounts(goalOne.openGates)}`);
 console.log(`  ${reading.headline}`);
 console.log(`  ${goalOneHeadline(goalOne, reading, standIn)}`);
 if (standIn) {
-  console.log(`  ${standInLine(standIn)}`);
+  console.log(`  gates passed by the demo stand-in, not a person${standIn.mode === "all" ? " (--approve-all: NO policy, mechanics only)" : ""}:`);
+  for (const line of formatStandInTally(standIn.tally)) console.log(`    ${line}`);
   console.log(`  stages reached: ${stagesReached(record.artifacts).map((s) => `${s.kind} ${s.chains}`).join(" · ") || "none"}`);
+  console.log(`  furthest stage per branch: ${branchesByFurthest(record.artifacts).map((r) => `${r.kind} ${r.branches}`).join(" · ") || "none"}`);
   console.log(`  stopped: ${stoppedAt({ runStatus: record.status, parkedByGate: reading.parkedByGate, failure: record.failure, capped: record.capped })}`);
 }

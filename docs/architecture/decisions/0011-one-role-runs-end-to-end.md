@@ -279,3 +279,25 @@ sent. An approval that arrives after the effect is not an approval, and
   every reading — the headline says the gates were approved by the demo stand-in,
   not a person, with the count per gate — and it never approves anything in a real
   database.
+- **2026-10-06 — the stand-in follows a stated policy, and only a policy reading counts
+  for goal 1.** The first stand-in (`--approve-gates`, d9fd41f5) approved every parked
+  gate, and the engine treats an approved `hold` screen as proceed
+  (`commitRoleRunStageGate`), while the scorecard stage always writes `unrated` because
+  no interview session exists. So 20 of 20 branches reached an approved offer, below-floor
+  scores included, on no assessment, and goal 1 read `met` on a false basis. The ruling:
+  the stand-in carries out the engine's own recorded proposal and adds no judgment of its
+  own (`standInDecision` in `scripts/kpi/role-demo-run-reading.mjs`). At the rejection gate
+  `advance` and `reject_proposed` are approved (approving the proposal is what the engine
+  defines) and `hold` is **left parked** — the stand-in never decides a hold, because the
+  fairness rule reserves that judgment for a person. The invite is approved only after an
+  `advance` screen, else left. The offer is approved only on a positive scorecard
+  recommendation and **declined** otherwise (`unrated`, a negative value, or no card), with
+  the reason recorded. Every reading shows approved / declined / left per gate with each
+  reason and its count, and goal 1 reads `met` only when an offer was approved on that
+  basis; otherwise it names what stopped the run. The old approve-everything behaviour
+  survives as `--approve-all`, labelled mechanics only: it reports the stages each branch
+  reached and its goal-1 verdict is withheld, never `met`. So only `--approve-gates`
+  readings count for goal 1. The invite and offer gates still sign with the engine tests'
+  policy labels (`invite-1`, `offer-1`), because the engine records no policy version for
+  them. The first honest reading therefore names the real gap: the interview stage
+  produces no rated scorecard, so no offer has a basis. `roleRunGoalOneSteps` is unchanged.

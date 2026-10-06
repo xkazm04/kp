@@ -8,7 +8,24 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { GATE_OF_STAGE, STAGE_ORDER, STAND_IN_APPROVER, formatCoverage, formatGateCounts, goalOneHeadline, standInLine, stagesReached, stoppedAt, summarizeRoleDemoRun } from "../role-demo-run-reading.mjs";
+import {
+  GATE_OF_STAGE,
+  STAGE_ORDER,
+  STAND_IN_APPROVER,
+  branchesByFurthest,
+  formatCoverage,
+  formatGateCounts,
+  formatStandInTally,
+  furthestPerBranch,
+  goalOneHeadline,
+  scorecardRecommendationOf,
+  screenRouteOf,
+  stagesReached,
+  standInDecision,
+  stoppedAt,
+  summarizeRoleDemoRun,
+  tallyStandIn,
+} from "../role-demo-run-reading.mjs";
 
 let seq = 0;
 const art = (kind, branchRef, status, payload) => ({ kind, branchRef, status, seq: ++seq, payload });
@@ -114,29 +131,199 @@ test("a run that could not be read keeps its own cause over the goal-1 verdict",
   assert.equal(goalOneHeadline({ verdict: "not met", reason: "no branch reached a resolved offer gate" }, unread), "not measured: run cancelled (job_not_found)");
 });
 
-// ---- --approve-gates: a reading that says who approved the gates -----------------------
+// ---- the stand-in's policy: one test per row -------------------------------------------
 
-test("a met verdict with stand-in approvals says the gates were approved by the demo stand-in", () => {
-  assert.equal(goalOneHeadline({ verdict: "met", reason: null }, { measured: true, headline: "reached offer_draft; 0 branches parked at gates" }, { rejection: 20, interview_invite: 4, offer: 1 }), "goal 1: met (gates approved by demo stand-in)");
-  assert.equal(standInLine({ rejection: 20, interview_invite: 4, offer: 1 }), "gates approved by the demo stand-in, not a person: rejection 20 · interview_invite 4 · offer 1");
+test("rejection gate: a hold is LEFT — the stand-in never decides a hold", () => {
+  const d = standInDecision({ gate: "rejection", screenRoute: "hold" });
+  assert.equal(d.action, "leave");
+  assert.equal(d.reason, "score below floor");
+});
+
+test("rejection gate: an advance is approved", () => {
+  assert.equal(standInDecision({ gate: "rejection", screenRoute: "advance" }).action, "approve");
+});
+
+test("rejection gate: a proposed rejection is approved — approving the proposal is what the engine defines", () => {
+  assert.equal(standInDecision({ gate: "rejection", screenRoute: "reject_proposed" }).action, "approve");
+});
+
+test("rejection gate: no recorded route is left, never guessed", () => {
+  assert.equal(standInDecision({ gate: "rejection", screenRoute: null }).action, "leave");
+  assert.equal(standInDecision({ gate: "rejection" }).action, "leave");
+});
+
+test("interview invite: approved only after an advance, left after anything else", () => {
+  assert.equal(standInDecision({ gate: "interview_invite", screenRoute: "advance" }).action, "approve");
+  for (const route of ["hold", "reject_proposed", null]) {
+    assert.equal(standInDecision({ gate: "interview_invite", screenRoute: route }).action, "leave", String(route));
+  }
+});
+
+test("offer gate: an unrated scorecard is declined with the interview-session reason", () => {
+  assert.deepEqual(standInDecision({ gate: "offer", scorecardRecommendation: "unrated" }), { action: "decline", reason: "scorecard unrated: no interview session" });
+});
+
+test("offer gate: a positive scorecard is approved", () => {
+  assert.equal(standInDecision({ gate: "offer", scorecardRecommendation: "advance" }).action, "approve");
+});
+
+test("offer gate: a negative value or a missing card is declined, with the actual value", () => {
+  assert.deepEqual(standInDecision({ gate: "offer", scorecardRecommendation: "reject" }), { action: "decline", reason: "scorecard recommendation: reject" });
+  assert.equal(standInDecision({ gate: "offer", scorecardRecommendation: "hold" }).action, "decline");
+  assert.deepEqual(standInDecision({ gate: "offer", scorecardRecommendation: null }), { action: "decline", reason: "no scorecard card recorded" });
+  assert.equal(standInDecision({ gate: "offer" }).action, "decline");
+});
+
+test("the stand-in never declines at the rejection gate and never approves a hold, whatever the inputs", () => {
+  for (const screenRoute of ["advance", "hold", "reject_proposed", null, "weird"]) {
+    for (const scorecardRecommendation of ["advance", "unrated", "reject", null]) {
+      const d = standInDecision({ gate: "rejection", screenRoute, scorecardRecommendation });
+      assert.notEqual(d.action, "decline");
+      if (screenRoute === "hold") assert.equal(d.action, "leave");
+    }
+  }
+});
+
+test("the positive value the policy waits for is a value the interview vocabulary has", () => {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+  const src = readFileSync(path.join(root, "app/_lib/interview-recommendation.ts"), "utf8");
+  assert.match(src, /INTERVIEW_RECOMMENDATIONS = \["advance", "hold", "reject"\]/);
+});
+
+// ---- reading the policy's inputs off the ledger ------------------------------------------
+
+test("the screen route is read off the branch's own screen rows, a proposed rejection outranking a hold", () => {
+  const rows = [
+    art("screen", "a", "awaiting_approval", { decisions: [{ entryId: "a", route: "hold" }] }),
+    art("screen", "b", "awaiting_approval", { decisions: [{ entryId: "b", route: "advance" }] }),
+    art("screen", "b", "complete", { decisions: [{ entryId: "b", route: "advance" }], gate: "rejection", decision: "approved" }),
+    art("screen", "c", "awaiting_approval", { decisions: [{ route: "advance" }, { route: "reject_proposed" }, { route: "hold" }] }),
+  ];
+  assert.equal(screenRouteOf(rows, "a"), "hold");
+  assert.equal(screenRouteOf(rows, "b"), "advance");
+  assert.equal(screenRouteOf(rows, "c"), "reject_proposed");
+  assert.equal(screenRouteOf(rows, "nobody"), null);
+});
+
+test("the scorecard recommendation is the branch's own latest complete card, else null", () => {
+  const rows = [
+    art("scorecard", "a", "complete", { cards: [{ entryId: "a", recommendation: "unrated" }] }),
+    art("scorecard", "b", "complete", { cards: [{ entryId: "b", recommendation: "unrated" }] }),
+    art("scorecard", "b", "complete", { cards: [{ entryId: "b", recommendation: "advance" }] }),
+    art("scorecard", "c", "complete", { cards: [{ entryId: "someone-else", recommendation: "advance" }] }),
+    art("scorecard", "d", "awaiting_approval", { cards: [{ entryId: "d", recommendation: "advance" }] }),
+  ];
+  assert.equal(scorecardRecommendationOf(rows, "a"), "unrated");
+  assert.equal(scorecardRecommendationOf(rows, "b"), "advance");
+  assert.equal(scorecardRecommendationOf(rows, "c"), null);
+  assert.equal(scorecardRecommendationOf(rows, "d"), null);
+  assert.equal(scorecardRecommendationOf(rows, "e"), null);
+});
+
+// ---- the tally, and the goal-1 headline it feeds ------------------------------------------
+
+const d = (gate, action, reason) => ({ gate, action, reason });
+const repeat = (n, x) => Array.from({ length: n }, () => x);
+
+test("the tally counts approved / declined / left per gate, with each reason and its count", () => {
+  const tally = tallyStandIn([
+    ...repeat(4, d("rejection", "approve", "screen routed advance")),
+    ...repeat(16, d("rejection", "leave", "score below floor")),
+    ...repeat(4, d("interview_invite", "approve", "screen routed advance")),
+    ...repeat(4, d("offer", "decline", "scorecard unrated: no interview session")),
+  ]);
+  assert.deepEqual(tally.byGate, {
+    rejection: { approved: 4, declined: 0, left: 16 },
+    interview_invite: { approved: 4, declined: 0, left: 0 },
+    offer: { approved: 0, declined: 4, left: 0 },
+  });
+  assert.deepEqual(tally.reasons, [
+    { action: "leave", gate: "rejection", reason: "score below floor", count: 16 },
+    { action: "decline", gate: "offer", reason: "scorecard unrated: no interview session", count: 4 },
+  ]);
+  assert.deepEqual(formatStandInTally(tally), [
+    "rejection: approved 4 · declined 0 · left 16",
+    "interview_invite: approved 4 · declined 0 · left 0",
+    "offer: approved 0 · declined 4 · left 0",
+    "left at rejection ×16: score below floor",
+    "declined at offer ×4: scorecard unrated: no interview session",
+  ]);
+});
+
+test("an empty tally still shows every gate at zero", () => {
+  assert.deepEqual(tallyStandIn([]).byGate, { rejection: { approved: 0, declined: 0, left: 0 }, interview_invite: { approved: 0, declined: 0, left: 0 }, offer: { approved: 0, declined: 0, left: 0 } });
+});
+
+const policy = (decisions) => ({ mode: "policy", tally: tallyStandIn(decisions) });
+
+test("a policy run that approved no offer names what stopped it", () => {
+  const standIn = policy([
+    ...repeat(4, d("rejection", "approve", "screen routed advance")),
+    ...repeat(16, d("rejection", "leave", "score below floor")),
+    ...repeat(4, d("interview_invite", "approve", "screen routed advance")),
+    ...repeat(4, d("offer", "decline", "scorecard unrated: no interview session")),
+  ]);
+  const reason = "stopped at the rejection gate: 16 awaiting approval (an allowed step)";
+  assert.equal(
+    goalOneHeadline({ verdict: "not met", reason, humanStepsOutsideGates: 0 }, measured, standIn),
+    "goal 1: not met: 0 offers approved; 4 offers declined (scorecard unrated: no interview session); 16 held for a person at the rejection gate (gates approved by demo stand-in)"
+  );
+});
+
+test("a policy run reads 'met' only when the ledger says met AND an offer was approved on the policy", () => {
+  const approved = policy([d("rejection", "approve", "x"), d("interview_invite", "approve", "x"), d("offer", "approve", "scorecard recommendation: advance")]);
+  assert.equal(goalOneHeadline({ verdict: "met", reason: null }, measured, approved), "goal 1: met: 1 offer approved on a recorded basis (gates approved by demo stand-in)");
+  // a ledger 'met' with no stand-in offer approval behind it is not taken on trust
+  const none = policy([d("rejection", "approve", "x")]);
+  assert.match(goalOneHeadline({ verdict: "met", reason: null }, measured, none), /^goal 1: not met: 0 offers approved/);
+});
+
+test("a policy run with nothing declined or held falls back to the ledger's own reason", () => {
+  assert.equal(
+    goalOneHeadline({ verdict: "not met", reason: "no branch reached a resolved offer gate" }, measured, policy([])),
+    "goal 1: not met: 0 offers approved; no branch reached a resolved offer gate (gates approved by demo stand-in)"
+  );
+});
+
+test("a human step outside the gates is still named in a policy run's headline", () => {
+  const headline = goalOneHeadline({ verdict: "not met", reason: "2 human steps outside the gates", humanStepsOutsideGates: 2 }, measured, policy([d("offer", "approve", "x")]));
+  assert.match(headline, /2 human steps outside the gates/);
+});
+
+test("the --approve-all headline is never 'met', whatever the ledger says", () => {
+  const all = { mode: "all", tally: tallyStandIn([d("rejection", "approve", "approve-all: no policy"), d("interview_invite", "approve", "approve-all: no policy"), d("offer", "approve", "approve-all: no policy")]) };
+  const expected = "goal 1: verdict withheld: the stand-in approved without a policy (--approve-all, mechanics only)";
+  for (const verdict of ["met", "not met", "not measured"]) {
+    const headline = goalOneHeadline({ verdict, reason: verdict === "met" ? null : "x" }, measured, all);
+    assert.equal(headline, expected);
+    assert.doesNotMatch(headline, /: met\b/);
+  }
+});
+
+test("a run that could not be read keeps its cause under either stand-in", () => {
+  const unread = summarizeRoleDemoRun({ runStatus: "running", artifacts: [spec()], failure: "engine threw after 2 passes at the slate stage (inferred from the ledger): needs a key" });
+  const cause = "not measured: engine threw after 2 passes at the slate stage (inferred from the ledger): needs a key";
+  assert.equal(goalOneHeadline({ verdict: "not met", reason: "x" }, unread, policy([])), cause);
+  assert.equal(goalOneHeadline({ verdict: "met", reason: null }, unread, { mode: "all", tally: tallyStandIn([]) }), cause);
+});
+
+test("without a stand-in the headline carries no stand-in wording", () => {
+  assert.equal(goalOneHeadline({ verdict: "met", reason: null }, measured), "goal 1: met");
+  assert.equal(goalOneHeadline({ verdict: "met", reason: null }, measured, null), "goal 1: met");
   assert.equal(STAND_IN_APPROVER, "demo-stand-in");
 });
 
-test("a run stopped at a later gate says so, and still names the stand-in", () => {
-  const reason = "stopped at the interview_invite gate: 3 awaiting approval (an allowed step)";
-  const headline = goalOneHeadline({ verdict: "not met", reason }, measured, { rejection: 20, interview_invite: 0, offer: 0 });
-  assert.equal(headline, `goal 1: not met: ${reason} (gates approved by demo stand-in)`);
-  assert.equal(standInLine({ rejection: 20, interview_invite: 0, offer: 0 }), "gates approved by the demo stand-in, not a person: rejection 20 · interview_invite 0 · offer 0");
-});
-
-test("without the flag the headline carries no stand-in wording", () => {
-  assert.equal(goalOneHeadline({ verdict: "met", reason: null }, measured), "goal 1: met");
-  assert.equal(goalOneHeadline({ verdict: "met", reason: null }, measured, null), "goal 1: met");
-});
-
-test("a run that could not be read keeps its cause even with the stand-in on", () => {
-  const unread = summarizeRoleDemoRun({ runStatus: "running", artifacts: [spec()], failure: "engine threw after 2 passes at the slate stage (inferred from the ledger): needs a key" });
-  assert.equal(goalOneHeadline({ verdict: "not met", reason: "x" }, unread, { rejection: 0, interview_invite: 0, offer: 0 }), "not measured: engine threw after 2 passes at the slate stage (inferred from the ledger): needs a key");
+test("--approve-all reports the stages each branch reached", () => {
+  const rows = [spec(), slate("a", "b", "c"), art("screen", "a", "terminal"), art("screen", "b", "complete"), art("case_assignment", "b", "complete"), art("interview", "b", "complete"), art("scorecard", "b", "complete"), art("offer_draft", "b", "complete"), art("screen", "c", "awaiting_approval")];
+  assert.deepEqual(furthestPerBranch(rows), [
+    { branchRef: "a", furthest: "screen" },
+    { branchRef: "b", furthest: "offer_draft" },
+    { branchRef: "c", furthest: "screen" },
+  ]);
+  assert.deepEqual(branchesByFurthest(rows), [
+    { kind: "screen", branches: 2 },
+    { kind: "offer_draft", branches: 1 },
+  ]);
 });
 
 test("stages reached count chains per stage in ladder order", () => {
