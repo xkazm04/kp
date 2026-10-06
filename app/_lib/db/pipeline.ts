@@ -876,7 +876,10 @@ export function listCandidatePlacements(
  *  honest and they resurface as rediscovery silver medalists), records a `role_closed`
  *  event per entry for the timeline, and returns how many were withdrawn. The Hired entry
  *  (the candidate the role was filled with) keeps status 'active' and is left untouched.
- *  Atomic: the select + per-row update + event all run in one synchronous transaction. */
+ *  Atomic: the select + per-row update + event all run in one synchronous IMMEDIATE
+ *  transaction — the write lock is taken at BEGIN, so the rows the SELECT reads are
+ *  the rows the loop writes (see the note inside the loop for why the UPDATE still
+ *  re-asserts what it read). */
 export function closeEntriesByJobId(jobId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): number {
   const db = ensureDb();
   const now = new Date().toISOString();
@@ -896,9 +899,22 @@ export function closeEntriesByJobId(jobId: string, workspaceId: string = DEFAULT
     let withdrawn = 0;
     for (const r of rows) {
       // The UPDATE re-asserts BOTH predicates the SELECT filtered on — `status='active'`
-      // AND `stage != <terminal>` — because the transaction is DEFERRED: the write lock
-      // is taken at the first write, not at BEGIN, so anything the SELECT read can move
-      // under the loop.
+      // AND `stage != <terminal>`. The transaction is IMMEDIATE (below), so on the
+      // main handle nothing can move between the SELECT and this write; the re-assert
+      // is the second layer, and it is what makes a lost race a silent no-op rather
+      // than a wrong row — it also holds if a caller ever nests this inside an outer
+      // transaction, where better-sqlite3 turns the inner call into a SAVEPOINT and
+      // the `.immediate()` mode is ignored.
+      //
+      // Why IMMEDIATE and not just the guard: this function shipped DEFERRED, and a
+      // DEFERRED read→write does NOT degrade to a no-op when another connection commits
+      // between the SELECT and the UPDATE — SQLite refuses the lock upgrade with
+      // SQLITE_BUSY_SNAPSHOT, which busy_timeout never retries, so the whole close
+      // rolled back and the route answered withdrawalFailed. Several isolated stores
+      // (offers, schedule, scheduler, sim, decision records) write pipeline_entries on
+      // their own connections, so that was a live path, not a theory. With the lock
+      // held from BEGIN the other writer waits its busy_timeout instead, and the count
+      // this returns is exact. pipeline-close-guard.test.ts runs both shapes.
       //
       // The status half is the same guard reopenEntriesByJobId carries: without it a
       // human merit reject landing on another connection mid-window was overwritten back
@@ -933,7 +949,7 @@ export function closeEntriesByJobId(jobId: string, workspaceId: string = DEFAULT
     }
     return withdrawn;
   });
-  return tx();
+  return tx.immediate();
 }
 
 /** Explicit inverse of closeEntriesByJobId (JOB2) — the reopen transition for a
@@ -957,7 +973,12 @@ export function closeEntriesByJobId(jobId: string, workspaceId: string = DEFAULT
  *  human's merit reject). The close never touched `stage` (only `status`), so
  *  restoring `status` alone returns each candidate to their exact pre-close stage.
  *  The `AND status='role_closed'` guard on the UPDATE makes a lost race to a
- *  concurrent writer a no-op (no double-restore, no spurious event). */
+ *  concurrent writer a no-op (no double-restore, no spurious event). The transaction
+ *  is IMMEDIATE for the same reason close's is: DEFERRED, a concurrent commit on
+ *  another connection between the SELECT and the first UPDATE is a
+ *  SQLITE_BUSY_SNAPSHOT abort of the whole reopen — and publish had already flipped
+ *  the role live, so the entries stayed stranded in `role_closed` on a live role.
+ *  Holding the write lock from BEGIN turns that abort into a wait. */
 export function reopenEntriesByJobId(jobId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): number {
   const db = ensureDb();
   const now = new Date().toISOString();
@@ -988,7 +1009,7 @@ export function reopenEntriesByJobId(jobId: string, workspaceId: string = DEFAUL
     }
     return restored;
   });
-  return tx();
+  return tx.immediate();
 }
 
 // Prior pipeline outcomes per candidate — used by talent rediscovery to spot

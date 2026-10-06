@@ -1323,6 +1323,33 @@ re-checks"; `updateIntakeDialog` in `intakes.ts` is the same shape for the same
 reason. Pinned behaviorally (a stale base is still a conflict) and at the source
 by `app/_lib/db/jds-store.test.ts`.
 
+### Close and reopen hold the write lock from BEGIN too
+
+`closeEntriesByJobId` and `reopenEntriesByJobId` (`app/_lib/db/pipeline.ts`) are
+the same read→compute→write: SELECT the role's in-flight (or `role_closed`) entries,
+then UPDATE each one and stamp its event. They shipped DEFERRED with the *re-check*
+half of the rule — each UPDATE re-asserts the status (and, for close, the terminal
+stage) it read, and `changes === 0` skips the event — and that guard is what makes a
+lost race a no-op. It is not, on its own, what makes the close *survive* one. Inside a
+DEFERRED transaction the cross-connection race never reaches the guard: SQLite will
+not upgrade a read snapshot that another connection has committed past, answers
+`SQLITE_BUSY_SNAPSHOT` at once (the busy handler is not consulted), and rolls the
+whole transaction back — the close route answered `withdrawalFailed: true` on a role
+it had already darkened, and a reopen left every entry stranded in `role_closed` on a
+role publish had already flipped live. The isolated stores (offers, schedule,
+scheduler, sim, decision records) each write `pipeline_entries` on their own
+connection, so the window was real. Both functions now run `tx.immediate()` as well:
+the write lock is held from BEGIN, the other connection waits its `busy_timeout`
+(5 s in every kp store) and lands after the commit, and the returned count is exact.
+The guard stays because a caller nesting either function inside an outer transaction
+gets a SAVEPOINT (the inner mode is ignored) and the re-assert is what holds there.
+No caller does that today: the role-fill hook runs after the hiring write has
+committed, the close and publish routes call them at top level, and publish's gate
+transaction has committed before its reopen.
+`app/_lib/db/pipeline-close-guard.test.ts` runs all three layers on two live
+connections: the guard's no-op, the DEFERRED shape's snapshot abort as the control,
+and the IMMEDIATE shape completing.
+
 ### The JD library answers its own size
 
 `GET /api/jds` took no `Request` and called `listJds(200, ws)`, so the `?limit=`
