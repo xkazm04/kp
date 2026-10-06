@@ -148,7 +148,11 @@ career-switcher) that other features key off. Downstream ranking is
   mounts `DispositionEditor` in the header row next to Add-to-pipeline once
   `analysisSlug` is set (live Analyze after persist, and the saved report), so
   advance/hold/pass is recorded on the same surface as the verdict; an unsaved
-  run omits it. The editor is handed the `analysis` and renders its decision
+  run omits it, and the live tab raises a dismissible amber warning ("finished but not
+  saved - reloading loses it", `analyzeUnsavedWarning.ts`) whenever the response carries
+  `persistence: null`, i.e. `persistAnalysis` swallowed a `saveAnalysis` failure. There is
+  deliberately no retry-save endpoint: persisting a client-held payload would let a client
+  store an analysis and score the engine never produced. The editor is handed the `analysis` and renders its decision
   brief inline (`app/_components/results/decisionBrief.ts`): the open trust
   warnings (`trustLedger`: severity when coded, the legacy regex otherwise) as one
   checkbox each, and the job-fit missing must-haves. **Advance** saves only once

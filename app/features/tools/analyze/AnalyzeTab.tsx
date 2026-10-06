@@ -9,6 +9,7 @@ import { AnalyzeForm } from "./AnalyzeForm";
 import { AnalyzeFormCollapsed } from "./AnalyzeFormCollapsed";
 import { deriveCollapseDecision } from "./analyzeCollapse";
 import { deriveAnalyzePipelineAffordance } from "./analyzePipelineRef";
+import { shouldWarnUnsaved } from "./analyzeUnsavedWarning";
 import { useAnalyzeForm } from "./useAnalyzeForm";
 
 // Tier 3 (docs/design/loading-choreography.md): the result renderers are heavy and
@@ -61,6 +62,9 @@ export function AnalyzeTab() {
   // (via reset() OR a CV error). The transition guard lets the user manually
   // re-expand mid-result without being immediately collapsed again on re-render.
   const [expanded, setExpanded] = useState(true);
+  // The result whose "not saved" warning the recruiter dismissed. Keyed to the result
+  // object itself, so the next delivery that also fails to save warns again.
+  const [dismissedFor, setDismissedFor] = useState<typeof result.analysis>(null);
   const wasIdleRef = useRef(true);
   useEffect(() => {
     if (wasIdleRef.current && !idle) setExpanded(false);
@@ -102,6 +106,20 @@ export function AnalyzeTab() {
           <p>{t("restoredNote")}</p>
           <button type="button" onClick={handlers.reset} className={`${BTN_GHOST} h-8 px-2 text-sm`}>
             {t("restoredStartNew")}
+          </button>
+        </div>
+      ) : null}
+
+      {/* The run finished but the save failed (persistence: null) - the result below
+          looks complete yet reaches no History row, so a reload loses it. Say so. */}
+      {shouldWarnUnsaved(result.analysis) && dismissedFor !== result.analysis && !isAnalyzing ? (
+        <div role="alert" className={`${NOTICE("amber")} flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-meta`}>
+          <div>
+            <p className="font-semibold">{t("unsavedWarningTitle")}</p>
+            <p>{t("unsavedWarningBody")}</p>
+          </div>
+          <button type="button" onClick={() => setDismissedFor(result.analysis)} className={`${BTN_GHOST} h-8 px-2 text-meta`}>
+            {t("unsavedWarningDismiss")}
           </button>
         </div>
       ) : null}
