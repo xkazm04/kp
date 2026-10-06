@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
+import { ensureDb } from "./db/core.ts";
 import {
   openReceipt,
   readReceipt,
@@ -34,6 +35,27 @@ test("every SELECT/UPDATE/INSERT on job_golive_receipts carries workspace_id", (
       `job_golive_receipts statement is not workspace-scoped:\n${sql}`
     );
   }
+});
+
+test("job_golive_receipts holds the opening's counters only — no column names a person", () => {
+  openReceipt("job-receipt-shape", "ws-receipt-shape");
+  const columns = (ensureDb().prepare(`PRAGMA table_info(job_golive_receipts)`).all() as { name: string }[])
+    .map((c) => c.name)
+    .sort();
+  // ERASURE_EXEMPT["job_golive_receipts"] (db/pipeline.ts) rests on this set: the erasure
+  // scrub is entry-keyed, so a candidate-keyed column added here would be undeletable.
+  assert.deepEqual(columns, [
+    "attempt",
+    "failure_code",
+    "finished_at",
+    "job_id",
+    "silver_medalists",
+    "skipped",
+    "sourced",
+    "started_at",
+    "state",
+    "workspace_id",
+  ]);
 });
 
 test("Store: openReceipt -> finishReceipt -> readReceipt returns done state (Acceptance 1)", () => {
