@@ -9,6 +9,7 @@ import type { Entry } from "@/app/features/shared/pipelineTypes";
 import { PipelineCandidateNoteField } from "../PipelineCandidateNoteField";
 import { ConsentPanel } from "../PipelineConsentPanel";
 import { PipelineDrawerFooterLinks } from "../PipelineDrawerFooterLinks";
+import { PipelineEntryNoteThread } from "../PipelineEntryNoteThread";
 import { PipelineGithubEvidenceCard } from "../PipelineGithubEvidenceCard";
 import type { CandidateState } from "./state/useCandidateState";
 
@@ -23,6 +24,7 @@ export function CandidateRecordTab({ entry, st }: { entry: Entry; st: CandidateS
           maxLength={st.NOTE_MAX}
           onChange={st.changeNote}
         />
+        <PipelineEntryNoteThread key={entry.id} entryId={entry.id} />
         <PipelineGithubEvidenceCard
           github={st.github}
           githubHandle={entry.githubHandle}
