@@ -1919,7 +1919,7 @@ it writes; "Verdicts" covers what a run proves.
 | `app/_lib/interview-sim/fake.ts` | `fakeInterviewer`, `fakeCandidate`, `recordingLlm`: keyless scripted stand-ins. |
 | `app/_lib/interview-sim/runner.ts` | `runSimulations`: instruments, resume, the worker pool, the dumps and the index. |
 | `app/_lib/interview-sim/baseline-diff.ts` | `diffVerdicts`, `renderDiff`, `loadBaseline`: the keyless brief-change diff behind `--baseline` (see "Comparing against a baseline"). |
-| `app/_lib/interview-sim/role-demo.ts` | `simulateInterviewForEntry` / `createRoleDemoSimulator`: the goal-1 demo run's simulated interview for ONE real pipeline entry (see "The goal-1 demo's simulated interview"). Throwaway database only (`assertThrowawayDb`). |
+| `app/_lib/interview-sim/role-demo.ts` | `simulateInterviewForEntry` / `createRoleDemoSimulator`: the goal-1 demo run's simulated interview for ONE real pipeline entry (see "The goal-1 demo's simulated interview"). A DECLARED throwaway copy only (`assertRoleDemoScratchDb`). |
 
 No app route imports any of these (the engine sits under `app/_lib/` only so its tests run
 in `npm run test:unit`).
@@ -2128,7 +2128,21 @@ simulator for that branch (`--sim-interviews <n>`: default 2, ceiling 5, 0 turns
   `met` that rests on such a scorecard says so: "met on a SIMULATED interview (candidate played
   by the model from the seeded CV), gates by the demo stand-in".
 - Tests: `scripts/kpi/__tests__/role-demo-interviews.test.mjs` (keyless: the simulator's
-  doubles and a scripted scorer are injected through `runDemoOnCopy`'s `simDeps`).
+  doubles and a scripted scorer are injected through `runDemoOnCopy`'s `simDeps`). They are
+  gated: `node scripts/run-unit-tests.mjs "scripts/kpi/**/*.test.mjs"` runs in `ci.yml`'s
+  node-quality job beside the other `scripts/` fixture steps.
+
+#### The three guarantees on this path, and what holds them
+
+A security review of the path on 2026-10-06
+([`docs/security/role-demo-sim-scan-2026-10-06.md`](../../security/role-demo-sim-scan-2026-10-06.md))
+found two of them resting on circumstance rather than on a check. Both are now checks.
+
+| Guarantee | Held by |
+| --- | --- |
+| **Never a real database.** The simulator writes sessions, transcripts and sealed scorecards. | `assertRoleDemoScratchDb()` (`interview-sim/instrument.ts`), called before its first read: `KP_ROLE_DEMO_SCRATCH_DB` must name the very database the stores opened — the positive marker the demo's parent half sets on the copy it made — **and** the older path heuristic (`throwawayDbProblem`) must pass. The heuristic alone let through any `KP_DB_PATH` outside the repository's `data/` directory, which is the documented way to relocate a production database. |
+| **Never a real candidate.** The demo approves invites and offers. | Nothing on the path dispatches comms (the engine's invite stage drafts and parks with `inviteRef: null`; `commitRoleRunStageGate` only appends a ledger row), and the child is additionally sealed: it runs with `KP_NO_COMMS_EGRESS=1`, so the relay resolves to nothing whatever the copy's stored configuration says ([comms §1.1](../comms/README.md#11-the-egress-seal--kp_no_comms_egress1)). |
+| **No transcript or scorecard text in the output.** | Rows carry counts, `recommendation`, `verdictSource` and `endReason` only — **including on the error paths**, which is where it did not hold. A failed call now reports its end reason alone (the engine's `dump.error` is a provider message, and the Claude CLI provider quoted 300 bytes of the model's turn in "output was not JSON"); a thrown message is quoted only when its error TYPE guarantees it holds no interview text (`reasonOf`), so a Python scorer that echoes the notes it was handed reports its class and withholds its message. |
 
 ### Verdicts
 

@@ -33,6 +33,14 @@
 // THE LABEL. The session's candidate label carries " (simulated)", and every row this
 // returns says so. A row holds counts and the recommendation only — never transcript text
 // or scorecard evidence.
+//
+// …AND THAT HOLDS ON THE ERROR PATHS TOO, which is where it did not. A row's `skipped`
+// reason used to carry the thrown message: the engine's `dump.error` is a provider message
+// sliced to 2000 chars, and the provider's own "output was not JSON" quoted 300 bytes of
+// the model's turn — the candidate speaking from their CV, printed by the demo and sealed
+// into the --json reading. The call's end reason is now the whole of what a failed call
+// says, and a message is quoted only when its error TYPE guarantees it holds no interview
+// text (reasonOf).
 
 import { getPipelineEntry } from "../db/pipeline";
 import { getProfileRecord } from "../db/profiles";
@@ -46,7 +54,7 @@ import type { VerdictProvenance } from "../automation-run";
 import type { VoiceTurn } from "../voice/types";
 import { runConversation, type SimLimits } from "./engine";
 import { briefSha, assertRoleDemoScratchDb, directorVersion, type SimInstrument } from "./instrument";
-import { claudeCliLlm } from "./providers";
+import { claudeCliLlm, SimProviderError } from "./providers";
 import type { SimFixture, SimLlm, SimSituation, SimTurn } from "./types";
 
 /** Suffix on the candidate label of every session the demo plays. */
@@ -104,7 +112,27 @@ const PROVIDER_UNAVAILABLE = "not simulated: provider unavailable";
 
 const clip = (text: string, max = 140) => (text.length > max ? `${text.slice(0, max - 1)}…` : text);
 
-const messageOf = (err: unknown) => clip(err instanceof Error ? err.message : String(err));
+/** Errors whose MESSAGE is this module's own vocabulary, written here or in providers.ts,
+ *  and provably free of model output. Everything else — the Python scorer, a store, a
+ *  builder that quoted the brief — is of unknown provenance. */
+const SAFE_MESSAGE_ERRORS = [SimProviderError] as const;
+
+/**
+ * An error's message is only quoted when its TYPE guarantees it holds no interview text.
+ *
+ * Why a redaction barrier and not a sanitiser: the reasons on these rows are printed to
+ * the operator and ride the `--json` reading, and the errors reaching them come from the
+ * whole scoring stack — a Python subprocess whose stderr may echo the transcript notes it
+ * was handed, an LLM adapter quoting its own prompt, a store quoting a row. There is no
+ * way to inspect such a message and know what is in it, so the default is to name the
+ * failure and withhold the text. A diagnosis reads the server log, which is not a reading
+ * anyone publishes.
+ */
+const reasonOf = (err: unknown) => {
+  if (SAFE_MESSAGE_ERRORS.some((E) => err instanceof E)) return clip((err as Error).message);
+  const name = err instanceof Error ? err.name || "Error" : typeof err;
+  return `${name} (message withheld: it can quote the interview)`;
+};
 
 /** Thrown by the scorer wrapper for a scorecard the demo will not count. */
 class ScorecardNotAccepted extends Error {
@@ -165,7 +193,7 @@ export async function simulateInterviewForEntry(
   try {
     (deps.preflight ?? (deps.llms ? () => undefined : defaultPreflight))();
   } catch (err) {
-    return skippedRow(entryId, `${PROVIDER_UNAVAILABLE} (${messageOf(err)})`);
+    return skippedRow(entryId, `${PROVIDER_UNAVAILABLE} (${reasonOf(err)})`);
   }
 
   // 2. The real interviewer side — what /api/interview/create mints and /connect rebuilds.
@@ -209,7 +237,7 @@ export async function simulateInterviewForEntry(
     try {
       llms = (deps.llms ?? defaultLlms)(situation, instrument);
     } catch (err) {
-      return skippedRow(entryId, `${PROVIDER_UNAVAILABLE} (${messageOf(err)})`);
+      return skippedRow(entryId, `${PROVIDER_UNAVAILABLE} (${reasonOf(err)})`);
     }
     // 3. The candidate-mode session, labelled simulated, in the run's workspace.
     session = createInterviewSession({
@@ -227,7 +255,7 @@ export async function simulateInterviewForEntry(
       kitId: pinned?.id ?? null,
     });
   } catch (err) {
-    return skippedRow(entryId, `not simulated: could not build the interview (${messageOf(err)})`);
+    return skippedRow(entryId, `not simulated: could not build the interview (${reasonOf(err)})`);
   }
   if (!session) return skippedRow(entryId, "not simulated: the session could not be created");
   const sessionId = session.id;
@@ -245,14 +273,14 @@ export async function simulateInterviewForEntry(
     });
   } catch (err) {
     completeInterviewSession(sessionId, { transcript: [], status: "failed" });
-    return skippedRow(entryId, `not simulated: the conversation failed (${messageOf(err)})`, { sessionId });
+    return skippedRow(entryId, `not simulated: the conversation failed (${reasonOf(err)})`, { sessionId });
   }
   const transcript = spokenTranscript(dump.turns);
   const candidateTurns = transcript.filter((t) => t.role === "candidate").length;
   const counts = { sessionId, turns: transcript.length, endReason: dump.endedBy };
   if (dump.endedBy === "error" || candidateTurns === 0) {
     completeInterviewSession(sessionId, { transcript, status: "failed" });
-    return skippedRow(entryId, `not rated: the simulated call did not complete (${dump.endedBy}${dump.error ? `: ${clip(dump.error)}` : ""})`, counts);
+    return skippedRow(entryId, `not rated: the simulated call did not complete (${dump.endedBy})`, counts);
   }
 
   // 5. Store, complete, score. The wrapper below is the whole 'llm'-only rule.
@@ -285,7 +313,7 @@ export async function simulateInterviewForEntry(
     if (err instanceof ScorecardNotAccepted) {
       return skippedRow(entryId, `not rated: ${err.message}`, { ...counts, verdictSource: err.verdictSource });
     }
-    return skippedRow(entryId, `not rated: the scorer failed (${messageOf(err)})`, counts);
+    return skippedRow(entryId, `not rated: the scorer failed (${reasonOf(err)})`, counts);
   }
 }
 

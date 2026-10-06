@@ -84,12 +84,18 @@ export function parseCliEnvelope(stdout: string, stderr: string, code: number | 
   try {
     envelope = JSON.parse(out);
   } catch {
-    throw new SimProviderError(`Claude CLI output was not JSON: ${out.slice(0, 300)}`);
+    // The bytes themselves are NOT quoted. `result` and the raw stdout carry a MODEL TURN
+    // — in the role-demo simulator that turn is the candidate speaking from their CV, and
+    // this message travels into a reading the operator prints (role-demo.ts refuses to
+    // print transcript text, and a provider error message is the back door into it). The
+    // size and the exit code are what a diagnosis needs; the text is in nobody's interest.
+    throw new SimProviderError(`Claude CLI output was not JSON (${out.length} bytes, exit ${code})`);
   }
   if (envelope === null || typeof envelope !== "object") throw new SimProviderError("Claude CLI envelope is not an object");
   const e = envelope as { is_error?: unknown; subtype?: unknown; result?: unknown; error?: unknown };
   if (e.is_error === true || (typeof e.subtype === "string" && e.subtype !== "success")) {
-    throw new SimProviderError(`Claude CLI returned an error (subtype=${String(e.subtype)}): ${String(e.result ?? e.error ?? "unknown").slice(0, 300)}`);
+    const detail = String(e.result ?? e.error ?? "unknown");
+    throw new SimProviderError(`Claude CLI returned an error (subtype=${String(e.subtype)}, ${detail.length} bytes of detail withheld: it can quote the turn)`);
   }
   return unwrapTurn(String(e.result ?? ""));
 }

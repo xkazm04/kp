@@ -28,7 +28,7 @@ import { buildRunOfShow } from "../../../app/_lib/run-of-show.ts";
 import { fakeCandidate, fakeInterviewer } from "../../../app/_lib/interview-sim/fake.ts";
 import { MAX_SIM_INTERVIEWS, SIMULATED_LABEL, createRoleDemoSimulator, simulateInterviewForEntry } from "../../../app/_lib/interview-sim/role-demo.ts";
 import { roleDemoScratchDbProblem } from "../../../app/_lib/interview-sim/instrument.ts";
-import { SimProviderError } from "../../../app/_lib/interview-sim/providers.ts";
+import { SimProviderError, parseCliEnvelope } from "../../../app/_lib/interview-sim/providers.ts";
 import { DEFAULT_WORKSPACE_ID } from "../../../app/_lib/db/workspaces.ts";
 import { DEFAULT_DB_PATH } from "../../../app/_lib/db-path.ts";
 import { commsEgressSealed, isRelayConfigured, relayHealth, resolveRelay } from "../../../app/_lib/comms-relay.ts";
@@ -273,6 +273,76 @@ test("the simulator refuses a database no demo parent declared a throwaway copy"
   assert.equal(roleDemoScratchDbProblem(process.env.KP_DB_PATH, { KP_DB_PATH: process.env.KP_DB_PATH, KP_ROLE_DEMO_SCRATCH_DB: process.env.KP_DB_PATH }), null);
 });
 
+test("a failing provider and a failing scorer put NO interview text in the row's reason", async () => {
+  const { jobId, entries } = await seedRole("leak", 2);
+  const MARK = "ZEBRA-SENTINEL-9902";
+
+  // (a) On the FIRST branch the conversation dies inside the provider, and the provider's
+  // error quotes the model's own turn — the exact shape the Claude CLI's "output was not
+  // JSON" had. The second branch talks normally, so the scorer below is reached too.
+  let played = 0;
+  const leakyProvider = (situation, instrument) => {
+    played += 1;
+    return {
+      interviewer: fakeInterviewer(instrument.agenda),
+      candidate:
+        played === 1
+          ? {
+              id: "leaky-candidate",
+              complete: async () => {
+                throw new Error(`Claude CLI output was not JSON: ${MARK} I led the payments service at Northwind.`);
+              },
+            }
+          : fakeCandidate(situation),
+    };
+  };
+  // (b) The call completes, and the SCORER throws with the transcript it was handed.
+  const leakyScorer = async (_session, transcript) => {
+    throw new Error(`python scorer failed on notes: ${transcript.map((t) => t.text).join(" ")} ${MARK}`);
+  };
+
+  const record = await runDemoOnCopy({
+    jobId,
+    standInMode: "policy",
+    simDeps: { llms: leakyProvider, score: leakyScorer, finalize: noMint },
+  });
+  assert.equal(record.failure, null);
+  const rows = record.simulatedInterviews;
+  assert.equal(rows.length, 2);
+  // Both branches are unrated and SAY so — the redaction is not silence.
+  for (const row of rows) {
+    assert.equal(row.recommendation, null);
+    assert.ok(row.skipped, "every refusal still carries a reason");
+  }
+  // Both error paths were really taken — otherwise the sentinel assertion below is vacuous.
+  assert.ok(rows.some((r) => /did not complete|conversation failed/.test(r.skipped)), `no call-failure row: ${JSON.stringify(rows)}`);
+  assert.ok(rows.some((r) => /the scorer failed/.test(r.skipped)), `no scorer-failure row: ${JSON.stringify(rows)}`);
+  assert.ok(rows.some((r) => /message withheld/.test(r.skipped)), `nothing was redacted: ${JSON.stringify(rows)}`);
+
+  const reading = summarizeRoleDemoRun({ runStatus: record.status, artifacts: record.artifacts, failure: record.failure });
+  const standIn = { mode: "policy", tally: tallyStandIn(record.standInDecisions), simulatedOffers: simulatedOfferCount(record.standInDecisions, record.simulatedInterviews) };
+  const printed = [
+    JSON.stringify(rows),
+    ...formatSimulatedInterviews(rows),
+    goalOneHeadline(record.goalOne, reading, standIn),
+    JSON.stringify(record.artifacts),
+    JSON.stringify(record.standInDecisions),
+    String(record.failure),
+  ].join("\n");
+  assert.ok(!printed.includes(MARK), `the sentinel reached the reading: ${printed}`);
+  assert.ok(!printed.includes("payments service"), "no model turn reached the reading");
+
+  // The provider's OWN parser no longer quotes the turn either, which is where the
+  // sentinel entered the chain in the real path.
+  assert.throws(
+    () => parseCliEnvelope(JSON.stringify({ subtype: "error_during_execution", is_error: true, result: `${MARK} spoken answer` }), "", 1),
+    (err) => err instanceof SimProviderError && !err.message.includes(MARK)
+  );
+  assert.throws(
+    () => parseCliEnvelope(`${MARK} not an envelope at all`, "", 0),
+    (err) => err instanceof SimProviderError && !err.message.includes(MARK)
+  );
+});
 test("the demo child is sealed against comms egress, however the relay is configured", () => {
   // The seal itself: a configured relay resolves to nothing under the flag, so an
   // approved invite or offer could only ever queue in the copy's own outbox.
