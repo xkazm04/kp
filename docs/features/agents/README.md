@@ -236,6 +236,8 @@ reports cost/activity back into kp, where it rides the pipeline like any other h
 | `pipeline/jobfit/agentfit.py` + `agentfit_cli.py` | The job → AgentFitSpec transform (LLM + deterministic fallback) |
 | `pipeline/jobfit/agentfit.py::assess_population_fit` | A SECOND question in the same module, for the App master role: given a `RepoDossier` and the outcomes a requestor chose, who should hold the role — `human \| agent \| hybrid \| unassessed`. Reuses this module's `COVERAGE_CLASSES` and `coverage_ratio` (code-owned on both paths); the verdict is derived from the ratio in code, and the keyless path never returns `automatable`. Consumed by the intake shape `app_master` — see [docs/features/app-master/README.md](../app-master/README.md) |
 
+**The transform files the agent on the role board.** `persistAgentFit` (`transform-run.ts`) saves the `agent_fit_specs` row and, in the same transaction, files a `population: 'agent'` entry (`agent-fit-<jobId>`, source channel `agent-fit`, actor `auto:agent-fit`) so the role's slate lists the agent beside the people. It is idempotent per job: a re-transform adds a new versioned spec but lands on the same entry, and `rubric_version` is stamped only when the role's rubric is frozen. Dispatch is separate — `placeAgentOnBoard` still files its own card (see [need → role → slate](../../concepts/need-to-role-to-slate.md)).
+
 ## Hiring an App master by intake (P4)
 
 A second origin for the same dispatch. The **App master** role (owning one application's

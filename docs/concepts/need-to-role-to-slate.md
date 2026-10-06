@@ -172,3 +172,11 @@ analysis's matched/missing skills) and `agentEvidence` (an agent-fit spec's
 Both are pure, fill only `requirement_coverage` axes, leave an unnamed axis
 unassessed rather than 0, and have no caller yet — where evidence is computed and
 persisted is the next increment.
+
+**The agent-fit transform files the agent on the board (increment 5, second
+half).** `persistAgentFit` (`app/_lib/agent-hire/transform-run.ts`) saves the
+`agent_fit_specs` row and, in the same transaction, files a `population: 'agent'`
+entry on the job's board — one per job (`agent-fit-<jobId>`), so a re-transform
+adds a versioned spec but lands on the same entry. It carries the role's rubric
+version only when that rubric is frozen. Dispatch is still separate: the card
+`placeAgentOnBoard` files is not yet merged into this entry.

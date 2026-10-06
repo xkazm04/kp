@@ -2,6 +2,9 @@ import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { saveAgentFitSpec, type AgentFitSpecRecord } from "../db/agents";
 import { getJob } from "../db/jobs";
+import { ensureDb } from "../db/core";
+import { createPipelineEntry } from "../db/pipeline";
+import { getRoleRubric } from "../db/role-rubrics";
 import { DEFAULT_WORKSPACE_ID, getWorkspaceDefaultLocale } from "../db/workspaces";
 import type { Locale } from "@/i18n/locales";
 import { buildLlmConfigEnv } from "../llm-config";
@@ -26,6 +29,8 @@ export type AgentFitPayload = {
 
 export type AgentFitResult = {
   record: AgentFitSpecRecord;
+  /** The agent's entry on the role board (one per job: `m-agent-fit-<jobId>`). */
+  entryId: string;
   result: AgentFitPayload;
   source: string;
   perStepSources: Record<string, string>;
@@ -73,6 +78,47 @@ export function agentFitArgs(jobPath: string, catalogPath: string, lang: Locale)
   return ["-m", "pipeline.jobfit.agentfit_cli", "--job-json", jobPath, "--catalog-json", catalogPath, "--lang", lang];
 }
 
+/** Persist one transform result AND file the agent on the role board, in one
+ *  transaction (createPipelineEntry nests as a savepoint), so a failure leaves
+ *  neither row. The entry is per JOB (`agent-fit-<jobId>`): a re-transform adds a
+ *  new versioned spec but lands on the same entry. No stage is named, so the
+ *  default screened landing applies. The rubric version is stamped only when the
+ *  role's rubric is frozen — a draft is not yet a standard. */
+export function persistAgentFit(
+  jobId: string,
+  envelope: CliEnvelope,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): { record: AgentFitSpecRecord; entryId: string } {
+  const jobTitle = getJob(jobId, workspaceId)?.title ?? "";
+  const rubric = getRoleRubric(jobId, workspaceId);
+  const rubricVersion = rubric?.frozenAt ? rubric.version : null;
+  return ensureDb().transaction(() => {
+    const record = saveAgentFitSpec(
+      {
+        jobId,
+        fit: envelope.result.fit,
+        spec: envelope.result.spec,
+        budget: envelope.result.budget,
+        metrics: envelope.result.metrics,
+        source: envelope.source,
+      },
+      workspaceId
+    );
+    const { entry } = createPipelineEntry({
+      candidateId: `agent-fit-${jobId}`,
+      candidateLabel: envelope.result.spec.name?.trim() || jobTitle,
+      jobId,
+      jobTitle,
+      sourceChannel: "agent-fit",
+      actor: "auto:agent-fit",
+      workspaceId,
+      population: "agent",
+      ...(rubricVersion != null ? { rubricVersion } : {}),
+    });
+    return { record, entryId: entry.id };
+  })();
+}
+
 export async function runAgentFit(
   jobId: string,
   signal?: AbortSignal,
@@ -100,19 +146,10 @@ export async function runAgentFit(
     if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
     const envelope = toAgentFitEnvelope(parsePythonJson<unknown>(stdout, stderr));
 
-    const record = saveAgentFitSpec(
-      {
-        jobId,
-        fit: envelope.result.fit,
-        spec: envelope.result.spec,
-        budget: envelope.result.budget,
-        metrics: envelope.result.metrics,
-        source: envelope.source,
-      },
-      workspaceId
-    );
+    const { record, entryId } = persistAgentFit(jobId, envelope, workspaceId);
     return {
       record,
+      entryId,
       result: envelope.result,
       source: envelope.source,
       perStepSources: envelope.perStepSources ?? {},
