@@ -9,8 +9,14 @@
 import "better-sqlite3";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
+import { tmpdir } from "node:os";
+import path from "node:path";
 // IMPORT ORDER IS LOAD-BEARING: unit-db sets KP_DB_PATH before anything touches db-path.
 import { cleanupUnitDb } from "../../../app/_lib/testing/unit-db.ts";
+// …and the simulator refuses to run until some caller DECLARES that database a throwaway
+// copy made for a demo run (assertRoleDemoScratchDb). The script's parent half sets this
+// on the copy it made; here it is unit-db's own isolated file.
+process.env.KP_ROLE_DEMO_SCRATCH_DB = process.env.KP_DB_PATH;
 import { insertJob } from "../../../app/_lib/job-ingest.ts";
 import { createPipelineEntry } from "../../../app/_lib/db/pipeline.ts";
 import { saveProfile } from "../../../app/_lib/db/profiles.ts";
@@ -19,8 +25,11 @@ import { saveInterviewPrep } from "../../../app/_lib/interview-prep.ts";
 import { rosStrings } from "../../../app/_lib/interview-prep-strings.ts";
 import { buildRunOfShow } from "../../../app/_lib/run-of-show.ts";
 import { fakeCandidate, fakeInterviewer } from "../../../app/_lib/interview-sim/fake.ts";
-import { MAX_SIM_INTERVIEWS, SIMULATED_LABEL, createRoleDemoSimulator } from "../../../app/_lib/interview-sim/role-demo.ts";
+import { MAX_SIM_INTERVIEWS, SIMULATED_LABEL, createRoleDemoSimulator, simulateInterviewForEntry } from "../../../app/_lib/interview-sim/role-demo.ts";
+import { roleDemoScratchDbProblem } from "../../../app/_lib/interview-sim/instrument.ts";
 import { SimProviderError } from "../../../app/_lib/interview-sim/providers.ts";
+import { DEFAULT_WORKSPACE_ID } from "../../../app/_lib/db/workspaces.ts";
+import { DEFAULT_DB_PATH } from "../../../app/_lib/db-path.ts";
 import { runDemoOnCopy } from "../role-demo-run-child.mjs";
 import { formatSimulatedInterviews, goalOneHeadline, simulatedOfferCount, summarizeRoleDemoRun, tallyStandIn } from "../role-demo-run-reading.mjs";
 
@@ -229,3 +238,37 @@ test("the reading carries counts and the recommendation, never transcript or sco
   assert.ok(!printed.includes(MARK), "no transcript or scorecard text reaches the reading");
   assert.deepEqual(Object.keys(record.simulatedInterviews[0]).sort(), ["branchRef", "endReason", "recommendation", "sessionId", "skipped", "turns", "verdictSource"]);
 });
+
+// ---- the SECURITY invariants of this path (codebase-security-scan, 2026-10-06) --------
+
+test("the simulator refuses a database no demo parent declared a throwaway copy", async () => {
+  const { jobId, entries } = await seedRole("guard", 1);
+  const marker = process.env.KP_ROLE_DEMO_SCRATCH_DB;
+  // The shape the guard exists for: an operator who moved their database OUT of the
+  // repository's data/ directory, which is the documented way to do it. KP_DB_PATH still
+  // points where the stores opened, so the path heuristic alone has nothing to object to.
+  delete process.env.KP_ROLE_DEMO_SCRATCH_DB;
+  try {
+    const row = await simulateInterviewForEntry(entries[0], DEFAULT_WORKSPACE_ID, { llms: fakeLlms, score: llmScorer("advance"), finalize: noMint });
+    assert.fail(`the simulator ran anyway: ${JSON.stringify(row)}`);
+  } catch (err) {
+    assert.match(String(err.message), /refusing to play a simulated interview/);
+    assert.match(String(err.message), /KP_ROLE_DEMO_SCRATCH_DB is not set/);
+  } finally {
+    process.env.KP_ROLE_DEMO_SCRATCH_DB = marker;
+  }
+  // Nothing was read and nothing was written: no session on the entry, and the refusal is
+  // a THROW, not a row — a row would let a caller mistake it for a handled skip.
+  assert.equal(latestInterviewByEntry(entries[0]), null);
+  assert.equal(jobId, `jd-demo-iv-guard`);
+
+  // …and a marker that names some OTHER file is not a declaration about this one.
+  const elsewhere = path.join(tmpdir(), "not-the-open-database.sqlite");
+  assert.match(String(roleDemoScratchDbProblem(process.env.KP_DB_PATH, { KP_DB_PATH: process.env.KP_DB_PATH, KP_ROLE_DEMO_SCRATCH_DB: elsewhere })), /is not the database the stores opened/);
+  // The path heuristic still runs underneath it: a marker cannot bless the operator's DB.
+  assert.match(String(roleDemoScratchDbProblem(DEFAULT_DB_PATH, { KP_DB_PATH: DEFAULT_DB_PATH, KP_ROLE_DEMO_SCRATCH_DB: DEFAULT_DB_PATH })), /operator's database/);
+  // And the marked unit-db passes, which is why every test above it runs at all.
+  assert.equal(roleDemoScratchDbProblem(process.env.KP_DB_PATH, { KP_DB_PATH: process.env.KP_DB_PATH, KP_ROLE_DEMO_SCRATCH_DB: process.env.KP_DB_PATH }), null);
+});
+
+

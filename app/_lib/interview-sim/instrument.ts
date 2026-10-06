@@ -33,6 +33,12 @@
 // DB; data/kp-e2e.sqlite and kp-empty.sqlite are other tools'). The CLI points
 // KP_DB_PATH at a fresh temp file before it imports anything; a unit test gets one from
 // testing/unit-db.ts.
+//
+// The goal-1 demo's simulator (role-demo.ts) writes real candidate rows — sessions,
+// transcripts, scorecards — so it is held to a STRICTER guard built on the same
+// predicate: assertRoleDemoScratchDb, which additionally requires the positive marker
+// its parent half sets on the copy it made. A path heuristic cannot tell an operator's
+// relocated database from a scratch one; a declaration can.
 
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -80,6 +86,50 @@ export function throwawayDbProblem(dbPath: string = DB_PATH, env: Readonly<Parti
 export function assertThrowawayDb(dbPath: string = DB_PATH, env: Readonly<Partial<NodeJS.ProcessEnv>> = process.env): void {
   const problem = throwawayDbProblem(dbPath, env);
   if (problem) throw new Error(`[interview-sim] refusing to seed a database: ${problem}. Point KP_DB_PATH at a temp file.`);
+}
+
+/** The POSITIVE marker the goal-1 demo's parent half sets on the scratch copy it made
+ *  (scripts/kpi/role-demo-run.mjs), and a unit test sets on its unit-db. Named rather
+ *  than inferred: see roleDemoScratchDbProblem. */
+export const ROLE_DEMO_SCRATCH_ENV = "KP_ROLE_DEMO_SCRATCH_DB";
+
+/**
+ * Why `throwawayDbProblem` is NOT enough for the role-demo simulator, which writes
+ * interview sessions, transcripts and scorecards rather than fixtures.
+ *
+ * That guard is a PATH HEURISTIC: it refuses `data/kp.sqlite` and anything else inside
+ * the repository's `data/`, and that is the whole of what it knows. A self-hosted
+ * install whose `KP_DB_PATH` points at `/var/lib/kp/kp.sqlite` — the documented way to
+ * move the database (`.claude/CLAUDE.md`) — passes it. So any caller other than
+ * role-demo-run.mjs (a script, a REPL, a test with no unit-db) could have played a
+ * simulated interview straight into a production database and sealed a model-written
+ * scorecard onto a real candidate's entry.
+ *
+ * The marker fixes that by inverting the test: the database must be one a role-demo
+ * parent CREATED and NAMED, not merely one that does not look like the operator's. The
+ * heuristic still runs — both have to hold.
+ */
+export function roleDemoScratchDbProblem(
+  dbPath: string = DB_PATH,
+  env: Readonly<Partial<NodeJS.ProcessEnv>> = process.env
+): string | null {
+  const marker = env[ROLE_DEMO_SCRATCH_ENV]?.trim();
+  if (!marker) {
+    return `${ROLE_DEMO_SCRATCH_ENV} is not set, so no caller has declared ${dbPath} a throwaway copy made for the demo run`;
+  }
+  if (!samePath(marker, dbPath)) return `${ROLE_DEMO_SCRATCH_ENV} (${marker}) is not the database the stores opened (${dbPath})`;
+  return throwawayDbProblem(dbPath, env);
+}
+
+/** Refuse to play a simulated interview unless the database is a declared throwaway copy. */
+export function assertRoleDemoScratchDb(dbPath: string = DB_PATH, env: Readonly<Partial<NodeJS.ProcessEnv>> = process.env): void {
+  const problem = roleDemoScratchDbProblem(dbPath, env);
+  if (problem) {
+    throw new Error(
+      `[interview-sim] refusing to play a simulated interview: ${problem}. ` +
+        `The demo run (scripts/kpi/role-demo-run.mjs) sets ${ROLE_DEMO_SCRATCH_ENV} on the copy it made; nothing else may.`
+    );
+  }
 }
 
 // ---- instrument identity -----------------------------------------------------------------

@@ -7,7 +7,15 @@
 // scratch copy of the database, and only under --approve-gates. The engine is untouched:
 // the invite gate parks S4, the stand-in approves it between two advanceRoleRun passes,
 // and S5 runs on the NEXT pass — so sealing here, right after the approval, is early
-// enough. assertThrowawayDb() refuses to run against the operator's own database.
+// enough.
+//
+// IT IS NEVER A REAL DATABASE, AND THAT IS A DECLARATION RATHER THAN A GUESS.
+// assertRoleDemoScratchDb() (instrument.ts) refuses unless KP_ROLE_DEMO_SCRATCH_DB names
+// the very database the stores opened — the positive marker the demo's parent half sets
+// on the copy it made. The path heuristic it is built on would, alone, have let a
+// self-hosted install whose KP_DB_PATH lies outside the repository's data/ directory
+// through, and a simulated interview there seals a model-written scorecard onto a real
+// candidate's entry.
 //
 // WHAT IS REAL. The interviewer holds the entry's real private brief and agenda (the
 // connect-time build: interview-run.ts + interview-agenda.ts). The candidate is the
@@ -37,7 +45,7 @@ import { finalizeCandidateInterviewScoring, synthesizeCandidateScorecard, type F
 import type { VerdictProvenance } from "../automation-run";
 import type { VoiceTurn } from "../voice/types";
 import { runConversation, type SimLimits } from "./engine";
-import { briefSha, assertThrowawayDb, directorVersion, type SimInstrument } from "./instrument";
+import { briefSha, assertRoleDemoScratchDb, directorVersion, type SimInstrument } from "./instrument";
 import { claudeCliLlm } from "./providers";
 import type { SimFixture, SimLlm, SimSituation, SimTurn } from "./types";
 
@@ -95,6 +103,7 @@ const skippedRow = (branchRef: string, skipped: string, extra: Partial<Simulated
 const PROVIDER_UNAVAILABLE = "not simulated: provider unavailable";
 
 const clip = (text: string, max = 140) => (text.length > max ? `${text.slice(0, max - 1)}…` : text);
+
 const messageOf = (err: unknown) => clip(err instanceof Error ? err.message : String(err));
 
 /** Thrown by the scorer wrapper for a scorecard the demo will not count. */
@@ -144,7 +153,9 @@ export async function simulateInterviewForEntry(
   workspaceId: string,
   deps: RoleDemoSimDeps = {}
 ): Promise<SimulatedInterviewRow> {
-  assertThrowawayDb();
+  // BEFORE the first read, let alone the first write: a declared throwaway copy, not
+  // merely a path that does not look like data/kp.sqlite (see assertRoleDemoScratchDb).
+  assertRoleDemoScratchDb();
   const entry = getPipelineEntry(entryId, workspaceId);
   if (!entry) return skippedRow(entryId, "not simulated: no pipeline entry");
   const profile = entry.candidateId ? getProfileRecord(entry.candidateId, workspaceId) : null;

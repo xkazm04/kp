@@ -168,9 +168,13 @@ try {
   }
   // KP_DB_PATH reaches the child through its environment, before it imports anything under
   // app/_lib/db (db-path computes its path from it when first evaluated).
+  //
+  // KP_ROLE_DEMO_SCRATCH_DB is the POSITIVE marker the simulator's own guard demands
+  // (assertRoleDemoScratchDb): "this exact file is a copy I made for this run". Only the
+  // parent half may set it, and it names the copy, never the source.
   const child = spawnSync(process.execPath, [...process.execArgv, SELF, ...args, "--run-copy"], {
     cwd: REPO_ROOT,
-    env: { ...process.env, KP_DB_PATH: copy },
+    env: { ...process.env, KP_DB_PATH: copy, KP_ROLE_DEMO_SCRATCH_DB: copy },
     encoding: "utf8",
     maxBuffer: 64 * 1024 * 1024,
   });
