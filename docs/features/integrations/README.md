@@ -290,6 +290,18 @@ ping (`POST /api/ats/test`).
   row written before the upgrade counts as expired once it is older than one lease.
   `GET /api/ats/deliveries` reports those rows as `stranded`, and Replay on one reclaims it
   (`ok`) while a live lease is still refused. Nothing on the external wire changed.
+- **Outbound POSTs are capped, and a queued delivery is still a visible row.** A committed
+  screening wave fires one fire-and-forget `dispatchAtsEvent` per applied reject, so a
+  200-candidate cohort used to put up to 200 concurrent PII-carrying POSTs on one customer
+  endpoint — keyless, where the comms relay is a local write, with no spacing at all. The
+  network phase now runs under one process-wide semaphore (`KP_ATS_MAX_CONCURRENT`, default
+  **4**; a missing, non-numeric or non-positive value falls back to the default, and the
+  floor is 1 = strictly serial). The ledger row is opened *before* the slot is waited for,
+  so a queued delivery shows as `pending` in `GET /api/ats/deliveries` rather than being
+  invisible; the freshness re-read still runs after the wait, so a candidate reinstated or
+  erased while queued is not mirrored. At the default a 200-entry cohort drains in at most
+  50 × 5s = 250s, inside the 5-minute lease above. Pinned by
+  `app/_lib/ats-egress-concurrency.test.ts`.
 - **The ledger is pruned.** Terminal rows — delivered, or dead-lettered with no retry
   scheduled — are dropped after `DELIVERY_RETENTION_DAYS` (90) by a sweep on the
   instrumentation clock. A still-scheduled failure is live work and is never swept, however

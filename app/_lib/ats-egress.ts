@@ -12,6 +12,7 @@ import {
   openAtsDelivery,
   reclaimExpiredAtsLeases,
 } from "./ats-delivery-store.ts";
+import { positiveNumericEnv } from "./env.ts";
 import {
   type AtsEventType,
   buildEnvelope,
@@ -105,6 +106,107 @@ export function getAtsRecordResult(
 export type DeliveryResult =
   | { delivered: true; status: number }
   | { delivered: false; reason: string; status?: number; terminal?: boolean };
+
+// ---- Admission control on the outbound NETWORK phase (F-6) -------------------------
+//
+// The mirror's producer is a BULK one and it does not await: a committed screening wave
+// fires one `void dispatchAtsEvent("candidate.rejected", …)` per applied reject
+// (screen-wave.ts — deliberately fire-and-forget, because no mirror may abort a cohort
+// whose rejections are already sealed and committed). Nothing counted them, so a
+// 200-candidate cohort opened up to 200 simultaneous POSTs, each carrying candidate PII,
+// against ONE customer endpoint, from a single approved click. The spacing that made this
+// look bounded came from the comms relay's own round-trip per candidate — and keyless,
+// the project's default, that relay is a local write, so the spacing is zero and the
+// fan-out is effectively simultaneous.
+//
+// That is a problem on both sides of the wire: outbound it is kp holding 200 sockets and
+// 200 pending DNS resolutions, inbound it is kp DoSing a customer's webhook with its own
+// candidates' data and inviting a 429 that dead-letters a whole cohort.
+//
+// So the POST runs under ONE process-wide semaphore, the same shape as python-runner.ts's
+// KP_PYTHON_MAX_CONCURRENT (positiveNumericEnv, floor at 1) — with one deliberate
+// difference: a waiter here is QUEUED, never refused. python-runner refuses because its
+// callers are HTTP requests whose client has its own deadline; these callers are
+// background mirrors of an already-committed decision, each owning a durable ledger row,
+// and a refusal would mean inventing a failure for a delivery that is merely waiting.
+//
+// WHAT IS NOT CAPPED, on purpose: the ledger row. `dispatchAtsEvent` opens it before it
+// ever asks for a slot, so sixteen queued deliveries are sixteen `pending` rows an
+// operator can see in GET /api/ats/deliveries — not an invisible pile of microtasks.
+//
+// SINGLE PROCESS, like rate-limit.ts and the spawn semaphore: the counter lives in this
+// Node process. kp runs as one server; a horizontally-scaled deployment needs the same
+// swap behind the same function shape.
+//
+// DOES THE QUEUE OUTLIVE THE LEASE? A delivery's ledger row is leased for
+// ATS_DELIVERY_LEASE_MS = 5 min (300 s) at the instant it is OPENED, and a POST is
+// aborted at 5 s (AbortSignal.timeout below). At the default ceiling of 4 a cohort of N
+// drains in at most ceil(N / 4) × 5 s, so the LAST of a 200-entry cohort — opened at t0
+// with the other 199 — is admitted at 49 × 5 s = 245 s and has answered by 250 s, which
+// is 50 s inside its own lease. The cap therefore cannot turn a wave into reclaimed
+// leases and duplicate POSTs. Two honest limits on that margin, neither of which is a
+// reason to move the lease or the timeout:
+//   • the 5 s bound is the FETCH; the SSRF re-vet's DNS resolve happens inside the slot
+//     and no kp timeout bounds it, so the real figure is 250 s + total resolve time;
+//   • the arithmetic breaks at ceil(N / 4) × 5 s ≥ 300 s, i.e. a cohort of ~240+. A wave
+//     that large is beyond anything the screening config produces today; if one becomes
+//     reachable, the fix is a larger ceiling or a longer lease, decided together.
+export const ATS_DEFAULT_MAX_CONCURRENT = 4;
+
+function maxConcurrentDeliveries(): number {
+  return Math.max(1, Math.floor(positiveNumericEnv("KP_ATS_MAX_CONCURRENT", ATS_DEFAULT_MAX_CONCURRENT)));
+}
+
+let deliveriesInFlight = 0;
+const deliveryWaiters: Array<() => void> = [];
+
+/** Live admission state: for tests, and for an ops surface asking whether the mirror is
+ *  saturated and how much of a wave is still queued behind it. */
+export function atsEgressLoad(): { inFlight: number; queued: number; ceiling: number } {
+  return { inFlight: deliveriesInFlight, queued: deliveryWaiters.length, ceiling: maxConcurrentDeliveries() };
+}
+
+/** Hand free slots to the oldest waiters. FIFO, so a wave is mirrored in the order its
+ *  rejections were applied and nobody at the back of a cohort starves. */
+function admitDeliveryWaiters(): void {
+  while (deliveriesInFlight < maxConcurrentDeliveries() && deliveryWaiters.length > 0) {
+    const next = deliveryWaiters.shift()!;
+    deliveriesInFlight += 1;
+    next();
+  }
+}
+
+function acquireDeliverySlot(): Promise<void> {
+  if (deliveriesInFlight < maxConcurrentDeliveries()) {
+    deliveriesInFlight += 1;
+    return Promise.resolve();
+  }
+  return new Promise<void>((resolve) => deliveryWaiters.push(resolve));
+}
+
+function releaseDeliverySlot(): void {
+  deliveriesInFlight = Math.max(0, deliveriesInFlight - 1);
+  admitDeliveryWaiters();
+}
+
+/** {@link deliver} under the process-wide ceiling. The wait is the ONLY thing added: the
+ *  record was already built and the ledger row already opened by the caller, and the
+ *  freshness re-read still runs inside `deliver`, i.e. AFTER this wait — so a candidate
+ *  reinstated or erased while their delivery sat in the queue is refused at send time
+ *  exactly as one reinstated during the DNS resolve is.
+ *
+ *  The slot is released in a `finally` on every path, including a throw from `deliver`
+ *  (which contracts not to, but a leaked slot would wedge the mirror for the life of the
+ *  process, so the contract is not what this relies on). The caller's `finalize` runs
+ *  after the release and therefore cannot hold a slot either. */
+async function deliverUnderCap(...args: Parameters<typeof deliver>): Promise<DeliveryResult> {
+  await acquireDeliverySlot();
+  try {
+    return await deliver(...args);
+  } finally {
+    releaseDeliverySlot();
+  }
+}
 
 /** A re-read of the authoritative state, run by `deliver` immediately before the POST —
  *  after every awaited preparation step, because the preparation IS the staleness window
@@ -358,7 +460,9 @@ export async function dispatchAtsEvent(event: AtsEventType, entryId: string, wor
       );
       return;
     }
-    const result = await deliver(
+    // Under the process-wide ceiling (see the semaphore header): the ledger row above is
+    // already open, so a slot wait is a VISIBLE `pending` row rather than a hidden one.
+    const result = await deliverUnderCap(
       event,
       record,
       { id: deliveryId, createdAt: openedAt.toISOString() },
@@ -435,7 +539,12 @@ export async function retryDueAtsDeliveries(
       }
       // The SAME body and key the first attempt sent (the row's creation instant is the
       // envelope's sentAt), so a receiver that already accepted it can drop this one.
-      const result = await deliver(
+      // One slot at a time, taken and released per row. The sweep is already serial, so
+      // the ceiling costs it nothing — but it must COUNT against the same ceiling, or an
+      // operator pressing Retry during a wave adds an uncounted POST on top of the cap.
+      // It cannot deadlock against the dispatch path: every holder releases in a finally,
+      // the ceiling is at least 1, and this loop holds no slot while it waits for one.
+      const result = await deliverUnderCap(
         row.event,
         record,
         { id: row.id, createdAt: row.createdAt },
