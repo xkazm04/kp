@@ -4,7 +4,7 @@ import "better-sqlite3";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { gateDwell, roleRunCoverage, type MetricArtifact } from "./role-run-metrics.ts";
+import { gateDwell, roleRunCoverage, roleRunGoalOneSteps, type GoalOneArtifact, type MetricArtifact } from "./role-run-metrics.ts";
 import { SCREEN_ADVANCE_FLOOR, advanceRoleRun, commitRoleRunStageGate } from "./role-run-engine.ts";
 import { getOrCreateRoleRun, listStageArtifacts } from "./db/role-runs.ts";
 import { roleRunGateToken, type RoleRunGate } from "./role-run-gates.ts";
@@ -111,7 +111,100 @@ test("a resolution whose clock does not give a non-negative interval claims no d
 
 test("the two figures are separate reads: nothing exported folds them into one number", async () => {
   const mod = await import("./role-run-metrics.ts");
-  assert.deepEqual(Object.keys(mod).sort(), ["gateDwell", "roleRunCoverage"], "ADR-0011: coverage and dwell, never a single time-to-hire");
+  assert.deepEqual(Object.keys(mod).sort(), ["gateDwell", "roleRunCoverage", "roleRunGoalOneSteps"], "ADR-0011: coverage and dwell, never a single time-to-hire; the goal-1 read is a third, separate question");
+});
+
+// ---- goal 1: gate approvals apart from human steps ------------------------------------
+
+const gated = (kind: RoleRunStageKind, status: RoleRunStageStatus, branchRef: string, minutes: number, gate: RoleRunGate, decision: "approved" | "declined"): GoalOneArtifact => ({
+  ...art(kind, status, branchRef, minutes),
+  payload: { gate, decision },
+});
+
+test("goal 1: a gate approval is counted apart and is not a human step", () => {
+  seq = 0;
+  const g = roleRunGoalOneSteps([
+    art("role_spec", "complete", null, 0),
+    art("screen", "awaiting_approval", "e1", 1),
+    gated("screen", "complete", "e1", 5, "rejection", "approved"),
+  ]);
+  assert.deepEqual(g.gateApprovals.rejection, { approved: 1, declined: 0 });
+  assert.equal(g.humanStepsOutsideGates, 0, "the approval is an allowed step");
+  assert.equal(g.goalOneComplete, 2, "the spec and the gate resolution both count; coverage would have refused the resolution");
+  assert.equal(g.total, 3);
+  assert.equal(roleRunCoverage([art("screen", "complete", "e1", 5)]).overall.autonomousComplete, 0, "coverage still reads a gated complete as human");
+});
+
+test("goal 1: an open gate is counted as open, not as a human step", () => {
+  seq = 0;
+  const g = roleRunGoalOneSteps([art("screen", "awaiting_approval", "e1", 0), art("screen", "awaiting_approval", "e2", 0), art("interview", "awaiting_approval", "e3", 1)]);
+  assert.deepEqual(g.openGates, { rejection: 2, interview_invite: 1, offer: 0 });
+  assert.equal(g.humanStepsOutsideGates, 0);
+  assert.deepEqual(g.gateApprovals.rejection, { approved: 0, declined: 0 });
+  assert.equal(g.verdict, "not met");
+  assert.equal(g.reason, "stopped at the interview_invite gate: 1 awaiting approval (an allowed step)");
+});
+
+test("goal 1: a declined gate is counted as declined", () => {
+  seq = 0;
+  const g = roleRunGoalOneSteps([art("offer_draft", "awaiting_approval", "e1", 0), gated("offer_draft", "terminal", "e1", 3, "offer", "declined")]);
+  assert.deepEqual(g.gateApprovals.offer, { approved: 0, declined: 1 });
+  assert.equal(g.humanStepsOutsideGates, 0);
+  assert.equal(g.verdict, "not met", "a declined offer is not a hire");
+  assert.equal(g.reason, "no branch reached a resolved offer gate");
+});
+
+test("goal 1: an empty ledger reads not measured", () => {
+  const g = roleRunGoalOneSteps([]);
+  assert.equal(g.verdict, "not measured");
+  assert.equal(g.reason, "no stage produced an artifact");
+  assert.deepEqual([g.total, g.goalOneComplete, g.humanStepsOutsideGates], [0, 0, 0]);
+});
+
+test("goal 1: a ledger resolved through the offer gate with only gate approvals reads met", () => {
+  seq = 0;
+  const rows: GoalOneArtifact[] = [
+    art("role_spec", "complete", null, 0),
+    art("slate", "complete", null, 1),
+    art("screen", "awaiting_approval", "e1", 2),
+    gated("screen", "complete", "e1", 3, "rejection", "approved"),
+    art("case_assignment", "complete", "e1", 4),
+    art("interview", "awaiting_approval", "e1", 5),
+    gated("interview", "complete", "e1", 6, "interview_invite", "approved"),
+    art("scorecard", "complete", "e1", 7),
+    art("offer_draft", "awaiting_approval", "e1", 8),
+    gated("offer_draft", "complete", "e1", 9, "offer", "approved"),
+  ];
+  const g = roleRunGoalOneSteps(rows);
+  assert.equal(g.verdict, "met");
+  assert.equal(g.reason, null);
+  assert.equal(g.humanStepsOutsideGates, 0);
+  assert.deepEqual(Object.values(g.gateApprovals).map((t) => t.approved), [1, 1, 1]);
+  assert.deepEqual(g.openGates, { rejection: 0, interview_invite: 0, offer: 0 });
+  assert.equal(g.goalOneComplete, 7, "every complete row counts: gate approvals are allowed");
+});
+
+test("goal 1: a resolution with no gate payload is a human step outside the gates, and blocks met", () => {
+  seq = 0;
+  const g = roleRunGoalOneSteps([
+    art("offer_draft", "awaiting_approval", "e1", 0),
+    gated("offer_draft", "complete", "e1", 1, "offer", "approved"),
+    art("screen", "awaiting_approval", "e2", 2),
+    art("screen", "complete", "e2", 3), // resolved by something that is not a gate commit
+    gated("screen", "complete", "e3", 4, "offer", "approved"), // wrong gate for the stage, and never parked: ignored
+  ]);
+  assert.equal(g.humanStepsOutsideGates, 1);
+  assert.equal(g.verdict, "not met");
+  assert.equal(g.reason, "1 human step outside the gates");
+  assert.equal(g.goalOneComplete, 2, "the unattributable resolution is not counted");
+});
+
+test("goal 1: the coverage and dwell results do not move when the same rows carry payloads", () => {
+  seq = 0;
+  const rows = [art("screen", "awaiting_approval", "e1", 0), gated("screen", "complete", "e1", 30, "rejection", "approved"), art("screen", "awaiting_approval", "e2", 1)];
+  assert.deepEqual(roleRunCoverage(rows).overall, { total: 3, autonomousComplete: 0, coverage: 0 });
+  assert.equal(gateDwell(rows).closed, 1);
+  assert.equal(gateDwell(rows).open, 1);
 });
 
 // ---- a ledger a real pass wrote --------------------------------------------------------

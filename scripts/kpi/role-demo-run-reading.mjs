@@ -65,6 +65,27 @@ export function summarizeRoleDemoRun({ runStatus, artifacts, blocked = null, fai
   return { ...base, measured: true, reason: null, headline: `reached ${furthest}; ${tail}` };
 }
 
+/** The goal-1 headline, from roleRunGoalOneSteps (app/_lib/role-run-metrics.ts) and the reading
+ *  above. A run that could not be read at all keeps its own "not measured: <reason>" — the
+ *  cause, not the ledger's emptiness; otherwise the verdict leads. Operator's decision of
+ *  2026-10-06 (ADR-0011 amendment): the three approval gates are allowed steps, so a run
+ *  that stops at one is "not met", with the gate named, rather than a failure of autonomy.
+ *
+ *  @param {{ verdict: string, reason: string|null }} goalOne
+ *  @param {{ measured: boolean, headline: string }} reading */
+export function goalOneHeadline(goalOne, reading) {
+  if (!reading.measured) return reading.headline;
+  if (goalOne.verdict === "met") return "goal 1: met";
+  if (goalOne.verdict === "not measured") return `not measured: ${goalOne.reason}`;
+  return `goal 1: not met: ${goalOne.reason}`;
+}
+
+/** Per-gate counts as text, in gate order, e.g. "rejection 20 · interview_invite 0 · offer 0".
+ *  @param {Record<string, number>} counts */
+export function formatGateCounts(counts) {
+  return Object.entries(counts).map(([gate, n]) => `${gate} ${n}`).join(" · ");
+}
+
 /** A coverage row as text. A row with nothing to divide is "n/a", never a percentage. */
 export function formatCoverage(row) {
   if (!row || row.total === 0 || row.coverage === null) return "n/a (0 artifacts)";

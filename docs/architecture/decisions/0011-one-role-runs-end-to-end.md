@@ -246,3 +246,21 @@ sent. An approval that arrives after the effect is not an approval, and
   actor (webhook and CV-channel relays, the ATS import, the interview-create
   promote-on-demand) stamps nothing, and its rows read unknown. Rows written
   before this change carry no actor and read unknown too.
+- **2026-10-06 — the three approval gates are not human steps for goal 1.** For
+  goal-1 scoring ("one role runs end to end without a human step"), a run may
+  stop at the rejection, interview-invite and offer gates and still count: the
+  operator decided (ask 47725201, "Gates are allowed") that goal 1 means zero
+  human steps *apart from* those three approvals. Where it is measured:
+  `roleRunGoalOneSteps` in `app/_lib/role-run-metrics.ts` counts the gate
+  resolutions apart (per gate, approved and declined), counts the gates still
+  open, and counts any row that records a human act other than a gate commit;
+  the demo run (`scripts/kpi/role-demo-run.mjs`) leads with its verdict, `goal 1:
+  met` only once a branch has an approved offer gate with no human step outside
+  the gates. The gates stay human under Art. 22: a run still stops at each one
+  for a single attributable approval act, the demo never approves one itself,
+  and `gateDwell` still reports that wait. `roleRunCoverage` is unchanged and
+  still reads a gated stage's `complete` as human — coverage and dwell remain
+  two separate figures, and goal 1 is a third question beside them. The
+  pipeline-event meter (`thread-autonomy.ts`) is unchanged: the engine writes no
+  event at a gate commit, so that meter cannot tell a gate approval from another
+  human act.

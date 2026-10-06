@@ -35,7 +35,7 @@ import { copyFileSync, existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { formatCoverage, summarizeRoleDemoRun } from "./role-demo-run-reading.mjs";
+import { formatCoverage, formatGateCounts, goalOneHeadline, summarizeRoleDemoRun } from "./role-demo-run-reading.mjs";
 
 const SELF = fileURLToPath(import.meta.url);
 const REPO_ROOT = path.resolve(path.dirname(SELF), "..", "..");
@@ -66,7 +66,7 @@ if (args.includes("--run-copy")) {
   const { DEFAULT_WORKSPACE_ID } = await import("@/app/_lib/db/workspaces");
   const { advanceRoleRun, DEFAULT_STAGE_RUNNERS } = await import("@/app/_lib/role-run-engine");
   const { ROLE_RUN_STAGES } = await import("@/app/_lib/role-run-stages");
-  const { roleRunCoverage, gateDwell } = await import("@/app/_lib/role-run-metrics");
+  const { roleRunCoverage, gateDwell, roleRunGoalOneSteps } = await import("@/app/_lib/role-run-metrics");
 
   const ws = workspaceId ?? DEFAULT_WORKSPACE_ID;
   const { run } = getOrCreateRoleRun({ jobId, cycle: `demo-${Date.now()}` }, ws);
@@ -98,6 +98,7 @@ if (args.includes("--run-copy")) {
         artifacts: artifacts.map((a) => ({ kind: a.kind, branchRef: a.branchRef, status: a.status, seq: a.seq, producedAt: a.producedAt, payload: a.payload })),
         coverage: roleRunCoverage(artifacts),
         dwell: gateDwell(artifacts),
+        goalOne: roleRunGoalOneSteps(artifacts),
       })
   );
   process.exit(0);
@@ -152,7 +153,7 @@ const reading = summarizeRoleDemoRun({
 });
 
 if (asJson) {
-  console.log(JSON.stringify({ ...reading, run: record.run, status: record.status, passes: record.passes, coverage: record.coverage, dwell: record.dwell, artifacts: record.artifacts, source: { db: sourceDb } }, null, 2));
+  console.log(JSON.stringify({ ...reading, run: record.run, status: record.status, passes: record.passes, coverage: record.coverage, dwell: record.dwell, goalOne: record.goalOne, goalOneHeadline: goalOneHeadline(record.goalOne, reading), artifacts: record.artifacts, source: { db: sourceDb } }, null, 2));
   process.exit(0);
 }
 
@@ -169,9 +170,9 @@ if (reading.produced.length === 0) {
 }
 const gates = Object.entries(reading.parkedByGate);
 if (gates.length === 0) {
-  console.log("  parked at human gates: none");
+  console.log("  awaiting gate approval: none");
 } else {
-  console.log("  parked at human gates:");
+  console.log("  awaiting gate approval:");
   for (const [gate, branches] of gates) console.log(`    ${gate}: ${branches.length} (${branches.join(", ")})`);
 }
 console.log(`  autonomous coverage: ${formatCoverage(record.coverage.overall)}`);
@@ -181,4 +182,10 @@ for (const kind of record.stageOrder) {
 }
 const dwell = record.dwell;
 console.log(`  gate dwell: ${dwell.open} open · ${dwell.closed} closed · ${dwell.unmeasurable} unmeasurable · median closed ${dwell.medianClosedMs === null ? "n/a" : `${dwell.medianClosedMs} ms`}`);
+const goalOne = record.goalOne;
+const approvals = Object.fromEntries(Object.entries(goalOne.gateApprovals).map(([g, t]) => [g, t.approved]));
+console.log(`  human steps outside gates: ${goalOne.humanStepsOutsideGates}`);
+console.log(`  gate approvals: ${formatGateCounts(approvals)} (declined ${Object.values(goalOne.gateApprovals).reduce((n, t) => n + t.declined, 0)})`);
+console.log(`  open gates: ${formatGateCounts(goalOne.openGates)}`);
 console.log(`  ${reading.headline}`);
+console.log(`  ${goalOneHeadline(goalOne, reading)}`);

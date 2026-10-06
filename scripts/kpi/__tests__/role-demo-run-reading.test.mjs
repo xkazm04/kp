@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { GATE_OF_STAGE, STAGE_ORDER, formatCoverage, summarizeRoleDemoRun } from "../role-demo-run-reading.mjs";
+import { GATE_OF_STAGE, STAGE_ORDER, formatCoverage, formatGateCounts, goalOneHeadline, summarizeRoleDemoRun } from "../role-demo-run-reading.mjs";
 
 let seq = 0;
 const art = (kind, branchRef, status, payload) => ({ kind, branchRef, status, seq: ++seq, payload });
@@ -90,6 +90,32 @@ test("a blocked stage is named with what it needs and is never stubbed over", ()
 test("an engine failure is not measured and carries its message", () => {
   const r = summarizeRoleDemoRun({ runStatus: "running", artifacts: [spec()], failure: "engine threw after 1 pass: boom" });
   assert.equal(r.headline, "not measured: engine threw after 1 pass: boom");
+});
+
+// ---- the goal-1 headline: three forms, and a run that could not be read keeps its cause ----
+
+const measured = { measured: true, headline: "reached screen; 20 branches parked at gates rejection" };
+
+test("goal 1 met leads with 'goal 1: met'", () => {
+  assert.equal(goalOneHeadline({ verdict: "met", reason: null }, measured), "goal 1: met");
+});
+
+test("goal 1 not met names the reason, an open gate being an allowed step", () => {
+  const reason = "stopped at the rejection gate: 20 awaiting approval (an allowed step)";
+  assert.equal(goalOneHeadline({ verdict: "not met", reason }, measured), `goal 1: not met: ${reason}`);
+});
+
+test("an empty ledger's goal-1 verdict is 'not measured', never 'not met'", () => {
+  assert.equal(goalOneHeadline({ verdict: "not measured", reason: "no stage produced an artifact" }, measured), "not measured: no stage produced an artifact");
+});
+
+test("a run that could not be read keeps its own cause over the goal-1 verdict", () => {
+  const unread = summarizeRoleDemoRun({ runStatus: "cancelled", artifacts: [art("role_spec", null, "terminal", { lintFindings: ["job_not_found"] })] });
+  assert.equal(goalOneHeadline({ verdict: "not met", reason: "no branch reached a resolved offer gate" }, unread), "not measured: run cancelled (job_not_found)");
+});
+
+test("per-gate counts print in the order given, zeros included", () => {
+  assert.equal(formatGateCounts({ rejection: 20, interview_invite: 0, offer: 0 }), "rejection 20 · interview_invite 0 · offer 0");
 });
 
 test("a coverage row with nothing to divide is n/a, not a percentage", () => {
