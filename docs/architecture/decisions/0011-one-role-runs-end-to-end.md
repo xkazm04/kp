@@ -264,3 +264,18 @@ sent. An approval that arrives after the effect is not an approval, and
   pipeline-event meter (`thread-autonomy.ts`) is unchanged: the engine writes no
   event at a gate commit, so that meter cannot tell a gate approval from another
   human act.
+- **2026-10-06 — what goal 1 reads at the end of a run, and what the demo's stand-in
+  is.** (a) A run whose every branch ended by gate decision without an approved
+  offer is `not met`. Goal 1's end is an approved offer: a finished run that hired
+  nobody has not shown the thread end to end. `roleRunGoalOneSteps` now says so
+  when no gate is open and a gate resolution was `declined` — "every open branch
+  ended at a gate by decision; no offer approved" — instead of "no branch reached
+  a resolved offer gate", which a declined offer made false. (b) A resolution row
+  without a valid gate payload counts as a human step outside the gates. The
+  engine's only resolution writer (`commitRoleRunStageGate`) always stamps `gate`
+  and `decision`, so the count is 0 today, and any new writer is caught. (c) The
+  demo's `--approve-gates` stand-in (`scripts/kpi/role-demo-run.mjs`, approver
+  `demo-stand-in`) exists only on the temp copy of the database. It is labelled in
+  every reading — the headline says the gates were approved by the demo stand-in,
+  not a person, with the count per gate — and it never approves anything in a real
+  database.

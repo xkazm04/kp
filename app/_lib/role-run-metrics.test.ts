@@ -151,7 +151,43 @@ test("goal 1: a declined gate is counted as declined", () => {
   assert.deepEqual(g.gateApprovals.offer, { approved: 0, declined: 1 });
   assert.equal(g.humanStepsOutsideGates, 0);
   assert.equal(g.verdict, "not met", "a declined offer is not a hire");
+  assert.equal(g.reason, "every open branch ended at a gate by decision; no offer approved", "a declined offer did reach a resolved offer gate");
+});
+
+test("goal 1: a branch declined at an earlier gate, with nothing open, reads as ended by decision", () => {
+  seq = 0;
+  const g = roleRunGoalOneSteps([art("screen", "awaiting_approval", "e1", 0), gated("screen", "terminal", "e1", 1, "rejection", "declined")]);
+  assert.equal(g.verdict, "not met");
+  assert.equal(g.reason, "every open branch ended at a gate by decision; no offer approved");
+});
+
+test("goal 1: a gate still open outranks a declined one in the reason", () => {
+  seq = 0;
+  const g = roleRunGoalOneSteps([
+    art("screen", "awaiting_approval", "e1", 0),
+    gated("screen", "terminal", "e1", 1, "rejection", "declined"),
+    art("screen", "awaiting_approval", "e2", 2),
+  ]);
+  assert.equal(g.reason, "stopped at the rejection gate: 1 awaiting approval (an allowed step)");
+});
+
+test("goal 1: approvals with no decline and no approved offer keep the older reason", () => {
+  seq = 0;
+  const g = roleRunGoalOneSteps([art("screen", "awaiting_approval", "e1", 0), gated("screen", "complete", "e1", 1, "rejection", "approved")]);
+  assert.equal(g.verdict, "not met");
   assert.equal(g.reason, "no branch reached a resolved offer gate");
+});
+
+test("goal 1: a declined gate does not excuse a resolution row with no gate payload (fail closed)", () => {
+  seq = 0;
+  const g = roleRunGoalOneSteps([
+    art("offer_draft", "awaiting_approval", "e1", 0),
+    gated("offer_draft", "terminal", "e1", 1, "offer", "declined"),
+    art("screen", "awaiting_approval", "e2", 2),
+    art("screen", "complete", "e2", 3),
+  ]);
+  assert.equal(g.humanStepsOutsideGates, 1);
+  assert.equal(g.reason, "1 human step outside the gates");
 });
 
 test("goal 1: an empty ledger reads not measured", () => {

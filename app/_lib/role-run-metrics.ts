@@ -257,5 +257,10 @@ export function roleRunGoalOneSteps(artifacts: readonly GoalOneArtifact[]): Goal
   }
   const furthestOpen = [...ROLE_RUN_GATES].reverse().find((g) => openGates[g] > 0);
   if (furthestOpen) return { ...base, verdict: "not met", reason: `stopped at the ${furthestOpen} gate: ${openGates[furthestOpen]} awaiting approval (an allowed step)` };
+  // No gate open and no offer approved. A declined gate ended its branch by decision, so "no
+  // branch reached a resolved offer gate" would be false after a declined offer: say what
+  // happened. The verdict stays "not met" - goal 1's end is an approved offer.
+  const anyDeclined = ROLE_RUN_GATES.some((g) => gateApprovals[g].declined > 0);
+  if (anyDeclined) return { ...base, verdict: "not met", reason: "every open branch ended at a gate by decision; no offer approved" };
   return { ...base, verdict: "not met", reason: "no branch reached a resolved offer gate" };
 }

@@ -65,19 +65,62 @@ export function summarizeRoleDemoRun({ runStatus, artifacts, blocked = null, fai
   return { ...base, measured: true, reason: null, headline: `reached ${furthest}; ${tail}` };
 }
 
+/** Who signs a gate in a demo run that was told to pass them — the approver name the demo
+ *  hands commitRoleRunStageGate, and the label every reading prints. It is a stand-in on the
+ *  throwaway copy, never a person (ADR-0011 amendment 2026-10-06). */
+export const STAND_IN_APPROVER = "demo-stand-in";
+
 /** The goal-1 headline, from roleRunGoalOneSteps (app/_lib/role-run-metrics.ts) and the reading
  *  above. A run that could not be read at all keeps its own "not measured: <reason>" — the
  *  cause, not the ledger's emptiness; otherwise the verdict leads. Operator's decision of
  *  2026-10-06 (ADR-0011 amendment): the three approval gates are allowed steps, so a run
  *  that stops at one is "not met", with the gate named, rather than a failure of autonomy.
  *
+ *  `standIn` is non-null only when the demo was run with --approve-gates: the verdict then
+ *  says, in the same line, that the gates were approved by the demo stand-in and not by a
+ *  person. Counts per gate follow in standInLine.
+ *
  *  @param {{ verdict: string, reason: string|null }} goalOne
- *  @param {{ measured: boolean, headline: string }} reading */
-export function goalOneHeadline(goalOne, reading) {
+ *  @param {{ measured: boolean, headline: string }} reading
+ *  @param {Record<string, number> | null} [standIn] */
+export function goalOneHeadline(goalOne, reading, standIn = null) {
+  const tag = standIn ? " (gates approved by demo stand-in)" : "";
   if (!reading.measured) return reading.headline;
-  if (goalOne.verdict === "met") return "goal 1: met";
+  if (goalOne.verdict === "met") return `goal 1: met${tag}`;
   if (goalOne.verdict === "not measured") return `not measured: ${goalOne.reason}`;
-  return `goal 1: not met: ${goalOne.reason}`;
+  return `goal 1: not met: ${goalOne.reason}${tag}`;
+}
+
+/** The count of stand-in approvals per gate, as a line that says whose approvals they are.
+ *  @param {Record<string, number>} counts */
+export function standInLine(counts) {
+  return `gates approved by the demo stand-in, not a person: ${formatGateCounts(counts)}`;
+}
+
+/** The ladder stages the run reached, each with how many chains hold an artifact of it —
+ *  distinct branches, the run-wide stages counting as one — in ladder order.
+ *  @param {{ kind: string, branchRef: string|null }[]} artifacts
+ *  @returns {{ kind: string, chains: number }[]} */
+export function stagesReached(artifacts) {
+  const chains = new Map();
+  for (const a of artifacts) {
+    if (!STAGE_ORDER.includes(a.kind)) continue;
+    if (!chains.has(a.kind)) chains.set(a.kind, new Set());
+    chains.get(a.kind).add(a.branchRef ?? "");
+  }
+  return STAGE_ORDER.filter((k) => chains.has(k)).map((kind) => ({ kind, chains: chains.get(kind).size }));
+}
+
+/** Where the run stopped, in one clause.
+ *  @param {{ runStatus: string, parkedByGate: Record<string, string[]>, failure?: string|null, capped?: boolean }} input */
+export function stoppedAt({ runStatus, parkedByGate, failure = null, capped = false }) {
+  if (failure) return failure;
+  if (capped) return "the pass ceiling, with the run still running";
+  const parked = Object.entries(parkedByGate).map(([gate, refs]) => `${gate} (${refs.length})`);
+  if (parked.length > 0) return `awaiting approval at ${parked.join(", ")}`;
+  if (runStatus === "complete") return "run complete: every branch ended";
+  if (runStatus === "cancelled") return "run cancelled";
+  return "nothing left to produce";
 }
 
 /** Per-gate counts as text, in gate order, e.g. "rejection 20 · interview_invite 0 · offer 0".

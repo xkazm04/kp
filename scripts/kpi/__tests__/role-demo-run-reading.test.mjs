@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { GATE_OF_STAGE, STAGE_ORDER, formatCoverage, formatGateCounts, goalOneHeadline, summarizeRoleDemoRun } from "../role-demo-run-reading.mjs";
+import { GATE_OF_STAGE, STAGE_ORDER, STAND_IN_APPROVER, formatCoverage, formatGateCounts, goalOneHeadline, standInLine, stagesReached, stoppedAt, summarizeRoleDemoRun } from "../role-demo-run-reading.mjs";
 
 let seq = 0;
 const art = (kind, branchRef, status, payload) => ({ kind, branchRef, status, seq: ++seq, payload });
@@ -112,6 +112,50 @@ test("an empty ledger's goal-1 verdict is 'not measured', never 'not met'", () =
 test("a run that could not be read keeps its own cause over the goal-1 verdict", () => {
   const unread = summarizeRoleDemoRun({ runStatus: "cancelled", artifacts: [art("role_spec", null, "terminal", { lintFindings: ["job_not_found"] })] });
   assert.equal(goalOneHeadline({ verdict: "not met", reason: "no branch reached a resolved offer gate" }, unread), "not measured: run cancelled (job_not_found)");
+});
+
+// ---- --approve-gates: a reading that says who approved the gates -----------------------
+
+test("a met verdict with stand-in approvals says the gates were approved by the demo stand-in", () => {
+  assert.equal(goalOneHeadline({ verdict: "met", reason: null }, { measured: true, headline: "reached offer_draft; 0 branches parked at gates" }, { rejection: 20, interview_invite: 4, offer: 1 }), "goal 1: met (gates approved by demo stand-in)");
+  assert.equal(standInLine({ rejection: 20, interview_invite: 4, offer: 1 }), "gates approved by the demo stand-in, not a person: rejection 20 · interview_invite 4 · offer 1");
+  assert.equal(STAND_IN_APPROVER, "demo-stand-in");
+});
+
+test("a run stopped at a later gate says so, and still names the stand-in", () => {
+  const reason = "stopped at the interview_invite gate: 3 awaiting approval (an allowed step)";
+  const headline = goalOneHeadline({ verdict: "not met", reason }, measured, { rejection: 20, interview_invite: 0, offer: 0 });
+  assert.equal(headline, `goal 1: not met: ${reason} (gates approved by demo stand-in)`);
+  assert.equal(standInLine({ rejection: 20, interview_invite: 0, offer: 0 }), "gates approved by the demo stand-in, not a person: rejection 20 · interview_invite 0 · offer 0");
+});
+
+test("without the flag the headline carries no stand-in wording", () => {
+  assert.equal(goalOneHeadline({ verdict: "met", reason: null }, measured), "goal 1: met");
+  assert.equal(goalOneHeadline({ verdict: "met", reason: null }, measured, null), "goal 1: met");
+});
+
+test("a run that could not be read keeps its cause even with the stand-in on", () => {
+  const unread = summarizeRoleDemoRun({ runStatus: "running", artifacts: [spec()], failure: "engine threw after 2 passes at the slate stage (inferred from the ledger): needs a key" });
+  assert.equal(goalOneHeadline({ verdict: "not met", reason: "x" }, unread, { rejection: 0, interview_invite: 0, offer: 0 }), "not measured: engine threw after 2 passes at the slate stage (inferred from the ledger): needs a key");
+});
+
+test("stages reached count chains per stage in ladder order", () => {
+  const rows = [spec(), slate("a", "b"), art("screen", "a", "awaiting_approval"), art("screen", "b", "awaiting_approval"), art("screen", "a", "complete"), art("case_assignment", "a", "complete")];
+  assert.deepEqual(stagesReached(rows), [
+    { kind: "role_spec", chains: 1 },
+    { kind: "slate", chains: 1 },
+    { kind: "screen", chains: 2 },
+    { kind: "case_assignment", chains: 1 },
+  ]);
+  assert.deepEqual(stagesReached([]), []);
+});
+
+test("where it stopped: a failure, a gate, a finished run, or nothing left", () => {
+  assert.equal(stoppedAt({ runStatus: "running", parkedByGate: {}, failure: "engine threw after 1 pass: boom" }), "engine threw after 1 pass: boom");
+  assert.equal(stoppedAt({ runStatus: "running", parkedByGate: { rejection: ["a", "b"], offer: ["c"] } }), "awaiting approval at rejection (2), offer (1)");
+  assert.equal(stoppedAt({ runStatus: "complete", parkedByGate: {} }), "run complete: every branch ended");
+  assert.equal(stoppedAt({ runStatus: "running", parkedByGate: {}, capped: true }), "the pass ceiling, with the run still running");
+  assert.equal(stoppedAt({ runStatus: "running", parkedByGate: {} }), "nothing left to produce");
 });
 
 test("per-gate counts print in the order given, zeros included", () => {
