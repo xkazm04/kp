@@ -642,6 +642,23 @@ export function latestInterviewByEntry(entryId: string, workspaceId: string = DE
   return r ? rowToInterview(r) : null;
 }
 
+/** The newest COMPLETED candidate-mode session for an entry that carries a sealed
+ *  scorecard — the role run's scorecard stage (S5) reads this. Deliberately NOT
+ *  latestInterviewByEntry: that read prefers transcript-bearing sessions, so a newer
+ *  in-progress or test-mode row with a transcript would hide the finished interview.
+ *
+ *  Tenant-scoped, like its neighbours above. */
+export function latestScoredCandidateInterviewByEntry(entryId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): InterviewSession | null {
+  const r = ensureDb()
+    .prepare(
+      `SELECT * FROM interview_sessions
+       WHERE entry_id = ? AND workspace_id = ? AND mode = 'candidate' AND status = 'completed' AND scorecard_json IS NOT NULL
+       ORDER BY created_at DESC LIMIT 1`
+    )
+    .get(entryId, workspaceId) as InterviewRow | undefined;
+  return r ? rowToInterview(r) : null;
+}
+
 /** The newest live-candidate (in_progress) session for an entry — /create's
  *  reissue-guard read. Deliberately NOT latestInterviewByEntry: that read
  *  prefers transcript-bearing sessions, which would hide an active call behind

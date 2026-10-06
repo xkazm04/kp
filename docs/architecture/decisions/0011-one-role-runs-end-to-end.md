@@ -301,3 +301,15 @@ sent. An approval that arrives after the effect is not an approval, and
   policy labels (`invite-1`, `offer-1`), because the engine records no policy version for
   them. The first honest reading therefore names the real gap: the interview stage
   produces no rated scorecard, so no offer has a basis. `roleRunGoalOneSteps` is unchanged.
+- **2026-10-06 — S5 carries the sealed scorecard of the entry's completed candidate
+  interview.** `runScorecard` reads the entry's newest `completed`, candidate-mode
+  interview session that holds a scorecard, in the run's workspace
+  (`latestScoredCandidateInterviewByEntry`). When one exists the card names its session id
+  and its recommendation, made canonical (`advance` | `hold` | `reject`; an off-vocabulary
+  value becomes `hold`; a scorecard with no recommendation stays `unrated`). In every other
+  case — no session, a test-mode rehearsal, a live or revoked call, another workspace — the
+  card is `unrated` with no session id, exactly as before. The stage still calls no model,
+  provider or pipeline and writes no verdict of its own. Known limit, unchanged: S5 runs in
+  the same pass as the invite approval, before an interview can have happened, so a real
+  flow still records `unrated`; fixing that changes the engine's shape and is a later
+  decision.

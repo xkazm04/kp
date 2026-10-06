@@ -24,6 +24,8 @@ import type { OfferDraftPayload, RoleSpecPayload, ScreenPayload, SlatePayload } 
 import { ensureDb } from "./db/core.ts";
 import { insertJob } from "./job-ingest.ts";
 import { createPipelineEntry } from "./db/pipeline.ts";
+import { completeInterviewSession, createInterviewSession, revokeInterviewSession } from "./db/interviews.ts";
+import type { ScorecardPayload } from "./role-run-stages.ts";
 import type { JobRecord } from "./db/core.ts";
 
 // ONE ROLE, END TO END. The product's claim is "JD in; sourced and screened candidates;
@@ -397,4 +399,111 @@ test("no artifact in a full run carries a candidate's name, even though the boar
     false,
     "and it is nowhere in the ledger — which is what makes a read-boundary consent withhold sufficient"
   );
+});
+
+// --- S5 carries the entry's real interview scorecard --------------------------
+//
+// Each case below seeds ONE interview session for one candidate, drives the run through
+// the invite gate, and reads the scorecard artifact S5 wrote. The run is the unit under
+// test, not the runner in isolation: the point is what lands in the ledger.
+
+type SessionSetup = (entryId: string) => string; // returns the session id
+
+let scorecardCase = 0;
+async function scorecardAfter(setup: SessionSetup | null): Promise<{ card: ScorecardPayload["cards"][number]; sessionId: string | null }> {
+  scorecardCase += 1;
+  const jobId = `jd-s5-${scorecardCase}`;
+  seedJob(jobId, "S5", ["java"]);
+  const entry = seedCandidate(jobId, `cand-s5-${scorecardCase}`, 90);
+  const { run } = getOrCreateRoleRun({ jobId });
+  await runToStandstill(run.id);
+  approve(run.id, entry, "rejection", `screen-1@${SCREEN_ADVANCE_FLOOR}`);
+  await runToStandstill(run.id);
+  const sessionId = setup ? setup(entry) : null;
+  approve(run.id, entry, "interview_invite", "invite-1");
+  await runToStandstill(run.id);
+  const payload = latestStageArtifact(run.id, "scorecard", entry)?.payload as ScorecardPayload;
+  return { card: payload.cards[0], sessionId };
+}
+
+function completed(scorecard: unknown, mode: "candidate" | "test" = "candidate"): SessionSetup {
+  return (entryId) => {
+    const s = createInterviewSession({ provider: "openai", entryId, mode });
+    completeInterviewSession(s.id, { transcript: [{ role: "candidate", text: "An answer." }], scorecard, status: "completed" });
+    return s.id;
+  };
+}
+
+test("S5 with no interview session stays unrated with no session id", async () => {
+  const { card } = await scorecardAfter(null);
+  assert.equal(card.recommendation, "unrated");
+  assert.equal(card.sessionId, null);
+});
+
+test("S5 carries a completed candidate interview's advance verdict and its session id", async () => {
+  const { card, sessionId } = await scorecardAfter(completed({ recommendation: "advance", ratings: [] }));
+  assert.equal(card.recommendation, "advance");
+  assert.equal(card.sessionId, sessionId);
+});
+
+test("S5 carries a reject verdict as reject", async () => {
+  const { card, sessionId } = await scorecardAfter(completed({ recommendation: "reject" }));
+  assert.equal(card.recommendation, "reject");
+  assert.equal(card.sessionId, sessionId);
+});
+
+test("S5 turns an off-vocabulary recommendation into hold, never into a positive", async () => {
+  const { card, sessionId } = await scorecardAfter(completed({ recommendation: "strong_hire" }));
+  assert.equal(card.recommendation, "hold");
+  assert.equal(card.sessionId, sessionId);
+});
+
+test("S5 with a completed scorecard that has no recommendation is unrated but names the session", async () => {
+  const { card, sessionId } = await scorecardAfter(completed({ summary: "no verdict field", ratings: [] }));
+  assert.equal(card.recommendation, "unrated");
+  assert.equal(card.sessionId, sessionId);
+});
+
+test("S5 ignores a test-mode rehearsal, however good its scorecard", async () => {
+  const { card } = await scorecardAfter(completed({ recommendation: "advance" }, "test"));
+  assert.equal(card.recommendation, "unrated");
+  assert.equal(card.sessionId, null);
+});
+
+test("S5 ignores an in_progress session even when a scorecard is attached to the row", async () => {
+  const { card } = await scorecardAfter((entryId) => {
+    const s = createInterviewSession({ provider: "openai", entryId, mode: "candidate" });
+    ensureDb()
+      .prepare(`UPDATE interview_sessions SET status='in_progress', scorecard_json=? WHERE id=?`)
+      .run(JSON.stringify({ recommendation: "advance" }), s.id);
+    return s.id;
+  });
+  assert.equal(card.recommendation, "unrated");
+  assert.equal(card.sessionId, null);
+});
+
+test("S5 ignores a revoked session even though it holds a scorecard", async () => {
+  const { card } = await scorecardAfter((entryId) => {
+    const s = createInterviewSession({ provider: "openai", entryId, mode: "candidate" });
+    assert.equal(revokeInterviewSession(s.id), true);
+    completeInterviewSession(s.id, { transcript: [{ role: "candidate", text: "x" }], scorecard: { recommendation: "advance" }, status: "completed" });
+    assert.equal(
+      (ensureDb().prepare(`SELECT status FROM interview_sessions WHERE id=?`).get(s.id) as { status: string }).status,
+      "revoked",
+      "positive control: the row really is revoked and really holds a scorecard"
+    );
+    return s.id;
+  });
+  assert.equal(card.recommendation, "unrated");
+  assert.equal(card.sessionId, null);
+});
+
+test("S5 ignores a completed session that belongs to another workspace", async () => {
+  const { card } = await scorecardAfter((entryId) => {
+    const id = completed({ recommendation: "advance" })(entryId);
+    ensureDb().prepare(`UPDATE interview_sessions SET workspace_id='ws-elsewhere' WHERE id=?`).run(id);
+    return id;
+  });
+  assert.equal(card.recommendation, "unrated");
+  assert.equal(card.sessionId, null);
 });

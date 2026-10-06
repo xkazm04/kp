@@ -32,6 +32,9 @@ import { DEFAULT_WORKSPACE_ID } from "./db/workspaces.ts";
 import { getJob } from "./db/jobs.ts";
 import { listEntriesForJob } from "./db/pipeline.ts";
 import { resolveOfferTtlDays } from "./offer-policy.ts";
+import { latestScoredCandidateInterviewByEntry } from "./db/interviews.ts";
+import { isCandidateInterview } from "./interview-rehearsal.ts";
+import { coerceInterviewRecommendation } from "./interview-recommendation.ts";
 
 // The engine that walks a role run from JD to offer draft (ADR-0011 §1 and §4).
 //
@@ -224,17 +227,24 @@ const runInterview: StageRunner = (ctx) => ({
 const runScorecard: StageRunner = (ctx) => {
   const spec = latestStageArtifact(ctx.run.id, "role_spec", null, ctx.workspaceId);
   const rubric = (spec?.payload as RoleSpecPayload | undefined) ?? null;
+  const entryId = ctx.branchRef ?? "";
+  // Where the verdict now comes from: the entry's own completed candidate interview and
+  // the scorecard already sealed on it (read, never produced here). A rehearsal, a live
+  // or revoked call, or no call at all is no basis, and the card stays "unrated".
+  const session = entryId ? latestScoredCandidateInterviewByEntry(entryId, ctx.workspaceId) : null;
+  const sealed = session && isCandidateInterview(session) && session.status === "completed" && session.scorecard != null ? session : null;
+  const sealedRecommendation = (sealed?.scorecard as { recommendation?: unknown } | null | undefined)?.recommendation;
   return {
     status: "complete",
     payload: {
       cards: [
         {
-          entryId: ctx.branchRef ?? "",
-          sessionId: null,
+          entryId,
+          sessionId: sealed?.id ?? null,
           // "unrated" is the honest verdict with no interview session attached. A
           // default of "hire" or "no_hire" would be a fabricated assessment sealed into
           // an immutable chain — the exact class ADR-0008 forbids.
-          recommendation: "unrated",
+          recommendation: sealedRecommendation == null ? "unrated" : coerceInterviewRecommendation(sealedRecommendation),
           rubricVersion: rubric?.rubricVersion ?? "1",
           rubricKeys: rubric?.rubricKeys ?? [],
           source: "ai",
