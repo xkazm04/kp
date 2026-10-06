@@ -317,6 +317,26 @@ export function simulatedOfferCount(decisions, rows) {
   return decisions.filter((d) => d.gate === "offer" && d.action === "approve" && rated.has(d.branchRef)).length;
 }
 
+/** WHERE THE CVs GO, in one line, in the run's own output — printed and in the `--json`
+ *  reading. The demo sends the played entry's CV profile and the entry's private interviewer
+ *  brief to a `claude -p` child on this machine's Claude seat (interview-sim/providers.ts);
+ *  no other provider, no API key, no service in between. Part of closing finding 2b
+ *  (docs/security/role-demo-sim-scan-2026-10-06.md) alongside the seeded-only rule. */
+export const SIM_PROVIDER_LINE =
+  "the CV of every played (seeded) entry goes to the Claude CLI (`claude -p`) on this machine's Claude seat — no other provider, no API key, no service in between";
+
+/** The prefix a not-seed refusal's reason carries. Restated from role-demo.ts NOT_SEED_DATA
+ *  (this file loads no TS); role-demo-interviews.test.mjs pins the two to agree. */
+export const NOT_SEED_REFUSAL = "not simulated: not seed data";
+
+/** How many branches were refused because they could not be proven seed data — the count the
+ *  reading owes the operator once the demo plays only what it can prove (finding 2b).
+ *  @param {{ skipped: string|null }[]} rows
+ *  @returns {number} */
+export function notSeedRefusalCount(rows) {
+  return (rows ?? []).filter((r) => typeof r?.skipped === "string" && r.skipped.startsWith(NOT_SEED_REFUSAL)).length;
+}
+
 /** The simulated interviews as lines: one per branch with counts and the recommendation —
  *  never a transcript or scorecard text.
  *  @param {{ branchRef: string, sessionId: string|null, recommendation: string|null, verdictSource: string|null, turns: number, endReason: string|null, skipped: string|null }[]} rows

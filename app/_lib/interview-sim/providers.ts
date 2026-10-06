@@ -17,11 +17,18 @@
 // session's system prompt (`--system-prompt-file`, not a `<system>` block inside the
 // user prompt), so the stand-in is not also Claude Code's coding agent; and `--tools ""`
 // removes every built-in tool, so a turn is text and nothing else. The consumer-terms
-// production veto of the Python lane does not apply: this is a dev-only instrument.
-// It is NOT, however, always on synthetic data — an earlier revision of this line claimed
-// that. The goal-1 demo run (interview-sim/role-demo.ts) plays entries off a COPY of the
-// operator's own board, so a real candidate's CV profile can be the persona in a call made
-// here. See docs/security/role-demo-sim-scan-2026-10-06.md, check 2.
+// production veto of the Python lane does not apply: this is a dev-only instrument on
+// synthetic data. That claim is now CHECKED rather than asserted, which is the whole of
+// finding 2b: an earlier revision said "never on a real person's data" while the goal-1
+// demo run (interview-sim/role-demo.ts) played entries off a COPY of the operator's own
+// board, so a real candidate's CV profile could be the persona in a call made here. Since
+// 2026-10-06 that path refuses every entry it cannot prove is seed data (seed-origin.ts),
+// so the only CV profiles reaching this provider from the demo are fixture records. See
+// docs/security/role-demo-sim-scan-2026-10-06.md, check 2b.
+//
+// WHERE THE PROMPT GOES, stated once because the demo's reading quotes it: into a `claude -p`
+// child on this machine's Claude seat — the operator's own Claude subscription, no API key,
+// no other provider, no service of ours in between.
 
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";

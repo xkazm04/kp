@@ -40,7 +40,17 @@
 // passes, so S5 runs on the NEXT one and the engine is untouched — the child plays that
 // branch's candidate from the CV on the entry through the existing interview simulator (the Claude
 // CLI), seals the scorecard with the existing `scorecard` synthesis, and S5 reads it as it
-// would a real one. Only a scorecard the model itself wrote ('llm') is accepted: a template
+// would a real one.
+//
+// SEEDED ENTRIES ONLY (2026-10-06, finding 2b of docs/security/role-demo-sim-scan-2026-10-06.md).
+// A branch is played only when the code can PROVE the entry is seed data — its row and its stored
+// CV payload match data/seed_pipeline/pipeline.json and data/seed_candidates/candidates.json
+// (app/_lib/interview-sim/seed-origin.ts). Every other entry, and every entry at all if those
+// files cannot be read, is refused with a recorded reason before the CV reaches a prompt; the
+// reading prints how many were refused that way. Where a played CV does go is printed too, in one
+// line: a `claude -p` child on this machine's Claude seat.
+//
+// Only a scorecard the model itself wrote ('llm') is accepted: a template
 // scorecard, no CLI, KP_OFFLINE or a throwing provider leave the branch "unrated" with the
 // reason recorded. Every reading labels the interview simulated and lists one row per
 // branch (session, recommendation, turns, end) — never transcript text. The logic is
@@ -92,6 +102,8 @@ import {
   furthestPerBranch,
   goalOneHeadline,
   formatSimulatedInterviews,
+  notSeedRefusalCount,
+  SIM_PROVIDER_LINE,
   simulatedOfferCount,
   stagesReached,
   stoppedAt,
@@ -215,7 +227,7 @@ const standIn = standInMode
 
 if (asJson) {
   const standInFields = standIn
-    ? { approvedBy: STAND_IN_APPROVER, standInMode: standIn.mode, mechanicsOnly: standIn.mode === "all", standInTally: standIn.tally, standInDecisions: record.standInDecisions, ...(simulatedInterviews ? { simulatedInterviews, simulatedInterviewCap: record.simulatedInterviewCap } : {}), stagesReached: stagesReached(record.artifacts), furthestPerBranch: furthestPerBranch(record.artifacts), stoppedAt: stoppedAt({ runStatus: record.status, parkedByGate: reading.parkedByGate, failure: record.failure, capped: record.capped }) }
+    ? { approvedBy: STAND_IN_APPROVER, standInMode: standIn.mode, mechanicsOnly: standIn.mode === "all", standInTally: standIn.tally, standInDecisions: record.standInDecisions, ...(simulatedInterviews ? { simulatedInterviews, simulatedInterviewCap: record.simulatedInterviewCap, simulatedInterviewProvider: SIM_PROVIDER_LINE, refusedNotSeedData: notSeedRefusalCount(simulatedInterviews) } : {}), stagesReached: stagesReached(record.artifacts), furthestPerBranch: furthestPerBranch(record.artifacts), stoppedAt: stoppedAt({ runStatus: record.status, parkedByGate: reading.parkedByGate, failure: record.failure, capped: record.capped }) }
     : {};
   console.log(JSON.stringify({ ...reading, run: record.run, status: record.status, passes: record.passes, coverage: record.coverage, dwell: record.dwell, goalOne: record.goalOne, goalOneHeadline: goalOneHeadline(record.goalOne, reading, standIn), ...standInFields, artifacts: record.artifacts, source: { db: sourceDb } }, null, 2));
   process.exit(0);
@@ -264,6 +276,8 @@ if (standIn) {
   for (const line of formatStandInTally(standIn.tally)) console.log(`    ${line}`);
   if (simulatedInterviews) {
     console.log(`  simulated interviews (candidate played by the model from the CV on the entry; cap ${record.simulatedInterviewCap}; no transcript text is printed):`);
+    console.log(`    provider: ${SIM_PROVIDER_LINE}`);
+    console.log(`    refused as not seed data: ${notSeedRefusalCount(simulatedInterviews)} (seeded entries only — the CV of a refused entry was never sent)`);
     if (simulatedInterviews.length === 0) console.log("    none: no interview invite was approved");
     for (const line of formatSimulatedInterviews(simulatedInterviews)) console.log(`    ${line}`);
   }

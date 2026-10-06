@@ -4,6 +4,11 @@
 // runs here (runDemoOnCopy) on a throwaway database, with the simulator's KEYLESS doubles
 // (interview-sim/fake.ts) and a scripted scorer injected — nothing spawns `claude`.
 //
+// "from the SEEDED CV" is since 2026-10-06 a rule rather than a description of the fixtures:
+// the simulator refuses any entry it cannot prove is seed data (seed-origin.ts, finding 2b of
+// docs/security/role-demo-sim-scan-2026-10-06.md), which is why the fixtures below play real
+// `pe-*` rows and why `unseededRole` exists to prove the refusal.
+//
 //   node --import ./scripts/test-alias-loader.mjs --experimental-transform-types \
 //     --disable-warning=ExperimentalWarning --test scripts/kpi/__tests__/role-demo-interviews.test.mjs
 import "better-sqlite3";
@@ -19,21 +24,33 @@ import { cleanupUnitDb } from "../../../app/_lib/testing/unit-db.ts";
 // on the copy it made; here it is unit-db's own isolated file.
 process.env.KP_ROLE_DEMO_SCRATCH_DB = process.env.KP_DB_PATH;
 import { insertJob } from "../../../app/_lib/job-ingest.ts";
-import { createPipelineEntry } from "../../../app/_lib/db/pipeline.ts";
-import { saveProfile } from "../../../app/_lib/db/profiles.ts";
+import { ensureDb } from "../../../app/_lib/db/core.ts";
+import { createPipelineEntry, getPipelineEntry } from "../../../app/_lib/db/pipeline.ts";
+import { getProfileRecord, saveProfile } from "../../../app/_lib/db/profiles.ts";
+import { screenedLandingStage } from "../../../app/_lib/pipeline-stages.ts";
 import { listRecentInterviewSessions, latestInterviewByEntry, getInterviewSessionById } from "../../../app/_lib/db/interviews.ts";
 import { saveInterviewPrep } from "../../../app/_lib/interview-prep.ts";
 import { rosStrings } from "../../../app/_lib/interview-prep-strings.ts";
 import { buildRunOfShow } from "../../../app/_lib/run-of-show.ts";
 import { fakeCandidate, fakeInterviewer } from "../../../app/_lib/interview-sim/fake.ts";
-import { MAX_SIM_INTERVIEWS, SIMULATED_LABEL, createRoleDemoSimulator, simulateInterviewForEntry } from "../../../app/_lib/interview-sim/role-demo.ts";
+import { MAX_SIM_INTERVIEWS, NOT_SEED_DATA, SIMULATED_LABEL, createRoleDemoSimulator, simulateInterviewForEntry } from "../../../app/_lib/interview-sim/role-demo.ts";
+import { canonicalJson, seedOriginProblem } from "../../../app/_lib/interview-sim/seed-origin.ts";
 import { roleDemoScratchDbProblem } from "../../../app/_lib/interview-sim/instrument.ts";
 import { SimProviderError, parseCliEnvelope } from "../../../app/_lib/interview-sim/providers.ts";
 import { DEFAULT_WORKSPACE_ID } from "../../../app/_lib/db/workspaces.ts";
 import { DEFAULT_DB_PATH } from "../../../app/_lib/db-path.ts";
 import { commsEgressSealed, isRelayConfigured, relayHealth, resolveRelay } from "../../../app/_lib/comms-relay.ts";
 import { runDemoOnCopy } from "../role-demo-run-child.mjs";
-import { formatSimulatedInterviews, goalOneHeadline, simulatedOfferCount, summarizeRoleDemoRun, tallyStandIn } from "../role-demo-run-reading.mjs";
+import {
+  NOT_SEED_REFUSAL,
+  SIM_PROVIDER_LINE,
+  formatSimulatedInterviews,
+  goalOneHeadline,
+  notSeedRefusalCount,
+  simulatedOfferCount,
+  summarizeRoleDemoRun,
+  tallyStandIn,
+} from "../role-demo-run-reading.mjs";
 
 after(() => cleanupUnitDb());
 
@@ -42,28 +59,61 @@ const PREP_QUESTIONS = [
   { competency: "PostgreSQL performance", question: "Walk me through the slowest query you ever fixed.", whatsGoodLooksLike: "Listen for: EXPLAIN, a measured before and after" },
 ];
 
-/** A job with `n` candidates, each with a seeded CV profile and an interview prep plan, so the
- *  agenda builds read-only with no model. Returns the job id and the entry ids. */
+// THE DEMO PLAYS SEEDED ENTRIES ONLY (seed-origin.ts, finding 2b), so a fixture that expects
+// a branch to be played has to hand the simulator a genuinely seeded one — an entry built by
+// createPipelineEntry is now refused by construction, which is what `unseededRole` below is
+// for. unit-db boots with the committed fixtures (KP_EMPTY unset, so fixtureSeedEnabled), so
+// the `pe-*` rows and their `cand-*` profiles are already in this database untouched: each
+// fixture takes the next unused ones and re-points them at its own job. The job an entry sits
+// on is ordinary board state and deliberately NOT part of the proof.
+const SEED_PIPELINE = JSON.parse(readFileSync(new URL("../../../data/seed_pipeline/pipeline.json", import.meta.url), "utf8"));
+let seedCursor = 0;
+function takeSeedRecords(n) {
+  const taken = SEED_PIPELINE.slice(seedCursor, seedCursor + n);
+  assert.equal(taken.length, n, "the committed pipeline seed ran out of entries for these fixtures");
+  seedCursor += n;
+  return taken;
+}
+
+/** A job with `n` SEEDED candidates on it, each with an interview prep plan so the agenda
+ *  builds read-only with no model. Returns the job id and the entry ids. */
 async function seedRole(tag, n) {
   const jobId = `jd-demo-iv-${tag}`;
   insertJob({ id: jobId, title: "Backend Engineer", requirements: [{ skill: "java", kind: "skill", hardness: "must" }] }, undefined, "published");
   const strings = await rosStrings("en");
+  const db = ensureDb();
+  const repoint = db.prepare(
+    `UPDATE pipeline_entries SET job_id = ?, job_title = ?, match_score = ?, stage = ?, status = 'active' WHERE id = ?`
+  );
   const entries = [];
-  for (let i = 1; i <= n; i += 1) {
-    const label = `Candidate ${tag}${i}`;
-    const profile = saveProfile({
-      label,
-      archetype: "bau",
-      roleFamily: "software_engineering",
-      completeness: 1,
-      payload: { displayName: label, roleFamily: "software_engineering", seniority: "senior", skillClaims: [{ skill: "Java", level: "working" }] },
-    });
-    const { entry } = createPipelineEntry({ candidateId: profile.id, candidateLabel: label, jobId, jobTitle: "Backend Engineer", matchScore: 90 });
-    const plan = buildRunOfShow(PREP_QUESTIONS, ["event-driven systems"], label, "Backend Engineer", strings);
-    saveInterviewPrep(entry.id, label, "Backend Engineer", { ...plan, lang: "en" });
-    entries.push(entry.id);
+  for (const seed of takeSeedRecords(n)) {
+    const changed = repoint.run(jobId, "Backend Engineer", 90, screenedLandingStage(), seed.id).changes;
+    assert.equal(changed, 1, `the seeded entry ${seed.id} is not on this database — did the fixture seed not run?`);
+    const plan = buildRunOfShow(PREP_QUESTIONS, ["event-driven systems"], seed.candidateLabel, "Backend Engineer", strings);
+    saveInterviewPrep(seed.id, seed.candidateLabel, "Backend Engineer", { ...plan, lang: "en" });
+    entries.push(seed.id);
   }
   return { jobId, entries };
+}
+
+/** The same shape, but an entry a RECRUITER could have created: its own profile id, its own
+ *  CV payload, its own entry id. Nothing about it is in the seed, which is the point. */
+async function unseededRole(tag, payloadExtra = {}) {
+  const jobId = `jd-demo-iv-${tag}`;
+  insertJob({ id: jobId, title: "Backend Engineer", requirements: [{ skill: "java", kind: "skill", hardness: "must" }] }, undefined, "published");
+  const strings = await rosStrings("en");
+  const label = `Candidate ${tag}`;
+  const profile = saveProfile({
+    label,
+    archetype: "bau",
+    roleFamily: "software_engineering",
+    completeness: 1,
+    payload: { displayName: label, roleFamily: "software_engineering", seniority: "senior", skillClaims: [{ skill: "Java", level: "working" }], ...payloadExtra },
+  });
+  const { entry } = createPipelineEntry({ candidateId: profile.id, candidateLabel: label, jobId, jobTitle: "Backend Engineer", matchScore: 90 });
+  const plan = buildRunOfShow(PREP_QUESTIONS, ["event-driven systems"], label, "Backend Engineer", strings);
+  saveInterviewPrep(entry.id, label, "Backend Engineer", { ...plan, lang: "en" });
+  return { jobId, entryId: entry.id, profileId: profile.id, label };
 }
 
 const fakeLlms = (situation, instrument) => ({ interviewer: fakeInterviewer(instrument.agenda), candidate: fakeCandidate(situation) });
@@ -274,7 +324,7 @@ test("the simulator refuses a database no demo parent declared a throwaway copy"
 });
 
 test("a failing provider and a failing scorer put NO interview text in the row's reason", async () => {
-  const { jobId, entries } = await seedRole("leak", 2);
+  const { jobId } = await seedRole("leak", 2);
   const MARK = "ZEBRA-SENTINEL-9902";
 
   // (a) On the FIRST branch the conversation dies inside the provider, and the provider's
@@ -343,6 +393,112 @@ test("a failing provider and a failing scorer put NO interview text in the row's
     (err) => err instanceof SimProviderError && !err.message.includes(MARK)
   );
 });
+// ---- finding 2b: SEEDED ENTRIES ONLY, proven, fail-closed ----------------------------
+
+/** Deps that RECORD every seam a CV could leave through, and throw if one is reached. */
+function tripwireDeps() {
+  const calls = [];
+  return {
+    calls,
+    deps: {
+      preflight: () => {
+        calls.push("preflight");
+      },
+      llms: (situation) => {
+        calls.push(`llms:${situation.persona.length}`);
+        throw new Error("the fixture must never build a provider for a refused entry");
+      },
+      score: async () => {
+        calls.push("score");
+        throw new Error("the fixture must never score a refused entry");
+      },
+      finalize: noMint,
+    },
+  };
+}
+
+test("an UNSEEDED entry is refused before anything is built: no provider, no session, no CV in the row", async () => {
+  const MARK = "ZEBRA-SENTINEL-2B01";
+  const { entryId } = await unseededRole("unseeded", { summary: `${MARK} led the payments service at Northwind` });
+  // The sentinel really is on the entry's CV, else the assertion below proves nothing.
+  const live = getProfileRecord(getPipelineEntry(entryId, DEFAULT_WORKSPACE_ID).candidateId, DEFAULT_WORKSPACE_ID);
+  assert.ok(JSON.stringify(live.payload).includes(MARK), "the sentinel is on the stored CV profile");
+
+  const { calls, deps } = tripwireDeps();
+  const row = await simulateInterviewForEntry(entryId, DEFAULT_WORKSPACE_ID, deps);
+
+  assert.deepEqual(calls, [], "the refusal happens before the preflight, the provider and the scorer");
+  assert.equal(row.sessionId, null);
+  assert.equal(latestInterviewByEntry(entryId), null, "no session was minted");
+  assert.equal(row.recommendation, null);
+  assert.ok(row.skipped.startsWith(NOT_SEED_DATA), `the row does not name the refusal: ${row.skipped}`);
+  assert.match(row.skipped, /pipeline seed holds no entry with this id/);
+  // The reason names which check failed and nothing off the row — no CV, no label, no id.
+  assert.ok(!row.skipped.includes(MARK), `the sentinel reached the row: ${row.skipped}`);
+  assert.ok(!row.skipped.includes("payments service"), `CV text reached the row: ${row.skipped}`);
+  assert.ok(!row.skipped.includes("Candidate unseeded"), `the candidate's label reached the row: ${row.skipped}`);
+  // A refused branch spent nothing, so it does not consume the batch cap.
+  const simulator = createRoleDemoSimulator({ cap: 1, workspaceId: DEFAULT_WORKSPACE_ID, deps });
+  await simulator.run(entryId);
+  const second = await simulator.run(`${entryId}-other`);
+  assert.notEqual(second.skipped, "not simulated: cap", "a not-seed refusal burned the cap");
+  // And the reading counts it.
+  assert.equal(notSeedRefusalCount(simulator.rows), 1);
+  assert.ok(NOT_SEED_DATA.startsWith(NOT_SEED_REFUSAL), "the reading's restated prefix drifted from role-demo.ts");
+});
+
+test("a SEEDED entry passes the predicate, and the same entry with an edited CV does not", async () => {
+  const { entries } = await seedRole("seed-proof", 1);
+  const [entryId] = entries;
+  const subjectOf = (id) => {
+    const entry = getPipelineEntry(id, DEFAULT_WORKSPACE_ID);
+    const profile = getProfileRecord(entry.candidateId, DEFAULT_WORKSPACE_ID);
+    return { entryId: id, candidateId: entry.candidateId, candidateLabel: entry.candidateLabel, profileId: profile.row.id, profilePayload: profile.payload };
+  };
+  const subject = subjectOf(entryId);
+  assert.equal(seedOriginProblem(subject), null, "a pristine seeded entry is not provable as seed data");
+
+  // Unreadable fixtures refuse EVERYTHING — the demo never falls back to playing them.
+  assert.match(String(seedOriginProblem(subject, null)), /seed fixtures could not be read/);
+  // Neither the id shape nor a matching label is proof on its own: swap the candidate.
+  assert.match(String(seedOriginProblem({ ...subject, candidateId: "cand-999" })), /not the candidate the pipeline seed gives/);
+  assert.match(String(seedOriginProblem({ ...subject, candidateLabel: "Someone Else" })), /not the label the pipeline seed gives/);
+  assert.match(String(seedOriginProblem({ ...subject, profileId: "cand-999" })), /not the entry's own candidate/);
+  // Key order is not a difference; content is.
+  const reordered = Object.fromEntries(Object.entries(subject.profilePayload).reverse());
+  assert.equal(canonicalJson(reordered), canonicalJson(subject.profilePayload));
+  assert.equal(seedOriginProblem({ ...subject, profilePayload: reordered }), null);
+
+  // A SEED ID whose profile was changed — a rebuild, an edit, a GDPR erasure — is refused,
+  // and refused the same way the simulator refuses it: before any provider call.
+  const edited = { ...subject.profilePayload, skillClaims: [{ skill: "Rust", level: "strong" }] };
+  ensureDb().prepare(`UPDATE profiles SET payload_json = ? WHERE id = ?`).run(JSON.stringify(edited), subject.candidateId);
+  assert.match(String(seedOriginProblem(subjectOf(entryId))), /not the candidate seed's record for it/);
+
+  const { calls, deps } = tripwireDeps();
+  const row = await simulateInterviewForEntry(entryId, DEFAULT_WORKSPACE_ID, deps);
+  assert.deepEqual(calls, []);
+  assert.equal(latestInterviewByEntry(entryId), null, "no session was minted for an edited seed profile");
+  assert.ok(row.skipped.startsWith(NOT_SEED_DATA), row.skipped);
+  assert.match(row.skipped, /not the candidate seed's record for it/);
+  assert.ok(!row.skipped.includes("Rust"), "the edited CV reached the row");
+});
+
+test("the run's own output names where a played CV goes", () => {
+  // The line itself: one sentence, the Claude CLI on this machine's seat, nothing else.
+  assert.match(SIM_PROVIDER_LINE, /claude -p/);
+  assert.match(SIM_PROVIDER_LINE, /Claude seat/);
+  assert.match(SIM_PROVIDER_LINE, /no other provider/);
+
+  // …and the script really prints it, in BOTH readings. The printing is a process boundary a
+  // unit test cannot cross, so this pins the two call sites in the script's source.
+  const parent = readFileSync(new URL("../role-demo-run.mjs", import.meta.url), "utf8");
+  assert.match(parent, /console\.log\(`\s*provider: \$\{SIM_PROVIDER_LINE\}`\)/, "the printed reading no longer names the provider");
+  assert.match(parent, /simulatedInterviewProvider: SIM_PROVIDER_LINE/, "the --json reading no longer names the provider");
+  assert.match(parent, /refusedNotSeedData: notSeedRefusalCount\(simulatedInterviews\)/, "the --json reading no longer counts the not-seed refusals");
+  assert.match(parent, /refused as not seed data: \$\{notSeedRefusalCount\(simulatedInterviews\)\}/, "the printed reading no longer counts the not-seed refusals");
+});
+
 test("the demo child is sealed against comms egress, however the relay is configured", () => {
   // The seal itself: a configured relay resolves to nothing under the flag, so an
   // approved invite or offer could only ever queue in the copy's own outbox.

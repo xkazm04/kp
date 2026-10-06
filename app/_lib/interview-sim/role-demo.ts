@@ -17,6 +17,14 @@
 // through, and a simulated interview there seals a model-written scorecard onto a real
 // candidate's entry.
 //
+// IT IS NEVER A REAL CANDIDATE EITHER, FOR THE SAME REASON: A PROOF, NOT A CONVENTION.
+// An entry is played only when seedOriginProblem (seed-origin.ts) can match its row and its
+// stored CV payload against data/seed_pipeline/pipeline.json and data/seed_candidates/
+// candidates.json. Anything unproven — a candidate a human added, a seeded candidate whose
+// CV was edited, or any entry at all when the fixtures cannot be read — is refused with a
+// recorded reason, BEFORE the provider preflight and before the CV reaches a prompt. The
+// operator's answer to finding 2b of docs/security/role-demo-sim-scan-2026-10-06.md.
+//
 // WHAT IS REAL. The interviewer holds the entry's real private brief and agenda (the
 // connect-time build: interview-run.ts + interview-agenda.ts). The candidate is the
 // model, playing the CV profile on the entry and nothing else. The transcript is stored
@@ -55,6 +63,7 @@ import type { VoiceTurn } from "../voice/types";
 import { runConversation, type SimLimits } from "./engine";
 import { briefSha, assertRoleDemoScratchDb, directorVersion, type SimInstrument } from "./instrument";
 import { claudeCliLlm, SimProviderError } from "./providers";
+import { seedOriginProblem } from "./seed-origin";
 import type { SimFixture, SimLlm, SimSituation, SimTurn } from "./types";
 
 /** Suffix on the candidate label of every session the demo plays. */
@@ -110,6 +119,14 @@ const skippedRow = (branchRef: string, skipped: string, extra: Partial<Simulated
 
 const PROVIDER_UNAVAILABLE = "not simulated: provider unavailable";
 
+/** The refusal of an entry that is not provably seed data — the whole of finding 2b's close
+ *  (seed-origin.ts). The parenthesis is the operator-facing fact: the refusal happens before
+ *  anything is built, so this CV never reached a provider. */
+export const NOT_SEED_DATA = "not simulated: not seed data (CV not sent to the provider)";
+
+/** Refusals that spent nothing, so they do not consume the batch loop's cap. */
+const NO_SPEND_REFUSALS = [PROVIDER_UNAVAILABLE, NOT_SEED_DATA];
+
 const clip = (text: string, max = 140) => (text.length > max ? `${text.slice(0, max - 1)}…` : text);
 
 /** Errors whose MESSAGE is this module's own vocabulary, written here or in providers.ts,
@@ -155,12 +172,13 @@ const defaultLlms: NonNullable<RoleDemoSimDeps["llms"]> = () => ({
 
 /** The candidate's system persona: the entry's CV profile, and a rule against going past it.
  *
- *  WHOSE CV. On the throwaway copy the demo run makes, this is whatever the copied board
- *  held — on a copy of an operator's own data/kp.sqlite that is a REAL candidate's profile,
- *  not a seeded fixture, and it is rendered into the system prompt of a Claude CLI call.
- *  Which branches are played is decided by which interview invites the stand-in approved,
- *  so the demo does not choose them. Recorded in docs/security/role-demo-sim-scan-2026-10-06.md
- *  (check 2) rather than silently relabelled. */
+ *  WHOSE CV. A SEEDED candidate's, and that is now a proof rather than a hope: no caller
+ *  reaches this function until seedOriginProblem has matched the entry's row and this very
+ *  payload against the committed fixtures (seed-origin.ts), so the profile rendered into the
+ *  system prompt of a Claude CLI call is a fixture record and never a real person's — however
+ *  the stand-in's approvals fell and whatever board the copy was made from. Finding 2b of
+ *  docs/security/role-demo-sim-scan-2026-10-06.md, closed on the operator's answer of
+ *  2026-10-06 ("seeded entries only"). */
 export function candidatePersona(label: string, jobTitle: string | null, profile: unknown): string {
   const cv = JSON.stringify(profile);
   return [
@@ -195,6 +213,20 @@ export async function simulateInterviewForEntry(
   if (!entry) return skippedRow(entryId, "not simulated: no pipeline entry");
   const profile = entry.candidateId ? getProfileRecord(entry.candidateId, workspaceId) : null;
   if (!profile) return skippedRow(entryId, "not simulated: no CV profile for the entry");
+
+  // 0. SEEDED ENTRIES ONLY, and it is a proof rather than a convention (seed-origin.ts;
+  // finding 2b, the operator's answer of 2026-10-06). BEFORE the provider preflight, before
+  // candidatePersona, before a session exists and before any model call: an entry whose row
+  // and CV payload do not match the committed fixtures is refused, and its CV is never
+  // rendered into a prompt. Unreadable fixtures refuse everything.
+  const notSeed = seedOriginProblem({
+    entryId,
+    candidateId: entry.candidateId ?? null,
+    candidateLabel: entry.candidateLabel ?? null,
+    profileId: profile.row.id,
+    profilePayload: profile.payload,
+  });
+  if (notSeed) return skippedRow(entryId, `${NOT_SEED_DATA}: ${notSeed}`);
 
   // 1. The provider FIRST: offline or without a CLI nothing is built and no session exists.
   try {
@@ -340,8 +372,9 @@ export function createRoleDemoSimulator(opts: { cap?: number; workspaceId: strin
         row = skippedRow(branchRef, "not simulated: cap");
       } else {
         row = await simulateInterviewForEntry(branchRef, opts.workspaceId, opts.deps);
-        // The cap bounds SPEND. A branch that never reached a provider spent nothing.
-        if (!row.skipped?.startsWith(PROVIDER_UNAVAILABLE)) played += 1;
+        // The cap bounds SPEND. A branch that never reached a provider spent nothing — an
+        // unavailable provider, or an entry refused as not-seed before anything was built.
+        if (!NO_SPEND_REFUSALS.some((prefix) => row.skipped?.startsWith(prefix))) played += 1;
       }
       rows.push(row);
       return row;

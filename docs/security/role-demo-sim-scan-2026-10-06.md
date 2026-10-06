@@ -18,15 +18,19 @@ the operator's own seat. Files read in full:
   `commitRoleRunGate` (`app/_lib/role-run-gates.ts`).
 
 **Verdict summary.** Two of the three guarantees this path claims rested on circumstance
-rather than on a check, and one claim it prints was false. Four fixes landed, each with a
-test that fails without it; one finding is left **open** for the operator because closing
-it is a scope decision, not a defect fix.
+rather than on a check, and one claim it prints was false. Four fixes landed on the day of
+the scan, each with a test that fails without it; one finding (2b) was left **open** for the
+operator because closing it was a scope decision rather than a defect fix. The operator
+answered it the same day — "seeded entries only" — and its fix landed under
+[ADR-0011](../architecture/decisions/0011-one-role-runs-end-to-end.md)'s 2026-10-06
+amendment; see §2b. One item remains open and is named there: the `provider: 'openai'`
+mislabel of check 4, which cannot be corrected without a vocabulary change.
 
 | # | Check | Verdict |
 | --- | --- | --- |
 | 1 | Never a real database | **fixed** |
 | 2 | Never a real candidate — comms | **fixed** (defence in depth; nothing had ever been sent) |
-| 2b | Never a real candidate — what the CLI receives | **open** — the operator's call |
+| 2b | Never a real candidate — what the CLI receives | **fixed** — closed the operator's way, "seeded entries only" |
 | 3 | No transcript or scorecard text in output | **fixed** — the happy path held, both error paths did not |
 | 4 | Workspace scoping | **holds**; the `provider: 'openai'` mislabel is **open** |
 | 5 | Gate the tests | **fixed** |
@@ -103,7 +107,7 @@ seals the model calls the simulated interview needs. Documented at
 block (a process boundary a unit test cannot cross), asserting all three variables are set
 on the **copy**, never on the source.
 
-### 2b. What the `claude` CLI receives — **open, the operator's call**
+### 2b. What the `claude` CLI receives — **fixed (operator's choice: option 1)**
 
 **The finding.** The copy is a copy of `data/kp.sqlite`, so it holds **whatever the
 operator's board holds** — real candidates, real CVs, real contact details. Which branches
@@ -133,7 +137,54 @@ is now "from the CV on the entry", and `providers.ts` says what is actually true
 
 Note the pre-existing asymmetry it rests on: `pipeline/jobfit/claude_cli.py`'s production
 consumer-terms veto does not apply here, and `providers.ts` says so — on the stated grounds
-that the data is synthetic, which on this path it is not.
+that the data is synthetic, which on this path it was not.
+
+**Closed 2026-10-06 — the operator answered "Seeded entries only", which is option 1.**
+Recorded as an amendment to
+[ADR-0011](../architecture/decisions/0011-one-role-runs-end-to-end.md).
+
+**The fix.** `seedOriginProblem` / `loadSeedCorpus`
+(`app/_lib/interview-sim/seed-origin.ts`), called from `simulateInterviewForEntry` after the
+scratch-DB guard and the entry/profile lookup and **before** the provider preflight,
+`candidatePersona`, any session and any model call. An entry is played only when the code can
+PROVE it is seed data: its id, `candidate_id` and `candidate_label` match a record in
+`data/seed_pipeline/pipeline.json` (including `seedPipeline`'s `?? "Candidate"` label
+default) **and** the candidate's stored CV payload equals its record in
+`data/seed_candidates/candidates.json`, compared as canonical JSON — the form
+`seedCandidates` stores is the record verbatim, so nothing is normalized away. The job the
+entry sits on is deliberately not part of the proof: moving a seeded candidate to another job
+is board state and says nothing about whose CV it is. **Fail-closed:** if either fixture file
+is missing or unreadable, every entry is refused; the demo does not fall back to playing
+them. A refusal is an ordinary recorded row — `not simulated: not seed data (CV not sent to
+the provider): <which check failed>` — whose reason names no CV content, no label and no id;
+it does not consume the per-run cap (nothing was spent), and the reading reports how many
+branches were refused this way.
+
+**Two weaker signals, considered and rejected,** with the reasoning in the module's own
+header so the next reader does not re-derive it: the `seed_marks` rows are not proof, because
+`adoptedExistingSeed` stamps the `pipeline` mark on a database that merely already had
+pipeline rows; and the `pe-*` / `cand-*` id shape is not proof, because `seedPipeline` inserts
+`OR IGNORE` over a committed vocabulary, so a row a human or an import created can carry such
+an id and keep its own candidate.
+
+**Option 2's disclosure was taken as well, since it costs one line and is true either way:**
+the printed reading and the `--json` reading now state where the CV of a played entry goes —
+the Claude CLI (`claude -p`) on this machine's Claude seat, no other provider, no API key
+(`SIM_PROVIDER_LINE`, `role-demo-run-reading.mjs`). The claims this change made false were
+fixed with it: `providers.ts`'s "dev-only instrument on synthetic data" is now a checked
+statement rather than an assertion, and `candidatePersona`'s "WHOSE CV" comment says the
+proof instead of the hazard.
+
+**Tests** (`scripts/kpi/__tests__/role-demo-interviews.test.mjs`, shown red with the check
+removed): an **unseeded** entry carrying a sentinel in its CV makes NO provider, preflight or
+scorer call at all (injected tripwire deps that record every invocation), mints no session,
+records the refusal, and puts neither the sentinel, nor CV text, nor the candidate's label in
+the row; a **pristine seeded** entry read live off the board passes the predicate, and the
+same entry **with its profile edited** is refused — again with zero invocations and no
+session; `null` fixtures refuse everything; key order is not a difference, content is; and the
+run's provider line is present in both readings. Every other fixture in the file now plays
+genuinely seeded `pe-*` rows, because an entry built by `createPipelineEntry` is refused by
+construction.
 
 ## 3. No transcript or scorecard text in the output — **fixed**
 

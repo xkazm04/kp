@@ -19,6 +19,8 @@ sources:
   - app/_lib/devcase-orchestrator.ts
   - app/_lib/rediscover.ts
   - app/_lib/jd-build-run.ts
+  - app/_lib/interview-sim/role-demo.ts
+  - app/_lib/interview-sim/seed-origin.ts
 ---
 
 ## Context
@@ -336,4 +338,30 @@ sent. An approval that arrives after the effect is not an approval, and
   the demo stand-in", never a plain `met`. The demo plays at most 2 branches by default
   (`--sim-interviews <n>`, hard ceiling 5; the rest read "not simulated: cap"). `roleRunGoalOneSteps`
   and the stand-in policy (`standInDecision`) are unchanged.
+- **2026-10-06 — the demo simulator plays SEEDED entries only, and refuses every other entry
+  with a recorded reason.** The operator's answer to finding 2b of
+  [`docs/security/role-demo-sim-scan-2026-10-06.md`](../../security/role-demo-sim-scan-2026-10-06.md)
+  ("Seeded entries only"), chosen over the alternative of accepting it as a disclosed
+  dev-instrument behaviour. The scan established that the branches played are decided by which
+  invites the stand-in approved on a copy of whatever board the demo was pointed at — so on a
+  real install they are real people — and that for each one the whole CV profile and the
+  entry's private interviewer brief are rendered into the system prompt of a `claude -p` call.
+  `simulateInterviewForEntry` now refuses unless `seedOriginProblem`
+  (`app/_lib/interview-sim/seed-origin.ts`) can PROVE the entry is seed data: the live row's
+  id, `candidate_id` and `candidate_label` match a record in `data/seed_pipeline/pipeline.json`
+  AND the candidate's stored CV payload equals its record in
+  `data/seed_candidates/candidates.json` (canonical-JSON equality, the form `seedCandidates`
+  stores). **Fail-closed:** unreadable or missing fixtures refuse every entry — there is no
+  fallback to playing them. The check runs after the scratch-DB guard and the entry lookup and
+  BEFORE the provider preflight, `candidatePersona`, any session and any model call, so a
+  refused entry's CV never reaches a prompt; the refusal is an ordinary recorded row ("not
+  simulated: not seed data (CV not sent to the provider): …"), it does not consume the
+  per-run cap, and the reading reports how many branches were refused that way. **Two weaker
+  signals were rejected as proof:** the `seed_marks` rows (`adoptedExistingSeed` stamps the
+  mark on a database that was never seeded) and the `pe-*` / `cand-*` id shape (`seedPipeline`
+  inserts `OR IGNORE`, so a real row can hold such an id). The run's output — printed and
+  `--json` — also now states in one line where a played CV goes: the Claude CLI (`claude -p`)
+  on this machine's Claude seat. Nothing about the engine, the stand-in policy or the goal-1
+  reading changes. **What would reopen it:** a demo that has to run on an operator's real board
+  to be worth running — at which point the decision is consent and disclosure, not a predicate.
 
