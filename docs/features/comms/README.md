@@ -839,6 +839,12 @@ the recruiter-safe pull half onto every receiver (`pullUrl` / `hasPullSecret` /
   its receivers up the same way (`doorPlate` in `night/channelsNightPlumbing.ts`):
   a pull that stopped a week ago reads failing, never green, and ranks among the
   "needs you" items (`rankNeeds`).
+- **A `waiting` card says what ends the wait** (`receiverWaiting.ts`, `useWaitingPoll.ts`):
+  the first authenticated request flips it to reached, no time is promised, and the
+  endpoint's age (`createdAt`) is shown. While any receiver waits, the list re-reads
+  only `GET /api/channels/webhooks` every 20 s (`reloadWebhooks`), skipping hidden
+  tabs and stopping when none waits or on unmount. After 10 min the card offers the
+  existing setup-steps panel; silence is not reported as a failure.
 
 **IMAP is deliberately absent.** It needs a mail dependency and a MIME parser,
 which is a dependency decision, not a code decision — and the edge's Email Routing
