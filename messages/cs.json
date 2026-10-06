@@ -11766,6 +11766,7 @@
         "no_alternative": "Žádná jiná role se nenašla",
         "skipped_hired": "Přeskočeno: již přijat",
         "skipped_stage_changed": "Přeskočeno: kandidát změnil fázi",
+        "skipped_gate_closed": "Přeskočeno: hodnocení už čeká na rozhodnutí",
         "deferred": "Ohodnoceno: zapsání provede volající krok"
       },
       "fanout": {

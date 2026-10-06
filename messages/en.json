@@ -11766,6 +11766,7 @@
         "no_alternative": "No alternative role found",
         "skipped_hired": "Skipped: already hired",
         "skipped_stage_changed": "Skipped: the candidate moved stage",
+        "skipped_gate_closed": "Skipped: a review is already waiting on a decision",
         "deferred": "Scored: applying is left to the caller"
       },
       "fanout": {

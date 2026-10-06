@@ -11766,6 +11766,7 @@
         "no_alternative": "Aucun autre poste trouvé",
         "skipped_hired": "Ignoré : déjà recruté",
         "skipped_stage_changed": "Ignoré : le candidat a changé d'étape",
+        "skipped_gate_closed": "Ignoré : une évaluation attend déjà une décision",
         "deferred": "Évalué : l'application revient à l'appelant"
       },
       "fanout": {

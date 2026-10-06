@@ -11766,6 +11766,7 @@
         "no_alternative": "Keine passende andere Rolle gefunden",
         "skipped_hired": "Übersprungen: bereits eingestellt",
         "skipped_stage_changed": "Übersprungen: Phase hat sich geändert",
+        "skipped_gate_closed": "Übersprungen: Eine Überprüfung wartet bereits auf eine Entscheidung",
         "deferred": "Bewertet: das Anwenden übernimmt der Aufrufer"
       },
       "fanout": {

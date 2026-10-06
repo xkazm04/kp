@@ -120,6 +120,8 @@ export const APPLIED_VALUES = [
   "no_alternative",
   "skipped_hired",
   "skipped_stage_changed",
+  // Scorecard attached but the Interview→Offer gate was closed (a474100ec): no approval opened.
+  "skipped_gate_closed",
   // A `deferApply` run: scored, nothing written; the caller applies it.
   "deferred",
 ] as const;
