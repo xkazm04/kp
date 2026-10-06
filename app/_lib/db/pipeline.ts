@@ -2428,6 +2428,13 @@ function scrubEntryLinkedPii(db: Database.Database, entryId: string, candidateId
   const tables = new Set(
     (db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all() as { name: string }[]).map((r) => r.name)
   );
+  // The authored note THREAD (db/entry-notes.ts): free text a recruiter wrote about this
+  // person, routinely naming them and quoting their contact. DELETED rather than masked —
+  // a thread of notes has no retained half. Keyed by entry (a globally-unique PK; the
+  // caller already proved the entry belongs to its workspace).
+  if (tables.has("pipeline_entry_notes")) {
+    db.prepare(`DELETE FROM pipeline_entry_notes WHERE entry_id = ?`).run(entryId);
+  }
   // Voice interview: transcript_json is the candidate's verbatim spoken answers (raw
   // PII → dropped to []) and scorecard_json is a free-text synthesis quoting them (→
   // NULL). The assessment DECISION survives on the entry/events, not on this row.

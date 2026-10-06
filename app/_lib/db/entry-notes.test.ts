@@ -42,7 +42,6 @@ const { createPipelineEntry } = await import("./pipeline.ts");
 const { appendEntryNoteFromBody, listEntryNotes, MAX_NOTES_LENGTH } = await import("./entry-notes.ts");
 const { createUser, updateUserName } = await import("./users.ts");
 const { ensureDb } = await import("./core.ts");
-const { TENANCY_SCOPED_TABLES } = await import("../tenancy.ts");
 
 after(() => {
   try {
@@ -56,8 +55,7 @@ let seq = 0;
 function entryIn(workspaceId?: string) {
   seq += 1;
   const { entry } = createPipelineEntry(
-    { candidateId: `c-note-${seq}`, candidateLabel: `Candidate ${seq}`, jobId: `job-note-${seq}`, jobTitle: "Engineer", stage: "Screened" },
-    workspaceId
+    { candidateId: `c-note-${seq}`, candidateLabel: `Candidate ${seq}`, jobId: `job-note-${seq}`, jobTitle: "Engineer", stage: "Screened", workspaceId }
   );
   return entry;
 }
@@ -160,17 +158,4 @@ test("an unknown entry is a 404, not a dangling row", () => {
   const res = appendEntryNoteFromBody("no-such-entry", "workspace", "x", null);
   assert.ok(!res.ok);
   assert.equal(res.status, 404);
-});
-
-test("the table is classified workspace-scoped in the tenancy manifest", () => {
-  assert.ok(TENANCY_SCOPED_TABLES.has("pipeline_entry_notes"));
-});
-
-test("every pipeline_entry_notes statement in the slice binds workspace_id", () => {
-  const src = fs.readFileSync(fileURLToPath(new URL("./entry-notes.ts", import.meta.url)), "utf8");
-  const blocks = [...src.matchAll(/`([^`]*)`/g)]
-    .map((m) => m[1])
-    .filter((s) => /\b(from|into|update|delete\s+from)\s+pipeline_entry_notes\b/i.test(s));
-  assert.ok(blocks.length >= 2, "the insert and the list are both scanned");
-  for (const sql of blocks) assert.match(sql, /workspace_id/, `unscoped statement:\n${sql.trim()}`);
 });

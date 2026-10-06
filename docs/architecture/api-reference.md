@@ -550,6 +550,7 @@ _291 routes, 390 handlers._
 | `/api/pipeline` | GET, POST | gated |
 | `/api/pipeline/[id]` | GET, POST | gated |
 | `/api/pipeline/[id]/consent` | GET | gated |
+| `/api/pipeline/[id]/notes` | GET | gated |
 | `/api/pipeline/[id]/offer-letter` | GET | gated |
 | `/api/pipeline/[id]/timeline` | GET | gated |
 | `/api/pipeline/batch` | POST | gated |

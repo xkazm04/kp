@@ -1,6 +1,6 @@
 // The single-entry door's declared action table (challenge-r07 pipeline-api/A).
 //
-// POST /api/pipeline/[id] dispatches eight actions. What each one REQUIRES used to live
+// POST /api/pipeline/[id] dispatches nine actions. What each one REQUIRES used to live
 // in whichever `if (body.action === …)` branch remembered it, and nothing remembered the
 // seat: a viewer could reject, advance, extend an offer or reverse a rejection one card
 // at a time. The requirement is now data beside the operation — a literal table the one
@@ -16,10 +16,10 @@ import {
   entryActionOf,
 } from "./entry-actions.ts";
 
-test("the table is keyed by exactly the eight actions the door dispatches", () => {
+test("the table is keyed by exactly the nine actions the door dispatches", () => {
   assert.deepEqual(
     [...ENTRY_ACTION_NAMES].sort(),
-    ["accept", "approve_event", "reinstate", "reject", "resolve_intake", "set_github", "set_notes", "set_stage"],
+    ["accept", "add_note", "approve_event", "reinstate", "reject", "resolve_intake", "set_github", "set_notes", "set_stage"],
   );
   assert.deepEqual(Object.keys(ENTRY_ACTIONS).sort(), [...ENTRY_ACTION_NAMES].sort());
 });

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { appendEntryNoteFromBody, MAX_NOTES_LENGTH } from "@/app/_lib/db/entry-notes";
 import { clearIntakeDegraded, getPipelineEntry, newestDecisionIsAutoRejection, reinstatePipelineEntry, setEntryGithubEvidence, setEntryNotes } from "@/app/_lib/db/pipeline";
 import { coerceGithubEvidenceSummary } from "@/app/_lib/github-summary";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
-import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
-import { requireCapability } from "@/app/_lib/auth/current-user";
+import { jsonRefusal, requireCapabilityCoded, safeJsonError, type RefusalErrorCode } from "@/app/_lib/api-response";
+import { currentUser, requireCapability } from "@/app/_lib/auth/current-user";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { humanActor } from "@/app/_lib/auth/operator-approver";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
@@ -26,10 +27,9 @@ import { ENTRY_ACTIONS, engineClaimOf, entryActionOf } from "./entry-actions";
 // under a real operator) are unaffected; a valid operator session passes; the
 // anonymous demo-workspace session the proxy waves through is refused (401).
 
-// Upper bound for the persistent recruiter note (set_notes). Generous enough for
-// pasted call notes, tight enough that the column can't become a blob dump. The
-// drawer's textarea enforces the same cap client-side (maxLength).
-const MAX_NOTES_LENGTH = 4000;
+// MAX_NOTES_LENGTH (db/entry-notes.ts) bounds the persistent recruiter note (set_notes)
+// and every thread note (add_note) from one number. The drawer's textarea enforces the
+// same cap client-side (maxLength).
 
 // One canonical-scored pipeline entry by id (drawer-flow-friction / rematch-story-
 // navigable). The board opens the drawer from a full Entry it already holds; this
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   const { id } = await context.params;
   const ws = await currentWorkspace();
   try {
-    const body = (await request.json()) as { action?: string; detail?: string; expectedStage?: string; toStage?: string; github?: unknown; notes?: unknown; ttlDays?: unknown; actor?: unknown };
+    const body = (await request.json()) as { action?: string; detail?: string; expectedStage?: string; toStage?: string; github?: unknown; notes?: unknown; note?: unknown; ttlDays?: unknown; actor?: unknown };
 
     // The door's DECLARED actions (entry-actions.ts). An action the table does not name
     // is refused here, before any branch runs, and the seat each action requires is read
@@ -110,6 +110,18 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       const updated = setEntryNotes(id, trimmed === "" ? null : trimmed, ws);
       if (!updated) return jsonRefusal("PIPELINE_ENTRY_NOT_FOUND", 404);
       return NextResponse.json({ entry: updated });
+    }
+
+    // Append one authored note to the entry's thread (beside the scratchpad above, which
+    // stays as it is). The AUTHOR is the session's user, read here and passed in — the body
+    // carries the text and nothing else, so no field of it can name an author. A null user
+    // (open / local mode) is stored NULL. Validation, the tenant derivation from the entry
+    // and the refusal codes live in the store slice (entry-notes.ts).
+    if (action === "add_note") {
+      const author = (await currentUser()).userId;
+      const res = appendEntryNoteFromBody(id, ws, body.note, author);
+      if (!res.ok) return jsonRefusal(res.code as RefusalErrorCode, res.status, res.data);
+      return NextResponse.json({ note: res.note }, { status: 201 });
     }
 
     // Reinstate an auto-rejected candidate for re-review (idea-e43fa801): put them

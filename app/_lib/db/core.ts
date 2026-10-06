@@ -1156,6 +1156,21 @@ export function ensureDb(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_intake_events_intake ON intake_events (intake_id, seq);
     CREATE INDEX IF NOT EXISTS idx_intake_events_ws ON intake_events (workspace_id, occurred_at);
 
+    -- The per-entry note THREAD (db/entry-notes.ts): append-only authored notes beside the
+    -- pipeline_entries.notes scratchpad, which it does not replace. author_user_id is the
+    -- SESSION's user id, NULL in no-auth mode; the display name is resolved at read time,
+    -- never copied into the row. workspace_id is derived from the entry at insert.
+    CREATE TABLE IF NOT EXISTS pipeline_entry_notes (
+      id TEXT PRIMARY KEY,
+      entry_id TEXT NOT NULL,
+      workspace_id TEXT NOT NULL,
+      author_user_id TEXT,
+      body TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_pipeline_entry_notes_entry ON pipeline_entry_notes (entry_id, workspace_id, created_at);
+
     -- App master repo scans (db/repo-scans.ts, docs/features/app-master/README.md,
     -- phase P2): one row per "read this codebase into a RepoDossier" run. The row is
     -- the source of truth the poller reads, so a scan survives the operator

@@ -1,6 +1,6 @@
 // The single-entry door's declared actions (challenge-r07 pipeline-api/A).
 //
-// POST /api/pipeline/[id] dispatches eight actions. Each one's REQUIREMENTS are data
+// POST /api/pipeline/[id] dispatches nine actions. Each one's REQUIREMENTS are data
 // here, beside the operation, and the route reads them through one gate — so an action
 // the door dispatches without a declared seat is unrepresentable (the route narrows
 // body.action through entryActionOf before it does anything else), and adding a row
@@ -36,6 +36,7 @@ const WRITE = { capability: "pipeline:write", engineClaim: false, reverses: null
 export const ENTRY_ACTIONS = {
   set_github: WRITE,
   set_notes: WRITE,
+  add_note: WRITE,
   reinstate: { capability: "pipeline:write", engineClaim: false, reverses: "auto_rejected" },
   resolve_intake: WRITE,
   set_stage: WRITE,

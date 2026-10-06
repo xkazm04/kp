@@ -965,6 +965,8 @@ export const REFUSAL_ERRORS = {
   PIPELINE_NOTES_INVALID: "A candidate note must be text.",
   /** …or past the column's ceiling (400). The cap rides alongside in `max`. */
   PIPELINE_NOTES_TOO_LONG: "That note is too long to save.",
+  /** A thread note (add_note) was empty after trimming (400). */
+  PIPELINE_NOTE_EMPTY: "Write something before adding a note.",
   /** Reinstate was asked of an entry that is not rejected (409) — already
    *  reinstated, or closed a different way (the candidate declined, or was
    *  rematched), which a reinstate must never quietly reverse. */

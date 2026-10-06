@@ -1380,6 +1380,7 @@
     "PIPELINE_ADD_CANDIDATE_WITHHELD": "Diese Person kann nicht für eine neue Stelle vorgeschlagen werden: Sie hat widersprochen, ihre Einwilligung ist abgelaufen oder ihre Daten wurden gelöscht.",
     "PIPELINE_NOTES_INVALID": "Eine Notiz muss Text sein.",
     "PIPELINE_NOTES_TOO_LONG": "Diese Notiz ist zu lang zum Speichern.",
+    "PIPELINE_NOTE_EMPTY": "Schreiben Sie etwas, bevor Sie eine Notiz hinzufügen.",
     "PIPELINE_NOT_REINSTATABLE": "Hier gibt es keine automatische Absage, die sich zurücknehmen ließe. Die Person wurde bereits wieder aufgenommen oder anders abgeschlossen.",
     "PIPELINE_INTAKE_NOT_DEGRADED": "Bei dieser Person gibt es keine unvollständige Profilübernahme, die zu klären wäre.",
     "OFFER_NOT_DISPATCHED": "Das Angebot wurde erstellt, konnte aber nicht gesendet werden. Nichts ist verloren: Genehmigen Sie erneut, dann geht derselbe Link hinaus.",

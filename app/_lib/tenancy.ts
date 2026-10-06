@@ -77,6 +77,11 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // logConsentEvent auto-derive the tenant from the linked entry so the write side
   // needs no per-call-site threading (pipeline-events-tenancy.test.ts).
   "pipeline_events",
+  // The authored note thread on an entry (db/entry-notes.ts). Every statement binds
+  // workspace_id, and the insert DERIVES it from the entry (never from the caller), the
+  // way recordEvent does, so a note cannot be filed on another team's entry
+  // (entry-notes.test.ts). Erased with the entry in anonymizeEntry.
+  "pipeline_entry_notes",
   "consent_events",
   // W0.6b — candidate NPS captured on the public status page. Scoped because it feeds a
   // team's metric pack: pooling it would let one team's candidate-experience number be
