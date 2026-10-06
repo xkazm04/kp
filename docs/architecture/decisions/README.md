@@ -24,6 +24,7 @@ to be true for it to change?*
 - chain hiring stages together, add a human approval gate, or put candidate data in a run record → [0011](0011-one-role-runs-end-to-end.md)
 - add a second funnel, a second candidate board, or a per-population score → [0012](0012-need-role-slate-one-board.md)
 - change what an ATS delivery retry sends, or add a subscribable lifecycle event → [0013](0013-ats-mirror-retry-reasserts-its-transition.md)
+- add a deployment-wide integration config or secret, or a door that writes one → [0014](0014-org-owned-singleton-integration-config.md)
 
 ## Index
 
@@ -42,6 +43,7 @@ to be true for it to change?*
 | [0011](0011-one-role-runs-end-to-end.md) | A role runs end to end as a ledger of stage artifacts; only person-affecting decisions gate | accepted | 2026-09-14 |
 | [0012](0012-need-role-slate-one-board.md) | A need composes a role; the role's slate is one board and one rubric | accepted | 2026-09-14 |
 | [0013](0013-ats-mirror-retry-reasserts-its-transition.md) | An ATS mirror retry re-asserts its transition; a reverted decision ends the row | accepted | 2026-10-06 |
+| [0014](0014-org-owned-singleton-integration-config.md) | A singleton integration config records the organization that saved it; only that organization may change it | accepted | 2026-10-06 |
 
 ## Writing a new one
 
