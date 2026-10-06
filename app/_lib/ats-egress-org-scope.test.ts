@@ -20,7 +20,9 @@ import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { getAtsConfig, setAtsConfig } from "./ats-config-store.ts";
 import { dispatchAtsEvent, retryDueAtsDeliveries } from "./ats-egress.ts";
 import { finalizeAtsDelivery, listAtsDeliveries, recordAtsDeliveryStart } from "./ats-delivery-store.ts";
-import { createPipelineEntry } from "./db.ts";
+// The SLICE, not the `db.ts` barrel: one barrel importer in a hub module taxes every
+// route downstream, and perf-budget.json caps how many there may be.
+import { createPipelineEntry } from "./db/pipeline.ts";
 import { createOrganization, DEFAULT_ORG_ID } from "./db/organizations.ts";
 import { createWorkspace } from "./db/workspaces.ts";
 
