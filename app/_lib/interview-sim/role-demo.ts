@@ -55,6 +55,7 @@ import { getProfileRecord } from "../db/profiles";
 import { completeInterviewSession, createInterviewSession, type InterviewSession } from "../db/interviews";
 import { coerceInterviewRecommendation } from "../interview-recommendation";
 import { buildInterviewKit } from "../interview-agenda";
+import { shortDemoAgenda } from "./demo-agenda";
 import { buildGroundedInterview } from "../interview-run";
 import { latestPublishedKit } from "../interview-kit";
 import { finalizeCandidateInterviewScoring, synthesizeCandidateScorecard, type FinalizeScoringDeps } from "../interview-scorecard-commit";
@@ -88,6 +89,10 @@ export type SimulatedInterviewRow = {
   endReason: string | null;
   /** Why this branch is not rated by a simulated interview, or null when it is. */
   skipped: string | null;
+  /** Which agenda the call ran on ('short-demo': the demo-only short agenda), or null when no
+   *  agenda was built. A label and a count — never agenda text. */
+  agenda: string | null;
+  agendaBlocks: number;
 };
 
 export type RoleDemoSimDeps = {
@@ -114,6 +119,8 @@ const skippedRow = (branchRef: string, skipped: string, extra: Partial<Simulated
   turns: 0,
   endReason: null,
   skipped,
+  agenda: null,
+  agendaBlocks: 0,
   ...extra,
 });
 
@@ -274,6 +281,7 @@ async function playCheckedEntry(
   let llms: { interviewer: SimLlm; candidate: SimLlm };
   let session: InterviewSession | null;
   let instrument: SimInstrument;
+  let agendaFields: Pick<SimulatedInterviewRow, "agenda" | "agendaBlocks"> = { agenda: null, agendaBlocks: 0 };
   try {
     const jobId = entry.jobId;
     const pinned = jobId ? latestPublishedKit(jobId, workspaceId) : null;
@@ -281,8 +289,13 @@ async function playCheckedEntry(
     // task a recruiter's "Start interview" would run), and it falls back to a template
     // keylessly. The directed build below is then read-only, exactly as connect's.
     const minted = await buildGroundedInterview(entryId, workspaceId, { pinnedKit: pinned?.kit ?? null });
-    const kit = await buildInterviewKit(entryId, workspaceId, { kitId: pinned?.id ?? null, bookedMin: minted.durationMin });
-    if (!kit) return skippedRow(entryId, "not simulated: the entry has no interview agenda (no job kit, no prep plan)");
+    const realKit = await buildInterviewKit(entryId, workspaceId, { kitId: pinned?.id ?? null, bookedMin: minted.durationMin });
+    if (!realKit) return skippedRow(entryId, "not simulated: the entry has no interview agenda (no job kit, no prep plan)");
+    // The demo's SHORT agenda (ADR-0011, 2026-10-06): the brief, the instrument and the
+    // session's booked length all describe this one agenda, so the call can end by protocol
+    // inside DEMO_SIM_LIMITS. The real kit is untouched.
+    const kit = shortDemoAgenda(realKit);
+    agendaFields = { agenda: kit.demoAgenda, agendaBlocks: kit.agenda.blocks.length };
     const directed = await buildGroundedInterview(entryId, workspaceId, { readOnly: true, kit });
     if (!directed.grounded) return skippedRow(entryId, "not simulated: no grounded interview brief");
     const fixture = FIXTURE_OF_BRANCH[kit.branch] ?? "kit";
@@ -313,7 +326,7 @@ async function playCheckedEntry(
       jobTitle: minted.jobTitle,
       instructions: minted.instructions,
       runOfShow: minted.runOfShow,
-      durationMin: minted.durationMin,
+      durationMin: kit.agenda.durationMin,
       language: entry.locale ?? null,
       workspaceId,
       kitId: pinned?.id ?? null,
@@ -337,11 +350,11 @@ async function playCheckedEntry(
     });
   } catch (err) {
     completeInterviewSession(sessionId, { transcript: [], status: "failed" });
-    return skippedRow(entryId, `not simulated: the conversation failed (${reasonOf(err)})`, { sessionId });
+    return skippedRow(entryId, `not simulated: the conversation failed (${reasonOf(err)})`, { sessionId, ...agendaFields });
   }
   const transcript = spokenTranscript(dump.turns);
   const candidateTurns = transcript.filter((t) => t.role === "candidate").length;
-  const counts = { sessionId, turns: transcript.length, endReason: dump.endedBy };
+  const counts = { sessionId, turns: transcript.length, endReason: dump.endedBy, ...agendaFields };
   if (dump.endedBy === "error" || candidateTurns === 0) {
     completeInterviewSession(sessionId, { transcript, status: "failed" });
     return skippedRow(entryId, `not rated: the simulated call did not complete (${dump.endedBy})`, counts);
@@ -372,6 +385,7 @@ async function playCheckedEntry(
       turns: counts.turns,
       endReason: counts.endReason,
       skipped: null,
+      ...agendaFields,
     };
   } catch (err) {
     if (err instanceof ScorecardNotAccepted) {

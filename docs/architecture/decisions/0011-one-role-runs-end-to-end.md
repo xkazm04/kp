@@ -391,3 +391,28 @@ sent. An approval that arrives after the effect is not an approval, and
   or model call, so no CV reaches a prompt), and a refusal still does not use up the cap. A held
   branch is an allowed gate step, so the 16 holds do not fail the verdict; `standInDecision`,
   `DEMO_SIM_LIMITS` and the engine are unchanged, and `--approve-all` stays withheld.
+
+- **2026-10-06 — the demo's simulated interview runs a SHORT agenda, and the headline says
+  so.** The operator answered the spend ask with "Short agenda, same spend". The end-state
+  reading left clause (ii) as the one failure: every simulated call hit `max_turns`, because
+  `DEMO_SIM_LIMITS` allows 8 candidate turns and the real kit agenda (warm-up, several scored
+  topics with must-asks, role questions, close) cannot be covered and closed in 8. **The limits
+  do not move:** 8 candidate turns, 48 calls, 2 interviews (`DEFAULT_SIM_INTERVIEWS`), with no
+  extra seat spend. What changes is the agenda, on the demo path only:
+  `interview-sim/demo-agenda.ts::shortDemoAgenda` takes the kit `buildInterviewKit` returned and
+  keeps ONE scored block (the kit's first topic, at most 2 must-asks, at most 4 minutes) and the
+  closing blocks; `hardCapMin` is recomputed with `HARD_CAP_FACTOR` and the close reserve is the
+  closing blocks' minutes. `playCheckedEntry` applies it between `buildInterviewKit` and the
+  read-only `buildGroundedInterview`, so the private brief, `instrument.agenda`,
+  `record.agendaBlockIds` and the session's `durationMin` all describe the same short agenda. The
+  real kit, `interview-agenda.ts`, the director, the engine and every live interview path are
+  unchanged, and nothing outside the role demo calls the function. The director still refuses a
+  `complete` while the one scored block is uncovered, so a protocol end on this agenda still means
+  that block was covered. **What clause (ii) is read on:** a protocol end (`end_interview` or
+  `director_end`) on the short agenda satisfies it, and that is a weaker basis than a protocol end
+  on a full agenda, so it is labelled. Each simulated-interview row carries `agenda: 'short-demo'`
+  and `agendaBlocks` (a label and a count, never agenda text); every policy headline whose
+  simulated interviews used it contains the words "short demo agenda" (`met on a SIMULATED
+  interview on a short demo agenda (…)`; a `not met` line names it too), and `--json` carries
+  `simulatedAgenda` and `simulatedAgendaBlocks` beside `goalOneHeadline`. The four clauses keep
+  their meaning.

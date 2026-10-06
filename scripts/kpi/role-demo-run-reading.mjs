@@ -200,6 +200,12 @@ export const PROTOCOL_END_REASONS = ["end_interview", "director_end"];
 /** The reason of a row the cap kept out. Restated from role-demo.ts. */
 export const CAP_SKIP = "not simulated: cap";
 
+/** The label a simulated interview row carries when it ran on the demo-only short agenda.
+ *  Restated from interview-sim/demo-agenda.ts (SHORT_DEMO_AGENDA). */
+export const SHORT_DEMO_AGENDA = "short-demo";
+/** The words every headline must carry when the simulated interviews ran on that agenda. */
+export const SHORT_DEMO_AGENDA_WORDS = "short demo agenda";
+
 const branchWord = (n) => `${n} ${n === 1 ? "branch" : "branches"}`;
 const namesOf = (refs, max = 3) => (refs.length <= max ? refs.join(", ") : `${refs.slice(0, max).join(", ")} +${refs.length - max} more`);
 
@@ -266,7 +272,11 @@ export function goalOneEndState({ runStatus, artifacts, decisions, simulatedInte
     failing.push(`${cappedSeedBranches.length} seed branch(es) reached the interview unplayed by the cap${cap === null ? "" : ` (--sim-interviews ${cap})`}`);
   }
 
+  const shortRows = rows.filter((r) => r.agenda === SHORT_DEMO_AGENDA);
   return {
+    // Which agenda the simulated interviews ran on: a short-agenda call never reads as a full one.
+    simulatedAgenda: shortRows.length > 0 ? SHORT_DEMO_AGENDA : null,
+    simulatedAgendaBlocks: shortRows.length > 0 ? Math.max(...shortRows.map((r) => r.agendaBlocks ?? 0)) : null,
     runEndState: runStatus === "complete" && heldForPerson.length === 0 ? "complete" : `${runStatus}; ${branchWord(heldForPerson.length)} held for a person at rejection`,
     approvedOffers: approvedOffers.length,
     protocolEndedBases: protocolEndedBases.length,
@@ -321,7 +331,8 @@ export function goalOneHeadline(goalOne, reading, standIn = null) {
     // the headline keeps the label, because the candidate was played by the model (ADR-0011).
     const simulated = standIn.simulatedOffers ?? 0;
     const share = simulated < offers ? `, ${simulated} of ${offers} approved offers on a simulated interview` : "";
-    return `goal 1: met on a SIMULATED interview (candidate played by the model from the CV on the entry), gates by the demo stand-in: ${count(offers, "offer")} approved on a recorded basis${share}, ${end.protocolEndedBases} on an interview that ended by protocol${endLine}`;
+    const onShort = end.simulatedAgenda === SHORT_DEMO_AGENDA ? ` on a ${SHORT_DEMO_AGENDA_WORDS}` : "";
+    return `goal 1: met on a SIMULATED interview${onShort} (candidate played by the model from the CV on the entry), gates by the demo stand-in: ${count(offers, "offer")} approved on a recorded basis${share}, ${end.protocolEndedBases} on an interview that ended by protocol${endLine}`;
   }
   const clauses = [];
   if (!clauseOne) {
@@ -331,6 +342,7 @@ export function goalOneHeadline(goalOne, reading, standIn = null) {
   }
   if (!end) clauses.push("the run's end state was not evaluated");
   else clauses.push(...end.failing);
+  if (end?.simulatedAgenda === SHORT_DEMO_AGENDA) clauses.push(`simulated interviews ran on a ${SHORT_DEMO_AGENDA_WORDS}`);
   return `goal 1: not met: ${clauses.join("; ")}${endLine}${tag}`;
 }
 
@@ -445,8 +457,9 @@ export function notSeedRefusalCount(rows) {
  *  @returns {string[]} */
 export function formatSimulatedInterviews(rows) {
   return rows.map((r) => {
-    if (isRatedSimulatedRow(r)) return `${r.branchRef}: session ${r.sessionId} · ${r.recommendation} (${r.verdictSource ?? "unknown"}) · ${r.turns} turns · ended ${r.endReason ?? "unknown"}`;
-    const counts = r.sessionId ? ` · session ${r.sessionId} · ${r.turns} turns · ended ${r.endReason ?? "unknown"}` : "";
+    const agenda = r.agenda ? ` · ${r.agenda === SHORT_DEMO_AGENDA ? SHORT_DEMO_AGENDA_WORDS : r.agenda}, ${r.agendaBlocks ?? 0} blocks` : "";
+    if (isRatedSimulatedRow(r)) return `${r.branchRef}: session ${r.sessionId} · ${r.recommendation} (${r.verdictSource ?? "unknown"}) · ${r.turns} turns · ended ${r.endReason ?? "unknown"}${agenda}`;
+    const counts = r.sessionId ? ` · session ${r.sessionId} · ${r.turns} turns · ended ${r.endReason ?? "unknown"}${agenda}` : "";
     return `${r.branchRef}: ${r.skipped ?? "not rated"}${counts}`;
   });
 }

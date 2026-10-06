@@ -18,6 +18,7 @@ import {
   formatStandInTally,
   furthestPerBranch,
   goalOneEndState,
+  formatSimulatedInterviews,
   goalOneHeadline,
   scorecardRecommendationOf,
   screenRouteOf,
@@ -481,4 +482,32 @@ test("every failing clause is named, and a policy run without an end state can n
 test("--approve-all stays withheld and the no-stand-in path is unchanged", () => {
   assert.match(goalOneHeadline(ledgerMet, measured, { mode: "all", tally: tallyStandIn([]) }), /verdict withheld/);
   assert.equal(goalOneHeadline(ledgerMet, measured, null), "goal 1: met");
+});
+
+// ---- the short demo agenda is named in the headline (ADR-0011, 2026-10-06 "Short agenda, same spend")
+
+const shortRow = (ref, endReason, extra = {}) => row(ref, endReason, { agenda: "short-demo", agendaBlocks: 3, ...extra });
+
+test("a protocol end on the short agenda reads met, and the headline names the short demo agenda", () => {
+  const { headline, endState } = headlineOf({ artifacts: offerChain("a"), decisions: [offerApproval("a")], rows: [shortRow("a", "end_interview")], runStatus: "complete" });
+  assert.match(headline, /^goal 1: met on a SIMULATED interview on a short demo agenda \(candidate played by the model from the CV on the entry\)/);
+  assert.equal(endState.simulatedAgenda, "short-demo");
+  assert.equal(endState.simulatedAgendaBlocks, 3);
+  assert.equal(endState.clauses.protocolEndedBasis, true);
+});
+
+test("a short-agenda run that fails still names the short demo agenda", () => {
+  const { headline } = headlineOf({ artifacts: offerChain("a"), decisions: [offerApproval("a")], rows: [shortRow("a", "max_turns")], runStatus: "complete" });
+  assert.match(headline, /^goal 1: not met: /);
+  assert.match(headline, /short demo agenda/);
+});
+
+test("a full-agenda row never reads as a short one", () => {
+  const { headline, endState } = headlineOf({ artifacts: offerChain("a"), decisions: [offerApproval("a")], rows: [row("a", "end_interview")], runStatus: "complete" });
+  assert.ok(!/short demo agenda/.test(headline), headline);
+  assert.equal(endState.simulatedAgenda, null);
+});
+
+test("the simulated-interview lines name the short demo agenda and its block count", () => {
+  assert.match(formatSimulatedInterviews([shortRow("a", "end_interview")])[0], /short demo agenda, 3 blocks/);
 });

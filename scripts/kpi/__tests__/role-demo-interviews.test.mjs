@@ -179,11 +179,35 @@ test("an 'advance' card lets the stand-in approve the offer, and the headline sa
   const standIn = standInOf(record);
   assert.equal(standIn.simulatedOffers, 1);
   const headline = goalOneHeadline(record.goalOne, reading, standIn);
-  assert.match(headline, /^goal 1: met on a SIMULATED interview \(candidate played by the model from the CV on the entry\), gates by the demo stand-in/);
+  assert.match(headline, /^goal 1: met on a SIMULATED interview on a short demo agenda \(candidate played by the model from the CV on the entry\), gates by the demo stand-in/);
   // The fake interview ended by protocol, so clause (ii) holds and the headline says so; the label
   // can no longer be dropped by a count, because a plain "met" does not exist in a policy run.
   assert.match(headline, /1 on an interview that ended by protocol; run end state: complete$/);
   assert.match(goalOneHeadline(record.goalOne, reading, { ...standIn, endState: undefined }), /^goal 1: not met: .*end state was not evaluated/);
+});
+
+test("the demo hands the SHORT agenda to the brief, the instrument, the record and the session", async () => {
+  const { entries } = await seedRole("short-agenda", 1);
+  const [entryId] = entries;
+  const seen = [];
+  const spyLlms = (situation, instrument) => {
+    seen.push(instrument);
+    return fakeLlms(situation, instrument);
+  };
+  const row = await simulateInterviewForEntry(entryId, DEFAULT_WORKSPACE_ID, { llms: spyLlms, score: llmScorer("advance"), finalize: noMint });
+  assert.equal(row.skipped, null);
+  const [instrument] = seen;
+  const blocks = instrument.agenda.blocks;
+  assert.equal(blocks.filter((b) => b.scored).length, 1, "one scored block");
+  assert.ok(blocks.length <= 3, `${blocks.length} blocks`);
+  assert.deepEqual(instrument.record.agendaBlockIds, blocks.map((b) => b.id), "the record names the short agenda's blocks");
+  // The brief lists THIS agenda: its title is there, and nothing else is asserted about dropped blocks.
+  assert.ok(instrument.privateBrief.includes(blocks[0].title), "the brief lists the kept block");
+  // The row and the session say which agenda and how long.
+  assert.equal(row.agenda, "short-demo");
+  assert.equal(row.agendaBlocks, blocks.length);
+  assert.equal(getInterviewSessionById(row.sessionId).durationMin, instrument.agenda.durationMin, "the session states the short length");
+  assert.ok(instrument.agenda.durationMin < 20, "shorter than a real kit's booking");
 });
 
 test("a 'hold' scorecard from the simulated interview is not a basis for an offer", async () => {
@@ -299,7 +323,7 @@ test("the reading carries counts and the recommendation, never transcript or sco
     JSON.stringify(record.artifacts),
   ].join("\n");
   assert.ok(!printed.includes(MARK), "no transcript or scorecard text reaches the reading");
-  assert.deepEqual(Object.keys(record.simulatedInterviews[0]).sort(), ["branchRef", "endReason", "recommendation", "sessionId", "skipped", "turns", "verdictSource"]);
+  assert.deepEqual(Object.keys(record.simulatedInterviews[0]).sort(), ["agenda", "agendaBlocks", "branchRef", "endReason", "recommendation", "sessionId", "skipped", "turns", "verdictSource"]);
 });
 
 // ---- the SECURITY invariants of this path (codebase-security-scan, 2026-10-06) --------
