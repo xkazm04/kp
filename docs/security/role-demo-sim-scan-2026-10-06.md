@@ -30,7 +30,7 @@ mislabel of check 4, which cannot be corrected without a vocabulary change.
 | --- | --- | --- |
 | 1 | Never a real database | **fixed** |
 | 2 | Never a real candidate — comms | **fixed** (defence in depth; nothing had ever been sent) |
-| 2b | Never a real candidate — what the CLI receives | **fixed** — closed the operator's way, "seeded entries only" |
+| 2b | Never a real candidate — what the CLI receives | **fixed** in `51041e015` — the operator's way, "seeded entries only" |
 | 3 | No transcript or scorecard text in output | **fixed** — the happy path held, both error paths did not |
 | 4 | Workspace scoping | **holds**; the `provider: 'openai'` mislabel is **open** |
 | 5 | Gate the tests | **fixed** |
@@ -139,8 +139,8 @@ Note the pre-existing asymmetry it rests on: `pipeline/jobfit/claude_cli.py`'s p
 consumer-terms veto does not apply here, and `providers.ts` says so — on the stated grounds
 that the data is synthetic, which on this path it was not.
 
-**Closed 2026-10-06 — the operator answered "Seeded entries only", which is option 1.**
-Recorded as an amendment to
+**Closed 2026-10-06 in `51041e015` — the operator answered "Seeded entries only", which is
+option 1.** Recorded as an amendment to
 [ADR-0011](../architecture/decisions/0011-one-role-runs-end-to-end.md).
 
 **The fix.** `seedOriginProblem` / `loadSeedCorpus`
