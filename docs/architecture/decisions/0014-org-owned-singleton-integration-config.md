@@ -16,6 +16,8 @@ sources:
   - app/_lib/tenancy.ts
   - app/_lib/edge-org-scope.test.ts
   - app/_lib/comms-relay-org-scope.test.ts
+  - app/_lib/org-owned-config-writers.test.ts
+  - app/_lib/org-service.ts
 ---
 
 ## Context
@@ -172,6 +174,15 @@ organization's inbound mail and webhooks.
   a new *reader* is safe by default and a new *writer* must pass the caller's org
   or it will stamp NULL — which silently means "the default org". That is the
   sharpest edge this design has.
+- **That edge is ratcheted in source**, by
+  `app/_lib/org-owned-config-writers.test.ts`: the set of files calling
+  `setAtsConfig`/`setRelayConfig`/`setEdgeConfig` must EQUAL the three routes
+  listed in §1, and each of those must derive `ownerOrgId` from
+  `currentOrgId(await currentSession())` and spread it after the body. A fourth
+  writer fails the suite naming this record; so does a listed route that stopped
+  calling its writer, because a dead expectation is worse than none. It is a scan,
+  not a type: making `ownerOrgId` required at the store boundary is the stronger
+  answer and is the last trigger below.
 
 ## What would change our mind
 
@@ -184,6 +195,16 @@ organization's inbound mail and webhooks.
   install is found where an unstamped row let the wrong organization write, the
   answer is a one-time migration that stamps the row at upgrade time from the only
   org present, and refuses when there is more than one.
+- **If kp gains a door that deletes an organization, or moves its last
+  `org:manage` seat.** That door must release — or hand over — the singleton
+  configs the organization owns (`ats_config`, `comms_relay_config`,
+  `edge_config`) in the same change, the way unpairing already clears the edge's
+  owner. Today no such door exists: an organization is created and joined, never
+  deleted, and `org-service.ts` refuses to demote, disable or remove the last
+  owner seat, so the capability cannot leave an organization. That absence is the whole
+  reason the Consequences above can leave unpair as the only recovery path; the
+  first delete-an-org door turns that stated limitation into a lockout, and this
+  bullet is where it gets answered.
 - **If a door is found writing one of these rows without a session org.** Then the
   stamp should stop defaulting and start refusing — `ownerOrgId` becomes required
   at the store boundary, and the server-internal writers (tests, fixtures) pass
