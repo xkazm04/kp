@@ -6,7 +6,7 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { PANEL } from "@/app/_components/ui/recipes";
+import { BTN_SECONDARY, PANEL } from "@/app/_components/ui/recipes";
 import { ArrowRight, ClipboardList, FileText, RefreshCw, UserRound } from "lucide-react";
 import type { useTranslations } from "next-intl";
 import { buildUrl, clearedTabScopedParams } from "@/app/features/shell/tabs";
@@ -73,11 +73,11 @@ export function ScheduleTabInterviewedList({
                       {t("humanLedChip")}
                     </span>
                   ) : scoringState === "unscored" ? (
-                    <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-meta font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
+                    <span className="rounded-md bg-dial-amber/20 px-1.5 py-0.5 text-meta font-semibold uppercase tracking-wide text-ink">
                       {t("unscoredChip")}
                     </span>
                   ) : scoringState === "scoring" ? (
-                    <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-meta font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
+                    <span className="rounded-md bg-dial-amber/20 px-1.5 py-0.5 text-meta font-semibold uppercase tracking-wide text-ink">
                       {t("scoringChip")}
                     </span>
                   ) : undefined
@@ -117,9 +117,9 @@ export function ScheduleTabInterviewedList({
                 type="button"
                 disabled={rescoringId === (interviews[e.id]?.sessionId ?? e.id)}
                 onClick={() => handleRescore(e)}
-                className="focus-ring mt-1.5 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 text-sm font-semibold text-amber-800 hover:bg-amber-500/20 dark:text-amber-300"
+                className={`${BTN_SECONDARY} mt-1.5 h-8 w-full justify-center gap-1.5 text-meta`}
               >
-                <RefreshCw size={13} className={rescoringId === (interviews[e.id]?.sessionId ?? e.id) ? "animate-spin" : ""} />
+                <RefreshCw size={13} className={`text-dial-amber ${rescoringId === (interviews[e.id]?.sessionId ?? e.id) ? "animate-spin" : ""}`} />
                 {t("rescoreButton")}
               </button>
             ) : (

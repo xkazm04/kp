@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { AlertTriangle, Loader2, RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
+import { BTN_SECONDARY, NOTICE } from "@/app/_components/ui/recipes";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { normalizeScorecardEntities } from "@/app/_lib/interview-scorecard";
 import { readHumanScorecards } from "@/app/_lib/human-scorecard-set";
@@ -126,9 +127,9 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
               t={t}
             />
           ) : transcript.length > 0 ? (
-            <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-900 dark:text-amber-200">
+            <div className={`${NOTICE()} flex items-center justify-between gap-3 p-3 text-micro`}>
               <div className="flex items-center gap-2">
-                <AlertTriangle size={16} className="shrink-0 text-amber-600 dark:text-amber-400" />
+                <AlertTriangle size={16} className="shrink-0 text-dial-amber" />
                 <span>{t("unscoredNotice")}</span>
               </div>
               {session.id ? (
@@ -136,7 +137,7 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
                   type="button"
                   disabled={rescoring}
                   onClick={handleRescore}
-                  className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-md border border-amber-500/50 bg-paper px-3 py-1.5 text-xs font-semibold text-ink shadow-sm hover:border-amber-600/60"
+                  className={`${BTN_SECONDARY} h-8 shrink-0 gap-1.5 bg-paper px-3 text-meta`}
                 >
                   <RefreshCw size={13} className={rescoring ? "animate-spin" : ""} />
                   {rescoring ? t("rescoring") : t("rescoreButton")}
