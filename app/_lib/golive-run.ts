@@ -6,7 +6,35 @@ import { raiseRediscoveryAlertsForJob } from "./rediscover.ts";
 import { createPipelineEntry } from "./db/pipeline.ts";
 import { getJob } from "./db/jobs.ts";
 import { splitRequirements } from "../features/library/jobs/JobsTypes.ts";
-import { finishReceipt } from "./golive-receipt-store.ts";
+import {
+  finishReceipt,
+  isGoliveFailureCode,
+  GOLIVE_FALLBACK_FAILURE_CODE,
+  type GoliveFailureCode,
+} from "./golive-receipt-store.ts";
+import { PipelineError } from "./python-runner.ts";
+
+/**
+ * The receipt's failure_code for a thrown sourcing error — a CODE, never the message.
+ *
+ * `sourcingError.message` used to be persisted here. For a PipelineError that message
+ * is the sourcing child's whole trimmed stderr, and for a non-JSON reply it is the last
+ * 400 characters of its stdout and stderr; the child is fed every candidate profile in
+ * the workspace, so the message can carry person data into a row that is exempt from the
+ * entry-keyed Art. 17 scrub and is served by GET /api/jobs/[id]/publish. An engine
+ * refusal keeps its identity (its own code, upper-cased) and nothing else; anything
+ * unrecognised is simply SOURCING_FAILED.
+ *
+ * The transient `sourcingWarning` in the RESULT is untouched: it is returned to the
+ * caller of this one request and never stored.
+ */
+export function goliveFailureCodeFor(error: unknown): GoliveFailureCode {
+  if (error instanceof PipelineError && error.code) {
+    const code = error.code.toUpperCase();
+    if (isGoliveFailureCode(code)) return code;
+  }
+  return GOLIVE_FALLBACK_FAILURE_CODE;
+}
 
 export type RunGoLiveDeps = {
   source?: typeof runSourceForRole;
@@ -118,7 +146,7 @@ export async function runGoLive(
       state: "sourcing_failed",
       sourced,
       skipped,
-      failureCode: sourcingWarning,
+      failureCode: goliveFailureCodeFor(sourcingError),
     });
     return {
       alreadyPublished: mode === "resume",

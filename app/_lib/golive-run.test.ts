@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { ensureDb } from "./db/core.ts";
 import { runGoLive, type RunGoLiveDeps } from "./golive-run.ts";
-import { openReceipt, readReceipt, claimResume } from "./golive-receipt-store.ts";
+import { openReceipt, readReceipt, claimResume, GOLIVE_FAILURE_CODES } from "./golive-receipt-store.ts";
+import { PipelineError } from "./python-runner.ts";
 import { listPipeline, createPipelineEntry } from "./db/pipeline.ts";
 
 after(() => cleanupUnitDb());
@@ -107,6 +108,77 @@ test("Acceptance 5: Aborted signal leaves receipt 'abandoned'; resume mode adds 
   // 2 pipeline entries exist for the job
   const entries = listPipeline(WS).filter((e) => e.jobId === job.id);
   assert.equal(entries.length, 2);
+});
+
+test("a failed sourcing run stores a CODE, never the error's text", async () => {
+  // The sourcing child is handed every candidate profile in the workspace, so its stderr
+  // (which is what a PipelineError's message is) can carry person data. The receipt is
+  // ERASURE_EXEMPT and GET /api/jobs/[id]/publish serves it, so the message must not
+  // reach the row. See goliveFailureCodeFor.
+  const PII = "Traceback (most recent call last): matched Jane Example cand-123";
+  const job = seedJob({ title: "Platform Engineer", roleFamily: "engineering" }, WS);
+  openReceipt(job.id, WS);
+
+  const res = await runGoLive(
+    { jobId: job.id, workspaceId: WS, mode: "first", attempt: 1 },
+    {
+      source: (async () => {
+        throw new Error(`stderr: …${PII}`);
+      }) as unknown as NonNullable<RunGoLiveDeps["source"]>,
+    }
+  );
+  assert.equal(res.sourcingAbandoned, false);
+
+  const receipt = readReceipt(job.id, WS);
+  assert.ok(receipt);
+  assert.equal(receipt.state, "sourcing_failed");
+  assert.equal(receipt.failureCode, "SOURCING_FAILED");
+  assert.ok((GOLIVE_FAILURE_CODES as readonly string[]).includes(receipt.failureCode ?? ""));
+  assert.ok(!receipt.failureCode?.includes("Jane Example"));
+
+  // Nothing of the message survives in the row itself, in any column.
+  const row = ensureDb()
+    .prepare(`SELECT * FROM job_golive_receipts WHERE job_id = ? AND workspace_id = ?`)
+    .get(job.id, WS) as Record<string, unknown>;
+  assert.ok(!JSON.stringify(row).includes("Jane Example"));
+
+  // The transient warning is out of scope by design: it is returned to this one caller
+  // and never stored.
+  assert.ok(res.sourcingWarning?.includes("Jane Example"));
+});
+
+test("a PipelineError carrying a known engine code keeps that code, upper-cased", async () => {
+  const job = seedJob({ title: "ML Engineer", roleFamily: "data" }, WS);
+  openReceipt(job.id, WS);
+
+  await runGoLive(
+    { jobId: job.id, workspaceId: WS, mode: "first", attempt: 1 },
+    {
+      source: (async () => {
+        throw new PipelineError({
+          message: "stderr: …profile cand-456 for Jane Example could not be scored",
+          status: 500,
+          code: "engine_error",
+        });
+      }) as unknown as NonNullable<RunGoLiveDeps["source"]>,
+    }
+  );
+
+  const receipt = readReceipt(job.id, WS);
+  assert.equal(receipt?.failureCode, "ENGINE_ERROR");
+
+  // An engine code OUTSIDE the vocabulary falls back rather than passing prose through.
+  const job2 = seedJob({ title: "SRE", roleFamily: "engineering" }, WS);
+  openReceipt(job2.id, WS);
+  await runGoLive(
+    { jobId: job2.id, workspaceId: WS, mode: "first", attempt: 1 },
+    {
+      source: (async () => {
+        throw new PipelineError({ message: "Jane Example cand-789", status: 429, code: "rate_limited" });
+      }) as unknown as NonNullable<RunGoLiveDeps["source"]>,
+    }
+  );
+  assert.equal(readReceipt(job2.id, WS)?.failureCode, "SOURCING_FAILED");
 });
 
 test("Acceptance 6: Honest count - only newly created entries count toward sourced", async () => {

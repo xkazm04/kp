@@ -20,9 +20,15 @@ const src = readFileSync(
 );
 const sqlBlocks = [...src.matchAll(/`([^`]*)`/g)].map((m) => m[1]);
 
+// The one-time failure_code normalisation (normalizeFailureCodes) is the single
+// deployment-wide pair of statements in this store and says so in its own SQL. It is a
+// schema repair with no tenant to attribute it to; the test below pins that it stays
+// confined to failure_code, so the exemption cannot grow into a cross-tenant read.
+const NORMALISATION_MARKER = "one-time normalisation, deployment-wide by design";
+
 test("every SELECT/UPDATE/INSERT on job_golive_receipts carries workspace_id", () => {
-  const statements = sqlBlocks.filter((s) =>
-    /\b(from|into|update)\s+job_golive_receipts\b/i.test(s)
+  const statements = sqlBlocks.filter(
+    (s) => /\b(from|into|update)\s+job_golive_receipts\b/i.test(s) && !s.includes(NORMALISATION_MARKER)
   );
   assert.ok(statements.length >= 3, `expected >= 3 statements, found ${statements.length}`);
   for (const sql of statements) {
@@ -33,6 +39,24 @@ test("every SELECT/UPDATE/INSERT on job_golive_receipts carries workspace_id", (
     assert.ok(
       boundOrStamped,
       `job_golive_receipts statement is not workspace-scoped:\n${sql}`
+    );
+  }
+});
+
+test("the deployment-wide exemption is only the failure_code normalisation", () => {
+  const exempt = sqlBlocks.filter(
+    (s) => /\b(from|into|update)\s+job_golive_receipts\b/i.test(s) && s.includes(NORMALISATION_MARKER)
+  );
+  assert.equal(exempt.length, 2, `expected exactly 2 marked statements, found ${exempt.length}`);
+  for (const sql of exempt) {
+    // Reads a constant, writes one non-identifying column: no candidate or job data
+    // crosses a workspace boundary through either statement.
+    assert.ok(/failure_code/i.test(sql), `marked statement does not mention failure_code:\n${sql}`);
+    const setColumns = [...sql.matchAll(/\bset\s+([a-z_]+)\s*=/gi)].map((m) => m[1].toLowerCase());
+    assert.deepEqual(
+      setColumns.filter((c) => c !== "failure_code"),
+      [],
+      `marked statement writes a column other than failure_code:\n${sql}`
     );
   }
 });
