@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { EdgeConfigError, getEdgeConfig, setEdgeConfig } from "@/app/_lib/edge-config";
+import { EdgeConfigError, EdgeOwnershipError, getEdgeConfig, setEdgeConfig } from "@/app/_lib/edge-config";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { requireOrgCapability } from "@/app/_lib/auth/current-user";
+import { currentSession, requireOrgCapability } from "@/app/_lib/auth/current-user";
+import { currentOrgId } from "@/app/_lib/auth/session";
+import { DEFAULT_ORG_ID } from "@/app/_lib/db/organizations";
 
 // The edge pairing (docs/concepts/local-first-edge.md §3.2) — the UI-backed twin of
 // KP_EDGE_URL / KP_EDGE_SECRET, shaped exactly like /api/comms/relay because it is
@@ -31,7 +33,13 @@ export async function POST(request: NextRequest) {
   if (under) return under;
   try {
     const body = (await request.json()) as { url?: unknown; secret?: unknown; nudgeTarget?: unknown };
-    return NextResponse.json({ ok: true, config: setEdgeConfig(body) });
+    // F-3 — the CALLER's organization, from the session, never from the body (an
+    // `ownerOrgId` in the body is overwritten by the spread and has no effect). It is both
+    // the authorization and the stamp: the store refuses a write by any org other than the
+    // stored pairing's owner, and re-stamps the owner on every accepted write. Open mode
+    // (no operator password, no session) is the single default org by definition.
+    const ownerOrgId = currentOrgId(await currentSession()) ?? DEFAULT_ORG_ID;
+    return NextResponse.json({ ok: true, config: setEdgeConfig({ ...body, ownerOrgId }) });
   } catch (error) {
     // CODES, NEVER MESSAGES (docs/architecture/api-contracts.md §1.1). An
     // EdgeConfigError is a DECISION — a URL that is not a public https endpoint, a
@@ -39,6 +47,14 @@ export async function POST(request: NextRequest) {
     // reader's own language. Anything else came out of better-sqlite3 or the at-rest
     // encryption and can carry a filesystem path or key detail: it goes to the server
     // log and the browser gets the generic message plus a code.
+    // Checked FIRST: an ownership refusal subclasses EdgeConfigError, and it is an
+    // AUTHORIZATION answer (403, nothing written) rather than a bad field — the caller's
+    // own organization does not own this install's pairing, and no edit of the body fixes
+    // that. The reason names two org ids; it goes to the log, the reader gets the code.
+    if (error instanceof EdgeOwnershipError) {
+      console.error("[api:edge] EDGE_OWNED_BY_OTHER_ORG", error.message);
+      return jsonRefusal("EDGE_OWNED_BY_OTHER_ORG", 403);
+    }
     if (error instanceof EdgeConfigError) {
       console.error("[api:edge] EDGE_CONFIG_REJECTED", error.message);
       return jsonRefusal("EDGE_CONFIG_REJECTED", 400);

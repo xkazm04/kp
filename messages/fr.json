@@ -1456,6 +1456,7 @@
     "AGENT_BRIDGE_KEY_INVALID": "Personas a refusé la clé API de cet espace de travail. La clé d'appairage a expiré ou a été révoquée ; réappairez dans Paramètres → Intégrations.",
     "AGENT_BRIDGE_KEY_UNREADABLE": "La clé Personas enregistrée n'est plus lisible. Le secret du serveur a changé depuis l'appairage ; restaurez-le, ou réappairez dans Paramètres → Intégrations.",
     "EDGE_CONFIG_REJECTED": "Cette adresse d'edge a été refusée. Ce doit être une URL https:// publique.",
+    "EDGE_OWNED_BY_OTHER_ORG": "L'appairage d'edge de cette installation appartient à une autre organisation. Seule celle-ci peut le modifier.",
     "EDGE_PAIR_REFUSED": "Impossible de publier la clé de scellement sur l'edge. Vérifiez l'appairage et réessayez.",
     "EDGE_SAVE_FAILED": "Impossible d'enregistrer l'appairage de l'edge. Veuillez réessayer.",
     "TTS_FAILED": "Impossible de lire cette réponse à voix haute pour le moment. Veuillez réessayer.",

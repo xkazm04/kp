@@ -890,6 +890,38 @@ everything already sealed to the first. `edge_config` is a deployment-level tabl
 same reason `comms_relay_config` is; the leads it produces are filed into the
 workspace of the RECEIVER TOKEN they were addressed to, by the core.
 
+**The pairing belongs to the organization that saved it — on the doors and on
+receipts, not per event (F-3).** `edge_config` stays one install-level row, so the
+boundary could not be the relay's: a drained lead is routed by its receiver token,
+which is a workspace capability and already carries the tenancy, and the edge is
+every organization's *single* inbound transport — refusing another org's leads would
+cut inbound for every org but one. The two places that really cross the line are
+instead:
+
+- **The doors.** `POST /api/edge` and `POST /api/edge/pair` stamp the caller's org
+  (`owner_org_id`) from the **session**, never from the body, and refuse a caller
+  whose org is not the stored pairing's owner — **403 `EDGE_OWNED_BY_OTHER_ORG`**,
+  nothing written, before `ensureEdgeKeypair` and before any fetch. `org:manage` is
+  held per organization, so without this any org's owner could re-point the transport
+  another org paired, or reset the drain cursor and skip every event below it.
+  Unpairing (`url: ""`) **clears** the owner, so an unpaired install is claimable by
+  whoever pairs it next. `GET /api/edge` returns `ownerOrgId` (an id, not a secret).
+- **Receipts.** A delivery receipt is addressed by `ref` alone, and `ref` decides
+  which team's outbox gets a `bounced` row — so one drained from a UI-saved edge
+  wrote red rows into another organization's Comms Center. The drain now resolves the
+  ref's org the same way the relay does (entry → team → org) and **skips** a
+  mismatch — never *holds* it, because a hold wedges the queue behind bytes the edge
+  will hand back forever — logging the two org ids and filing nothing.
+
+A **NULL owner reads as the default org**, so every shipped install is unchanged, and
+the **env pairing (`KP_EDGE_URL`/`KP_EDGE_SECRET`) is not org-checked**: it is
+host-level configuration serving the whole deployment, told apart by the resolver's
+`source`, never by a null owner (a legacy stored row has one too, and that one *is*
+checked). `POST /api/edge/drain` is unchanged — it runs what the clock runs. Proofs:
+`app/_lib/edge-org-scope.test.ts`;
+[ADR 0014](../../architecture/decisions/0014-org-owned-singleton-integration-config.md)
+covers all three owner-stamped tables.
+
 The loop, and why the order is load-bearing:
 
 | Step | Call | Why here |

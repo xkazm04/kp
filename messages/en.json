@@ -1456,6 +1456,7 @@
     "AGENT_BRIDGE_KEY_INVALID": "Personas rejected this workspace's API key. The pairing key has expired or been revoked; re-pair in Settings → Integrations.",
     "AGENT_BRIDGE_KEY_UNREADABLE": "The stored Personas key can no longer be read. The server secret changed since pairing; restore it, or re-pair in Settings → Integrations.",
     "EDGE_CONFIG_REJECTED": "That edge endpoint was refused. It must be a public https:// URL.",
+    "EDGE_OWNED_BY_OTHER_ORG": "This install's edge pairing belongs to another organization. Only that organization can change it.",
     "EDGE_PAIR_REFUSED": "Could not publish the sealing key to the edge. Check the pairing and try again.",
     "EDGE_SAVE_FAILED": "Could not save the edge pairing. Please try again.",
     "TTS_FAILED": "Could not speak that just now. Please try again.",

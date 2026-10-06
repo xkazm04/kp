@@ -1456,6 +1456,7 @@
     "AGENT_BRIDGE_KEY_INVALID": "Personas odmítla klíč API tohoto pracovního prostoru. Párovací klíč vypršel nebo byl odvolán; spárujte znovu v Nastavení → Integrace.",
     "AGENT_BRIDGE_KEY_UNREADABLE": "Uložený klíč pro Personas už nelze přečíst. Od spárování se změnilo tajemství serveru; obnovte je, nebo spárujte znovu v Nastavení → Integrace.",
     "EDGE_CONFIG_REJECTED": "Adresa edge byla odmítnuta. Musí to být veřejná https:// adresa.",
+    "EDGE_OWNED_BY_OTHER_ORG": "Spárování edge v této instalaci patří jiné organizaci. Změnit je může jen ona.",
     "EDGE_PAIR_REFUSED": "Pečetící klíč se nepodařilo publikovat na edge. Zkontrolujte spárování a zkuste to znovu.",
     "EDGE_SAVE_FAILED": "Spárování s edge se nepodařilo uložit. Zkuste to prosím znovu.",
     "TTS_FAILED": "Tuto odpověď se teď nepodařilo přečíst nahlas. Zkuste to prosím znovu.",

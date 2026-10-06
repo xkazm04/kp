@@ -897,6 +897,12 @@ export const REFUSAL_ERRORS = {
    *  not an allowed public https URL, or a field was the wrong type. A DECISION, so
    *  the reader is told what to change rather than "something went wrong". */
   EDGE_CONFIG_REJECTED: "That edge endpoint was refused. It must be a public https:// URL.",
+  /** The install's edge pairing belongs to a different organization (403, nothing
+   *  written) — F-3. `edge_config` is one install-level row, so `org:manage` in ANY org
+   *  used to be enough to re-point, unpair or re-key the transport every organization's
+   *  inbound depends on. An AUTHORIZATION answer, not a bad field: no edit of the request
+   *  fixes it. The two org ids go to the server log, never to the reader. */
+  EDGE_OWNED_BY_OTHER_ORG: "This install's edge pairing belongs to another organization. Only that organization can change it.",
   /** Publishing the sealing key did not happen (400) — usually because no edge is
    *  paired yet, or it did not answer. Nothing was rotated; retrying is safe. */
   EDGE_PAIR_REFUSED: "Could not publish the sealing key to the edge. Check the pairing and try again.",

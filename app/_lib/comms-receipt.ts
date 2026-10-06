@@ -12,6 +12,8 @@
 
 import { getSubmission, hasOutboxSendFor, recordOutbox } from "./db/devcase";
 import { getEntryWorkspace, getPipelineEntry } from "./db/pipeline";
+import { orgIdForWorkspace } from "./db/org-benchmarks";
+import { DEFAULT_ORG_ID } from "./db/organizations";
 import { isBounceOutcome } from "./comms-status";
 import { logForeignReceipt } from "./logger";
 import { RECEIPT_RECIPIENT_CODE, RECEIPT_SUBJECT_CODE } from "./comms-view";
@@ -80,6 +82,30 @@ function receiptWorkspace(ref: string): string | null {
     /* same: an unreadable dev-case store leaves the ref unplaced, never default-placed */
   }
   return null;
+}
+
+/**
+ * WHICH ORGANIZATION does this receipt belong to? (F-3)
+ *
+ * The same resolution `receiptWorkspace` performs, lifted one level: the ref's team, then
+ * that team's org. A team with no `org_id` folds to the default org, exactly as
+ * `WebhookChannel.crossOrgRefusal` folds it — so a single-org install answers
+ * `org-default` for everything and no boundary built on this bites there.
+ *
+ * `null` means the ref is PLACEABLE NOWHERE, and it is deliberately not folded to the
+ * default org: `recordDeliveryReceipt` already refuses that case as `unknown_ref` and files
+ * it nowhere, and folding it would let an org-boundary check mask that answer with a
+ * different one. The caller treats null as "no org to compare" and lets the refusal below
+ * do its job.
+ *
+ * Exported for the edge drain, whose signed envelope proves an INSTALL and not a tenant:
+ * a receipt it applies on behalf of one organization's edge must not write into another's
+ * ledger (edge-drain.ts applyEvent).
+ */
+export function receiptOrgId(ref: string): string | null {
+  const workspaceId = receiptWorkspace(ref);
+  if (!workspaceId) return null;
+  return orgIdForWorkspace(workspaceId) ?? DEFAULT_ORG_ID;
 }
 
 /**

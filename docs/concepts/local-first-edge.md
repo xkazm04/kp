@@ -374,6 +374,13 @@ manifest and the skill stays unchanged.
 - **Multi-device / multi-operator.** Two laptops draining one edge is a
   conflict surface this design does not address; `KP_MULTI_WORKSPACE` installs
   should run the runtime on one always-on host. State it, do not solve it here.
+- **Multi-organization.** One install, one edge, one owner: the pairing belongs to
+  the organization that saved it and the others share the transport it provides
+  (the boundary that exists is on the doors and on receipts — see §11's tenancy
+  note and
+  [ADR 0014](../architecture/decisions/0014-org-owned-singleton-integration-config.md)).
+  A PER-ORG edge is out of scope and not a small change: it means a keypair and a
+  cursor per organization, i.e. the row stops being a singleton.
 - **Retention at the edge.** Acked rows: delete after N days; unacked rows: keep
   until drained, but alert past a ceiling (the nudge escalates).
 - **Web Push vs ntfy** as the default nudge: Web Push needs the browser the
@@ -429,6 +436,20 @@ than no design doc.
 - **Tenancy:** `edge_config` is deployment-level and EXEMPT (sibling of
   `comms_relay_config`); the clock's pull sweep is a named, narrow exemption in
   `channels-tenancy.test.ts`, while the recruiter-facing half stays scoped.
+  **It now records its owner** (`owner_org_id`, 2026-10-06, security scan F-3 —
+  [ADR 0014](../architecture/decisions/0014-org-owned-singleton-integration-config.md)):
+  the pairing is still ONE install-level row, but only the organization that saved
+  it may re-point, unpair or re-key it (`POST /api/edge`, `POST /api/edge/pair` →
+  403 `EDGE_OWNED_BY_OTHER_ORG`), and a drained delivery **receipt** is refused
+  when its `ref` belongs to another organization — it is addressed by ref alone, so
+  it wrote `bounced` rows into that organization's Comms Center. Per-event
+  **lead/mail** delivery is deliberately NOT org-checked: the receiver token is a
+  workspace capability and already carries the tenancy, and the edge is every
+  organization's single inbound transport, so refusing them would cut inbound for
+  every org but one. A NULL owner reads as the default org (so every shipped
+  install is unchanged), and the env pairing (`KP_EDGE_URL`) is host-level and not
+  org-checked — told apart by the resolver's `source`, never by a null owner.
+  Pinned by `app/_lib/edge-org-scope.test.ts`.
 
 - **The Worker's doors are now as hard as the install's** (2026-09-02). §2 rule 1 said
   the edge holds "one per-tenant HMAC key"; it did not say that `/relay/callback` was

@@ -395,6 +395,21 @@ ping (`POST /api/ats/test`).
   not a secret) and still never the signing secret; the test probe `POST
   /api/comms/relay/test` is unchanged. (F-2, security scan 2026-10-06; proofs in
   `app/_lib/comms-relay-org-scope.test.ts`.)
+- **The edge pairing is the third owner-stamped singleton — with a different boundary, on
+  purpose.** `edge_config` (`app/_lib/edge-config.ts`) is install-level by design: one
+  sealing keypair that is never rotated, one drain cursor, one edge URL. So it records its
+  owner the same way — `POST /api/edge` and `POST /api/edge/pair` stamp the caller's org
+  from the session, never from the body, and refuse a non-owner with **403
+  `EDGE_OWNED_BY_OTHER_ORG`** before anything is minted or fetched; unpairing clears the
+  owner so the install is claimable again — but the DELIVERY side is checked only where an
+  effect is addressed by `ref`. A drained delivery **receipt** whose ref belongs to another
+  organization is skipped and files no outbox row; a drained **lead or mail** is not
+  checked, because its receiver token is a workspace capability that already carries the
+  tenancy and the edge is every organization's single inbound transport. A NULL owner reads
+  as the default org, and the env pairing (`KP_EDGE_URL`) is host-level and exempt, told
+  apart by `source`. (F-3, security scan 2026-10-06; proofs in
+  `app/_lib/edge-org-scope.test.ts`; the shared rule and this variant are
+  [ADR 0014](../../architecture/decisions/0014-org-owned-singleton-integration-config.md).)
 - **Nothing exits without a ledger row.** A dispatch opens its `ats_delivery` row *before* the
   record is built, so an entry that cannot be resolved — or a build that throws — becomes a
   `failed`, retryable, operator-visible row that says why, never a silent return. A hire that

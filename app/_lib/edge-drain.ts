@@ -41,7 +41,8 @@ import {
 } from "./edge-config";
 import { isSealedBody, signEdgePayload, unsealBody } from "./edge-crypto";
 import { ingestInboundLeadByToken, inboundHandled } from "./inbound-lead";
-import { recordDeliveryReceipt } from "./comms-receipt";
+import { recordDeliveryReceipt, receiptOrgId } from "./comms-receipt";
+import { DEFAULT_ORG_ID } from "./db/organizations";
 import { publicBaseUrl } from "./public-base-url";
 import { assertPublicHttpsEndpointResolved, type HostLookup } from "./ats-egress-guard";
 
@@ -188,8 +189,8 @@ export function edgeIdempotencyKey(edgeUrl: string, seq: number): string {
   return `edge:${createHash("sha256").update(edgeUrl).digest("hex").slice(0, 16)}:${seq}`;
 }
 
-async function applyEvent(event: EdgeEvent, privateJwk: string | null, origin: string, edgeUrl: string): Promise<ApplyOutcome> {
-  const body = await bodyOf(event, privateJwk);
+async function applyEvent(event: EdgeEvent, edge: ResolvedEdge, origin: string): Promise<ApplyOutcome> {
+  const body = await bodyOf(event, edge.privateJwk);
   if (event.kind === "receipt") {
     const r = (body ?? {}) as { ref?: unknown; kind?: unknown; outcome?: unknown; detail?: unknown; recipient?: unknown };
     const ref = typeof r.ref === "string" ? r.ref.trim() : "";
@@ -198,6 +199,26 @@ async function applyEvent(event: EdgeEvent, privateJwk: string | null, origin: s
     // A malformed receipt is not retryable — the edge would hand back the same
     // bytes forever. Skip it (it is recorded in the drain summary either way).
     if (!ref || !kind || !outcome) return "skipped";
+    // F-3 — A RECEIPT IS A REF-ADDRESSED EFFECT ON AN ORG-SCOPED LEDGER. The ref alone
+    // decides which team's outbox gets a `bounced` row (comms-receipt.ts
+    // receiptWorkspace), and the drain's envelope proves an INSTALL, not a tenant — so a
+    // receipt naming another organization's entry wrote red rows into that organization's
+    // Comms Center from this organization's edge. Checked ONLY for a stored (UI-saved)
+    // pairing: the env pairing is host-level configuration serving the whole deployment,
+    // exactly like the env relay in F-2, and is told apart by `source` — never by a null
+    // owner, which a legacy stored row also has and which IS checked.
+    //
+    // SKIPPED, never HELD: a hold wedges the queue behind bytes the edge will hand back
+    // forever. The line names the two org ids and nothing else — operator vocabulary, no
+    // candidate data — and no outbox row is filed anywhere.
+    if (edge.source === "config") {
+      const owner = edge.ownerOrgId ?? DEFAULT_ORG_ID;
+      const receiptOrg = receiptOrgId(ref);
+      if (receiptOrg !== null && receiptOrg !== owner) {
+        console.warn(`[edge:drain] receipt refused: edge owner "${owner}", receipt organization "${receiptOrg}"`);
+        return "skipped";
+      }
+    }
     const applied = recordDeliveryReceipt({
       ref,
       kind,
@@ -209,6 +230,14 @@ async function applyEvent(event: EdgeEvent, privateJwk: string | null, origin: s
   }
 
   if (event.kind === "lead" || event.kind === "mail") {
+    // DELIBERATELY NOT ORG-CHECKED (F-3), and this is not an oversight to "fix" into the
+    // receipt branch's shape above. The edge is the install's SINGLE inbound transport for
+    // every organization on it — one pairing, one sealing keypair, one cursor — and a lead
+    // is routed by its own RECEIVER TOKEN, a workspace capability, so the tenancy is already
+    // carried per event by the thing that authenticates it. Refusing leads whose token
+    // belongs to another org than the pairing's owner would cut inbound candidates for every
+    // org but one. The boundary belongs on the DOORS that rewrite the pairing (api/edge,
+    // api/edge/pair) and on ref-addressed effects (the receipt branch), not here.
     if (!event.token) return "skipped"; // nothing to authenticate against
     const payload = event.kind === "mail" ? mailToLead(body) : body;
     const result = await ingestInboundLeadByToken({
@@ -218,7 +247,7 @@ async function applyEvent(event: EdgeEvent, privateJwk: string | null, origin: s
       // The edge's sequence number, NAMESPACED BY PAIRING, is the delivery's identity:
       // a replayed page collides on it and files nothing twice, while a re-provisioned
       // edge whose sequence restarts at 1 is a different edge, not a replay.
-      idempotencyKey: edgeIdempotencyKey(edgeUrl, event.seq),
+      idempotencyKey: edgeIdempotencyKey(edge.url, event.seq),
     });
     if (!inboundHandled(result)) return "hold";
     return result.status === 200 && result.body.result === "accepted" ? "applied" : "skipped";
@@ -297,7 +326,7 @@ export async function drainEdge(): Promise<DrainSummary> {
       if (typeof event.seq !== "number" || event.seq <= cursor) continue; // already applied
       let outcome: ApplyOutcome;
       try {
-        outcome = await applyEvent(event, edge.privateJwk, origin, edge.url);
+        outcome = await applyEvent(event, edge, origin);
       } catch (e) {
         // Unsealing or a store write blew up: HOLD. The event stays at the edge and
         // the operator gets a reason instead of a silently missing candidate.

@@ -21,7 +21,6 @@ const CEILING: Record<string, number> = {
   "app/_lib/db/devcase.ts": 1,
   "app/_lib/db/intakes.ts": 1,
   "app/_lib/db/skill-profiles.ts": 1,
-  "app/_lib/edge-config.ts": 1,
   "app/_lib/interview-prep.ts": 1,
   "app/_lib/rediscovery-alert-store.ts": 2,
 };

@@ -448,6 +448,13 @@ export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
   // install and holding no candidate data. The per-tenant rows the drain produces land in
   // the tables scoped above. Lazy-store table (own openStore connection), hence also in
   // TENANCY_LAZY_TABLES; and a singleton with no org_id, hence ORG_CONFIG_NOT_PORTABLE.
+  // Still install-level and still exempt, but it now RECORDS ITS OWNER (`owner_org_id`,
+  // F-3): only the organization that saved the pairing may re-point, unpair or re-key it,
+  // and a drained delivery RECEIPT — a ref-addressed effect on an org-scoped ledger — is
+  // refused across that boundary; per-event lead/mail delivery deliberately is not, because
+  // the receiver token already carries the tenancy and the edge is every org's one inbound
+  // transport. A NULL owner reads as the default org, and the env pairing (KP_EDGE_URL) is
+  // host-level and not org-checked, exactly as for the relay above.
   "edge_config",
   // Agent-candidate bridge config (agent-hire/bridge-store.ts): the Personas desktop
   // app's base URL + encrypted pk_ API key + paired flag — deployment-level

@@ -1456,6 +1456,7 @@
     "AGENT_BRIDGE_KEY_INVALID": "Personas hat den API-Schlüssel dieses Workspace abgelehnt. Der Pairing-Schlüssel ist abgelaufen oder wurde widerrufen; koppeln Sie neu unter Einstellungen → Integrationen.",
     "AGENT_BRIDGE_KEY_UNREADABLE": "Der gespeicherte Personas-Schlüssel ist nicht mehr lesbar. Das Server-Secret hat sich seit der Kopplung geändert; stellen Sie es wieder her oder koppeln Sie neu unter Einstellungen → Integrationen.",
     "EDGE_CONFIG_REJECTED": "Diese Edge-Adresse wurde abgelehnt. Sie muss eine öffentliche https://-URL sein.",
+    "EDGE_OWNED_BY_OTHER_ORG": "Die Edge-Kopplung dieser Installation gehört einer anderen Organisation. Nur diese kann sie ändern.",
     "EDGE_PAIR_REFUSED": "Der Siegel-Schlüssel konnte nicht am Edge veröffentlicht werden. Prüfen Sie die Kopplung und versuchen Sie es erneut.",
     "EDGE_SAVE_FAILED": "Die Edge-Kopplung konnte nicht gespeichert werden. Bitte erneut versuchen.",
     "TTS_FAILED": "Das konnte gerade nicht vorgelesen werden. Bitte erneut versuchen.",
