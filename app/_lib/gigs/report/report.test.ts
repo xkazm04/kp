@@ -249,10 +249,15 @@ test("file: an atomic write keeps the previous version as .prev.html and leaves 
     assert.equal(readFileSync(previousReportPath(file), "utf8"), "one");
     assert.deepEqual(readdirSync(path.join(root, "web")).sort(), ["a.html", "a.prev.html"]);
     assert.equal(readGigReportFile(root, file), "two");
-    const outside = path.join(tmpdir(), `kp-outside-${process.pid}.html`);
-    writeFileSync(outside, "secret");
-    assert.equal(readGigReportFile(root, outside), null);
-    rmSync(outside, { force: true });
+    // A sibling directory of its own: mkdtemp is unique by construction, a pid is recycled.
+    const outsideDir = mkdtempSync(path.join(tmpdir(), "kp-outside-"));
+    try {
+      const outside = path.join(outsideDir, "secret.html");
+      writeFileSync(outside, "secret");
+      assert.equal(readGigReportFile(root, outside), null);
+    } finally {
+      rmSync(outsideDir, { recursive: true, force: true });
+    }
     assert.equal(readGigReportFile(root, path.join(root, "web", "missing.html")), null);
   } finally {
     rmSync(root, { recursive: true, force: true });
