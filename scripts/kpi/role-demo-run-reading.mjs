@@ -222,7 +222,7 @@ export function goalOneHeadline(goalOne, reading, standIn = null) {
     const simulated = standIn.simulatedOffers ?? 0;
     if (simulated > 0) {
       const share = simulated < offers ? `, ${simulated} of ${offers} approved offers on a simulated interview` : "";
-      return `goal 1: met on a SIMULATED interview (candidate played by the model from the seeded CV), gates by the demo stand-in: ${count(offers, "offer")} approved on a recorded basis${share}`;
+      return `goal 1: met on a SIMULATED interview (candidate played by the model from the CV on the entry), gates by the demo stand-in: ${count(offers, "offer")} approved on a recorded basis${share}`;
     }
     return `goal 1: met: ${count(offers, "offer")} approved on a recorded basis${tag}`;
   }

@@ -120,7 +120,7 @@ test("an 'advance' card lets the stand-in approve the offer, and the headline sa
   const standIn = { mode: "policy", tally: tallyStandIn(record.standInDecisions), simulatedOffers: simulatedOfferCount(record.standInDecisions, record.simulatedInterviews) };
   assert.equal(standIn.simulatedOffers, 1);
   const headline = goalOneHeadline(record.goalOne, reading, standIn);
-  assert.match(headline, /^goal 1: met on a SIMULATED interview \(candidate played by the model from the seeded CV\), gates by the demo stand-in/);
+  assert.match(headline, /^goal 1: met on a SIMULATED interview \(candidate played by the model from the CV on the entry\), gates by the demo stand-in/);
   // Without the simulated count the same ledger would read as a plain "met": the label is the guard.
   assert.doesNotMatch(goalOneHeadline(record.goalOne, reading, { ...standIn, simulatedOffers: 0 }), /SIMULATED/);
 });

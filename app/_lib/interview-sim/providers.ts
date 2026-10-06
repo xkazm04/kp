@@ -17,8 +17,11 @@
 // session's system prompt (`--system-prompt-file`, not a `<system>` block inside the
 // user prompt), so the stand-in is not also Claude Code's coding agent; and `--tools ""`
 // removes every built-in tool, so a turn is text and nothing else. The consumer-terms
-// production veto of the Python lane does not apply: this is a dev-only instrument on
-// synthetic candidates, never on a real person's data.
+// production veto of the Python lane does not apply: this is a dev-only instrument.
+// It is NOT, however, always on synthetic data — an earlier revision of this line claimed
+// that. The goal-1 demo run (interview-sim/role-demo.ts) plays entries off a COPY of the
+// operator's own board, so a real candidate's CV profile can be the persona in a call made
+// here. See docs/security/role-demo-sim-scan-2026-10-06.md, check 2.
 
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";

@@ -38,7 +38,7 @@
 // demo ever holds an interview, so every S5 card would read "unrated" and no offer could be
 // approved. Right after the stand-in approves an interview invite — between two advanceRoleRun
 // passes, so S5 runs on the NEXT one and the engine is untouched — the child plays that
-// branch's candidate from its seeded CV through the existing interview simulator (the Claude
+// branch's candidate from the CV on the entry through the existing interview simulator (the Claude
 // CLI), seals the scorecard with the existing `scorecard` synthesis, and S5 reads it as it
 // would a real one. Only a scorecard the model itself wrote ('llm') is accepted: a template
 // scorecard, no CLI, KP_OFFLINE or a throwing provider leave the branch "unrated" with the
@@ -263,7 +263,7 @@ if (standIn) {
   console.log(`  gates passed by the demo stand-in, not a person${standIn.mode === "all" ? " (--approve-all: NO policy, mechanics only)" : ""}:`);
   for (const line of formatStandInTally(standIn.tally)) console.log(`    ${line}`);
   if (simulatedInterviews) {
-    console.log(`  simulated interviews (candidate played by the model from the seeded CV; cap ${record.simulatedInterviewCap}; no transcript text is printed):`);
+    console.log(`  simulated interviews (candidate played by the model from the CV on the entry; cap ${record.simulatedInterviewCap}; no transcript text is printed):`);
     if (simulatedInterviews.length === 0) console.log("    none: no interview invite was approved");
     for (const line of formatSimulatedInterviews(simulatedInterviews)) console.log(`    ${line}`);
   }

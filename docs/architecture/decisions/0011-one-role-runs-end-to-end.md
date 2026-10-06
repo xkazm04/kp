@@ -317,7 +317,7 @@ sent. An approval that arrives after the effect is not an approval, and
   operator's ruling (interview ask answered "Simulated interview in the demo"): under
   `--approve-gates` only, and only in the child half of `scripts/kpi/role-demo-run.mjs` (the
   scratch copy of the database), the demo plays an interview for each branch whose invite its
-  stand-in approves — the candidate played by the model from the entry's seeded CV through the
+  stand-in approves — the candidate played by the model from the CV on the entry through the
   existing interview simulator (`app/_lib/interview-sim/role-demo.ts`, the Claude CLI as `SimLlm`;
   no new provider, key, dependency or npm script) — and seals its scorecard with the existing
   `finalizeCandidateInterviewScoring`. **Ordering, with no engine change:** the invite gate parks
@@ -332,7 +332,7 @@ sent. An approval that arrives after the effect is not an approval, and
   **The label:** the session's candidate label ends ` (simulated)`, every reading lists one row per
   branch (`simulatedInterviews`: session, recommendation, verdict source, turns, end reason, skip
   reason — never transcript or scorecard text), and a goal-1 `met` that rests on such a scorecard
-  reads "met on a SIMULATED interview (candidate played by the model from the seeded CV), gates by
+  reads "met on a SIMULATED interview (candidate played by the model from the CV on the entry), gates by
   the demo stand-in", never a plain `met`. The demo plays at most 2 branches by default
   (`--sim-interviews <n>`, hard ceiling 5; the rest read "not simulated: cap"). `roleRunGoalOneSteps`
   and the stand-in policy (`standInDecision`) are unchanged.

@@ -2116,7 +2116,9 @@ simulator for that branch (`--sim-interviews <n>`: default 2, ceiling 5, 0 turns
 
 - The interviewer holds the entry's real private brief and agenda (`buildGroundedInterview` and
   `buildInterviewKit`, the mint and connect builds); the candidate is the model, playing the
-  entry's seeded CV profile and told to invent no credential. Short call: 8 candidate turns.
+  CV profile on the entry and told to invent no credential. Short call: 8 candidate turns. On a
+  copy of the operator's own board that profile is a REAL candidate's, not a fixture — see the
+  scan's check 2.
 - The session is a candidate-mode `interview_sessions` row whose label ends ` (simulated)`; the
   transcript is stored and the session completed through the interview store, and the scorecard
   comes from `finalizeCandidateInterviewScoring` (the `scorecard` automation task).
@@ -2126,7 +2128,7 @@ simulator for that branch (`--sim-interviews <n>`: default 2, ceiling 5, 0 turns
 - The reading carries one row per branch (`simulatedInterviews`: session, recommendation,
   verdict source, turns, end reason, skip reason) and never transcript or scorecard text. A goal-1
   `met` that rests on such a scorecard says so: "met on a SIMULATED interview (candidate played
-  by the model from the seeded CV), gates by the demo stand-in".
+  by the model from the CV on the entry), gates by the demo stand-in".
 - Tests: `scripts/kpi/__tests__/role-demo-interviews.test.mjs` (keyless: the simulator's
   doubles and a scripted scorer are injected through `runDemoOnCopy`'s `simDeps`). They are
   gated: `node scripts/run-unit-tests.mjs "scripts/kpi/**/*.test.mjs"` runs in `ci.yml`'s

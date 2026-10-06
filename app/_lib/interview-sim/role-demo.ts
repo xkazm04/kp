@@ -19,7 +19,7 @@
 //
 // WHAT IS REAL. The interviewer holds the entry's real private brief and agenda (the
 // connect-time build: interview-run.ts + interview-agenda.ts). The candidate is the
-// model, playing the entry's seeded CV profile and nothing else. The transcript is stored
+// model, playing the CV profile on the entry and nothing else. The transcript is stored
 // and the session completed through the interview store's own functions, and the
 // scorecard is the `scorecard` automation task through finalizeCandidateInterviewScoring.
 //
@@ -153,7 +153,14 @@ const defaultLlms: NonNullable<RoleDemoSimDeps["llms"]> = () => ({
   candidate: claudeCliLlm({ role: "candidate" }),
 });
 
-/** The candidate's system persona: the seeded CV profile, and a rule against going past it. */
+/** The candidate's system persona: the entry's CV profile, and a rule against going past it.
+ *
+ *  WHOSE CV. On the throwaway copy the demo run makes, this is whatever the copied board
+ *  held — on a copy of an operator's own data/kp.sqlite that is a REAL candidate's profile,
+ *  not a seeded fixture, and it is rendered into the system prompt of a Claude CLI call.
+ *  Which branches are played is decided by which interview invites the stand-in approved,
+ *  so the demo does not choose them. Recorded in docs/security/role-demo-sim-scan-2026-10-06.md
+ *  (check 2) rather than silently relabelled. */
 export function candidatePersona(label: string, jobTitle: string | null, profile: unknown): string {
   const cv = JSON.stringify(profile);
   return [
@@ -187,7 +194,7 @@ export async function simulateInterviewForEntry(
   const entry = getPipelineEntry(entryId, workspaceId);
   if (!entry) return skippedRow(entryId, "not simulated: no pipeline entry");
   const profile = entry.candidateId ? getProfileRecord(entry.candidateId, workspaceId) : null;
-  if (!profile) return skippedRow(entryId, "not simulated: no seeded CV profile for the entry");
+  if (!profile) return skippedRow(entryId, "not simulated: no CV profile for the entry");
 
   // 1. The provider FIRST: offline or without a CLI nothing is built and no session exists.
   try {
