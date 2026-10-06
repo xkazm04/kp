@@ -36,6 +36,7 @@ enter the funnel. The wire schema is in [outbound-export.md](./outbound-export.m
 
 | Source | Condition | Channel | What happens |
 |---|---|---|---|
+| *(sealed)* | `KP_NO_COMMS_EGRESS=1` | `OutboxChannel` (local) | Ahead of everything below: the resolver answers *no relay* whatever is configured, so every message queues locally. See §1.1. |
 | — | Neither env nor stored config set | `OutboxChannel` (local) | Records the message in `dev_outbox` as `queued`. Nothing is delivered — the outbox **is** the destination. |
 | `env` | `COMMS_WEBHOOK_URL` set | `WebhookChannel` | POSTs the `kp.comm.v1` envelope to that URL; no HMAC secret (env path never carried one). |
 | `config` | A relay URL is saved via the UI (Channels → Delivery relay, `night/setup/SetupRelay.tsx`) | `WebhookChannel` | POSTs the envelope to the stored URL, HMAC-signed with the stored secret (`x-kp-signature`, same scheme as the ATS webhook) when one is configured. |
@@ -47,6 +48,28 @@ misconfigured stored relay (e.g. an undecryptable secret) still resolves to *no
 relay* rather than taking the whole capability check down, so messages queue
 honestly instead of being POSTed unsigned to an endpoint that verifies
 signatures.
+
+### 1.1 The egress seal — `KP_NO_COMMS_EGRESS=1`
+
+`commsEgressSealed()` (`comms-relay.ts`) short-circuits `resolveRelay()` to
+*no relay* before env or stored config is read, so a process running with it
+can never deliver a candidate-facing message: everything queues in that
+process's own `dev_outbox` and is honestly recorded `queued`.
+
+It exists for a process that runs the **real product code against a copy of a
+real database**. The goal-1 demo run
+(`scripts/kpi/role-demo-run.mjs`) approves interview invites and offers on a scratch copy of `data/kp.sqlite` —
+and that copy carries the operator's own stored relay configuration, while the
+child process inherits their `COMMS_WEBHOOK_URL`. No code on that path
+dispatches comms, so nothing has ever been sent; but "no send call exists yet"
+is a fact about today's call graph, not a guarantee, and the thing on the other
+end of it is a real person's inbox. The demo's parent half sets the flag on
+every child it spawns.
+
+It is deliberately **not** `KP_OFFLINE`, which seals *all* egress including the
+model calls that run the simulated interview. One flag, one question: may this
+process speak to a candidate? `relayHealth()` answers `unconfigured` under the
+seal — the health word says what *delivers*, and nothing does.
 
 **But it is no longer silent.** `relayHealth()` (same resolver, same read) names
 the state in four words — `env`, `configured`, `unconfigured`, `unreadable` — and
@@ -988,6 +1011,7 @@ air-gapped.
 | Variable | Direction | Unset (honest default) | Set |
 |---|---|---|---|
 | `COMMS_WEBHOOK_URL` | outbound | local outbox only; every surface says messages aren't being sent | messages POST to the relay as `kp.comm.v1` (no HMAC) |
+| `KP_NO_COMMS_EGRESS` | outbound | the relay resolves normally (env → stored config → nothing) | **nothing is ever delivered** from this process, whatever is configured; every message queues locally (§1.1) |
 | *(Channels tab → Delivery relay)* | outbound | same as above until a URL is saved | stored URL + optional secret; HMAC-signed sends |
 | `COMMS_CALLBACK_SECRET` | inbound receipts | `POST /api/comms/callback` answers `503` (fail-closed) | relay receipts accepted with header auth + timestamp + nonce guard |
 | `EMAIL_INBOUND_DOMAIN` | inbound email | the Email intake receivers show the HTTP receiver URL, and the receiver pane says forwarding isn't wired (the role, the copyable URL, how to wire it) | the receivers and the setup guide hand out `<token>@<domain>`, routed to `POST /api/channels/inbound/<token>` |

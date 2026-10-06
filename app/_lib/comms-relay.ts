@@ -48,7 +48,33 @@ function reportUnreadable(reason: string): Resolution {
   return { relay: null, health: "unreadable" };
 }
 
+/**
+ * THE SEAL. `KP_NO_COMMS_EGRESS=1` makes this resolver answer "no relay" whatever is
+ * configured — env URL, stored config, both — so every candidate-facing message queues
+ * in the local outbox and is honestly recorded `queued` rather than `sent`.
+ *
+ * It exists for a process that runs the REAL product code against a COPY of a real
+ * database: the goal-1 demo run (scripts/kpi/role-demo-run.mjs) approves interview
+ * invites and offers on a scratch copy, and that copy carries the operator's own relay
+ * configuration while the process inherits their COMMS_WEBHOOK_URL. No code on that path
+ * dispatches today, so nothing has ever been sent — but "no send call exists yet" is a
+ * fact about today's call graph, not a guarantee, and the thing on the other end of it is
+ * a real person's inbox. This is the guarantee.
+ *
+ * It is deliberately NOT KP_OFFLINE: that seals ALL egress, including the Claude CLI the
+ * simulated interview needs, so a run under it would measure nothing. One flag, one
+ * question: may this process speak to a candidate?
+ */
+export function commsEgressSealed(env: Readonly<Partial<NodeJS.ProcessEnv>> = process.env): boolean {
+  return env.KP_NO_COMMS_EGRESS === "1";
+}
+
 function resolve(): Resolution {
+  // No fifth health word: `RelayHealth` says what DELIVERS, and under the seal nothing
+  // does — the same answer, and the same honest `queued` claim, as an install with no
+  // relay. The flag is a process-level switch for a demo harness, never a deployment
+  // configuration an operator reads off the Channels card.
+  if (commsEgressSealed()) return { relay: null, health: "unconfigured" };
   const envUrl = process.env.COMMS_WEBHOOK_URL;
   if (envUrl) return { relay: { url: envUrl, secret: null, source: "env" }, health: "env" };
   let url: string | null;

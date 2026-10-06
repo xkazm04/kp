@@ -172,9 +172,17 @@ try {
   // KP_ROLE_DEMO_SCRATCH_DB is the POSITIVE marker the simulator's own guard demands
   // (assertRoleDemoScratchDb): "this exact file is a copy I made for this run". Only the
   // parent half may set it, and it names the copy, never the source.
+  //
+  // KP_NO_COMMS_EGRESS seals outbound candidate messages for the child. Nothing on the
+  // demo path dispatches comms today — the engine's invite stage drafts and parks, the
+  // gate commit only appends a ledger row — but the child inherits the operator's
+  // COMMS_WEBHOOK_URL and runs on a copy of their relay CONFIG, so the only thing
+  // standing between an approved invite and a real candidate's address was the absence
+  // of a send call. With the flag the relay resolves to nothing and every message would
+  // queue in the copy's own outbox, which dies with it.
   const child = spawnSync(process.execPath, [...process.execArgv, SELF, ...args, "--run-copy"], {
     cwd: REPO_ROOT,
-    env: { ...process.env, KP_DB_PATH: copy, KP_ROLE_DEMO_SCRATCH_DB: copy },
+    env: { ...process.env, KP_DB_PATH: copy, KP_ROLE_DEMO_SCRATCH_DB: copy, KP_NO_COMMS_EGRESS: "1" },
     encoding: "utf8",
     maxBuffer: 64 * 1024 * 1024,
   });

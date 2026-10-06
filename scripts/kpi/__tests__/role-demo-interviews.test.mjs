@@ -9,6 +9,7 @@
 import "better-sqlite3";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 // IMPORT ORDER IS LOAD-BEARING: unit-db sets KP_DB_PATH before anything touches db-path.
@@ -30,6 +31,7 @@ import { roleDemoScratchDbProblem } from "../../../app/_lib/interview-sim/instru
 import { SimProviderError } from "../../../app/_lib/interview-sim/providers.ts";
 import { DEFAULT_WORKSPACE_ID } from "../../../app/_lib/db/workspaces.ts";
 import { DEFAULT_DB_PATH } from "../../../app/_lib/db-path.ts";
+import { commsEgressSealed, isRelayConfigured, relayHealth, resolveRelay } from "../../../app/_lib/comms-relay.ts";
 import { runDemoOnCopy } from "../role-demo-run-child.mjs";
 import { formatSimulatedInterviews, goalOneHeadline, simulatedOfferCount, summarizeRoleDemoRun, tallyStandIn } from "../role-demo-run-reading.mjs";
 
@@ -271,4 +273,34 @@ test("the simulator refuses a database no demo parent declared a throwaway copy"
   assert.equal(roleDemoScratchDbProblem(process.env.KP_DB_PATH, { KP_DB_PATH: process.env.KP_DB_PATH, KP_ROLE_DEMO_SCRATCH_DB: process.env.KP_DB_PATH }), null);
 });
 
+test("the demo child is sealed against comms egress, however the relay is configured", () => {
+  // The seal itself: a configured relay resolves to nothing under the flag, so an
+  // approved invite or offer could only ever queue in the copy's own outbox.
+  const before = { seal: process.env.KP_NO_COMMS_EGRESS, hook: process.env.COMMS_WEBHOOK_URL };
+  try {
+    process.env.COMMS_WEBHOOK_URL = "https://relay.invalid/hook";
+    delete process.env.KP_NO_COMMS_EGRESS;
+    assert.equal(isRelayConfigured(), true, "the fixture is only meaningful with a relay configured");
+    process.env.KP_NO_COMMS_EGRESS = "1";
+    assert.equal(resolveRelay(), null);
+    assert.equal(isRelayConfigured(), false);
+    assert.equal(relayHealth(), "unconfigured");
+    assert.equal(commsEgressSealed({ KP_NO_COMMS_EGRESS: "1" }), true);
+    assert.equal(commsEgressSealed({}), false);
+  } finally {
+    if (before.seal === undefined) delete process.env.KP_NO_COMMS_EGRESS;
+    else process.env.KP_NO_COMMS_EGRESS = before.seal;
+    if (before.hook === undefined) delete process.env.COMMS_WEBHOOK_URL;
+    else process.env.COMMS_WEBHOOK_URL = before.hook;
+  }
 
+  // …and the demo's parent half really sets it on the child. The spawn is a process
+  // boundary a unit test cannot cross, so this pins the env block it is written in:
+  // the two markers and the seal, all three on the COPY, never on the source.
+  const parent = readFileSync(new URL("../role-demo-run.mjs", import.meta.url), "utf8");
+  const spawnEnv = parent.match(/env: \{ \.\.\.process\.env,([^}]*)\}/);
+  assert.ok(spawnEnv, "the child spawn no longer passes an env block — re-pin this test");
+  for (const key of ["KP_DB_PATH: copy", "KP_ROLE_DEMO_SCRATCH_DB: copy", 'KP_NO_COMMS_EGRESS: "1"']) {
+    assert.ok(spawnEnv[1].includes(key), `the child spawn does not set ${key}: ${spawnEnv[1]}`);
+  }
+});
