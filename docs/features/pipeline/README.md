@@ -2420,3 +2420,15 @@ module `groupEval/groupEvalDelta.ts`:
 Keyless: both are pure reads of payloads the modal already holds; no server or
 API change. The simulation (`SimGroupEval`) passes neither prop and renders as
 before. Pinned by `groupEval/groupEvalDelta.test.ts`.
+
+### The `population` column gates the hire count
+
+`population` (`human` | `agent`, ADR-0012) is no longer only a mailbox guard. An
+`agent` entry is never counted as a hire: not by the role-fill close
+(`runRoleFillHook` skips it as `agent_population`; `listJobPipelineStats` leaves it
+out of `hired` but keeps it in `total` and `reachedInterview`), not by the hire
+roster and Quality rating queue (`listWorkspaceHires`), and not by analytics
+(`hired`, `hiresClosedInWindow`, time-to-hire, cost per hire, the per-role funnel).
+`placeAgentOnBoard` files its dispatch card as `agent`, and a boot fixup corrects
+cards filed before that. The shared predicates are `isAgentPopulation` and
+`notAgentSql` in `app/_lib/db/core.ts`.

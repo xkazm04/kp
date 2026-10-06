@@ -2910,6 +2910,11 @@ export function ensureDb(): Database.Database {
   // every writer uses NULL, fold the legacy empty strings to NULL so consumers see
   // one canonical "no detail". Idempotent (a no-op once healed; new rows never write '').
   db.prepare(`UPDATE pipeline_entries SET approval_detail = NULL WHERE approval_detail = ''`).run();
+  // Dispatch cards filed before placeAgentOnBoard set population read as 'human'.
+  db.prepare(
+    `UPDATE pipeline_entries SET population = 'agent'
+      WHERE source_channel = 'agent-bridge' AND candidate_id LIKE 'agent-%' AND ${notAgentSql()}`
+  ).run();
   backfillOrgLocaleAuthority(db); // after the org_id link and every seeder
   // Self-defending tenancy guard: if KP_MULTI_WORKSPACE is enabled, REFUSE to boot
   // with any unscoped per-tenant table (machine-checked against the canonical
@@ -3489,6 +3494,16 @@ export type SlatePopulation = (typeof SLATE_POPULATIONS)[number];
  *  reads as 'human' (the column default) rather than throwing. */
 export function coerceSlatePopulation(value: unknown): SlatePopulation {
   return value === "agent" ? "agent" : "human";
+}
+
+/** True for an AI-agent slate entry. Machines never count one as a hire. */
+export function isAgentPopulation(entry: { population?: string | null }): boolean {
+  return entry.population === "agent";
+}
+
+/** SQL twin of `isAgentPopulation`, negated (column is NOT NULL DEFAULT 'human'). */
+export function notAgentSql(alias = ""): string {
+  return `${alias}population <> 'agent'`;
 }
 
 export function recordEvent(

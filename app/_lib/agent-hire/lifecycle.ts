@@ -91,6 +91,7 @@ export function placeAgentOnBoard(
     jobTitle: agent.jobTitle,
     ...(offerStage ? { stage: offerStage } : {}),
     sourceChannel: "agent-bridge",
+    population: "agent",
     workspaceId,
     actor: AGENT_BRIDGE_ACTOR,
   });

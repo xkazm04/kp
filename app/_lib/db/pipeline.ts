@@ -19,7 +19,7 @@ import type { MatchScoreProvenance } from "../match-score";
 import { LEGACY_SUBMISSION_CANDIDATE_PREFIX } from "../devcase-identity";
 import { PIPELINE_OUTCOME_REF_PREFIX, recordPipelineOutcome } from "../dev-outcomes";
 import { recordAudit } from "../dev-control";
-import { coerceSlatePopulation, ensureDb, recordEvent, type PipelineEntry, type SlatePopulation } from "./core";
+import { coerceSlatePopulation, ensureDb, notAgentSql, recordEvent, type PipelineEntry, type SlatePopulation } from "./core";
 import { getPipelineAxis } from "../pipeline-axis-server";
 import { screenedLandingStage, screeningGateIndex, stageHasRole, stageIndex, stagesWithRole, stageWithRole, type StageDef } from "../pipeline-stages";
 import { knownStageIds } from "../pipeline-axis";
@@ -1127,12 +1127,12 @@ export function listJobPipelineStats(
   const db = ensureDb();
   const rows = db
     .prepare(
-      `SELECT job_id, stage, COUNT(*) AS n
+      `SELECT job_id, stage, COUNT(*) AS n, SUM(${notAgentSql()}) AS human_n
          FROM pipeline_entries
         WHERE job_id IS NOT NULL AND workspace_id = ?
         GROUP BY job_id, stage`
     )
-    .all(workspaceId) as { job_id: string; stage: string; n: number }[];
+    .all(workspaceId) as { job_id: string; stage: string; n: number; human_n: number }[];
   const out: Record<string, { total: number; reachedInterview: number; hired: number }> = {};
   // THIS WORKSPACE's axis, exactly like analytics' byJob (which resolves it and
   // passes it to the same predicate). Called without the axis, hasAdvancedPastScreening
@@ -1146,7 +1146,7 @@ export function listJobPipelineStats(
     const m = (out[r.job_id] ??= { total: 0, reachedInterview: 0, hired: 0 });
     m.total += r.n;
     if (hasAdvancedPastScreening(r.stage, axis)) m.reachedInterview += r.n;
-    if (stageHasRole(r.stage, "terminal", axis)) m.hired += r.n;
+    if (stageHasRole(r.stage, "terminal", axis)) m.hired += r.human_n; // an agent is never a hire; total/reachedInterview still count it
   }
   return out;
 }
@@ -2967,7 +2967,7 @@ export function listActiveEntriesForAutomation(limit: number = AUTOMATION_PASS_E
       // what that costs and why the number is set where it is.
       `SELECT id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
               stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at,
-              intake_degraded, intake_degraded_reason, workspace_id
+              intake_degraded, intake_degraded_reason, workspace_id, population
        FROM pipeline_entries WHERE status = 'active' -- tenancy:global
        ORDER BY stage_changed_at ASC, created_at ASC, id ASC
        LIMIT ?`

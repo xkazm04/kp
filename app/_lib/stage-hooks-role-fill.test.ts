@@ -111,3 +111,43 @@ test("a rejected candidate sitting in the terminal column is not a hire", async 
   assert.deepEqual(out, { outcome: "skipped", reason: "terminal" });
   assert.equal(getJobStatus("rf-rejected", WS), "published");
 });
+
+function fileAgent(jobId: string, who: string, stage: string): string {
+  return createPipelineEntry({
+    candidateId: `agent-${jobId}-${who}`,
+    candidateLabel: who,
+    jobId,
+    jobTitle: jobId,
+    stage,
+    population: "agent",
+    sourceChannel: "agent-bridge",
+    workspaceId: WS,
+  }).entry.id;
+}
+
+test("an agent on the terminal column is not a hire", async () => {
+  openRole("rf-agent", 1);
+  const inFlight = file("rf-agent", "a", "Interview");
+  const agent = fileAgent("rf-agent", "bot", "Hired");
+
+  const out = await runRoleFillHook({ entryId: agent, stage: "Hired", workspaceId: WS });
+
+  assert.deepEqual(out, { outcome: "skipped", reason: "agent_population" });
+  assert.equal(getJobStatus("rf-agent", WS), "published", "the role stays open");
+  assert.equal(statusOf(inFlight), "active", "nobody is withdrawn");
+  assert.equal(roleClosedEvents("rf-agent"), 0);
+});
+
+test("a human hire beside an agent on the terminal column closes the role at the right count", async () => {
+  openRole("rf-agent-human", 2);
+  fileAgent("rf-agent-human", "bot", "Hired");
+  const first = file("rf-agent-human", "h1", "Hired");
+
+  const open = await runRoleFillHook({ entryId: first, stage: "Hired", workspaceId: WS });
+  assert.deepEqual(open, { outcome: "open", hired: 1, target: 2 }, "the agent is not the second hire");
+
+  const second = file("rf-agent-human", "h2", "Hired");
+  const out = await runRoleFillHook({ entryId: second, stage: "Hired", workspaceId: WS });
+  assert.equal(out.outcome, "filled");
+  assert.equal(out.outcome === "filled" ? out.hired : -1, 2);
+});

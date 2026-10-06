@@ -6,7 +6,7 @@ import { automationRoi, type AutomationRoi } from "../automation-roi";
 import { hasAdvancedPastScreening, screeningGateIndex, stageHasRole, stageIndex, stagesWithRole, stageWithRole, type StageDef } from "../pipeline-stages";
 import { getPipelineAxis } from "../pipeline-axis-server";
 import { SIM_TITLE_LIKE } from "@/app/features/shell/simulation/constants";
-import { ensureDb } from "./core";
+import { ensureDb, notAgentSql } from "./core";
 import { JD_ACTIVE_SQL } from "./jobs";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 import { listChannelSpendDetail } from "./channels";
@@ -356,16 +356,16 @@ export function pipelineAnalytics(
       ? upperIso
         ? db
             .prepare(
-              `SELECT ${ROW_COLUMNS} FROM pipeline_entries WHERE created_at >= ? AND created_at < ? AND ${notSim()} AND workspace_id = ?${jobPred} ORDER BY created_at DESC LIMIT ?`
+              `SELECT ${ROW_COLUMNS} FROM pipeline_entries WHERE created_at >= ? AND created_at < ? AND ${notSim()} AND ${notAgentSql()} AND workspace_id = ?${jobPred} ORDER BY created_at DESC LIMIT ?`
             )
             .all(cutoffIso, upperIso, SIM_TITLE_LIKE, workspaceId, ...jobBind, rowCap + 1)
         : db
             .prepare(
-              `SELECT ${ROW_COLUMNS} FROM pipeline_entries WHERE created_at >= ? AND ${notSim()} AND workspace_id = ?${jobPred} ORDER BY created_at DESC LIMIT ?`
+              `SELECT ${ROW_COLUMNS} FROM pipeline_entries WHERE created_at >= ? AND ${notSim()} AND ${notAgentSql()} AND workspace_id = ?${jobPred} ORDER BY created_at DESC LIMIT ?`
             )
             .all(cutoffIso, SIM_TITLE_LIKE, workspaceId, ...jobBind, rowCap + 1)
       : db
-          .prepare(`SELECT ${ROW_COLUMNS} FROM pipeline_entries WHERE ${notSim()} AND workspace_id = ?${jobPred} ORDER BY created_at DESC NULLS LAST LIMIT ?`)
+          .prepare(`SELECT ${ROW_COLUMNS} FROM pipeline_entries WHERE ${notSim()} AND ${notAgentSql()} AND workspace_id = ?${jobPred} ORDER BY created_at DESC NULLS LAST LIMIT ?`)
           .all(SIM_TITLE_LIKE, workspaceId, ...jobBind, rowCap + 1)) as unknown[]
   );
   const truncated = read.truncated;
@@ -635,7 +635,7 @@ export function pipelineAnalytics(
                         WHERE id IN (SELECT MIN(id) FROM pipeline_events
                                       WHERE entry_id IS NOT NULL AND ${notSim()} AND workspace_id = ? GROUP BY entry_id)
                       ) fe ON fe.entry_id = p.id
-                WHERE p.created_at >= ?${upperIso ? " AND p.created_at < ?" : ""} AND ${notSim("p.job_title")} AND p.workspace_id = ?`
+                WHERE p.created_at >= ?${upperIso ? " AND p.created_at < ?" : ""} AND ${notSim("p.job_title")} AND ${notAgentSql("p.")} AND p.workspace_id = ?`
             )
             .all(SIM_TITLE_LIKE, workspaceId, cutoffIso, ...(upperIso ? [upperIso] : []), SIM_TITLE_LIKE, workspaceId)
         : db
@@ -646,7 +646,7 @@ export function pipelineAnalytics(
                         WHERE id IN (SELECT MIN(id) FROM pipeline_events
                                       WHERE entry_id IS NOT NULL AND ${notSim()} AND workspace_id = ? GROUP BY entry_id)
                       ) fe ON fe.entry_id = p.id
-                WHERE ${notSim("p.job_title")} AND p.workspace_id = ?`
+                WHERE ${notSim("p.job_title")} AND ${notAgentSql("p.")} AND p.workspace_id = ?`
             )
             .all(SIM_TITLE_LIKE, workspaceId, SIM_TITLE_LIKE, workspaceId)
   ) as { stage: string; kind: string; stage_changed_at: string | null }[];
@@ -671,7 +671,7 @@ export function pipelineAnalytics(
                FROM pipeline_entries p
                JOIN pipeline_events e
                  ON e.entry_id = p.id AND e.kind IN ('advanced', 'auto_advanced', 'rejected', 'auto_rejected')
-              WHERE p.source_channel IS NOT NULL AND ${notSim("p.job_title")} AND p.workspace_id = ? ${cutoffIso ? "AND p.created_at >= ?" : ""}
+              WHERE p.source_channel IS NOT NULL AND ${notSim("p.job_title")} AND ${notAgentSql("p.")} AND p.workspace_id = ? ${cutoffIso ? "AND p.created_at >= ?" : ""}
               GROUP BY p.id`
           )
           .all(SIM_TITLE_LIKE, workspaceId, ...(cutoffIso ? [cutoffIso] : [])) as { channel: string; created: string | null; decided: string }[];
@@ -802,14 +802,15 @@ export function pipelineAnalytics(
                         AND e.to_stage IN (${terminalPlaceholders})
                         AND e.entry_id IS NOT NULL
                         AND e.created_at >= ?${upperIso ? " AND e.created_at < ?" : ""}
-                        AND ${notSim("e.job_title")} AND e.workspace_id = ?
+                        AND ${notSim("e.job_title")} AND ${notAgentSql("p.")} AND e.workspace_id = ?
                         AND p.job_id = ?`
                   : `SELECT COUNT(DISTINCT entry_id) AS n FROM pipeline_events
                       WHERE kind IN ('advanced', 'auto_advanced')
                         AND to_stage IN (${terminalPlaceholders})
                         AND entry_id IS NOT NULL
                         AND created_at >= ?${upperIso ? " AND created_at < ?" : ""}
-                        AND ${notSim()} AND workspace_id = ?`
+                        AND ${notSim()} AND workspace_id = ?
+                        AND entry_id IN (SELECT id FROM pipeline_entries WHERE ${notAgentSql()})`
               )
               .get(
                 ...terminalStageIds,
@@ -993,7 +994,7 @@ export function pipelineAnalyticsPrior(
     .prepare(
       `SELECT stage, status, created_at, stage_changed_at, source_channel
          FROM pipeline_entries
-        WHERE created_at >= ? AND created_at < ? AND ${notSim()} AND workspace_id = ?${jobId ? " AND job_id = ?" : ""}
+        WHERE created_at >= ? AND created_at < ? AND ${notSim()} AND ${notAgentSql()} AND workspace_id = ?${jobId ? " AND job_id = ?" : ""}
         ORDER BY created_at DESC LIMIT ?`
     )
     .all(cutoffIso, upperIso, SIM_TITLE_LIKE, workspaceId, ...(jobId ? [jobId] : []), rowCap + 1) as {
@@ -1020,7 +1021,7 @@ export function pipelineAnalyticsPrior(
                     WHERE id IN (SELECT MIN(id) FROM pipeline_events
                                   WHERE entry_id IS NOT NULL AND ${notSim()} AND workspace_id = ? GROUP BY entry_id)
                   ) fe ON fe.entry_id = p.id
-            WHERE p.created_at >= ? AND p.created_at < ? AND ${notSim("p.job_title")} AND p.workspace_id = ?`
+            WHERE p.created_at >= ? AND p.created_at < ? AND ${notSim("p.job_title")} AND ${notAgentSql("p.")} AND p.workspace_id = ?`
         )
         .all(SIM_TITLE_LIKE, workspaceId, cutoffIso, upperIso, SIM_TITLE_LIKE, workspaceId) as {
         stage: string;

@@ -99,3 +99,25 @@ test("store CAS: an illegal move is refused even when the status it names is cur
   assert.equal(res.current, "rejected");
   assert.equal(getHiredAgent(agent.id, ws)?.status, "rejected");
 });
+
+test("placeAgentOnBoard files the card as an agent on both moves, and it has no mailbox", async () => {
+  const { placeAgentOnBoard } = await import("./lifecycle.ts");
+  const { getPipelineEntry } = await import("../db/pipeline.ts");
+  const { candidateRecipient } = await import("../comms-dispatch.ts");
+  const { DEFAULT_WORKSPACE_ID } = await import("../db/workspaces.ts");
+  const agent = {
+    id: "pop1",
+    jobId: "pop-job",
+    jobTitle: "Pop Role",
+    personaName: "Pop Persona",
+    personaId: null,
+    requestId: "req-1",
+  } as unknown as Parameters<typeof placeAgentOnBoard>[0];
+
+  const offer = placeAgentOnBoard(agent, "offer", DEFAULT_WORKSPACE_ID);
+  assert.equal(getPipelineEntry(offer!.entryId, DEFAULT_WORKSPACE_ID)?.population, "agent");
+  const hired = placeAgentOnBoard(agent, "hired", DEFAULT_WORKSPACE_ID);
+  const card = getPipelineEntry(hired!.entryId, DEFAULT_WORKSPACE_ID)!;
+  assert.equal(card.population, "agent");
+  assert.equal(candidateRecipient(card), null);
+});

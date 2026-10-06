@@ -64,3 +64,17 @@ test("stats are scoped to the caller's workspace", () => {
   // ...and the owning workspace still does.
   assert.ok(listJobPipelineStats()["jd-tenant-check"]);
 });
+
+test("an agent on the terminal column does not move hired (total and reachedInterview still count it)", () => {
+  entryAt("jd-agent-stats", "Hired");
+  createPipelineEntry({
+    candidateId: "agent-stats-bot",
+    candidateLabel: "Bot",
+    jobId: "jd-agent-stats",
+    jobTitle: "Role for jd-agent-stats",
+    stage: "Hired",
+    population: "agent",
+  });
+
+  assert.deepEqual(listJobPipelineStats()["jd-agent-stats"], { total: 2, reachedInterview: 2, hired: 1 });
+});

@@ -289,3 +289,21 @@ test("the queue's client-side scale is the store's scale", async () => {
     Array.from({ length: PERFORMANCE_MAX - PERFORMANCE_MIN + 1 }, (_, i) => PERFORMANCE_MIN + i)
   );
 });
+
+test("listWorkspaceHires: an agent on the terminal column is not a hire and is never queued for a rating", () => {
+  const WS = "ws-agent-roster";
+  const human = hireFixture(WS, "Hired");
+  const { entry: agent } = createPipelineEntry({
+    candidateId: "agent-roster-bot",
+    candidateLabel: "Bot",
+    jobId: "hr-agent-job",
+    jobTitle: "Roster Role",
+    stage: "Hired",
+    population: "agent",
+    workspaceId: WS,
+  });
+
+  const ids = listWorkspaceHires(WS, ["Hired"]).map((h) => h.entryId);
+  assert.deepEqual(ids, [human.id]);
+  assert.ok(!ids.includes(agent.id));
+});

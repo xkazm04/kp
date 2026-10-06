@@ -34,6 +34,7 @@
 
 import { afterResponse } from "./after-response";
 import { closeRoleIfOpen, getRoleOpenConfig, roleTargetHires } from "./db/jobs";
+import { isAgentPopulation } from "./db/core";
 import { closeEntriesByJobId, getPipelineEntry, listJobPipelineStats } from "./db/pipeline";
 import { getPipelineAxis } from "./pipeline-axis-server";
 import { stageHasRole } from "./pipeline-stages";
@@ -41,7 +42,7 @@ import { isTerminalEntryStatus } from "./pipeline-status";
 
 export type RoleFillOutcome =
   /** The arrival does not govern a role's fill state. */
-  | { outcome: "skipped"; reason: "entry_gone" | "terminal" | "stage_moved" | "not_hire_role" | "no_job" }
+  | { outcome: "skipped"; reason: "entry_gone" | "terminal" | "agent_population" | "stage_moved" | "not_hire_role" | "no_job" }
   /** The role is live and still short of its target. */
   | { outcome: "open"; hired: number; target: number }
   /** The target is met but another writer retired the role first (or a human had). */
@@ -86,6 +87,8 @@ export async function runRoleFillHook(input: RoleFillInput): Promise<RoleFillOut
     // A rejected / declined / withdrawn candidate is not a hire, whatever column
     // the row happens to sit on. (A real hire keeps status 'active'.)
     if (isTerminalEntryStatus(entry.status)) return { outcome: "skipped", reason: "terminal" };
+    // An AI agent on the terminal column is a dispatch, not a hire.
+    if (isAgentPopulation(entry)) return { outcome: "skipped", reason: "agent_population" };
     if (entry.stage !== stage) return { outcome: "skipped", reason: "stage_moved" };
     const jobId = entry.jobId;
     if (!jobId) return { outcome: "skipped", reason: "no_job" };

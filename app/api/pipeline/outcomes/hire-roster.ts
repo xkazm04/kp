@@ -11,7 +11,7 @@
 // a read that only the outcomes route makes. The tenant is a REQUIRED parameter (no
 // DEFAULT_WORKSPACE_ID fallback), so a caller that forgets it fails typecheck rather
 // than reading another team's hires.
-import { ensureDb } from "@/app/_lib/db/core";
+import { ensureDb, notAgentSql } from "@/app/_lib/db/core";
 import { TERMINAL_STATUS_SQL_LIST } from "@/app/_lib/db/pipeline-core";
 import { hireOutcomeRef } from "@/app/_lib/dev-outcomes";
 import type { HireRosterRow } from "@/app/_lib/hire-rating-queue";
@@ -38,7 +38,7 @@ export function listWorkspaceHires(workspaceId: string, terminalStageIds: readon
     .prepare(
       `SELECT id, candidate_id, dev_submission_id, candidate_label, job_title, stage_changed_at
        FROM pipeline_entries
-       WHERE workspace_id = ? AND stage IN (${placeholders}) AND status NOT IN ${TERMINAL_STATUS_SQL_LIST}`
+       WHERE workspace_id = ? AND stage IN (${placeholders}) AND status NOT IN ${TERMINAL_STATUS_SQL_LIST} AND ${notAgentSql()}`
     )
     .all(workspaceId, ...terminalStageIds) as RosterSqlRow[];
   return rows.map((r) => ({

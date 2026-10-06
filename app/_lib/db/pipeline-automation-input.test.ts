@@ -144,3 +144,20 @@ test("each entry carries agingTier resolved on its own workspace's axis", async 
   assert.equal(byId.get(acc6)!.agingTier, "none", "the entry role SLA is 14 d");
   assert.equal(byId.get(acc10)!.agingTier, "none");
 });
+
+test("the projection carries population — an agent row is not read back as human", () => {
+  const agent = createPipelineEntry({
+    candidateId: "agent-auto-bot",
+    candidateLabel: "Bot",
+    jobId: `job-${WS_A}`,
+    jobTitle: "Backend Eng",
+    stage: "Screened",
+    population: "agent",
+    workspaceId: WS_A,
+  }).entry;
+  const human = seed(WS_A, "pop-human", "2026-02-01T00:00:00.000Z");
+
+  const byId = new Map(listActiveEntriesForAutomation().map((r) => [r.id, r]));
+  assert.equal(byId.get(agent.id)?.population, "agent");
+  assert.equal(byId.get(human.id)?.population, "human");
+});
