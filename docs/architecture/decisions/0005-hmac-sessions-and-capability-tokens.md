@@ -9,6 +9,8 @@ tags: [security, auth, privacy]
 sources:
   - proxy.ts
   - app/_lib/auth/session.ts
+  - app/_lib/auth/session-revocation.ts
+  - app/_lib/auth/edge-verify.ts
   - app/_lib/auth/public-routes.ts
   - app/_lib/auth/require-operator.ts
   - app/api/schedule/[token]/route.ts
@@ -76,11 +78,27 @@ Two rules ride on that:
 zero-friction actions. The erasure link in every candidate email works without a
 login — which is what makes GDPR Art. 15/17 self-service actually reachable.
 
-**Bad, and accepted.** A leaked link is a leaked capability; mitigation is
-expiry and unguessability, not revocable sessions. Custom crypto is our
-responsibility — `session.ts` and `edge-verify.ts` are small and directly
-tested for exactly that reason. And SSO is not free: it is tracked as
-enterprise work (E1) on top of this, not as a replacement for it.
+**Bad, and accepted.** The two populations differ here. A leaked candidate
+link is a leaked capability, and its mitigation is still only expiry and
+unguessability: a capability token is not a session and there is no per-link
+revocation. An operator session, the higher-privilege credential, is revocable.
+One session can be revoked by its principal and `iat`
+(`app/_lib/auth/session-revocation.ts`, consulted by the proxy gate and every
+session read), and all of them at once by bumping `KP_SESSION_EPOCH`
+(`sessionEpoch()` in `session.ts`). The epoch is the blunt instrument and needs
+no database. The validity window is half-open, `[iat, exp)`, and `session.ts`
+and `edge-verify.ts` use the same `exp <= now` test, so a revoked cookie is
+dead at `exp` and there is no 1 ms gap where it verifies after its revocation
+row has been swept. Custom crypto is our responsibility — `session.ts` and
+`edge-verify.ts` are small and directly tested for exactly that reason. And SSO
+is not free: it is tracked as enterprise work (E1) on top of this, not as a
+replacement for it.
+
+*Amended 2026-10-06:* the earlier wording, "not revocable sessions", was true when
+this record was written and stopped being true for operator sessions with
+`04b459639` (per-session revocation), hardened by `49bdcf65e`, `008fb8965`,
+`4f585e213` and the half-open window fix `2ef749b3a`. It still holds for
+candidate capability links. The Decision is unchanged.
 
 ## What would change our mind
 
