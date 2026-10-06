@@ -15,7 +15,8 @@
 // data/kp.sqlite, and is NEVER opened through ensureDb(): that runs the migrator, so a
 // reading would write to the install it measures. The file (plus any -wal/-shm beside it) is
 // copied to a fresh temp directory, KP_DB_PATH is pointed at the copy BEFORE anything under
-// app/_lib/db is imported, and the copy is deleted when the read is done. If a migration
+// app/_lib/db is imported (the read runs in a child process, so the copy can be deleted once it
+// has exited), and the copy is deleted when the read is done. If a migration
 // needs to run it runs on the copy.
 //
 // WHAT IT WILL NOT DO IS ROUND AN EMPTY DENOMINATOR TO A NUMBER. No database, or a window
@@ -26,12 +27,14 @@
 // (thread-autonomy.ts), and a role with nothing placed on the ladder proves nothing.
 // `truncated` means the window holds more events than the read's cap, so the figures cover
 // only the OLDEST events and are not the whole window.
+import { spawnSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+const SELF = fileURLToPath(import.meta.url);
+const REPO_ROOT = path.resolve(path.dirname(SELF), "..", "..");
 const args = process.argv.slice(2);
 const asJson = args.includes("--json");
 
@@ -54,6 +57,16 @@ if (!Number.isFinite(windowDays) || windowDays < 1) {
 }
 const workspaceId = flagValue("--workspace");
 
+// CHILD HALF (`--read-copy`, internal): KP_DB_PATH is already the scratch copy, so importing
+// the store is safe. It runs in its own process because the app's stores hold private SQLite
+// handles with no close API, and Windows will not delete a file a live handle still holds —
+// the parent can only remove the copy once this process has exited.
+if (args.includes("--read-copy")) {
+  const { listThreadAutonomyByJob } = await import("@/app/_lib/db/thread-autonomy");
+  console.log(JSON.stringify(listThreadAutonomyByJob({ workspaceId, windowDays })));
+  process.exit(0);
+}
+
 const sourceDb = path.resolve(process.env.KP_DB_PATH ?? path.join(REPO_ROOT, "data", "kp.sqlite"));
 
 if (!existsSync(sourceDb)) {
@@ -72,26 +85,28 @@ try {
   for (const suffix of ["", "-wal", "-shm"]) {
     if (existsSync(sourceDb + suffix)) copyFileSync(sourceDb + suffix, copy + suffix);
   }
-  // LOAD-BEARING ORDER: db-path computes its path from KP_DB_PATH when it is first evaluated.
-  process.env.KP_DB_PATH = copy;
-  const { listThreadAutonomyByJob } = await import("@/app/_lib/db/thread-autonomy");
-  try {
-    report = listThreadAutonomyByJob({ workspaceId, windowDays });
-  } finally {
-    // Windows will not delete a file a live handle still holds.
-    try {
-      globalThis.__kpDb?.close();
-    } catch {
-      /* already closed */
-    }
+  // KP_DB_PATH reaches the child through its environment, before it imports anything under
+  // app/_lib/db (db-path computes its path from it when first evaluated).
+  const child = spawnSync(process.execPath, [...process.execArgv, SELF, ...args, "--read-copy"], {
+    cwd: REPO_ROOT,
+    env: { ...process.env, KP_DB_PATH: copy },
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  if (child.status !== 0) {
+    console.error(child.stderr || `reader exited with ${child.status}`);
+    process.exitCode = 1;
+  } else {
+    report = JSON.parse(child.stdout);
   }
 } finally {
   try {
-    rmSync(scratch, { recursive: true, force: true, maxRetries: 3 });
+    rmSync(scratch, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   } catch {
     /* best-effort: it is a scratch copy in the OS temp dir, the OS reclaims it */
   }
 }
+if (!report) process.exit(1);
 
 if (asJson) {
   console.log(JSON.stringify({ ...report, source: { db: sourceDb } }, null, 2));
