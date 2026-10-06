@@ -9080,7 +9080,7 @@
         "offerAccepted": "Offer accepted",
         "offerDeclined": "Offer declined"
       },
-      "eventsNote": "<code>{event}</code> fires live on offer-accept today; the others are reserved for their lifecycle hooks.",
+      "eventsNote": "Each subscribed event is sent when it happens, including the rejections the screening wave applies on its own, not only a recruiter's click.",
       "save": "Save",
       "saveFailedStatus": "Save failed ({status}).",
       "saveFailed": "Save failed.",

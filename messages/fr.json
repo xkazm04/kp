@@ -9080,7 +9080,7 @@
         "offerAccepted": "Offre acceptée",
         "offerDeclined": "Offre déclinée"
       },
-      "eventsNote": "<code>{event}</code> se déclenche aujourd’hui à l’acceptation d’une offre. Les autres sont réservés à leurs points du cycle de vie.",
+      "eventsNote": "Chaque événement auquel vous êtes abonné est envoyé au moment où il se produit, y compris les rejets que la vague de présélection applique d’elle-même, et pas seulement le clic d’un recruteur.",
       "save": "Enregistrer",
       "saveFailedStatus": "Échec de l’enregistrement ({status}).",
       "saveFailed": "Échec de l’enregistrement.",

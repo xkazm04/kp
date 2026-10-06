@@ -9080,7 +9080,7 @@
         "offerAccepted": "Nabídka přijata",
         "offerDeclined": "Nabídka odmítnuta"
       },
-      "eventsNote": "<code>{event}</code> se dnes spouští ostře při přijetí nabídky; ostatní jsou rezervované pro své body životního cyklu.",
+      "eventsNote": "Každá odebíraná událost se odešle ve chvíli, kdy nastane, včetně zamítnutí, která screeningová vlna provede sama, nejen kliknutí rekrutera.",
       "save": "Uložit",
       "saveFailedStatus": "Uložení selhalo ({status}).",
       "saveFailed": "Uložení selhalo.",

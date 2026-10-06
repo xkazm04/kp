@@ -26,6 +26,7 @@ import { DEFAULT_WORKSPACE_ID } from "./db/workspaces.ts";
 import { createOffer } from "./offers-store.ts";
 import { respondToOffer } from "./offer-finalize.ts";
 import { runPipelineEntryAction } from "./pipeline-entry-action.ts";
+import { runScreenWave } from "./screen-wave.ts";
 import { SUBSCRIBABLE_EVENTS } from "./ats-webhook.ts";
 
 after(() => cleanupUnitDb());
@@ -135,4 +136,66 @@ test("a decline on a STALE link that changes nothing mirrors nothing", async () 
 
   await respondToOffer(offer.token, "decline");
   assert.deepEqual(eventsFor(entry.id), [], "no ledger row: nothing transitioned, so nothing is mirrored");
+});
+
+// The SECOND reject path. A human reject goes through runPipelineEntryAction (above);
+// the screening wave commits its auto-rejects through actOnPipelineEntry directly and
+// dispatches the candidate's comm beside it — and, until this test, nothing else. An
+// operator subscribed to candidate.rejected saw every recruiter click and none of the
+// wave, so the connector kept every auto-rejected candidate open. Same witness as the
+// tests above — the delivery-ledger row — driven through the wave's real
+// preview → approve → commit.
+function seedScreened(jobId: string, label: string, matchScore: number) {
+  seq += 1;
+  return createPipelineEntry({
+    candidateId: `ats-ev-wave-c${seq}`,
+    candidateLabel: label,
+    jobId,
+    jobTitle: "ATS Event Role",
+    stage: "Screened",
+    matchScore,
+    archetype: "bau",
+    contact: `ats-ev-wave-c${seq}@example.com`,
+  }).entry;
+}
+
+test("a screening wave that auto-rejects N entries emits N candidate.rejected events — none for kept or spared ones", async () => {
+  const jobId = "ats-ev-job-wave";
+  const lowA = seedScreened(jobId, "ATS Wave Low A", 10);
+  const lowB = seedScreened(jobId, "ATS Wave Low B", 12);
+  const spared = seedScreened(jobId, "ATS Wave Spared", 14);
+  const highA = seedScreened(jobId, "ATS Wave High A", 80);
+  const highB = seedScreened(jobId, "ATS Wave High B", 90);
+
+  const rule = { autoRejectEnabled: true, rejectBottomPercent: 60, maxMatchToReject: 45, holdoutPercent: 0 };
+  const opts = { spare: [spared.id] };
+  const preview = await runScreenWave(jobId, rule, { dryRun: true, ...opts });
+  assert.deepEqual(
+    preview.decisions.filter((d) => d.action === "reject").map((d) => d.entryId).sort(),
+    [lowA.id, lowB.id].sort(),
+    "the previewed set is exactly the two unspared low scorers (otherwise the commit below proves nothing)"
+  );
+  // A dry run applies nothing, so it may mirror nothing.
+  assert.deepEqual(eventsFor(lowA.id), [], "a preview never reaches the ATS");
+
+  const committed = await runScreenWave(jobId, rule, { dryRun: false, ...opts, approval: { approvedBy: "ATS Event Approver", token: preview.approvalToken } });
+  assert.equal(committed.rejected, 2, "the wave must actually apply both rejects");
+  assert.deepEqual(eventsFor(lowA.id), ["candidate.rejected"], "each auto-rejection is mirrored to the ATS exactly once");
+  assert.deepEqual(eventsFor(lowB.id), ["candidate.rejected"], "each auto-rejection is mirrored to the ATS exactly once");
+  for (const kept of [spared, highA, highB]) {
+    assert.deepEqual(eventsFor(kept.id), [], `${kept.candidateLabel} was not rejected, so nothing is mirrored`);
+  }
+});
+
+test("a screening-wave HOLDOUT entry (would-be reject, deliberately spared) mirrors nothing", async () => {
+  const jobId = "ats-ev-job-wave-holdout";
+  const low = seedScreened(jobId, "ATS Holdout Low", 10);
+  seedScreened(jobId, "ATS Holdout High", 90);
+
+  const rule = { autoRejectEnabled: true, rejectBottomPercent: 50, maxMatchToReject: 45, holdoutPercent: 100 };
+  const preview = await runScreenWave(jobId, rule, { dryRun: true });
+  assert.equal(preview.rejected, 0, "a 100% holdout spares every would-be reject (otherwise this test proves nothing)");
+  const committed = await runScreenWave(jobId, rule, { dryRun: false, approval: { approvedBy: "ATS Event Approver", token: preview.approvalToken } });
+  assert.equal(committed.rejected, 0);
+  assert.deepEqual(eventsFor(low.id), [], "the holdout candidate stays active, so the ATS hears nothing");
 });

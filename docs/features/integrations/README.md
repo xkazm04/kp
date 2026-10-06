@@ -242,7 +242,11 @@ ping (`POST /api/ats/test`).
   they are different facts), `offer.declined` on a decline that actually transitioned the
   entry (a decline on a stale link that demotes nobody mirrors nothing, exactly as it
   stamps no timeline event), and `candidate.rejected` beside the rejection comm in
-  `pipeline-entry-action.ts`. Pinned by `app/_lib/ats-lifecycle-events.test.ts`.
+  `pipeline-entry-action.ts` (the recruiter's click) **and** in `screen-wave.ts` (the
+  unattended screening wave's auto-rejects, after the seal and the committed flip — a
+  holdout, spared, sealFailed or stale-skipped entry mirrors nothing; `floor-move-preview.ts`
+  only dry-runs the wave, so it never emits). Pinned by `app/_lib/ats-lifecycle-events.test.ts`,
+  which drives a wave through preview → approve → commit and counts the ledger rows.
 - **The consent gate is in the record builder, not behind one door.** `buildAtsRecord`
   REFUSES an anonymized entry (`AtsRecordRefusedError` → the delivery is dead-lettered on
   the spot: an erased candidate does not become mirrorable by waiting) and, when
@@ -393,9 +397,12 @@ ping (`POST /api/ats/test`).
   unrelated edit — and the loosened version reports the *previous* endpoint's 200 under
   the address on screen.
 - **The panel states its own ceiling**: this is vendor-neutral egress, not a certified
-  Workday/Greenhouse/Lever connector — point a connector or an iPaaS at it. Only
-  `candidate.hired` fires live today (on offer-accept); the other three are reserved for
-  their lifecycle hooks, and the UI says so.
+  Workday/Greenhouse/Lever connector — point a connector or an iPaaS at it.
+  All four subscribable events fire live, and the note under the checkboxes says so (it used to
+  claim only `candidate.hired` did, in four locales, after the other three were wired).
+  `SUBSCRIBABLE_EVENT_ROWS` in `integrationsWebhookIdentifiers.ts` carries a `status:
+  'live' | 'reserved'` per event, and `integrationsCatalog.test.ts` pins it to the real
+  `dispatchAtsEvent("<id>")` sites in both directions.
 - **Pull works too**: `GET /api/ats/candidate/<entryId>` returns the same record on demand —
   operator-gated, scoped to the caller's workspace, and every successful export is audited
   onto that candidate's own pipeline-event timeline (`ats_export`).

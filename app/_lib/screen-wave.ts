@@ -4,6 +4,7 @@ import { getDecisionConfig, type ScreeningRule } from "./decision-config-store";
 import { sealDecisionSafe, SCREEN_WAVE_HOLDOUT_KIND, AUTO_REJECTED_KIND } from "./decision-record-store";
 import { DecisionConfigError, effectiveFloor, effectiveHoldoutPercent, screenBottomCount, tieSafeBottomCount, validateScreeningOverride } from "./decision-config-schema";
 import { dispatchRejection } from "./comms-dispatch";
+import { dispatchAtsEvent } from "./ats-egress";
 import { readLiveArchetypes } from "./archetype-live";
 import { consumeScreenWaveApprovalToken, screenWaveApprovalToken, verifyScreenWaveApprovalToken, ScreenWaveApprovalError } from "./screen-wave-approval";
 import { selectHoldout } from "./screen-wave-holdout";
@@ -619,6 +620,15 @@ export async function runScreenWave(
         console.warn(`[screen-wave] rejection comms failed for ${e.candidateLabel} (${e.id}): ${msg}`);
         recordAutomationEvent(e.id, "rejection_comms_failed", `Auto-rejected, but the notification failed to queue — nudge manually. (${msg})`, workspaceId);
       }
+      // The customer's system of record hears about it too, if it subscribed. This is the
+      // SECOND place a rejection is applied (the human click, pipeline-entry-action.ts,
+      // is the other) and it used to be the one that never mirrored: a subscriber to
+      // `candidate.rejected` received every recruiter reject and none of the wave's, so a
+      // connector kept every auto-rejected candidate open. Only here — after the seal and
+      // the committed flip — so a holdout, spared, failed or stale-skipped entry mirrors
+      // nothing. Fire-and-forget beside the comm: the rejection is committed and sealed,
+      // and no mirror may abort the cohort (the delivery ledger shows a failed POST).
+      void dispatchAtsEvent("candidate.rejected", updated.id, workspaceId);
       // commsFailed rides the decision row so the committed view can badge WHO
       // needs a manual nudge — the bare commsFailures count names nobody.
       decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "reject", rationale: committedRationale, reasonCode: "reject", reasonParams, ...(commsFailed ? { commsFailed } : {}), ...stale });

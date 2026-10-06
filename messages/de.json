@@ -9080,7 +9080,7 @@
         "offerAccepted": "Angebot angenommen",
         "offerDeclined": "Angebot abgelehnt"
       },
-      "eventsNote": "<code>{event}</code> wird heute live beim Annehmen eines Angebots ausgelöst; die übrigen sind für ihre Lebenszyklus-Hooks reserviert.",
+      "eventsNote": "Jedes abonnierte Ereignis wird gesendet, sobald es eintritt, auch die Ablehnungen, die die Screening-Welle selbstständig vornimmt, nicht nur der Klick einer Recruiterin oder eines Recruiters.",
       "save": "Speichern",
       "saveFailedStatus": "Speichern fehlgeschlagen ({status}).",
       "saveFailed": "Speichern fehlgeschlagen.",

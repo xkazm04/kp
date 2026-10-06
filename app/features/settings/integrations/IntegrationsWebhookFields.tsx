@@ -10,7 +10,7 @@ import { Checkbox } from "@/app/_components/Checkbox";
 // Machine identifiers, not copy — and each one pinned to its authority. See
 // integrationsWebhookIdentifiers.ts for which are imported and which are
 // set-equality asserted by integrationsCatalog.test.ts.
-import { EXAMPLE_WEBHOOK_URL, HIRED_EVENT, SUBSCRIBABLE_EVENT_ROWS } from "./integrationsWebhookIdentifiers";
+import { EXAMPLE_WEBHOOK_URL, SUBSCRIBABLE_EVENT_ROWS } from "./integrationsWebhookIdentifiers";
 
 export function IntegrationsWebhookFields({
   url,
@@ -76,12 +76,10 @@ export function IntegrationsWebhookFields({
             </label>
           ))}
         </div>
-        <p className="mt-1 text-meta text-steel">
-          {t.rich("eventsNote", {
-            event: HIRED_EVENT,
-            code: (chunks) => <span className="font-medium text-ink">{chunks}</span>,
-          })}
-        </p>
+        {/* True of every row only because integrationsCatalog.test.ts pins each
+            row's status to a real dispatchAtsEvent site; the note is plain text
+            because it no longer singles one event out. */}
+        <p className="mt-1 text-meta text-steel">{t("eventsNote")}</p>
       </fieldset>
     </div>
   );
