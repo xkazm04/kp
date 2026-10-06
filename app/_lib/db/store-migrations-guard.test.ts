@@ -17,7 +17,6 @@ import path from "node:path";
 
 const CEILING: Record<string, number> = {
   "app/_lib/ats/connections-store.ts": 1,
-  "app/_lib/ats-config-store.ts": 1,
   "app/_lib/comms-relay-store.ts": 1,
   "app/_lib/db/agents.ts": 1,
   "app/_lib/db/devcase.ts": 1,

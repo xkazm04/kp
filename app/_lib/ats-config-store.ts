@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import { openStore } from "./db-path";
+import { addColumns } from "./db/add-columns.ts";
 import { isAtsEvent, type AtsEventType, SUBSCRIBABLE_EVENTS } from "./ats-webhook.ts";
 import { assertPublicHttpsEndpoint } from "./safe-url.ts";
 import { decryptAtsSecret, encryptAtsSecret, isEncryptedAtsSecret } from "./ats-secret.ts";
@@ -31,6 +32,12 @@ export type AtsConfigPublic = {
    *  the endpoint and its event subscriptions no longer silently clobber each other.
    *  Mirrors comms-relay-store.ts, the same doctrine on the same kind of document. */
   version: number;
+  /** The organization whose operator saved this endpoint, or null for a row written
+   *  before the column existed (read as the default org — see setAtsConfig). NOT a
+   *  secret: it is an org id, the same one the caller's own session carries, and the
+   *  panel has to be able to say whose integration this is. The egress refuses to
+   *  mirror another org's entries to it (ats-egress.ts, F-1). */
+  ownerOrgId: string | null;
 };
 
 export class AtsConfigError extends Error {
@@ -62,28 +69,37 @@ function db(): Database.Database {
       webhook_secret TEXT,
       events_json TEXT NOT NULL DEFAULT '[]',
       version INTEGER NOT NULL DEFAULT 0,
+      owner_org_id TEXT,
       updated_at TEXT
     );
   `);
-  // Stores created before optimistic concurrency existed have no `version` column.
-  // ADD COLUMN with a DEFAULT backfills every existing row to 0 — exactly the version a
-  // panel that has just read one sends, so the first write after an upgrade is not
-  // spuriously refused.
-  try {
-    d.exec(`ALTER TABLE ats_config ADD COLUMN version INTEGER NOT NULL DEFAULT 0`);
-  } catch {
-    // Already present (the CREATE TABLE above just made it, or an earlier boot did) —
-    // the only expected failure here, and re-adding is the no-op we want.
-  }
+  // Stores older than each of these columns. `addColumns` probes and adds only what is
+  // missing, and throws anything that is not a lost duplicate-column race — the
+  // swallow-all `catch` this replaced also absorbed READONLY/FULL/IOERR and then memoized
+  // a connection whose table lacked the column (db/add-columns.ts).
+  //   • `version` — a DEFAULT of 0 backfills every existing row to exactly the version a
+  //     panel that has just read one sends, so the first write after an upgrade is not
+  //     spuriously refused.
+  //   • `owner_org_id` (F-1) — NULLABLE with no default on purpose: a backfilled org id
+  //     would be a guess, and the egress reads NULL as "the default org", which is what
+  //     every single-org install already is. The first save after an upgrade stamps the
+  //     real one.
+  addColumns(d, "ats_config", ["version INTEGER NOT NULL DEFAULT 0", "owner_org_id TEXT"]);
   _db = d;
   return d;
 }
 
-type Row = { webhook_url: string | null; webhook_secret: string | null; events_json: string; version: number | null };
+type Row = {
+  webhook_url: string | null;
+  webhook_secret: string | null;
+  events_json: string;
+  version: number | null;
+  owner_org_id: string | null;
+};
 
 function readRow(): Row | undefined {
   return db()
-    .prepare(`SELECT webhook_url, webhook_secret, events_json, version FROM ats_config WHERE id = 1`)
+    .prepare(`SELECT webhook_url, webhook_secret, events_json, version, owner_org_id FROM ats_config WHERE id = 1`)
     .get() as Row | undefined;
 }
 
@@ -126,6 +142,7 @@ export function getAtsConfig(): AtsConfigPublic {
     events: row ? parseEvents(row.events_json) : [],
     hasSecret: !!row?.webhook_secret,
     version: row?.version ?? 0,
+    ownerOrgId: row?.owner_org_id ?? null,
   };
 }
 
@@ -170,6 +187,18 @@ function validateEvents(raw: unknown): AtsEventType[] | undefined {
   return out;
 }
 
+/** The saver's organization. Unlike every other field this is NOT a keep-when-omitted
+ *  partial: the column records WHO SAVED THIS ENDPOINT, so it is re-stamped on every
+ *  accepted write (a re-save adopts the saver's org — that is how an install hands the
+ *  integration from one org to another). Omitted it becomes NULL, which the egress reads
+ *  as the default org; server-internal writes with no session (tests, fixtures) therefore
+ *  land exactly where they did before the column existed. */
+function validateOwnerOrgId(raw: unknown): string | null {
+  if (raw === undefined || raw === null || raw === "") return null;
+  if (typeof raw !== "string") throw new AtsConfigError("ownerOrgId must be a string.");
+  return raw.trim().slice(0, 120) || null;
+}
+
 /**
  * Upsert the webhook config. Every field is a PARTIAL update — omitted means KEEP:
  *   • `webhookUrl` omitted → keep the stored endpoint; `null`/`""` → CLEAR (disable).
@@ -197,11 +226,15 @@ export function setAtsConfig(input: {
   webhookSecret?: unknown;
   events?: unknown;
   expectedVersion?: unknown;
+  /** The organization of the operator saving this. Re-stamped on EVERY write — see
+   *  validateOwnerOrgId. The route passes the session's org (DEFAULT_ORG_ID in open mode). */
+  ownerOrgId?: unknown;
 }): AtsConfigPublic {
   // Validation and encryption are pure and can throw — keep them OUTSIDE the write lock
   // so a bad URL never opens a transaction.
   const url = validateUrl(input.webhookUrl);
   const events = validateEvents(input.events);
+  const ownerOrgId = validateOwnerOrgId(input.ownerOrgId);
   let nextSecret: string | null | undefined;
   if (input.webhookSecret !== undefined) {
     if (typeof input.webhookSecret !== "string") throw new AtsConfigError("webhookSecret must be a string.");
@@ -235,16 +268,18 @@ export function setAtsConfig(input: {
     // keep-existing write can't round-trip the secret back to plaintext.
     db()
       .prepare(
-        `INSERT INTO ats_config (id, webhook_url, webhook_secret, events_json, version, updated_at)
-         VALUES (1, ?, ?, ?, ?, ?)
+        `INSERT INTO ats_config (id, webhook_url, webhook_secret, events_json, version, owner_org_id, updated_at)
+         VALUES (1, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET webhook_url = excluded.webhook_url, webhook_secret = excluded.webhook_secret,
-           events_json = excluded.events_json, version = excluded.version, updated_at = excluded.updated_at`
+           events_json = excluded.events_json, version = excluded.version, owner_org_id = excluded.owner_org_id,
+           updated_at = excluded.updated_at`
       )
       .run(
         url === undefined ? (current?.webhook_url ?? null) : url,
         nextSecret === undefined ? (current?.webhook_secret ?? null) : nextSecret,
         JSON.stringify(events ?? (current ? parseEvents(current.events_json) : [])),
         version + 1,
+        ownerOrgId,
         new Date().toISOString()
       );
   });

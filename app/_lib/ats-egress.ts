@@ -12,6 +12,8 @@ import {
   openAtsDelivery,
   reclaimExpiredAtsLeases,
 } from "./ats-delivery-store.ts";
+import { orgIdForWorkspace } from "./db/org-benchmarks";
+import { DEFAULT_ORG_ID } from "./db/organizations";
 import { positiveNumericEnv } from "./env.ts";
 import {
   type AtsEventType,
@@ -413,6 +415,35 @@ function deliveryStillJustified(
   };
 }
 
+/** F-1 (security scan 2026-10-06 §A1) — THE DESTINATION BELONGS TO ONE ORGANIZATION.
+ *
+ *  `ats_config` is a single deployment-wide row (tenancy.ts: org-level, one endpoint),
+ *  and nothing tied it to the org that configured it. So in a deployment with more than
+ *  one organization, org B's auto-rejected candidates — name, contact, match score —
+ *  were POSTed to the endpoint org A saved. The screening wave is what made that
+ *  systematic rather than theoretical: one approved click mirrors a whole cohort with no
+ *  human at the keyboard per candidate.
+ *
+ *  The row now records its owner (`ownerOrgId`), and a dispatch whose entry belongs to a
+ *  different organization is REFUSED before anything is built or dialled.
+ *
+ *  NULL ON EITHER SIDE IS THE DEFAULT ORG, deliberately: a config written before the
+ *  column existed, and a workspace with no `org_id` (a legacy/unlinked team row), both
+ *  fold to `org-default`. So the single-tenant self-host — which is every shipped
+ *  deployment today — behaves exactly as it did, and the boundary only bites where there
+ *  really are two organizations. Returns the ledger reason, or null when the mirror is
+ *  allowed. The reason names two org ids and an entry id: operator-visible vocabulary,
+ *  no candidate data, like every other reason in this module. */
+function crossOrgRefusal(ownerOrgId: string | null, entryId: string, tenant: string | undefined): string | null {
+  const owner = ownerOrgId ?? DEFAULT_ORG_ID;
+  const entryOrg = orgIdForWorkspace(tenant) ?? DEFAULT_ORG_ID;
+  if (owner === entryOrg) return null;
+  return (
+    `the configured ATS webhook belongs to organization "${owner}", but pipeline entry ${entryId} ` +
+    `belongs to organization "${entryOrg}" — a candidate is never mirrored to another organization's endpoint`
+  );
+}
+
 /** Fire a lifecycle event for an entry to the webhook. Non-blocking for the caller's
  *  outcome (the hire/reject already committed), but NOT fire-and-forget: every attempt
  *  is written to the durable delivery ledger, so a non-2xx / timeout / network failure
@@ -445,6 +476,16 @@ export async function dispatchAtsEvent(event: AtsEventType, entryId: string, wor
     const opened = openAtsDelivery(event, entryId, openedAt);
     deliveryId = opened.id;
     lease = opened.token;
+    // The ORG boundary, checked before the record is built and long before the fetch. The
+    // ledger row above is already open on purpose: a refused mirror is a thing an operator
+    // must be able to SEE (why did org B's rejects stop arriving?), not a silent return.
+    // Terminal — a cross-org destination does not become correct by waiting.
+    const crossOrg = crossOrgRefusal(cfg.ownerOrgId, entryId, tenant);
+    if (crossOrg) {
+      finalizeAtsDelivery(deliveryId, { delivered: false, reason: crossOrg, terminal: true }, lease);
+      console.error(`[ats] ${event} webhook refused for ${entryId} (recorded #${deliveryId}, terminal): ${crossOrg}`);
+      return;
+    }
     const { record, refusal } = getAtsRecordResult(entryId, tenant, openedAt.toISOString());
     if (!record) {
       // A hire that cannot be MIRRORED must never be INVISIBLE. Fail the row instead of
@@ -525,6 +566,16 @@ export async function retryDueAtsDeliveries(
       // the DEFAULT workspace and finalized every non-default team's LIVE entry with the
       // false terminal reason "pipeline entry no longer exists".
       const tenant = getEntryWorkspace(row.entryId);
+      // F-1, per row: the config is re-read on every attempt, so an endpoint RE-POINTED to
+      // another organization between attempt 1 and this sweep must refuse here too — the
+      // retry ladder is a second door onto the same destination. Terminal, before the
+      // record is rebuilt and before any POST.
+      const crossOrg = crossOrgRefusal(getAtsConfig().ownerOrgId, row.entryId, tenant);
+      if (crossOrg) {
+        finalizeAtsDelivery(row.id, { delivered: false, reason: crossOrg, terminal: true }, lease);
+        failed++;
+        continue;
+      }
       const { record, refusal } = getAtsRecordResult(row.entryId, tenant, row.createdAt);
       if (!record) {
         // A candidate anonymized between the first attempt and this one: the retry is

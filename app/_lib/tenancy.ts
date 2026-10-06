@@ -421,7 +421,12 @@ export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
   // None holds per-team-private candidate data. Per-team overrides (if ever wanted) are
   // a KP_MULTI_ORG / multi-tenant enhancement, not a KP_MULTI_WORKSPACE prerequisite.
   "brand_settings", // the org's candidate-facing brand (name/accent/logo)
-  "ats_config", // the org's outbound ATS webhook integration (one endpoint)
+  // The org's outbound ATS webhook integration (one endpoint). Still org-level — one row,
+  // no workspace column — but it now RECORDS the org that saved it (`owner_org_id`), and
+  // ats-egress refuses to mirror another organization's entries to it (F-1, security scan
+  // 2026-10-06 §A1). A NULL owner reads as the default org, so a pre-upgrade row and a
+  // single-org install are unchanged.
+  "ats_config",
   "ats_delivery", // the ATS webhook delivery ledger (sibling of ats_config; deployment/org-level, not per-tenant)
   // W1.1 — the INBOUND sibling of ats_config: per-provider base URL, encrypted API token
   // and field map. Org-level for the same reason as its egress twin — an ATS account is
