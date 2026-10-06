@@ -103,7 +103,7 @@ export function AnalyzePriorRunsStrip({
       <div
         role="region"
         aria-label={t("priorDecidedTitle")}
-        className={`${PANEL_ACCENT} mt-4 p-4 text-sm`}
+        className={`${PANEL_ACCENT} mt-4 p-4 text-micro`}
       >
         <div className="flex items-start gap-3">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-coral" aria-hidden />
@@ -124,10 +124,10 @@ export function AnalyzePriorRunsStrip({
                 <ExternalLink className="h-3.5 w-3.5" aria-hidden />
               </Link>
             </div>
-            <p className="pt-1 text-xs text-steel">{t("priorDecidedWarning")}</p>
+            <p className="pt-1 text-micro text-steel">{t("priorDecidedWarning")}</p>
 
             {summary.otherRoles && summary.otherRoles.length > 0 && (
-              <div className="pt-2 text-xs text-steel">
+              <div className="pt-2 text-micro text-steel">
                 <span className="font-medium text-ink">{t("priorOtherRolesLabel")} </span>
                 {summary.otherRoles.map((role, idx) => (
                   <span key={role.slug}>
@@ -160,7 +160,7 @@ export function AnalyzePriorRunsStrip({
       <div
         role="region"
         aria-label={t("priorSeenTitle")}
-        className={`${PANEL_SUNKEN} mt-4 p-4 text-sm`}
+        className={`${PANEL_SUNKEN} mt-4 p-4 text-micro`}
       >
         <div className="flex items-start gap-3">
           <History className="mt-0.5 h-4 w-4 shrink-0 text-steel" aria-hidden />
@@ -183,7 +183,7 @@ export function AnalyzePriorRunsStrip({
             </div>
 
             {summary.otherRoles && summary.otherRoles.length > 0 && (
-              <div className="pt-2 text-xs text-steel">
+              <div className="pt-2 text-micro text-steel">
                 <span className="font-medium text-ink">{t("priorOtherRolesLabel")} </span>
                 {summary.otherRoles.map((role, idx) => (
                   <span key={role.slug}>
@@ -212,13 +212,13 @@ export function AnalyzePriorRunsStrip({
     <div
       role="region"
       aria-label={t("priorSeenElsewhereTitle")}
-      className={`${PANEL_SUNKEN} mt-4 p-4 text-sm`}
+      className={`${PANEL_SUNKEN} mt-4 p-4 text-micro`}
     >
       <div className="flex items-start gap-3">
         <History className="mt-0.5 h-4 w-4 shrink-0 text-steel" aria-hidden />
         <div className="flex-1 space-y-1">
           <p className="font-semibold text-ink">{t("priorSeenElsewhereTitle")}</p>
-          <div className="pt-1 text-xs text-steel">
+          <div className="pt-1 text-micro text-steel">
             <span className="font-medium text-ink">{t("priorOtherRolesLabel")} </span>
             {summary.otherRoles.map((role, idx) => (
               <span key={role.slug}>

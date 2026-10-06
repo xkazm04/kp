@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Select } from "@/app/_components/Select";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
-import { BTN_SECONDARY, META_LABEL } from "@/app/_components/ui/recipes";
+import { BTN_GHOST, BTN_SECONDARY, META_LABEL } from "@/app/_components/ui/recipes";
 import type { JdSummary } from "./AnalyzeTypes";
 import type { JdLibraryState } from "./analyzeJdLibraryState";
 
@@ -117,13 +117,13 @@ export function AnalyzeSavedJdPicker({
           <div className="flex items-center gap-2">
             {edited && onRevert ? (
               <>
-                <span className="text-xs font-semibold uppercase text-amber-600 dark:text-amber-400">
+                <span className="rounded-md bg-dial-amber/20 px-1.5 py-0.5 text-micro font-semibold uppercase text-ink">
                   {t("jdEdited")}
                 </span>
                 <button
                   type="button"
                   onClick={onRevert}
-                  className="text-sm font-medium text-coral underline-offset-2 hover:underline"
+                  className={`${BTN_GHOST} h-7 px-2 text-micro underline underline-offset-2`}
                 >
                   {t("revert")}
                 </button>
