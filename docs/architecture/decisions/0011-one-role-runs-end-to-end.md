@@ -212,3 +212,17 @@ sent. An approval that arrives after the effect is not an approval, and
   (agent hiring, dev-case cohorts). Two consumers is the threshold at which
   extracting a general run ledger — or reconsidering alternative C — stops
   being speculative.
+
+## Amendments
+
+- **2026-10-06 — a candidate's own act is not a human step.** For goal-1 scoring
+  ("one role runs end to end without a human step"), a human step is one taken
+  by the hiring side: a recruiter or operator. A candidate applying,
+  re-applying, answering a follow-up or replying to an offer is the process
+  working. The exclusion lives in `app/_lib/thread-autonomy.ts` (a third
+  attribution class, `candidate`, counted in `candidateEvents` so it stays
+  visible). `decision-attribution.ts` keeps its broader meaning of `human` for
+  the decision log and the analytics rollup, on purpose: there a candidate's
+  act is still a person acting. Before this, `applied` (written with a null
+  actor) fell through to the kind map and read as human, so every applied
+  thread scored a first human step at sourcing and no role could be autonomous.

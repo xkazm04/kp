@@ -20,14 +20,22 @@
 // "a JD existed" — so this read never reports it as reached. The role-run ledger's
 // role_spec artifact is where that fact lives (role-run-metrics.ts).
 //
-// ATTRIBUTION: the event's own actor prefix first ("auto:*" / "human:*", via
-// parseEventActor), then decisionAttribution(kind) for rows with no usable actor.
-// "unknown" stays unknown: it never makes a rung autonomous, and it is reported.
+// ATTRIBUTION, three classes. The event's own actor first (parseEventActor), then the kind
+// for rows with no usable actor:
+//   auto       a machine acted ("auto:*"), or the kind is machine-attributed by the shared map.
+//   candidate  the CANDIDATE acted — "human:candidate", or a candidate-act kind (see
+//              CANDIDATE_ACT_KINDS) on a row with no usable actor.
+//   human      the hiring side acted — a recruiter or operator, or a named person.
+//   unknown    stays unknown: it never makes a rung autonomous, and it is reported.
 //
-// A "human" here is whatever the shared attribution map calls human — a recruiter's
-// click AND a candidate's own act (an application, an offer reply). That is the one
-// meaning the decision log and the analytics rollup already share; this module does
-// not narrow it.
+// WHY `candidate` IS ITS OWN CLASS (ADR-0011, amendment 2026-10-06): goal 1 is "one role runs
+// end to end without a human step", and a human step is one the HIRING SIDE took. A candidate
+// applying, re-applying, answering a follow-up or replying to an offer is the process
+// working, not a step the hiring side took. decisionAttribution() calls those kinds "human"
+// — the right answer for the decision log and the analytics rollup, which is why it is NOT
+// changed — so before this class existed every applied thread read firstHumanStage=slate and
+// no role could ever score autonomous. A candidate event neither dirties its rung nor is ever
+// firstHuman; `candidateEvents` keeps the exclusion visible rather than silent.
 
 import { decisionAttribution, parseEventActor } from "./decision-attribution.ts";
 import { DEFAULT_STAGE_AXIS, roleOf, type StageDef, type StageRole } from "./pipeline-stages.ts";
@@ -42,7 +50,16 @@ export type ThreadEvent = {
   createdAt: string;
 };
 
-export type EventAttribution = "auto" | "human" | "unknown";
+export type EventAttribution = "auto" | "human" | "candidate" | "unknown";
+
+/** The kinds that are a CANDIDATE's own act when the row carries no usable actor — the
+ *  writers of these never stamp one, so the kind is the only witness left. An explicit
+ *  `human:recruiter` / `auto:*` actor on the same kind still wins (eventAttribution).
+ *  - applied / re_applied: the candidate submitted (or resubmitted) an application.
+ *  - offer_accepted / offer_declined: the candidate's reply to an offer.
+ *  - profile_enriched: the candidate's answer to a follow-up question
+ *    (api/apply/[id]/followup). */
+export const CANDIDATE_ACT_KINDS: readonly string[] = ["applied", "re_applied", "offer_accepted", "offer_declined", "profile_enriched"];
 
 /** Kinds whose rung does not depend on how a workspace named its columns. Deliberately
  *  short: a kind that can happen at several rungs (`rejected`, `advanced`, `moved`) is
@@ -98,15 +115,21 @@ export function eventRung(event: Pick<ThreadEvent, "kind" | "toStage">, axis: re
 /** Who acted: the actor prefix first, the kind's attribution only when the row has none. */
 export function eventAttribution(event: Pick<ThreadEvent, "kind" | "actor">): EventAttribution {
   const actor = parseEventActor(event.actor).kind;
-  return actor !== "unknown" ? actor : decisionAttribution(event.kind);
+  if (actor === "human") {
+    // parseEventActor reports a role token as a null name, so it cannot tell "candidate" from
+    // "recruiter" — read the token itself. Every other human actor stays human.
+    return (event.actor ?? "").trim().slice("human:".length).trim().toLowerCase() === "candidate" ? "candidate" : "human";
+  }
+  if (actor !== "unknown") return actor;
+  return CANDIDATE_ACT_KINDS.includes(event.kind) ? "candidate" : decisionAttribution(event.kind);
 }
 
 export type ThreadAutonomy = {
   /** Distinct ladder rungs at least one event stands on. */
   stagesReached: number;
-  /** Reached rungs where every event is machine-attributed — none human, none unknown. */
+  /** Reached rungs where every event is machine- or candidate-attributed — none hiring-side human, none unknown. */
   stagesAutonomous: number;
-  /** The lowest rung with a human event, or null when no placed event is human. */
+  /** The lowest rung with a hiring-side human event, or null when no placed event is one. */
   firstHumanStage: RoleRunStageKind | null;
   /** The kind of the earliest human event on that rung. */
   firstHumanKind: string | null;
@@ -114,6 +137,9 @@ export type ThreadAutonomy = {
   unknownEvents: number;
   /** Events neither projection rule could place on the ladder. */
   unplacedEvents: number;
+  /** Events the candidate themselves took. Excluded from every human reading above, and
+   *  counted here so that exclusion is visible. */
+  candidateEvents: number;
 };
 
 export const EMPTY_THREAD_AUTONOMY: Readonly<ThreadAutonomy> = Object.freeze({
@@ -123,6 +149,7 @@ export const EMPTY_THREAD_AUTONOMY: Readonly<ThreadAutonomy> = Object.freeze({
   firstHumanKind: null,
   unknownEvents: 0,
   unplacedEvents: 0,
+  candidateEvents: 0,
 });
 
 /** Score ONE job's thread from its pipeline events. Order of `events` does not matter. */
@@ -131,10 +158,12 @@ export function threadAutonomy(events: readonly ThreadEvent[], axis: readonly St
   const rungs = new Map<RoleRunStageKind, Rung>();
   let unknownEvents = 0;
   let unplacedEvents = 0;
+  let candidateEvents = 0;
 
   for (const event of events) {
     const attribution = eventAttribution(event);
     if (attribution === "unknown") unknownEvents += 1;
+    if (attribution === "candidate") candidateEvents += 1;
     const stage = eventRung(event, axis);
     if (!stage) {
       unplacedEvents += 1;
@@ -142,7 +171,7 @@ export function threadAutonomy(events: readonly ThreadEvent[], axis: readonly St
     }
     const rung = rungs.get(stage) ?? { events: 0, clean: true, firstHuman: null };
     rung.events += 1;
-    if (attribution !== "auto") rung.clean = false;
+    if (attribution !== "auto" && attribution !== "candidate") rung.clean = false;
     if (attribution === "human" && (!rung.firstHuman || event.createdAt < rung.firstHuman.createdAt)) rung.firstHuman = event;
     rungs.set(stage, rung);
   }
@@ -155,6 +184,7 @@ export function threadAutonomy(events: readonly ThreadEvent[], axis: readonly St
     firstHumanKind: firstHumanRung ? (rungs.get(firstHumanRung)?.firstHuman?.kind ?? null) : null,
     unknownEvents,
     unplacedEvents,
+    candidateEvents,
   };
 }
 

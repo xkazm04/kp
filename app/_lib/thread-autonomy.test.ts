@@ -6,6 +6,7 @@ import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import {
+  CANDIDATE_ACT_KINDS,
   EMPTY_THREAD_AUTONOMY,
   eventAttribution,
   eventRung,
@@ -35,7 +36,7 @@ test("an all-machine thread reaches every rung it touched and has no first human
     ev("interview_scorecard", "auto:interview", null, "2026-03-12T09:00:00Z"),
     ev("offer_drafted", "auto:offer", "Offer", "2026-03-13T09:00:00Z"),
   ]);
-  assert.deepEqual(r, { stagesReached: 5, stagesAutonomous: 5, firstHumanStage: null, firstHumanKind: null, unknownEvents: 0, unplacedEvents: 0 });
+  assert.deepEqual(r, { stagesReached: 5, stagesAutonomous: 5, firstHumanStage: null, firstHumanKind: null, unknownEvents: 0, unplacedEvents: 0, candidateEvents: 0 });
   assert.ok(r.stagesReached > 0, "NON-VACUITY: the fixture reached rungs, so an all-zero default would fail here");
 });
 
@@ -105,6 +106,52 @@ test("a stage is projected by its ROLE on the workspace's axis, so renaming a co
   assert.equal(eventRung({ kind: "moved", toStage: "Screened" }, axis), null, "an id this axis does not declare has no meaning to resolve");
 });
 
+// ---- (a2) a candidate's own act is not a hiring-side human step (ADR-0011 amendment) ----
+
+test("a thread whose only non-auto events are candidate acts has no first human step", () => {
+  const r = threadAutonomy([
+    ev("applied", null, null, "2026-03-10T09:00:00Z"),
+    ev("profile_enriched", null, "Screened", "2026-03-10T09:30:00Z"),
+    ev("offer_accepted", null, null, "2026-03-13T09:00:00Z"),
+    ev("moved", "human:candidate", "Interview", "2026-03-11T09:00:00Z"),
+  ]);
+  assert.equal(r.stagesReached, 4, "NON-VACUITY: slate, screen, interview and offer rungs were all reached");
+  assert.equal(r.firstHumanStage, null);
+  assert.equal(r.firstHumanKind, null);
+  assert.equal(r.stagesAutonomous, 4, "candidate acts leave their rungs clean");
+  assert.equal(r.candidateEvents, 4, "the exclusion is counted, not silent");
+  assert.equal(r.unknownEvents, 0);
+});
+
+test("a recruiter act on a thread that also has candidate acts still counts as human", () => {
+  const r = threadAutonomy([
+    ev("applied", null, null, "2026-03-10T09:00:00Z"),
+    ev("advanced", "human:recruiter", "Screened", "2026-03-10T10:00:00Z"),
+  ]);
+  assert.equal(r.firstHumanStage, "screen");
+  assert.equal(r.firstHumanKind, "advanced");
+  const s = threadAutonomy([
+    ev("applied", null, null, "2026-03-10T09:00:00Z"),
+    ev("interview_scorecard", "human:recruiter", null, "2026-03-12T09:00:00Z"),
+  ]);
+  assert.equal(s.firstHumanStage, "scorecard");
+  assert.equal(s.candidateEvents, 1);
+});
+
+test("a candidate-act kind written by a machine stays auto, and an explicit human actor stays human whatever the kind", () => {
+  assert.equal(eventAttribution({ kind: "applied", actor: "auto:intake" }), "auto");
+  assert.equal(eventAttribution({ kind: "applied", actor: "human:recruiter" }), "human");
+  assert.equal(eventAttribution({ kind: "offer_accepted", actor: "human:operator" }), "human");
+  assert.equal(eventAttribution({ kind: "applied", actor: "human:Petra" }), "human");
+  assert.equal(eventAttribution({ kind: "applied", actor: null }), "candidate");
+  assert.equal(eventAttribution({ kind: "advanced", actor: "human:candidate" }), "candidate");
+  assert.equal(eventAttribution({ kind: "advanced", actor: null }), "human", "a non-candidate kind with no actor keeps the shared map's answer");
+  const r = threadAutonomy([ev("applied", "auto:intake", null, "2026-03-10T09:00:00Z")]);
+  assert.equal(r.candidateEvents, 0);
+  assert.equal(r.stagesAutonomous, 1);
+  for (const kind of CANDIDATE_ACT_KINDS) assert.equal(eventAttribution({ kind, actor: null }), "candidate", kind);
+});
+
 // ---- (b) the server read, against the REAL schema -----------------------------------
 
 const WS_A = DEFAULT_WORKSPACE_ID;
@@ -171,6 +218,20 @@ test("one row per job over a window, scoped to the workspace — a second team's
   assert.equal(b.jobs[0].events, 2, "the mismatched-workspace row is in neither team's read");
   assert.equal(b.jobs[0].firstHumanStage, "screen");
 
+});
+
+test("an applied row with a null actor plus a machine scored row reads as no first human step", () => {
+  const e = entry(WS_A, "job-candidate-act", "Candidate Act Role", "c1");
+  put(e.id, "Candidate Act Role", "applied", null, "Accepted", "2026-03-20T09:00:00Z");
+  put(e.id, "Candidate Act Role", "scored", "auto:screen-wave", "Screened", "2026-03-20T09:05:00Z");
+
+  const job = listThreadAutonomyByJob({ workspaceId: WS_A, now: NOW }).jobs.find((j) => j.jobId === "job-candidate-act");
+  assert.ok(job);
+  assert.ok(job.stagesReached >= 2, "NON-VACUITY: the fixture reached at least two rungs");
+  assert.equal(job.firstHumanStage, null);
+  assert.equal(job.firstHumanKind, null);
+  assert.equal(job.candidateEvents, 1);
+  assert.equal(job.stagesAutonomous, job.stagesReached);
 });
 
 test("the read is bounded: a hit event cap is reported, never silent", () => {
