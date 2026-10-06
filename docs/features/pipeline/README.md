@@ -1703,9 +1703,28 @@ gate still refuses to contact them. The rule and its reasoning:
 [the jobs doc](../jobs/README.md#silver-medalist-alerts-are-a-reconciled-projection-behind-one-eligibility-gate).
 Pinned by `app/api/pipeline/add-eligibility.test.ts`.
 
+### The note thread — authored notes beside the scratchpad
+
+`pipeline_entries.notes` is still one free-text scratchpad (`set_notes`, autosaved, unchanged).
+Beside it, an entry carries an append-only **thread**: `pipeline_entry_notes` (`id`, `entry_id`,
+`workspace_id`, `author_user_id` NULL, `body`, `created_at`), owned by `app/_lib/db/entry-notes.ts`.
+
+| Concern | Rule |
+| --- | --- |
+| Write | `POST /api/pipeline/[id]` action `add_note` with `{ note }`, under `pipeline:write`. Trimmed; non-text is 400 `PIPELINE_NOTES_INVALID`, empty is 400 `PIPELINE_NOTE_EMPTY`, over `MAX_NOTES_LENGTH` (4000, shared with `set_notes`) is 400 `PIPELINE_NOTES_TOO_LONG` with `max`/`length` as data. Answers 201 `{ note }`. |
+| Read | `GET /api/pipeline/[id]/notes` → `{ notes }`, oldest first (newest last), operator-gated like the sibling reads. |
+| Author | Stamped from the **session** (`currentUser().userId`), never the body: an `author` field in the request has no effect. No signed-in user (local / open mode) is stored NULL and shown as "Local user". The display name is resolved at **read** time from `users` (name, else email), so a renamed user shows their current name; no name is copied into the row. A user id with no account left reads as "Former member". |
+| Tenancy | Workspace-scoped. The insert derives `workspace_id` from the entry in the caller's workspace (an unknown, foreign or erased entry is 404 and writes nothing); every read binds it. |
+| Append-only | No edit and no delete door. The only DELETE is the erasure scrub: `anonymizeEntry` deletes the entry's thread inside the same transaction (a thread holds free text that names the candidate). |
+| UI | `PipelineEntryNoteThread` under the scratchpad on the drawer's Record tab: author, relative time, body, and a composer that appends and re-reads. |
+
+Pinned by `app/_lib/db/entry-notes.test.ts`, `entry-notes-tenancy.test.ts` and the
+thread assertions in `app/_lib/erasure-full-scrub.test.ts`. Known gap: no edit/delete, and
+no candidate data-export path enumerates entry-linked tables yet, so the thread is not in one.
+
 ### The single-entry door declares each action
 
-`POST /api/pipeline/[id]` dispatches eight actions (`set_github`, `set_notes`,
+`POST /api/pipeline/[id]` dispatches nine actions (`set_github`, `set_notes`, `add_note`,
 `reinstate`, `resolve_intake`, `set_stage`, `accept`, `reject`, `approve_event`). What
 each one requires is data in `app/api/pipeline/[id]/entry-actions.ts` (`ENTRY_ACTIONS`),
 not a property of whichever branch remembered it. The route runs `requireOperator()`,
