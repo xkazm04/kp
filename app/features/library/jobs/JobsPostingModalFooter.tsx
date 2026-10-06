@@ -1,6 +1,7 @@
 "use client";
 
 import { BarChart3, Check, Copy, Link2, Users, Zap } from "lucide-react";
+import { BTN_SECONDARY } from "@/app/_components/ui/recipes";
 import { buildUrl } from "@/app/features/shell/tabs";
 import type { useJobPostingModalLogic } from "./jobsPostingModalLogic";
 import { PublishFlightNote, PublishSentences } from "./JobsPublishNote";
@@ -104,7 +105,7 @@ export function JobsPostingModalFooter({
           type="button"
           onClick={() => publishRole()}
           disabled={publishing}
-          className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md border border-amber-300 bg-amber-50 px-3 text-sm font-semibold text-amber-900 hover:bg-amber-100 disabled:opacity-50"
+          className={`${BTN_SECONDARY} h-9 gap-1.5 px-3 text-meta`}
         >
           <Users size={14} /> {td("finishSourcing")}
         </button>
