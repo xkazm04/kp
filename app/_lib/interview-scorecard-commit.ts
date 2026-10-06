@@ -128,42 +128,9 @@ export async function finalizeCandidateInterviewScoring(
   if (deps?.score) {
     scored = await deps.score(session, transcript);
   } else {
-    const scNotes = buildScorecardNotes(transcript);
-    const { notes } = scNotes;
-    if (!notes) {
-      return { attached: false, gate: "closed", session: null };
-    }
-    const autoRes = await runAutomationTask(entryId, "scorecard", notes, undefined, undefined, ws, { deferApply: true });
-    if (!autoRes.result) {
-      return { attached: false, gate: "closed", session: null };
-    }
-    const scorecard = autoRes.result as Record<string, unknown>;
-    const provenance = autoRes.deferred?.provenance ?? {
-      verdictSource: verdictSourceOf(autoRes.source),
-      verdictProvider: autoRes.source === "llm" ? automationProviderLabel() : null,
-    };
-    const actor = autoRes.deferred?.actor ?? `auto:automation-${provenance.verdictSource}`;
-    const recommendation = autoRes.deferred?.recommendation ?? "hold";
-    const version = AUTOMATION_VERSION.scorecard;
-
-    try {
-      const entry = getPipelineEntry(entryId, ws);
-      stampAiScorecardRubricCoverage(scorecard, entry?.roleFamily);
-      let hintText: string | null = null;
-      if (entry && isEarlyCareer(entry.archetype)) {
-        const caseId = devCaseIdForEntry(entry);
-        const scenario = caseId ? ((getDevCase(caseId)?.scenario as CaseInterviewScenario | null) ?? null) : null;
-        const phases = scenario?.phases?.length ? scenario.phases : STUDENT_SCRIPT;
-        hintText = phases.find((p) => p.caseGrounded && (p.feeds ?? []).includes("Coachability"))?.probe ?? null;
-      }
-      scorecard.telemetry = extractTelemetry(transcript, { hintText });
-    } catch {
-      /* telemetry is enrichment */
-    }
-    const coverage = coverageFromNotes(scNotes);
-    if (coverage) scorecard.coverage = coverage;
-
-    scored = { scorecard, provenance, actor, recommendation, version };
+    const synthesized = await synthesizeCandidateScorecard(session, transcript);
+    if (!synthesized) return { attached: false, gate: "closed", session: null };
+    scored = synthesized;
   }
 
   const committed = commitCandidateScorecard(sessionWithEntry, scored.scorecard, scored.provenance, {
@@ -225,4 +192,65 @@ export async function finalizeCandidateInterviewScoring(
     gate: committed.gate,
     session: committed.session,
   };
+}
+
+/** What the scoring half of a completed interview produces, before anything is written. */
+export type SynthesizedScorecard = {
+  scorecard: Record<string, unknown>;
+  provenance: VerdictProvenance;
+  actor?: string;
+  recommendation?: string;
+  version?: string;
+};
+
+/**
+ * The default scorer: the transcript into the `scorecard` automation task (outside any
+ * transaction), plus the telemetry/coverage enrichment. Null when there is nothing to
+ * score — an empty transcript, or a task that answered no result. Exported so a caller
+ * that must refuse a template-sourced verdict (the goal-1 demo run) can wrap the SAME
+ * scorer through `FinalizeScoringDeps.score` instead of copying it.
+ */
+export async function synthesizeCandidateScorecard(
+  session: InterviewSession,
+  transcript: VoiceTurn[]
+): Promise<SynthesizedScorecard | null> {
+  const entryId = session.entryId;
+  if (!entryId) return null;
+  const ws = session.workspaceId ?? getEntryWorkspace(entryId);
+  const scNotes = buildScorecardNotes(transcript);
+  const { notes } = scNotes;
+  if (!notes) {
+    return null;
+  }
+  const autoRes = await runAutomationTask(entryId, "scorecard", notes, undefined, undefined, ws, { deferApply: true });
+  if (!autoRes.result) {
+    return null;
+  }
+  const scorecard = autoRes.result as Record<string, unknown>;
+  const provenance = autoRes.deferred?.provenance ?? {
+    verdictSource: verdictSourceOf(autoRes.source),
+    verdictProvider: autoRes.source === "llm" ? automationProviderLabel() : null,
+  };
+  const actor = autoRes.deferred?.actor ?? `auto:automation-${provenance.verdictSource}`;
+  const recommendation = autoRes.deferred?.recommendation ?? "hold";
+  const version = AUTOMATION_VERSION.scorecard;
+
+  try {
+    const entry = getPipelineEntry(entryId, ws);
+    stampAiScorecardRubricCoverage(scorecard, entry?.roleFamily);
+    let hintText: string | null = null;
+    if (entry && isEarlyCareer(entry.archetype)) {
+      const caseId = devCaseIdForEntry(entry);
+      const scenario = caseId ? ((getDevCase(caseId)?.scenario as CaseInterviewScenario | null) ?? null) : null;
+      const phases = scenario?.phases?.length ? scenario.phases : STUDENT_SCRIPT;
+      hintText = phases.find((p) => p.caseGrounded && (p.feeds ?? []).includes("Coachability"))?.probe ?? null;
+    }
+    scorecard.telemetry = extractTelemetry(transcript, { hintText });
+  } catch {
+    /* telemetry is enrichment */
+  }
+  const coverage = coverageFromNotes(scNotes);
+  if (coverage) scorecard.coverage = coverage;
+
+  return { scorecard, provenance, actor, recommendation, version };
 }
