@@ -265,6 +265,20 @@ jobs:
       # to the committed scenarios.
       - run: npm run test:bench-driver
 
+      # Fixtures for the KPI instruments (scripts/kpi/__tests__). Same gap as the
+      # steps above: they are .mjs under scripts/, so `npm run test:unit`'s
+      # app|packages|edge|i18n globs never collected them, and nothing ran them.
+      # What they pin is not cosmetic — the goal-1 demo run plays a simulated
+      # interview, which WRITES candidate rows (a session, a transcript, a sealed
+      # scorecard) against a copy of the operator's database. Its three safety
+      # invariants (a declared-throwaway database, comms egress sealed, no
+      # transcript or scorecard text in the reading, including on the error paths)
+      # live in this file and nowhere else.
+      #
+      # Run through the launcher rather than `node --test` so it gets the same
+      # scrubbed environment and per-test timeout as the main suite.
+      - run: node scripts/run-unit-tests.mjs "scripts/kpi/**/*.test.mjs"
+
       # Fixtures for the flake policy (scripts/test/). `npm run test:unit` below
       # now re-runs the files that failed and labels each BROKEN / FLAKE /
       # QUARANTINE, and holds test-quarantine.json to a ceiling, a reason and an

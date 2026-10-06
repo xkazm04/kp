@@ -106,7 +106,7 @@ rather than a snapshot.
 | `npm run hooks:check` | `.githooks/*` points at an npm script or a file that no longer exists |
 | `npm run test:bench-driver` | fixtures for the App-master bench driver and its committed baseline |
 | `npm run test:flake` | fixtures for the flake policy — a FLAKE still blocks, a quarantine does not, and `test-quarantine.json` has a dead/unexplained/expired entry or is over its ceiling |
-| `npm run test:unit` | the node:test suite over `app/**/*.test.ts`, `packages/**/*.test.ts`, `edge/**/*.test.ts` and `i18n/**/*.test.ts` — a failing run re-runs the failing files once and labels each BROKEN / FLAKE / QUARANTINE |
+| `npm run test:unit` | the node:test suite over `app/**/*.test.ts`, `packages/**/*.test.ts`, `edge/**/*.test.ts` and `i18n/**/*.test.ts` — a failing run re-runs the failing files once and labels each BROKEN / FLAKE / QUARANTINE. Those globs do NOT reach the `.mjs` fixtures under `scripts/`, which is why so many rows above are one `scripts/` directory each; ci.yml runs the KPI instruments' own set through the same launcher (`node scripts/run-unit-tests.mjs "scripts/kpi/**/*.test.mjs"` — the goal-1 demo's three safety invariants live there) |
 | `npm run build` | `next build`, after `schemas:gen` |
 | `npm run lint:ruff-ratchet` | a `ruff.toml` ignore has no ceiling, is over it, or now suppresses nothing |
 | `npm run test:python:gate` | the gated Python suite, or its skip count exceeded `KP_SKIP_BASELINE` |
