@@ -337,3 +337,23 @@ test("a constructed shim NextResponse carries body, status, headers and the cook
   assert.equal(NextResponse.next().status, 200);
   assert.deepEqual(await NextResponse.json({ a: 1 }, { status: 201 }).json(), { a: 1 });
 });
+
+test("next() and rewrite() speak the middleware protocol proxy.ts's tests read", async () => {
+  type Mw = {
+    next: (init?: { request?: { headers: Headers } }) => Response;
+    rewrite: (url: URL | string, init?: { request?: { headers: Headers } }) => Response;
+  };
+  const NextResponse = (await loadShim()).NextResponse as Mw;
+
+  assert.equal(NextResponse.next().headers.get("x-middleware-next"), "1");
+  assert.equal(NextResponse.next().headers.get("x-middleware-rewrite"), null);
+
+  const rewritten = NextResponse.rewrite(new URL("/nowhere", "https://kp.test"));
+  assert.equal(rewritten.headers.get("x-middleware-rewrite"), "https://kp.test/nowhere");
+  assert.equal(rewritten.headers.get("x-middleware-next"), null);
+
+  // Request-header overrides ride along the way the real response encodes them.
+  const forwarded = NextResponse.next({ request: { headers: new Headers({ "x-nonce": "n1" }) } });
+  assert.equal(forwarded.headers.get("x-middleware-override-headers"), "x-nonce");
+  assert.equal(forwarded.headers.get("x-middleware-request-x-nonce"), "n1");
+});

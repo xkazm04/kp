@@ -169,9 +169,32 @@ export class NextResponse extends Response {
     return withCookies(new Response(null, { status, headers: { location: String(url) } }));
   }
 
-  static next() {
-    return withCookies(new Response(null, { status: 200 }));
+  // `next()` and `rewrite()` answer in the middleware protocol the real NextResponse
+  // speaks: a marker header the framework reads, plus (when `init.request.headers` is
+  // given) the override list and one `x-middleware-request-<name>` per header. proxy.ts
+  // returns both, and its tests read those headers to tell "forwarded" from "hidden".
+  static next(init = {}) {
+    const response = withCookies(new Response(null, { status: 200, headers: { "x-middleware-next": "1" } }));
+    return withRequestOverrides(response, init.request?.headers);
   }
+
+  static rewrite(destination, init = {}) {
+    const response = withCookies(
+      new Response(null, { status: 200, headers: { "x-middleware-rewrite": String(destination) } })
+    );
+    return withRequestOverrides(response, init.request?.headers);
+  }
+}
+
+function withRequestOverrides(response, requestHeaders) {
+  if (!requestHeaders) return response;
+  const names = [];
+  for (const [name, value] of new Headers(requestHeaders)) {
+    names.push(name);
+    response.headers.set(`x-middleware-request-${name}`, value);
+  }
+  response.headers.set("x-middleware-override-headers", names.join(","));
+  return response;
 }
 
 export const after = (fn) => {
