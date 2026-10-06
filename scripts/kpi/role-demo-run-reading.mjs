@@ -206,7 +206,9 @@ function stoppedClauses(tally) {
  *
  *  @param {{ verdict: string, reason: string|null, humanStepsOutsideGates?: number }} goalOne
  *  @param {{ measured: boolean, headline: string }} reading
- *  @param {{ mode: "policy"|"all", tally: ReturnType<typeof tallyStandIn> } | null} [standIn] */
+ *  `standIn.simulatedOffers` (optional) is how many of the approved offers rest on a scorecard
+ *  from a simulated interview (simulatedOfferCount); above 0 the headline carries the label.
+ *  @param {{ mode: "policy"|"all", tally: ReturnType<typeof tallyStandIn>, simulatedOffers?: number } | null} [standIn] */
 export function goalOneHeadline(goalOne, reading, standIn = null) {
   if (!reading.measured) return reading.headline;
   if (standIn?.mode === "all") return "goal 1: verdict withheld: the stand-in approved without a policy (--approve-all, mechanics only)";
@@ -214,7 +216,16 @@ export function goalOneHeadline(goalOne, reading, standIn = null) {
   if (!standIn) return goalOne.verdict === "met" ? "goal 1: met" : `goal 1: not met: ${goalOne.reason}`;
   const tag = " (gates approved by demo stand-in)";
   const offers = standIn.tally.byGate.offer.approved;
-  if (goalOne.verdict === "met" && offers > 0) return `goal 1: met: ${count(offers, "offer")} approved on a recorded basis${tag}`;
+  if (goalOne.verdict === "met" && offers > 0) {
+    // An approval that rests on a scorecard from a SIMULATED interview is never a plain "met":
+    // the candidate was played by the model, and the headline says so (ADR-0011, 2026-10-06).
+    const simulated = standIn.simulatedOffers ?? 0;
+    if (simulated > 0) {
+      const share = simulated < offers ? `, ${simulated} of ${offers} approved offers on a simulated interview` : "";
+      return `goal 1: met on a SIMULATED interview (candidate played by the model from the seeded CV), gates by the demo stand-in: ${count(offers, "offer")} approved on a recorded basis${share}`;
+    }
+    return `goal 1: met: ${count(offers, "offer")} approved on a recorded basis${tag}`;
+  }
   const clauses = stoppedClauses(standIn.tally);
   // A human act outside the gates, or a stop the stand-in did not cause, is the ledger's to name.
   if ((goalOne.humanStepsOutsideGates ?? 0) > 0 || clauses.length === 1) clauses.push(goalOne.reason ?? "no offer approved");
@@ -288,4 +299,32 @@ export function formatGateCounts(counts) {
 export function formatCoverage(row) {
   if (!row || row.total === 0 || row.coverage === null) return "n/a (0 artifacts)";
   return `${row.autonomousComplete}/${row.total} (${Math.round(row.coverage * 100)}%)`;
+}
+
+/** A simulated-interview row is RATED only when it carries a recommendation: a session with
+ *  no accepted scorecard (the template case) is not a basis for anything. */
+export function isRatedSimulatedRow(row) {
+  return Boolean(row) && row.skipped === null && typeof row.sessionId === "string" && typeof row.recommendation === "string";
+}
+
+/** How many approved offers rest on a scorecard from a simulated interview: the offer
+ *  approvals the stand-in gave, on branches whose simulated interview was rated.
+ *  @param {{ gate: string, branchRef: string, action: string }[]} decisions
+ *  @param {{ branchRef: string, sessionId: string|null, recommendation: string|null, skipped: string|null }[]} rows
+ *  @returns {number} */
+export function simulatedOfferCount(decisions, rows) {
+  const rated = new Set(rows.filter(isRatedSimulatedRow).map((r) => r.branchRef));
+  return decisions.filter((d) => d.gate === "offer" && d.action === "approve" && rated.has(d.branchRef)).length;
+}
+
+/** The simulated interviews as lines: one per branch with counts and the recommendation —
+ *  never a transcript or scorecard text.
+ *  @param {{ branchRef: string, sessionId: string|null, recommendation: string|null, verdictSource: string|null, turns: number, endReason: string|null, skipped: string|null }[]} rows
+ *  @returns {string[]} */
+export function formatSimulatedInterviews(rows) {
+  return rows.map((r) => {
+    if (isRatedSimulatedRow(r)) return `${r.branchRef}: session ${r.sessionId} · ${r.recommendation} (${r.verdictSource ?? "unknown"}) · ${r.turns} turns · ended ${r.endReason ?? "unknown"}`;
+    const counts = r.sessionId ? ` · session ${r.sessionId} · ${r.turns} turns · ended ${r.endReason ?? "unknown"}` : "";
+    return `${r.branchRef}: ${r.skipped ?? "not rated"}${counts}`;
+  });
 }

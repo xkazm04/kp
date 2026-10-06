@@ -313,3 +313,27 @@ sent. An approval that arrives after the effect is not an approval, and
   the same pass as the invite approval, before an interview can have happened, so a real
   flow still records `unrated`; fixing that changes the engine's shape and is a later
   decision.
+- **2026-10-06 — the demo holds a simulated interview, so S5 has a scorecard to read.** The
+  operator's ruling (interview ask answered "Simulated interview in the demo"): under
+  `--approve-gates` only, and only in the child half of `scripts/kpi/role-demo-run.mjs` (the
+  scratch copy of the database), the demo plays an interview for each branch whose invite its
+  stand-in approves — the candidate played by the model from the entry's seeded CV through the
+  existing interview simulator (`app/_lib/interview-sim/role-demo.ts`, the Claude CLI as `SimLlm`;
+  no new provider, key, dependency or npm script) — and seals its scorecard with the existing
+  `finalizeCandidateInterviewScoring`. **Ordering, with no engine change:** the invite gate parks
+  S4; the stand-in's approval is committed between two `advanceRoleRun` passes; S5 runs on the
+  NEXT pass. The demo holds and seals the interview right after the approval and before that pass,
+  so `runScorecard` picks it up through `latestScoredCandidateInterviewByEntry` unchanged —
+  `role-run-engine.ts`, `role-run-stages.ts`, `role-run-gates.ts` and every runner are untouched.
+  **'llm'-only:** a scorecard is accepted only when the scorer's `verdictSource` is `llm`; a
+  template scorecard is never attached, so the card stays `unrated`, and so does a branch whose
+  provider is unavailable (KP_OFFLINE, no `claude` on PATH, a throw) or that has no agenda — the
+  reason is recorded and the run continues. A keyless start therefore reads exactly as before.
+  **The label:** the session's candidate label ends ` (simulated)`, every reading lists one row per
+  branch (`simulatedInterviews`: session, recommendation, verdict source, turns, end reason, skip
+  reason — never transcript or scorecard text), and a goal-1 `met` that rests on such a scorecard
+  reads "met on a SIMULATED interview (candidate played by the model from the seeded CV), gates by
+  the demo stand-in", never a plain `met`. The demo plays at most 2 branches by default
+  (`--sim-interviews <n>`, hard ceiling 5; the rest read "not simulated: cap"). `roleRunGoalOneSteps`
+  and the stand-in policy (`standInDecision`) are unchanged.
+

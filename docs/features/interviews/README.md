@@ -1919,6 +1919,7 @@ it writes; "Verdicts" covers what a run proves.
 | `app/_lib/interview-sim/fake.ts` | `fakeInterviewer`, `fakeCandidate`, `recordingLlm`: keyless scripted stand-ins. |
 | `app/_lib/interview-sim/runner.ts` | `runSimulations`: instruments, resume, the worker pool, the dumps and the index. |
 | `app/_lib/interview-sim/baseline-diff.ts` | `diffVerdicts`, `renderDiff`, `loadBaseline`: the keyless brief-change diff behind `--baseline` (see "Comparing against a baseline"). |
+| `app/_lib/interview-sim/role-demo.ts` | `simulateInterviewForEntry` / `createRoleDemoSimulator`: the goal-1 demo run's simulated interview for ONE real pipeline entry (see "The goal-1 demo's simulated interview"). Throwaway database only (`assertThrowawayDb`). |
 
 No app route imports any of these (the engine sits under `app/_lib/` only so its tests run
 in `npm run test:unit`).
@@ -2102,6 +2103,32 @@ or quality), and `handles`, the required response in one line.
   approximation of `function_call_output` + `response.create`. A directive decided during a
   reply's tool exchanges reaches the stand-in only at its next call.
 - **One attempt per call.** Drops and reconnects (`resume`) are not simulated.
+
+### The goal-1 demo's simulated interview
+
+`scripts/kpi/role-demo-run.mjs --approve-gates` (ADR-0011, amendment 2026-10-06) is the
+instrument that walks one role through the run engine on a scratch COPY of the database. Nothing
+in it ever holds an interview, so the scorecard stage (S5) would read `unrated` for every branch
+and no offer could be approved. With `--approve-gates` the demo therefore plays the interview
+itself: right after its stand-in approves an interview invite (between two `advanceRoleRun`
+passes, so S5 runs on the next one and the engine is unchanged), `role-demo.ts` runs the existing
+simulator for that branch (`--sim-interviews <n>`: default 2, ceiling 5, 0 turns it off).
+
+- The interviewer holds the entry's real private brief and agenda (`buildGroundedInterview` and
+  `buildInterviewKit`, the mint and connect builds); the candidate is the model, playing the
+  entry's seeded CV profile and told to invent no credential. Short call: 8 candidate turns.
+- The session is a candidate-mode `interview_sessions` row whose label ends ` (simulated)`; the
+  transcript is stored and the session completed through the interview store, and the scorecard
+  comes from `finalizeCandidateInterviewScoring` (the `scorecard` automation task).
+- **Only a scorecard the model wrote is accepted** (`verdictSource === "llm"`). A template
+  scorecard, KP_OFFLINE, no `claude` CLI on PATH, a provider that throws, or no agenda leaves the
+  branch `unrated` and records the reason; the offline/no-CLI cases mint no session at all.
+- The reading carries one row per branch (`simulatedInterviews`: session, recommendation,
+  verdict source, turns, end reason, skip reason) and never transcript or scorecard text. A goal-1
+  `met` that rests on such a scorecard says so: "met on a SIMULATED interview (candidate played
+  by the model from the seeded CV), gates by the demo stand-in".
+- Tests: `scripts/kpi/__tests__/role-demo-interviews.test.mjs` (keyless: the simulator's
+  doubles and a scripted scorer are injected through `runDemoOnCopy`'s `simDeps`).
 
 ### Verdicts
 

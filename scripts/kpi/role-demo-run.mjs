@@ -5,7 +5,7 @@
 // is the instrument that PRODUCES a run to read, because no role has ever been run end to end
 // outside a test.
 //
-//   node --import ./scripts/test-alias-loader.mjs --experimental-transform-types --disable-warning=ExperimentalWarning scripts/kpi/role-demo-run.mjs [--job <id>] [--json] [--approve-gates | --approve-all]
+//   node --import ./scripts/test-alias-loader.mjs --experimental-transform-types --disable-warning=ExperimentalWarning scripts/kpi/role-demo-run.mjs [--job <id>] [--json] [--approve-gates [--sim-interviews <n>] | --approve-all]
 //
 //   --job <id>          which job to run (default job-001)
 //   --workspace <id>    which workspace's board (default: the default workspace)
@@ -13,6 +13,8 @@
 //   --approve-gates     opt in: after each pass, a labelled stand-in ("demo-stand-in") carries out
 //                       the engine's own recorded proposal at each parked gate — see below. The
 //                       only mode whose reading can count for goal 1
+//   --sim-interviews <n> with --approve-gates: how many approved-invite branches get a SIMULATED
+//                       interview (default 2, hard ceiling 5; 0 turns it off) — see below
 //   --approve-all       MECHANICS ONLY: the stand-in approves every parked branch with no policy.
 //                       Reports the stages reached per branch; its goal-1 verdict is withheld,
 //                       never "met"
@@ -31,6 +33,18 @@
 // approver "demo-stand-in" and a token minted over that branch's own subject ref
 // (roleRunGateToken, the same call the engine's tests make), then advances again, until a pass
 // produces nothing and resolves nothing, the run stops running, or MAX_PASSES.
+//
+// THE SIMULATED INTERVIEW (--approve-gates only; ADR-0011 amendment 2026-10-06). Nothing in the
+// demo ever holds an interview, so every S5 card would read "unrated" and no offer could be
+// approved. Right after the stand-in approves an interview invite — between two advanceRoleRun
+// passes, so S5 runs on the NEXT one and the engine is untouched — the child plays that
+// branch's candidate from its seeded CV through the existing interview simulator (the Claude
+// CLI), seals the scorecard with the existing `scorecard` synthesis, and S5 reads it as it
+// would a real one. Only a scorecard the model itself wrote ('llm') is accepted: a template
+// scorecard, no CLI, KP_OFFLINE or a throwing provider leave the branch "unrated" with the
+// reason recorded. Every reading labels the interview simulated and lists one row per
+// branch (session, recommendation, turns, end) — never transcript text. The logic is
+// app/_lib/interview-sim/role-demo.ts; this script only calls it.
 //
 // WHAT THE STAND-IN DECIDES is standInDecision in role-demo-run-reading.mjs, a stated policy,
 // not "approve everything": it carries out the engine's recorded proposal and adds no judgment.
@@ -68,6 +82,7 @@ import { copyFileSync, existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { MAX_PASSES, runDemoOnCopy } from "./role-demo-run-child.mjs";
 import {
   STAND_IN_APPROVER,
   branchesByFurthest,
@@ -76,10 +91,9 @@ import {
   formatStandInTally,
   furthestPerBranch,
   goalOneHeadline,
-  scorecardRecommendationOf,
-  screenRouteOf,
+  formatSimulatedInterviews,
+  simulatedOfferCount,
   stagesReached,
-  standInDecision,
   stoppedAt,
   summarizeRoleDemoRun,
   tallyStandIn,
@@ -95,7 +109,6 @@ if (args.includes("--approve-gates") && args.includes("--approve-all")) {
 }
 /** null: nobody passes gates; "policy": --approve-gates; "all": --approve-all (mechanics only). */
 const standInMode = args.includes("--approve-gates") ? "policy" : args.includes("--approve-all") ? "all" : null;
-const MAX_PASSES = 20;
 const RESULT_MARK = "KP_ROLE_DEMO_RESULT ";
 
 function flagValue(name) {
@@ -109,125 +122,29 @@ function flagValue(name) {
   return value;
 }
 
+const MAX_SIM_INTERVIEWS = 5; // restated from role-demo.ts (the parent half loads no TS); the simulator clamps again
+const simInterviewsArg = flagValue("--sim-interviews");
+if (simInterviewsArg !== undefined && standInMode !== "policy") {
+  console.error("--sim-interviews only applies with --approve-gates");
+  process.exit(2);
+}
+const simInterviews = simInterviewsArg === undefined ? undefined : Number(simInterviewsArg);
+if (simInterviews !== undefined && !(Number.isInteger(simInterviews) && simInterviews >= 0)) {
+  console.error("--sim-interviews needs a whole number, 0 or more");
+  process.exit(2);
+}
+const simCap = simInterviews === undefined ? undefined : Math.min(simInterviews, MAX_SIM_INTERVIEWS);
+
 const jobId = flagValue("--job") ?? "job-001";
 const workspaceId = flagValue("--workspace");
 
 // CHILD HALF (`--run-copy`, internal): KP_DB_PATH is already the scratch copy, so importing the
-// stores is safe. The result goes out as one marked line so a store's own logging cannot be
-// mistaken for it.
+// stores is safe. The loop itself is role-demo-run-child.mjs (a test drives the same function
+// with the simulator's doubles); the result goes out as one marked line so a store's own
+// logging cannot be mistaken for it.
 if (args.includes("--run-copy")) {
-  const { getOrCreateRoleRun, listStageArtifacts } = await import("@/app/_lib/db/role-runs");
-  const { DEFAULT_WORKSPACE_ID } = await import("@/app/_lib/db/workspaces");
-  const { advanceRoleRun, commitRoleRunStageGate, DEFAULT_STAGE_RUNNERS } = await import("@/app/_lib/role-run-engine");
-  const { ROLE_RUN_STAGES, nextStageFor } = await import("@/app/_lib/role-run-stages");
-  const { GATE_STAGE, ROLE_RUN_GATES, roleRunGateToken } = await import("@/app/_lib/role-run-gates");
-  const { roleRunCoverage, gateDwell, roleRunGoalOneSteps } = await import("@/app/_lib/role-run-metrics");
-
-  const ws = workspaceId ?? DEFAULT_WORKSPACE_ID;
-  const { run } = getOrCreateRoleRun({ jobId, cycle: `demo-${Date.now()}` }, ws);
-  let status = run.status;
-  let passes = 0;
-  let failure = null;
-  // Every decision the stand-in took, in order: { gate, branchRef, action, reason }. Empty
-  // unless a stand-in flag is on.
-  const standInDecisions = [];
-  // A branch the policy left parked shows up in every later pass's `awaiting`; it is decided
-  // (and counted) once.
-  const decidedLeft = new Set();
-  // The invite and offer gates have no policy version in the ledger — the engine records one
-  // only on the screen — so they sign with the labels the engine's own tests use.
-  const FALLBACK_POLICY = { interview_invite: "invite-1", offer: "offer-1" };
-
-  /** Pass the stand-in's gates for the branches the pass left parked; returns how many it
-   *  RESOLVED (approved or declined) — a branch it leaves resolves nothing. */
-  const resolveAwaiting = (awaiting) => {
-    let resolved = 0;
-    for (const { branchRef, gate } of awaiting) {
-      const key = `${gate}|${branchRef}`;
-      if (decidedLeft.has(key)) continue;
-      const artifacts = listStageArtifacts(run.id, ws);
-      const decision =
-        standInMode === "all"
-          ? { action: "approve", reason: "approve-all: no policy" }
-          : standInDecision({ gate, screenRoute: screenRouteOf(artifacts, branchRef), scorecardRecommendation: scorecardRecommendationOf(artifacts, branchRef) });
-      if (decision.action === "leave") {
-        decidedLeft.add(key);
-        standInDecisions.push({ gate, branchRef, ...decision });
-        continue;
-      }
-      const parked = artifacts.filter((a) => a.kind === GATE_STAGE[gate] && a.branchRef === branchRef).sort((a, b) => b.seq - a.seq)[0];
-      const recorded = parked?.payload?.policyVersion;
-      const policyVersion = typeof recorded === "string" && recorded ? recorded : FALLBACK_POLICY[gate];
-      if (!policyVersion) throw new Error(`no live policy version for the ${gate} gate`);
-      const now = Date.now();
-      commitRoleRunStageGate(
-        {
-          runId: run.id,
-          branchRef,
-          gate,
-          decision: decision.action === "approve" ? "approved" : "declined",
-          policyVersion,
-          subjectRefs: [branchRef],
-          token: roleRunGateToken(run.id, gate, policyVersion, [branchRef], now),
-          approver: STAND_IN_APPROVER,
-          now,
-        },
-        ws
-      );
-      standInDecisions.push({ gate, branchRef, ...decision });
-      resolved += 1;
-    }
-    return resolved;
-  };
-
-  /** The stage a throw most likely came from, read off the ledger: the run-wide stage still
-   *  owed, else the owed branch stage on the chain with the fewest rows (the pass is
-   *  round-robin, so the thrower is the first branch left behind). Inferred, and said so. */
-  const stageOwedAfterThrow = () => {
-    const arts = listStageArtifacts(run.id, ws);
-    const wide = nextStageFor(arts, null);
-    if (wide.action === "produce") return wide.kind;
-    const slate = arts.filter((a) => a.kind === "slate" && a.branchRef === null && a.status === "complete").sort((a, b) => b.seq - a.seq)[0];
-    const refs = (slate?.payload?.candidates ?? []).map((c) => c.candidateRef).filter(Boolean);
-    const owed = refs
-      .map((ref) => ({ next: nextStageFor(arts, ref), rows: arts.filter((a) => a.branchRef === ref).length }))
-      .filter((o) => o.next.action === "produce")
-      .sort((a, b) => a.rows - b.rows)[0];
-    return owed ? owed.next.kind : null;
-  };
-
-  try {
-    while (passes < MAX_PASSES && status === "running") {
-      passes += 1;
-      // DEFAULT_STAGE_RUNNERS passed whole and nothing else: a runner that needs a key, Python
-      // or the network surfaces as a throw here, and the reading says so instead of stubbing it.
-      const result = await advanceRoleRun(run.id, { runners: DEFAULT_STAGE_RUNNERS }, ws);
-      status = result.status;
-      const resolvedNow = standInMode ? resolveAwaiting(result.awaiting) : 0;
-      if (result.produced.length === 0 && resolvedNow === 0) break;
-    }
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    const stage = standInMode ? stageOwedAfterThrow() : null;
-    failure = `engine threw after ${passes} pass${passes === 1 ? "" : "es"}${stage ? ` at the ${stage} stage (inferred from the ledger)` : ""}: ${message}`;
-  }
-  const artifacts = listStageArtifacts(run.id, ws);
-  console.log(
-    RESULT_MARK +
-      JSON.stringify({
-        run: { id: run.id, jobId, cycle: run.cycle, workspaceId: ws },
-        status,
-        passes,
-        capped: passes >= MAX_PASSES && status === "running",
-        failure,
-        stageOrder: [...ROLE_RUN_STAGES],
-        artifacts: artifacts.map((a) => ({ kind: a.kind, branchRef: a.branchRef, status: a.status, seq: a.seq, producedAt: a.producedAt, payload: a.payload })),
-        coverage: roleRunCoverage(artifacts),
-        dwell: gateDwell(artifacts),
-        goalOne: roleRunGoalOneSteps(artifacts),
-        ...(standInMode ? { standInDecisions } : {}),
-      })
-  );
+  const record = await runDemoOnCopy({ jobId, workspaceId, standInMode, simCap });
+  console.log(RESULT_MARK + JSON.stringify(record));
   process.exit(0);
 }
 
@@ -279,11 +196,14 @@ const reading = summarizeRoleDemoRun({
   failure: record.failure ?? (record.capped ? `run still running after ${MAX_PASSES} passes` : null),
 });
 
-const standIn = standInMode ? { mode: standInMode, tally: tallyStandIn(record.standInDecisions) } : null;
+const simulatedInterviews = record.simulatedInterviews ?? null;
+const standIn = standInMode
+  ? { mode: standInMode, tally: tallyStandIn(record.standInDecisions), simulatedOffers: simulatedInterviews ? simulatedOfferCount(record.standInDecisions, simulatedInterviews) : 0 }
+  : null;
 
 if (asJson) {
   const standInFields = standIn
-    ? { approvedBy: STAND_IN_APPROVER, standInMode: standIn.mode, mechanicsOnly: standIn.mode === "all", standInTally: standIn.tally, standInDecisions: record.standInDecisions, stagesReached: stagesReached(record.artifacts), furthestPerBranch: furthestPerBranch(record.artifacts), stoppedAt: stoppedAt({ runStatus: record.status, parkedByGate: reading.parkedByGate, failure: record.failure, capped: record.capped }) }
+    ? { approvedBy: STAND_IN_APPROVER, standInMode: standIn.mode, mechanicsOnly: standIn.mode === "all", standInTally: standIn.tally, standInDecisions: record.standInDecisions, ...(simulatedInterviews ? { simulatedInterviews, simulatedInterviewCap: record.simulatedInterviewCap } : {}), stagesReached: stagesReached(record.artifacts), furthestPerBranch: furthestPerBranch(record.artifacts), stoppedAt: stoppedAt({ runStatus: record.status, parkedByGate: reading.parkedByGate, failure: record.failure, capped: record.capped }) }
     : {};
   console.log(JSON.stringify({ ...reading, run: record.run, status: record.status, passes: record.passes, coverage: record.coverage, dwell: record.dwell, goalOne: record.goalOne, goalOneHeadline: goalOneHeadline(record.goalOne, reading, standIn), ...standInFields, artifacts: record.artifacts, source: { db: sourceDb } }, null, 2));
   process.exit(0);
@@ -330,6 +250,11 @@ console.log(`  ${goalOneHeadline(goalOne, reading, standIn)}`);
 if (standIn) {
   console.log(`  gates passed by the demo stand-in, not a person${standIn.mode === "all" ? " (--approve-all: NO policy, mechanics only)" : ""}:`);
   for (const line of formatStandInTally(standIn.tally)) console.log(`    ${line}`);
+  if (simulatedInterviews) {
+    console.log(`  simulated interviews (candidate played by the model from the seeded CV; cap ${record.simulatedInterviewCap}; no transcript text is printed):`);
+    if (simulatedInterviews.length === 0) console.log("    none: no interview invite was approved");
+    for (const line of formatSimulatedInterviews(simulatedInterviews)) console.log(`    ${line}`);
+  }
   console.log(`  stages reached: ${stagesReached(record.artifacts).map((s) => `${s.kind} ${s.chains}`).join(" · ") || "none"}`);
   console.log(`  furthest stage per branch: ${branchesByFurthest(record.artifacts).map((r) => `${r.kind} ${r.branches}`).join(" · ") || "none"}`);
   console.log(`  stopped: ${stoppedAt({ runStatus: record.status, parkedByGate: reading.parkedByGate, failure: record.failure, capped: record.capped })}`);
