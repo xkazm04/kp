@@ -353,9 +353,21 @@ ping (`POST /api/ats/test`).
   this deployment's address. Each limiter sits *after* the operator gate (a rejected caller
   spends no budget) and *before* the expensive work. Pinned in
   `app/api/rate-limit-contract.test.ts`.
-- **Every team's outcomes mirror through this one endpoint.** `ats_config` and the
-  `ats_delivery` ledger are org-level by design (`app/_lib/tenancy.ts`): one deployment-wide
-  mirror of every tenant, not one webhook per hiring team. The *record* behind an event is
+- **Every team's outcomes mirror through this one endpoint — but only its OWN
+  organization's.** `ats_config` and the `ats_delivery` ledger are org-level by design
+  (`app/_lib/tenancy.ts`): one mirror of every hiring *team*, not one webhook per team. The
+  endpoint belongs to the **organization that saved it**: `POST /api/ats/config` stamps the
+  saver's org (`owner_org_id`) from the session, never from the body, so a re-save hands the
+  integration over deliberately. A dispatch whose pipeline entry belongs to a *different*
+  organization is refused before the record is built and before anything is dialled, and its
+  ledger row is closed **terminally** with a reason naming both org ids — *"the configured
+  ATS webhook belongs to organization "A", but pipeline entry … belongs to organization "B"
+  — a candidate is never mirrored to another organization's endpoint"*. The retry sweep runs
+  the same check per row, so an endpoint re-pointed between attempt 1 and a retry stops
+  rather than delivering the previous org's candidate. A **NULL owner reads as the default
+  org**, and so does a workspace with no `org_id`: a config written before the column existed
+  and every single-org self-host behave exactly as before (F-1, security scan 2026-10-06
+  §A1; proofs in `app/_lib/ats-egress-org-scope.test.ts`). The *record* behind an event is
   still built tenant-scoped, so `dispatchAtsEvent` takes the caller's workspace and falls back
   to the entry's owning workspace (`getEntryWorkspace`) when the caller holds none; the retry
   sweep re-derives it the same way, because a ledger row carries no tenant column. Both reads
@@ -577,7 +589,11 @@ it omits the live count while the tab is hidden and resumes when it is visible.
 - `ats_config` — the outbound webhook. ONE row (`id = 1`), org-level by design
   (`app/_lib/tenancy.ts`). `webhook_url`, encrypted `webhook_secret`, `events_json`,
   `version` (optimistic-concurrency token, bumped on every accepted write; back-filled to
-  `0` by an `ALTER TABLE` on stores created before it existed), `updated_at`. A corrupt
+  `0` on stores created before it existed), `owner_org_id` (the org that saved the endpoint
+  — re-stamped on *every* accepted write, NULL on a pre-upgrade row and read as the default
+  org; it is an id, not a secret, so `getAtsConfig()` exposes it), `updated_at`. Both
+  additive columns go through `addColumns` (`app/_lib/db/add-columns.ts`), which probes
+  rather than swallowing every ALTER failure. A corrupt
   `events_json` still resolves to "nothing subscribed" (fail closed) but is now LOGGED with
   the row id — `[]` was otherwise indistinguishable from an operator who unsubscribed.
 - `ats_delivery` — the outbound delivery ledger, one row per (event, entry) attempt-set,

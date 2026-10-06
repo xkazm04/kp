@@ -17,6 +17,10 @@ Severities are mine; the ranking question (whether F-1 is acceptable in a
 single-tenant self-host, which is every shipped deployment today) is the
 operator's.
 
+**Since then: F-1 is CLOSED** (`17c2bbe9d`, 2026-10-06) — see §A1. It was fixed by a
+later, separately-scoped change, not by this scan; the rest of the table stands as
+written.
+
 ---
 
 ## A. `e00ada3c` — outbound candidate data
@@ -71,6 +75,22 @@ the resolved tenant is not the workspace that owns the config row, and say so in
 the ledger reason. Either way it is a schema/behaviour decision, out of this
 scan's fix policy. Until then the integrations panel should state that the webhook
 is deployment-wide; `docs/features/integrations/README.md` is the place.
+
+**CLOSED 2026-10-06 in `17c2bbe9d`** (red test first, `313aa6e87`), at the ORG
+boundary rather than the workspace one — the table stays org-level, which is what
+"one connected ATS account per company" means. `ats_config` gains one nullable
+`owner_org_id`, stamped from the SAVER's session by `POST /api/ats/config` on every
+accepted write (never from the body). `dispatchAtsEvent` and `retryDueAtsDeliveries`
+refuse an entry whose org differs — after the subscription gate and the tenant
+resolve, before the record build and before any `fetch` — and finalize the ledger row
+**terminally** with a reason naming both org ids and no candidate data. The row is
+opened first, so a refused mirror is operator-visible rather than a silent return.
+NULL on either side (a pre-upgrade config row, a workspace with no `org_id`) reads as
+`org-default`, so the single-tenant self-host this finding's ranking question was about
+is byte-for-byte unchanged. Proofs: `app/_lib/ats-egress-org-scope.test.ts` — cross-org
+refusal, same-org delivery, the legacy NULL owner, the re-pointed retry, and the write
+side, with the row-count non-vacuity that separates "refused at the org check" from
+"never subscribed". Documented in `docs/features/integrations/README.md`.
 
 ### A2. Minimisation — **ok, with F-2 noted below**
 
@@ -387,7 +407,7 @@ pins the guard's presence at the source so it cannot be removed as redundant.
 
 | id | sev | what | where |
 | --- | --- | --- | --- |
-| F-1 | medium | the ATS webhook destination is deployment-global, so one workspace's endpoint receives every workspace's auto-rejects; the wave is the first unattended bulk producer on it | `ats-config-store.ts:122`, `tenancy.ts:424` |
+| F-1 | medium | the ATS webhook destination is deployment-global, so one workspace's endpoint receives every workspace's auto-rejects; the wave is the first unattended bulk producer on it — **fixed** in `17c2bbe9d` (the row records its owner org; a cross-org dispatch is refused terminally, NULL = the default org) | `ats-config-store.ts:122`, `tenancy.ts:424` |
 | F-3 | medium | a reinstated candidate is still mirrored as `candidate.rejected` on a retry, with a body saying `active`; the byte-identity/dedupe promise holds only for an unchanged entry | `ats-egress.ts:360`, `:152-159` |
 | F-6 | medium | unbounded outbound concurrency on a wave: one POST per applied reject, none awaited, no cap (report-only per the brief) | `screen-wave.ts:631` |
 | F-2 | low | `decision.actor` sends a `human:<name>` employee identity to the customer's ATS on the recruiter path (the wave's is `auto:screen-wave`) | `ats-record.ts:219` |
