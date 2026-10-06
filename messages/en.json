@@ -16714,6 +16714,10 @@
       },
       "receiver": {
         "waitingNote": "Configured, nothing received yet. That is different from broken: the endpoint is live and waiting.",
+        "waitingNext": "This changes to “Reached” by itself when the first request arrives. We can’t know when that will be, so this page keeps checking while you watch.",
+        "waitingSince": "Endpoint created {when}.",
+        "waitingStalled": "Nothing has arrived for a while. Check that the source points at this endpoint, or send a test application.",
+        "waitingStalledAction": "Open setup steps",
         "newNote": "New. The endpoint is a credential: anyone who has it can file applications. Copy it now; it is masked again when you hide it or come back.",
         "steps": "Setup steps",
         "stepsHide": "Hide setup steps",

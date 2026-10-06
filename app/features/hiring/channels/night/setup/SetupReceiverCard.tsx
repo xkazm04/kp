@@ -8,6 +8,7 @@ import type { ChannelWebhookRecord } from "@/app/_lib/db/channels";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import { DEFAULT_LOCALE } from "@/i18n/locales";
 import { receiverHealth } from "../../receiverHealth";
+import { waitingFor } from "../../receiverWaiting";
 import { RECEIVER_CONDITION, type Endpoint, type ReceiverSection } from "./setupModel";
 import { SetupCard } from "./SetupBits";
 import { SetupCvSim } from "./SetupCvSim";
@@ -25,7 +26,7 @@ type Panel = "steps" | "cv" | "pull" | null;
  * (a failing pull with its raw error as code, reached-but-empty, waiting), its endpoint masked
  * until revealed, and one open panel at a time: the setup steps, a real-CV test, the pull source.
  */
-export function SetupReceiverCard({ receiver: w, section, endpoint, revealed, onReveal, focus, fresh, onRemove, removing, onMessages, reload, cardRef }: {
+export function SetupReceiverCard({ receiver: w, section, endpoint, revealed, onReveal, focus, fresh, onRemove, removing, onMessages, reload, cardRef, now }: {
   receiver: ChannelWebhookRecord;
   section: ReceiverSection;
   endpoint: Endpoint;
@@ -38,6 +39,8 @@ export function SetupReceiverCard({ receiver: w, section, endpoint, revealed, on
   onMessages: (role: string, el: HTMLElement) => void;
   reload: () => void;
   cardRef: (el: HTMLElement | null) => void;
+  /** The clock the waiting line measures against; advances with the list's poll. */
+  now: number;
 }) {
   const t = useTranslations("channels");
   const ts = useTranslations("channelsNight.setup.receiver");
@@ -49,6 +52,7 @@ export function SetupReceiverCard({ receiver: w, section, endpoint, revealed, on
   const h = receiverHealth(w);
   const role = w.jobTitle ?? w.jobId;
   const reached = w.receivedCount > 0;
+  const wait = h.verdict === "waiting" ? waitingFor(w.createdAt, now) : null;
   const toggle = (p: Exclude<Panel, null>) => setPanel((cur) => (cur === p ? null : p));
   const label = section === "email" ? (endpoint.wired ? t("email.endpointWired") : t("email.endpointUnwired")) : t("ads.endpoint");
 
@@ -78,7 +82,18 @@ export function SetupReceiverCard({ receiver: w, section, endpoint, revealed, on
       ) : h.verdict === "reachedNoLeads" ? (
         <Note tone="caution">{ts("reachNote")}</Note>
       ) : h.verdict === "waiting" ? (
-        <p className="cns-help">{ts("waitingNote")}</p>
+        <>
+          <p className="cns-help">{ts("waitingNote")}</p>
+          <p className="cns-help" role="status">
+            {ts("waitingNext")} {wait ? ts("waitingSince", { when: rel(w.createdAt) }) : null}
+          </p>
+          {wait?.stalled ? (
+            <Note tone="caution">
+              {ts("waitingStalled")}{" "}
+              <Button label={ts("waitingStalledAction")} size="sm" onClick={() => setPanel("steps")} />
+            </Note>
+          ) : null}
+        </>
       ) : null}
       <SetupEndpoint label={label} role={role} value={endpoint.value} masked={endpoint.masked} revealed={revealed} onReveal={(next) => onReveal(w.token, next)} />
       {fresh ? <p className="cns-help cns-help--once">{ts("newNote")}</p> : null}

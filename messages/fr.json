@@ -16714,6 +16714,10 @@
       },
       "receiver": {
         "waitingNote": "Configuré, rien de reçu pour l’instant. Cela diffère d’une panne : l’adresse est active et en attente.",
+        "waitingNext": "Cet état passe tout seul à « Joint » dès que la première requête arrive. Nous ne pouvons pas savoir quand, donc cette page vérifie régulièrement tant que vous la regardez.",
+        "waitingSince": "Adresse créée {when}.",
+        "waitingStalled": "Rien n’est arrivé depuis un moment. Vérifiez que la source pointe vers cette adresse, ou envoyez une candidature de test.",
+        "waitingStalledAction": "Ouvrir les étapes de configuration",
         "newNote": "Nouveau. L’adresse fait office de clé d’accès : quiconque la détient peut déposer des candidatures. Copiez-la maintenant. Elle sera de nouveau masquée quand vous la cacherez ou reviendrez.",
         "steps": "Étapes de configuration",
         "stepsHide": "Masquer les étapes de configuration",

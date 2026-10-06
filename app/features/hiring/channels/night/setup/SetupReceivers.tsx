@@ -10,6 +10,8 @@ import { LoadingGap } from "@/app/_components/ui/LoadingGap";
 import { useCommsCapability } from "@/app/features/shell/useDeliveryCapability";
 import type { useChannelData } from "../../useChannelsData";
 import { isReceiverLive, useReceivers } from "../../useChannelsReceivers";
+import { waitingReceivers } from "../../receiverWaiting";
+import { useWaitingPoll } from "../../useWaitingPoll";
 import { rankReceivers, receiverEndpoint, type ReceiverSection } from "./setupModel";
 import { SetupAddReceiver } from "./SetupAddReceiver";
 import { SetupReceiverCard } from "./SetupReceiverCard";
@@ -33,6 +35,9 @@ export function SetupReceivers({ section, data, focus, onMessages }: {
   const { emailInboundDomain } = useCommsCapability();
   const channel = section === "email" ? "email" : "boards";
   const { receivers, revoke, revoking, revokeFailed } = useReceivers({ channel, webhooks: data.webhooks, reload: data.reload });
+  // A receiver nothing has reached yet re-reads the receivers list (and only that) on a
+  // bounded poll, so it moves to Reached by itself; the poll ends with the last waiter.
+  const now = useWaitingPoll(receivers ? waitingReceivers(receivers).length > 0 : false, data.reloadWebhooks);
   const [adding, setAdding] = useState(false);
   const [revealed, setRevealed] = useState<ReadonlySet<string>>(() => new Set());
   const [fresh, setFresh] = useState<string | null>(null);
@@ -114,6 +119,7 @@ export function SetupReceivers({ section, data, focus, onMessages }: {
               removing={revoking === w.token}
               onMessages={onMessages}
               reload={data.reload}
+              now={now}
               cardRef={(el) => {
                 if (el) cards.current.set(w.token, el);
                 else cards.current.delete(w.token);

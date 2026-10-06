@@ -62,29 +62,40 @@ export function useChannelData() {
     attention: false,
   });
 
+  // An abort is the tab unmounting, not a failed source. Marking it failed would
+  // paint the retry banner onto a surface that is already leaving — and, worse,
+  // settle state on a component React has torn down.
+  const mark = useCallback((src: ChannelSource, isFailed: boolean, signal?: AbortSignal) => {
+    if (signal?.aborted) return;
+    setFailed((f) => (f[src] === isFailed ? f : { ...f, [src]: isFailed }));
+  }, []);
+
+  // The receivers read alone. `load` runs it with the other two, and the "waiting for
+  // the first lead" poll runs it by itself: re-downloading the 201 KB jobs list every
+  // few seconds to learn whether one receiver was reached would be absurd.
+  const loadWebhooks = useCallback(
+    (signal?: AbortSignal) => {
+      fetch("/api/channels/webhooks", { signal })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((p) => {
+          const list = listFromPayload<ChannelWebhookRecord>(p, "webhooks");
+          mark("webhooks", list === "failed", signal);
+          if (list !== "failed" && !signal?.aborted) {
+            setWebhooks(list);
+            setWebhooksTruncated((p as { truncated?: boolean } | null)?.truncated === true);
+          }
+        })
+        .catch(() => mark("webhooks", true, signal));
+    },
+    [mark]
+  );
+
   // Sharing is OPT-IN (see usePipelineBoardData): `load` doubles as the post-mutation
   // reload (a new receiver, a revoke), which must always hit the network.
   const load = useCallback((opts?: { shared?: boolean; signal?: AbortSignal }) => {
     const shared = { refresh: !opts?.shared };
     const signal = opts?.signal;
-    // An abort is the tab unmounting, not a failed source. Marking it failed would
-    // paint the retry banner onto a surface that is already leaving — and, worse,
-    // settle state on a component React has torn down.
-    const mark = (src: ChannelSource, isFailed: boolean) => {
-      if (signal?.aborted) return;
-      setFailed((f) => (f[src] === isFailed ? f : { ...f, [src]: isFailed }));
-    };
-    fetch("/api/channels/webhooks", { signal })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((p) => {
-        const list = listFromPayload<ChannelWebhookRecord>(p, "webhooks");
-        mark("webhooks", list === "failed");
-        if (list !== "failed" && !signal?.aborted) {
-          setWebhooks(list);
-          setWebhooksTruncated((p as { truncated?: boolean } | null)?.truncated === true);
-        }
-      })
-      .catch(() => mark("webhooks", true));
+    loadWebhooks(signal);
     // openOnly — the roles a candidate can actually apply to right now (NULL/'published';
     // job-ingest.ts isJobOpenForApplications). The unfiltered read also returned drafts
     // and CLOSED roles, and this list is rendered as "Published roles" + a copyable
@@ -95,10 +106,10 @@ export function useChannelData() {
       .then((r) => (r.ok ? r.json() : null))
       .then((p) => {
         const list = listFromPayload<ChannelJob>(p, "jobs");
-        mark("jobs", list === "failed");
+        mark("jobs", list === "failed", signal);
         if (list !== "failed" && !signal?.aborted) setJobs(list.map((j) => ({ id: j.id, title: j.title })));
       })
-      .catch(() => mark("jobs", true));
+      .catch(() => mark("jobs", true, signal));
     // sharedGetJson already rejects a non-2xx, so only the body shape is checked here.
     // It deliberately takes NO signal: the request may be shared with another hook on
     // the page, and aborting it on OUR unmount would cancel theirs. Unmounting drops
@@ -106,11 +117,11 @@ export function useChannelData() {
     sharedGetJson<{ channels?: number }>("/api/attention", shared)
       .then((p) => {
         const waiting = waitingFromAttention(p);
-        mark("attention", waiting === "failed");
+        mark("attention", waiting === "failed", signal);
         if (waiting !== "failed" && !signal?.aborted) setAccepted(waiting);
       })
-      .catch(() => mark("attention", true));
-  }, []);
+      .catch(() => mark("attention", true, signal));
+  }, [loadWebhooks, mark]);
   // The two own fetches are aborted on unmount: switching tabs while /api/jobs (201 KB)
   // is in flight used to leave it running to completion and then settle state on a
   // component that no longer exists.
@@ -128,6 +139,7 @@ export function useChannelData() {
     accepted,
     loadFailed: failed.webhooks || failed.jobs || failed.attention,
     reload: load,
+    reloadWebhooks: loadWebhooks,
   };
 }
 

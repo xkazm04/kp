@@ -16714,6 +16714,10 @@
       },
       "receiver": {
         "waitingNote": "Nastaveno, zatím nic nepřišlo. To není totéž co porucha: adresa je aktivní a čeká.",
+        "waitingNext": "Jakmile dorazí první požadavek, stav se sám změní na „Dostává data“. Kdy to bude, nevíme, proto stránka během sledování průběžně kontroluje.",
+        "waitingSince": "Adresa vytvořena {when}.",
+        "waitingStalled": "Už delší dobu nic nedorazilo. Zkontrolujte, zda zdroj míří na tuto adresu, nebo odešlete testovací přihlášku.",
+        "waitingStalledAction": "Otevřít kroky nastavení",
         "newNote": "Nový. Adresa funguje jako přístupový údaj: kdo ji má, může podávat přihlášky. Zkopírujte si ji hned; po skrytí nebo při návratu se znovu zamaskuje.",
         "steps": "Postup nastavení",
         "stepsHide": "Skrýt postup nastavení",

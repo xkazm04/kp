@@ -16714,6 +16714,10 @@
       },
       "receiver": {
         "waitingNote": "Konfiguriert, noch nichts empfangen. Das heißt nicht defekt: Der Endpunkt ist aktiv und wartet.",
+        "waitingNext": "Das wechselt von selbst zu „Erreicht“, sobald die erste Anfrage eintrifft. Wann das sein wird, wissen wir nicht, deshalb prüft diese Seite laufend nach, solange Sie zusehen.",
+        "waitingSince": "Endpunkt erstellt {when}.",
+        "waitingStalled": "Seit einer Weile ist nichts eingetroffen. Prüfen Sie, ob die Quelle auf diesen Endpunkt zeigt, oder senden Sie eine Testbewerbung.",
+        "waitingStalledAction": "Einrichtungsschritte öffnen",
         "newNote": "Neu. Der Endpunkt ist eine Zugangsberechtigung: Wer ihn kennt, kann Bewerbungen einreichen. Kopieren Sie ihn jetzt; er wird wieder maskiert, wenn Sie ihn ausblenden oder zurückkehren.",
         "steps": "Einrichtungsschritte",
         "stepsHide": "Einrichtungsschritte ausblenden",
