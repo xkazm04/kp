@@ -369,6 +369,17 @@ session cookie cleared. The issuer's `renewing` check stays as defence in depth.
 Cases, one per refusal the oracle used to leak:
 `app/api/auth/switch-workspace/route.test.ts`.
 
+**The session's validity window is half-open, `[iat, exp)`** (2026-10-06 boundary
+scan): both verifiers reject on `exp <= now`, so the instant `exp` is already dead.
+That is the same convention the revocation store's rows live on
+(`expires_at_ms > now`), and `expires_at_ms` for an exact row **is** the named
+cookie's `exp` — under the previous `exp < now` the two met one millisecond apart and
+a revoked cookie verified at `now === exp` with no row left to refuse it. Do not mix
+the conventions: record and cases in
+`.ai/tasks/2026-10-06-session-expiry-boundary.md`,
+`app/_lib/auth/session-revocation-sources.test.ts` is the ratchet that no `/api/auth/`
+route verifies a cookie without asking whether it is revoked.
+
 **Single-org installs are unchanged.** `org` is minted only at login, invite
 accept, switch-workspace and register, and register is the only door that creates a
 non-home org, behind `KP_SIGNUP_ENABLED` (default off). With signup off every

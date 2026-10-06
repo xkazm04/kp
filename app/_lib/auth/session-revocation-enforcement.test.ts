@@ -63,7 +63,7 @@ process.env.KP_OPERATOR_PASSWORD = "session-revocation-enforcement-password";
 
 const { isOperator, requireOperator } = await import("./require-operator.ts");
 const { currentSession, requireCapability } = await import("./current-user.ts");
-const { signSession } = await import("./session.ts");
+const { signSession, verifySession, SESSION_TTL_MS } = await import("./session.ts");
 const { isSessionRevoked, listRevocations, revokeAllSessions, revokeSession } = await import("./session-revocation.ts");
 const { POST: logout } = await import("../../api/auth/logout/route.ts");
 const { createWorkspace } = await import("../db/workspaces.ts");
@@ -110,6 +110,43 @@ test("a revoked OPERATOR cookie is no longer an operator — and its sibling sti
 
   withCookie(stillMine);
   assert.equal(await isOperator(), true, "a targeted revocation must not sign the other device out");
+});
+
+// ---- the boundary the two halves meet on ------------------------------------
+//
+// The 2026-10-06 boundary scan. A revocation row is gone at `expires_at_ms <= now`
+// (swept at session-revocation.ts:124, filtered out of `isSessionRevoked` and
+// `listRevocations`), and an exact row's `expires_at_ms` IS `iat + SESSION_TTL_MS`,
+// i.e. the named cookie's own `exp`. `verifySession` rejected on `exp < now`, so at
+// exactly `now === exp` the cookie verified AND no row was left to refuse it: a 1 ms
+// window in which a revoked session was enforced by nothing at all.
+//
+// The fix picked ONE convention for the whole lifecycle — the half-open window
+// `[iat, exp)` — which leaves the store's predicates untouched and makes the two sides
+// meet exactly instead of one millisecond apart. This test is the seam itself.
+test("a revoked cookie is dead at exactly exp — the window and the row meet, with no gap", () => {
+  const iat = Date.now();
+  const exp = iat + SESSION_TTL_MS;
+  const workspace = "ws-expiry-boundary";
+  const token = signSession(workspace, iat, { op: true });
+  const principal = { workspace, op: true as const, iat };
+
+  revokeSession(principal, "test:expiry-boundary", iat);
+
+  // Probe: one millisecond earlier BOTH halves are live — the cookie verifies on its
+  // own merits and the row is what refuses it. Without this the assertions below could
+  // pass on a token that was never valid.
+  assert.ok(verifySession(token, exp - 1), "at exp - 1 the cookie still verifies");
+  assert.equal(isSessionRevoked(principal, exp - 1), true, "…and at exp - 1 the row refuses it");
+
+  // At exactly `exp` the row is gone — correctly, it can no longer name a live session.
+  assert.equal(isSessionRevoked(principal, exp), false, "the row expires with the cookie it names");
+  // …so the window itself has to be the refusal. This is the assertion that was red.
+  assert.equal(verifySession(token, exp), null, "no row left, so a revoked cookie must not verify at exp");
+
+  // And past it, unchanged.
+  assert.equal(verifySession(token, exp + 1), null, "still dead at exp + 1");
+  assert.equal(isSessionRevoked(principal, exp + 1), false);
 });
 
 // ---- the per-user capability layer ------------------------------------------

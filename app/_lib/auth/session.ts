@@ -119,7 +119,16 @@ export function verifySession(token: string | undefined | null, now: number = Da
   if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
   try {
     const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as SessionPayload;
-    if (typeof payload.exp !== "number" || payload.exp < now) return null;
+    // HALF-OPEN WINDOW `[iat, exp)` — valid only while `now < exp`, so the instant
+    // `exp` itself is already dead. `exp <= now` rather than `exp < now` because the
+    // revocation store's rows live on the OTHER predicate: a row is gone at
+    // `expires_at_ms <= now` (swept, and filtered out of `isSessionRevoked` /
+    // `listRevocations`), and an exact row's `expires_at_ms` IS the cookie's own `exp`.
+    // Under `exp < now` the two met one millisecond apart instead of exactly: at
+    // `now === exp` a REVOKED cookie still verified here while no row was left to refuse
+    // it, so for 1 ms the revocation was unenforced. The edge verifier
+    // (`edge-verify.ts`) holds the identical convention — do not mix the two.
+    if (typeof payload.exp !== "number" || payload.exp <= now) return null;
     if (typeof payload.workspace !== "string" || !payload.workspace) return null;
     // Global kill-switch: reject a session minted before the current epoch (a missing
     // epoch counts as 0 — backward-compatible with pre-epoch tokens).

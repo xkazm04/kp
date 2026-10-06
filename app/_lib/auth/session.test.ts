@@ -99,6 +99,24 @@ test("an expired token fails", () => {
   assert.equal(verifySession(tok, now + SESSION_TTL_MS + 1), null);
 });
 
+// The validity window is HALF-OPEN: `[iat, exp)`. `exp` itself is already expired.
+//
+// This was `exp < now` until the 2026-10-06 boundary scan, and the one millisecond it
+// let through was not a rounding curiosity: the revocation store drops a row at
+// `expires_at_ms <= now`, and an exact row's `expires_at_ms` IS the cookie's own `exp`.
+// So at `now === exp` the cookie verified and its revocation row was already gone —
+// a revoked session that nothing refused. The two predicates now meet exactly.
+test("the session window is half-open: exp - 1 verifies, exp does NOT", () => {
+  const now = 1_000_000;
+  const tok = signSession(undefined, now);
+  const exp = now + SESSION_TTL_MS;
+  // The instant before: still live. This is what makes the next line a boundary
+  // assertion rather than a token that was invalid for some other reason.
+  assert.ok(verifySession(tok, exp - 1), "exp - 1 is inside the window");
+  assert.equal(verifySession(tok, exp), null, "exp is the first dead instant — the window excludes it");
+  assert.equal(verifySession(tok, exp + 1), null, "and past it, as before");
+});
+
 test("a token signed under a different secret fails", () => {
   const tok = signSession();
   const prev = process.env.KP_SECRET;

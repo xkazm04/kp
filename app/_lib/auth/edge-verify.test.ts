@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
-import { signSession, DEFAULT_WORKSPACE } from "./session.ts";
+import { signSession, DEFAULT_WORKSPACE, SESSION_TTL_MS } from "./session.ts";
 import { verifySessionEdge } from "./edge-verify.ts";
 
 // crypto.subtle / atob / btoa exist in the Node test runtime, so the Edge verifier
@@ -33,6 +33,18 @@ test("expired token fails at the edge", async () => {
   const tok = signSession(undefined, now);
   // far past expiry
   assert.equal(await verifySessionEdge(tok, SECRET, now + 1000 * 60 * 60 * 24 * 999), null);
+});
+
+// The edge gate must agree with session.ts to the millisecond, or a cookie dies at one
+// seam and lives at the other — and the edge gate is the ONLY place revocation is asked
+// for an already-minted cookie on a route that no handler-side gate covers.
+test("the edge window is half-open too: exp - 1 verifies, exp does NOT", async () => {
+  const now = 2_000_000;
+  const tok = signSession(undefined, now);
+  const exp = now + SESSION_TTL_MS;
+  assert.ok(await verifySessionEdge(tok, SECRET, exp - 1), "exp - 1 is inside the window");
+  assert.equal(await verifySessionEdge(tok, SECRET, exp), null, "exp is the first dead instant");
+  assert.equal(await verifySessionEdge(tok, SECRET, exp + 1), null, "and past it, as before");
 });
 
 test("missing token / secret fail closed", async () => {

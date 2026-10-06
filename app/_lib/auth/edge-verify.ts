@@ -66,7 +66,10 @@ export async function verifySessionEdge(
       sub?: unknown;
       op?: unknown;
     };
-    if (typeof payload.exp !== "number" || payload.exp < now) return null;
+    // Half-open window `[iat, exp)`, IDENTICAL to session.ts (see the comment there for
+    // why the boundary is exclusive: it is where this check and the revocation store's
+    // `expires_at_ms > now` row predicate have to meet, and `exp < now` missed it by 1 ms).
+    if (typeof payload.exp !== "number" || payload.exp <= now) return null;
     if (typeof payload.workspace !== "string" || !payload.workspace) return null;
     // Global kill-switch: a session minted before the current KP_SESSION_EPOCH is dead
     // (a missing epoch is treated as 0 — backward-compatible with pre-epoch tokens).
