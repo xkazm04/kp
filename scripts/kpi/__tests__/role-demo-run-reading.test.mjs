@@ -17,6 +17,7 @@ import {
   formatGateCounts,
   formatStandInTally,
   furthestPerBranch,
+  goalOneEndState,
   goalOneHeadline,
   scorecardRecommendationOf,
   screenRouteOf,
@@ -254,7 +255,10 @@ test("an empty tally still shows every gate at zero", () => {
   assert.deepEqual(tallyStandIn([]).byGate, { rejection: { approved: 0, declined: 0, left: 0 }, interview_invite: { approved: 0, declined: 0, left: 0 }, offer: { approved: 0, declined: 0, left: 0 } });
 });
 
-const policy = (decisions) => ({ mode: "policy", tally: tallyStandIn(decisions) });
+// An end state with every clause (ii)-(iv) passing: the baseline the clause-(i) tests read against.
+// The tests of the later clauses build theirs with goalOneEndState.
+const PASSING_END = { runEndState: "running; 0 branches held for a person at rejection", approvedOffers: 1, protocolEndedBases: 1, failing: [] };
+const policy = (decisions, endState = PASSING_END) => ({ mode: "policy", tally: tallyStandIn(decisions), endState });
 
 test("a policy run that approved no offer names what stopped it", () => {
   const standIn = policy([
@@ -266,13 +270,13 @@ test("a policy run that approved no offer names what stopped it", () => {
   const reason = "stopped at the rejection gate: 16 awaiting approval (an allowed step)";
   assert.equal(
     goalOneHeadline({ verdict: "not met", reason, humanStepsOutsideGates: 0 }, measured, standIn),
-    "goal 1: not met: 0 offers approved; 4 offers declined (scorecard unrated: no interview session); 16 held for a person at the rejection gate (gates approved by demo stand-in)"
+    "goal 1: not met: 0 offers approved; 4 offers declined (scorecard unrated: no interview session); 16 held for a person at the rejection gate; run end state: running; 0 branches held for a person at rejection (gates approved by demo stand-in)"
   );
 });
 
 test("a policy run reads 'met' only when the ledger says met AND an offer was approved on the policy", () => {
   const approved = policy([d("rejection", "approve", "x"), d("interview_invite", "approve", "x"), d("offer", "approve", "scorecard recommendation: advance")]);
-  assert.equal(goalOneHeadline({ verdict: "met", reason: null }, measured, approved), "goal 1: met: 1 offer approved on a recorded basis (gates approved by demo stand-in)");
+  assert.match(goalOneHeadline({ verdict: "met", reason: null }, measured, approved), /^goal 1: met on a SIMULATED interview .*: 1 offer approved on a recorded basis/);
   // a ledger 'met' with no stand-in offer approval behind it is not taken on trust
   const none = policy([d("rejection", "approve", "x")]);
   assert.match(goalOneHeadline({ verdict: "met", reason: null }, measured, none), /^goal 1: not met: 0 offers approved/);
@@ -281,7 +285,7 @@ test("a policy run reads 'met' only when the ledger says met AND an offer was ap
 test("a policy run with nothing declined or held falls back to the ledger's own reason", () => {
   assert.equal(
     goalOneHeadline({ verdict: "not met", reason: "no branch reached a resolved offer gate" }, measured, policy([])),
-    "goal 1: not met: 0 offers approved; no branch reached a resolved offer gate (gates approved by demo stand-in)"
+    "goal 1: not met: 0 offers approved; no branch reached a resolved offer gate; run end state: running; 0 branches held for a person at rejection (gates approved by demo stand-in)"
   );
 });
 
@@ -363,4 +367,118 @@ test("the restated ladder and gate map still match the engine's source", () => {
   const map = gates.match(/GATE_STAGE[^=]*= \{([\s\S]*?)\}/)[1];
   const fromSource = Object.fromEntries([...map.matchAll(/(\w+):\s*"(\w+)"/g)].map((m) => [m[2], m[1]]));
   assert.deepEqual(fromSource, GATE_OF_STAGE);
+});
+
+// ---- 2026-10-06: what "met" requires — four clauses and the run's end state ---------------
+
+const row = (branchRef, endReason, extra = {}) => ({ branchRef, sessionId: `iv-${branchRef}`, recommendation: "advance", verdictSource: "llm", turns: 17, endReason, skipped: null, ...extra });
+const CAP = "not simulated: cap";
+const ledgerMet = { verdict: "met", reason: null, humanStepsOutsideGates: 0 };
+const capRow = (ref) => ({ branchRef: ref, sessionId: null, recommendation: null, verdictSource: null, turns: 0, endReason: null, skipped: CAP });
+
+/** A branch that went the whole way and was approved at the offer gate. */
+const offerChain = (ref) => [art("screen", ref, "complete"), art("case_assignment", ref, "complete"), art("interview", ref, "complete"), art("scorecard", ref, "complete"), art("offer_draft", ref, "complete")];
+const held = (ref) => art("screen", ref, "awaiting_approval");
+const offerApproval = (ref) => ({ gate: "offer", branchRef: ref, action: "approve", reason: "scorecard recommendation: advance" });
+const offerDecline = (ref) => ({ gate: "offer", branchRef: ref, action: "decline", reason: "scorecard unrated: no interview session" });
+const holdLeft = (ref) => ({ gate: "rejection", branchRef: ref, action: "leave", reason: "score below floor" });
+
+function headlineOf({ artifacts, decisions, rows, runStatus = "running", cap = 2 }) {
+  const endState = goalOneEndState({ runStatus, artifacts, decisions, simulatedInterviews: rows, cap });
+  const standIn = { mode: "policy", tally: tallyStandIn(decisions), simulatedOffers: decisions.filter((x) => x.gate === "offer" && x.action === "approve").length, endState };
+  return { endState, headline: goalOneHeadline(ledgerMet, measured, standIn) };
+}
+
+test("met on a protocol-ended basis with only holds open reads met and states the held count", () => {
+  const { headline, endState } = headlineOf({
+    artifacts: [...offerChain("a"), held("h1"), held("h2")],
+    decisions: [offerApproval("a"), holdLeft("h1"), holdLeft("h2")],
+    rows: [row("a", "end_interview")],
+  });
+  assert.match(headline, /^goal 1: met on a SIMULATED interview/);
+  assert.match(headline, /1 on an interview that ended by protocol; run end state: running; 2 branches held for a person at rejection$/);
+  assert.equal(endState.protocolEndedBases, 1);
+  assert.deepEqual(endState.heldForPerson, ["h1", "h2"]);
+  assert.equal(endState.runEndState, "running; 2 branches held for a person at rejection");
+});
+
+test("a director_end basis counts as protocol-ended, and one held branch reads in the singular", () => {
+  const { headline } = headlineOf({ artifacts: [...offerChain("a"), held("h1")], decisions: [offerApproval("a"), holdLeft("h1")], rows: [row("a", "director_end")] });
+  assert.match(headline, /^goal 1: met/);
+  assert.match(headline, /1 branch held for a person at rejection$/);
+});
+
+test("a finished run with no holds states 'complete'", () => {
+  const { headline } = headlineOf({ artifacts: offerChain("a"), decisions: [offerApproval("a")], rows: [row("a", "end_interview")], runStatus: "complete" });
+  assert.match(headline, /run end state: complete$/);
+});
+
+test("offers approved only on max_turns interviews are not met, and the failure is named", () => {
+  const { headline } = headlineOf({
+    artifacts: [...offerChain("a"), ...offerChain("b"), held("h1")],
+    decisions: [offerApproval("a"), offerApproval("b"), holdLeft("h1")],
+    rows: [row("a", "max_turns"), row("b", "max_turns")],
+  });
+  assert.match(headline, /^goal 1: not met: offers approved only on interviews a harness cap cut short \(max_turns x2\)/);
+  assert.doesNotMatch(headline, /goal 1: met/);
+});
+
+test("one protocol-ended basis among max_turns ones is enough for clause (ii)", () => {
+  const { endState } = headlineOf({ artifacts: [...offerChain("a"), ...offerChain("b")], decisions: [offerApproval("a"), offerApproval("b")], rows: [row("a", "max_turns"), row("b", "end_interview")] });
+  assert.deepEqual(endState.failing, []);
+});
+
+test("hard_stop and error are not protocol ends either, and a mix is not called a cap", () => {
+  const { endState } = headlineOf({ artifacts: [...offerChain("a"), ...offerChain("b")], decisions: [offerApproval("a"), offerApproval("b")], rows: [row("a", "hard_stop"), row("b", "error")] });
+  assert.deepEqual(endState.failing, ["offers approved only on interviews that did not end by protocol (hard_stop x1, error x1)"]);
+});
+
+test("a seed branch the cap kept out is not met, naming K and the flag", () => {
+  const { headline, endState } = headlineOf({
+    artifacts: [...offerChain("a"), ...offerChain("c1"), ...offerChain("c2")],
+    decisions: [offerApproval("a"), offerDecline("c1"), offerDecline("c2")],
+    rows: [row("a", "end_interview"), capRow("c1"), capRow("c2")],
+  });
+  assert.match(headline, /^goal 1: not met: 2 seed branch\(es\) reached the interview unplayed by the cap \(--sim-interviews 2\)/);
+  assert.deepEqual(endState.cappedSeedBranches, ["c1", "c2"]);
+});
+
+test("a branch refused as not seed data does not fail clause (iv), and is counted", () => {
+  const refused = { ...capRow("x"), skipped: "not simulated: not seed data (CV not sent to the provider): no entry" };
+  const { headline, endState } = headlineOf({ artifacts: offerChain("a"), decisions: [offerApproval("a")], rows: [row("a", "end_interview"), refused] });
+  assert.match(headline, /^goal 1: met/);
+  assert.equal(endState.refusedNotSeedData, 1);
+  assert.deepEqual(endState.cappedSeedBranches, []);
+});
+
+test("an open branch that is not a rejection hold is not met, and the branch is named", () => {
+  // h2 is parked at the rejection gate but the stand-in never left it by policy; w sits at the offer gate.
+  const { headline, endState } = headlineOf({
+    artifacts: [...offerChain("a"), held("h1"), held("h2"), art("offer_draft", "w", "awaiting_approval")],
+    decisions: [offerApproval("a"), holdLeft("h1")],
+    rows: [row("a", "end_interview")],
+  });
+  assert.match(headline, /^goal 1: not met: 2 branches not at a defined end state \(h2 at screen:awaiting_approval, w at offer_draft:awaiting_approval\)/);
+  assert.deepEqual(endState.heldForPerson, ["h1"]);
+});
+
+test("a terminal branch is an end state", () => {
+  const { endState } = headlineOf({ artifacts: [...offerChain("a"), art("screen", "r", "terminal")], decisions: [offerApproval("a")], rows: [row("a", "end_interview")] });
+  assert.deepEqual(endState.openBranches, []);
+});
+
+test("every failing clause is named, and a policy run without an end state can never read met", () => {
+  const { headline } = headlineOf({
+    artifacts: [...offerChain("a"), art("offer_draft", "w", "awaiting_approval"), ...offerChain("c")],
+    decisions: [offerApproval("a")],
+    rows: [row("a", "max_turns"), capRow("c")],
+  });
+  assert.match(headline, /harness cap cut short \(max_turns x1\); 1 branch not at a defined end state .*; 1 seed branch\(es\) reached the interview unplayed/);
+  const noEnd = goalOneHeadline(ledgerMet, measured, { mode: "policy", tally: tallyStandIn([offerApproval("a")]), simulatedOffers: 1 });
+  assert.match(noEnd, /^goal 1: not met: .*end state was not evaluated/);
+});
+
+test("--approve-all stays withheld and the no-stand-in path is unchanged", () => {
+  assert.match(goalOneHeadline(ledgerMet, measured, { mode: "all", tally: tallyStandIn([]) }), /verdict withheld/);
+  assert.equal(goalOneHeadline(ledgerMet, measured, null), "goal 1: met");
 });

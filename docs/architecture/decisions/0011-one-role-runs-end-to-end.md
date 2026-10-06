@@ -365,3 +365,29 @@ sent. An approval that arrives after the effect is not an approval, and
   reading changes. **What would reopen it:** a demo that has to run on an operator's real board
   to be worth running — at which point the decision is consent and disclosure, not a predicate.
 
+- **2026-10-06 — what "met" requires in a policy demo run, and where the seed refusal is
+  counted.** The reading of `1bb72d60` said `met` on 2 of 4 offer-stage branches, on two
+  interviews cut at `max_turns` (the demo's own 8-candidate-turn limit, `DEMO_SIM_LIMITS`), with
+  16 branches still held and 0 refusals counted. Both were the instrument's doing, not the
+  engine's: the repo's detectors grade a call a harness cap ended as "a harness cap ended the
+  call, not the protocol" (not evaluable), and the batch loop checked the cap *before*
+  `seedOriginProblem`, so every branch past the cap was recorded "not simulated: cap" and never
+  proved seed or not. **Four clauses.** Under `--approve-gates`, goal 1 reads `met` only when
+  all hold: (i) at least one offer is approved on a recorded basis (unchanged); (ii) at least one
+  approved offer rests on a simulated interview that ENDED BY PROTOCOL — `end_interview` or
+  `director_end`; `max_turns`, `hard_stop` and `error` are not a basis; (iii) every branch is at a
+  defined end state — terminal, `offer_draft` complete, or parked at the rejection gate as a hold
+  the stand-in left by policy, which is a person's call under the fairness rule — and any other
+  open branch is named; (iv) no branch that passed the seed proof was kept out of the
+  interview by the cap. Otherwise the headline reads `not met:` and names each failing clause with
+  its counts. **The end-state line.** Every policy headline, met or not, ends `run end state:
+  <status>; H branch(es) held for a person at rejection` (or `complete`), and `--json` carries the
+  same facts (`runEndState`, `protocolEndedBases`, `cappedSeedBranches`, `heldForPerson`,
+  `openBranches`) beside `goalOneHeadline`. **Refusal-count ordering.** `createRoleDemoSimulator`
+  runs the local pre-check — scratch-DB declaration, entry, profile, `seedOriginProblem` — for
+  every branch before it looks at the cap: a branch that fails the proof is always recorded as a
+  not-seed refusal with its reason, and only a branch that passes it and finds the cap spent reads
+  "not simulated: cap". Nothing past the pre-check runs for either (no preflight, persona, session
+  or model call, so no CV reaches a prompt), and a refusal still does not use up the cap. A held
+  branch is an allowed gate step, so the 16 holds do not fail the verdict; `standInDecision`,
+  `DEMO_SIM_LIMITS` and the engine are unchanged, and `--approve-all` stays withheld.

@@ -100,6 +100,7 @@ import {
   formatGateCounts,
   formatStandInTally,
   furthestPerBranch,
+  goalOneEndState,
   goalOneHeadline,
   formatSimulatedInterviews,
   notSeedRefusalCount,
@@ -221,15 +222,19 @@ const reading = summarizeRoleDemoRun({
 });
 
 const simulatedInterviews = record.simulatedInterviews ?? null;
+const endState =
+  standInMode === "policy"
+    ? goalOneEndState({ runStatus: record.status, artifacts: record.artifacts, decisions: record.standInDecisions, simulatedInterviews: simulatedInterviews ?? [], cap: record.simulatedInterviewCap ?? null })
+    : null;
 const standIn = standInMode
-  ? { mode: standInMode, tally: tallyStandIn(record.standInDecisions), simulatedOffers: simulatedInterviews ? simulatedOfferCount(record.standInDecisions, simulatedInterviews) : 0 }
+  ? { mode: standInMode, tally: tallyStandIn(record.standInDecisions), simulatedOffers: simulatedInterviews ? simulatedOfferCount(record.standInDecisions, simulatedInterviews) : 0, ...(endState ? { endState } : {}) }
   : null;
 
 if (asJson) {
   const standInFields = standIn
     ? { approvedBy: STAND_IN_APPROVER, standInMode: standIn.mode, mechanicsOnly: standIn.mode === "all", standInTally: standIn.tally, standInDecisions: record.standInDecisions, ...(simulatedInterviews ? { simulatedInterviews, simulatedInterviewCap: record.simulatedInterviewCap, simulatedInterviewProvider: SIM_PROVIDER_LINE, refusedNotSeedData: notSeedRefusalCount(simulatedInterviews) } : {}), stagesReached: stagesReached(record.artifacts), furthestPerBranch: furthestPerBranch(record.artifacts), stoppedAt: stoppedAt({ runStatus: record.status, parkedByGate: reading.parkedByGate, failure: record.failure, capped: record.capped }) }
     : {};
-  console.log(JSON.stringify({ ...reading, run: record.run, status: record.status, passes: record.passes, coverage: record.coverage, dwell: record.dwell, goalOne: record.goalOne, goalOneHeadline: goalOneHeadline(record.goalOne, reading, standIn), ...standInFields, artifacts: record.artifacts, source: { db: sourceDb } }, null, 2));
+  console.log(JSON.stringify({ ...reading, run: record.run, status: record.status, passes: record.passes, coverage: record.coverage, dwell: record.dwell, goalOne: record.goalOne, goalOneHeadline: goalOneHeadline(record.goalOne, reading, standIn), ...(endState ? { runEndState: endState.runEndState, protocolEndedBases: endState.protocolEndedBases, harnessEndedBases: endState.harnessEndedBases, cappedSeedBranches: endState.cappedSeedBranches, heldForPerson: endState.heldForPerson, openBranches: endState.openBranches, goalOneClauses: endState.clauses } : {}), ...standInFields, artifacts: record.artifacts, source: { db: sourceDb } }, null, 2));
   process.exit(0);
 }
 
@@ -283,5 +288,6 @@ if (standIn) {
   }
   console.log(`  stages reached: ${stagesReached(record.artifacts).map((s) => `${s.kind} ${s.chains}`).join(" · ") || "none"}`);
   console.log(`  furthest stage per branch: ${branchesByFurthest(record.artifacts).map((r) => `${r.kind} ${r.branches}`).join(" · ") || "none"}`);
+  if (endState) console.log(`  run end state: ${endState.runEndState}`);
   console.log(`  stopped: ${stoppedAt({ runStatus: record.status, parkedByGate: reading.parkedByGate, failure: record.failure, capped: record.capped })}`);
 }

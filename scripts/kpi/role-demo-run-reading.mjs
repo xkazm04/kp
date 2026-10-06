@@ -190,25 +190,122 @@ function stoppedClauses(tally) {
   return clauses;
 }
 
+/** The simulator's end reasons that mean the PROTOCOL ended the call (the interviewer's own
+ *  end_interview, or the director's end limit). Restated from interview-sim/types.ts
+ *  SimEndReason, which this file does not load. Everything else — max_turns, hard_stop, error —
+ *  is a harness cap or a failure, and the repo's own detectors (interview-sim/detectors.ts)
+ *  grade such a call as not evaluable. */
+export const PROTOCOL_END_REASONS = ["end_interview", "director_end"];
+
+/** The reason of a row the cap kept out. Restated from role-demo.ts. */
+export const CAP_SKIP = "not simulated: cap";
+
+const branchWord = (n) => `${n} ${n === 1 ? "branch" : "branches"}`;
+const namesOf = (refs, max = 3) => (refs.length <= max ? refs.join(", ") : `${refs.slice(0, max).join(", ")} +${refs.length - max} more`);
+
+/**
+ * WHAT A POLICY RUN ENDED ON, from the ledger, the stand-in's decisions and the simulated
+ * interviews (ADR-0011 amendment 2026-10-06, "what 'met' requires"). Clauses (ii)-(iv) of the
+ * goal-1 verdict; clause (i) — an offer approved on a recorded basis — stays goalOneHeadline's.
+ *
+ *  (ii) at least one approved offer rests on a simulated interview that ENDED BY PROTOCOL;
+ *  (iii) every branch is at a defined end state: terminal, offer_draft complete, or parked at
+ *        the rejection gate as a hold the stand-in LEFT by policy (a person's call);
+ *  (iv) no branch that passed the seed proof was kept out of the interview by the cap.
+ *
+ * @param {{
+ *   runStatus: string,
+ *   artifacts: { kind: string, branchRef: string|null, status: string, seq: number }[],
+ *   decisions: { gate: string, branchRef: string, action: string }[],
+ *   simulatedInterviews: { branchRef: string, sessionId: string|null, recommendation: string|null, endReason: string|null, skipped: string|null }[],
+ *   cap?: number|null,
+ * }} input
+ */
+export function goalOneEndState({ runStatus, artifacts, decisions, simulatedInterviews, cap = null }) {
+  const rows = simulatedInterviews ?? [];
+  const approvedOffers = decisions.filter((d) => d.gate === "offer" && d.action === "approve").map((d) => d.branchRef);
+  const heldAtRejection = new Set(decisions.filter((d) => d.gate === "rejection" && d.action === "leave").map((d) => d.branchRef));
+
+  // (ii) what each approved offer rests on.
+  const protocolEndedBases = [];
+  const otherBases = {};
+  for (const ref of approvedOffers) {
+    const row = rows.find((r) => r.branchRef === ref && isRatedSimulatedRow(r));
+    const reason = row?.endReason ?? "no simulated interview";
+    if (row && PROTOCOL_END_REASONS.includes(reason)) protocolEndedBases.push(ref);
+    else otherBases[reason] = (otherBases[reason] ?? 0) + 1;
+  }
+
+  // (iii) every branch's latest artifact. A chain ends at any terminal row, or at offer_draft
+  // complete (role-run-stages.ts: every other complete row has a successor).
+  const latest = new Map();
+  for (const a of [...artifacts].sort((x, y) => x.seq - y.seq)) if (a.branchRef !== null) latest.set(a.branchRef, a);
+  const heldForPerson = [];
+  const openBranches = [];
+  for (const [branchRef, a] of latest) {
+    const ended = a.status === "terminal" || (a.kind === "offer_draft" && a.status === "complete");
+    if (ended) continue;
+    if (a.kind === "screen" && a.status === "awaiting_approval" && heldAtRejection.has(branchRef)) heldForPerson.push(branchRef);
+    else openBranches.push({ branchRef, at: `${a.kind}:${a.status}` });
+  }
+
+  // (iv) seed branches the cap kept out. A not-seed refusal is counted and reported, and never fails this.
+  const cappedSeedBranches = rows.filter((r) => r.skipped === CAP_SKIP).map((r) => r.branchRef);
+  const refusedNotSeedData = notSeedRefusalCount(rows);
+
+  const failing = [];
+  if (approvedOffers.length > 0 && protocolEndedBases.length === 0) {
+    const reasons = Object.entries(otherBases).map(([r, n]) => `${r} x${n}`).join(", ");
+    const onlyCaps = Object.keys(otherBases).every((r) => r === "max_turns" || r === "hard_stop");
+    failing.push(`offers approved only on interviews ${onlyCaps ? "a harness cap cut short" : "that did not end by protocol"} (${reasons})`);
+  }
+  if (openBranches.length > 0) {
+    failing.push(`${branchWord(openBranches.length)} not at a defined end state (${namesOf(openBranches.map((o) => `${o.branchRef} at ${o.at}`))})`);
+  }
+  if (cappedSeedBranches.length > 0) {
+    failing.push(`${cappedSeedBranches.length} seed branch(es) reached the interview unplayed by the cap${cap === null ? "" : ` (--sim-interviews ${cap})`}`);
+  }
+
+  return {
+    runEndState: runStatus === "complete" && heldForPerson.length === 0 ? "complete" : `${runStatus}; ${branchWord(heldForPerson.length)} held for a person at rejection`,
+    approvedOffers: approvedOffers.length,
+    protocolEndedBases: protocolEndedBases.length,
+    harnessEndedBases: otherBases,
+    heldForPerson,
+    openBranches,
+    cappedSeedBranches,
+    refusedNotSeedData,
+    clauses: {
+      offerApproved: approvedOffers.length > 0,
+      protocolEndedBasis: protocolEndedBases.length > 0,
+      everyBranchAtEndState: openBranches.length === 0,
+      noSeedBranchCapped: cappedSeedBranches.length === 0,
+    },
+    failing,
+  };
+}
+
 /** The goal-1 headline, from roleRunGoalOneSteps (app/_lib/role-run-metrics.ts), the reading
  *  above and what the stand-in did. A run that could not be read at all keeps its own "not
  *  measured: <reason>" — the cause, not the ledger's emptiness; otherwise the verdict leads.
  *  Operator's decision of 2026-10-06 (ADR-0011 amendment): the three approval gates are
  *  allowed steps, so a run that stops at one is "not met", with what stopped it named.
  *
- *  `standIn` is null for a run nobody passed gates on, else `{ mode, tally }`:
- *   - `policy` (--approve-gates): "met" only when the ledger says met AND the stand-in
- *     approved an offer — every approval it gives carries a recorded basis by construction —
- *     and the verdict says the gates were signed by the stand-in, not a person. Anything else
- *     names what stopped the run: offers approved, offers declined and why, branches held.
+ *  `standIn` is null for a run nobody passed gates on, else `{ mode, tally, endState }`:
+ *   - `policy` (--approve-gates): "met" only when ALL FOUR hold — (i) the ledger says met and
+ *     the stand-in approved an offer on a recorded basis, and (ii)-(iv) of goalOneEndState (a
+ *     protocol-ended interview behind an approved offer, every branch at a defined end state,
+ *     no seed branch kept out by the cap). Anything else names each failing clause with its
+ *     counts. Every policy headline, met or not, ends with the run's end state. A policy
+ *     standIn without `endState` can never read met: the end state was not evaluated.
  *   - `all` (--approve-all): mechanics only. The verdict is WITHHELD, never "met", because
  *     the stand-in approved without a policy: an approval with no basis proves nothing.
  *
  *  @param {{ verdict: string, reason: string|null, humanStepsOutsideGates?: number }} goalOne
  *  @param {{ measured: boolean, headline: string }} reading
  *  `standIn.simulatedOffers` (optional) is how many of the approved offers rest on a scorecard
- *  from a simulated interview (simulatedOfferCount); above 0 the headline carries the label.
- *  @param {{ mode: "policy"|"all", tally: ReturnType<typeof tallyStandIn>, simulatedOffers?: number } | null} [standIn] */
+ *  from a simulated interview (simulatedOfferCount).
+ *  @param {{ mode: "policy"|"all", tally: ReturnType<typeof tallyStandIn>, simulatedOffers?: number, endState?: ReturnType<typeof goalOneEndState> } | null} [standIn] */
 export function goalOneHeadline(goalOne, reading, standIn = null) {
   if (!reading.measured) return reading.headline;
   if (standIn?.mode === "all") return "goal 1: verdict withheld: the stand-in approved without a policy (--approve-all, mechanics only)";
@@ -216,20 +313,25 @@ export function goalOneHeadline(goalOne, reading, standIn = null) {
   if (!standIn) return goalOne.verdict === "met" ? "goal 1: met" : `goal 1: not met: ${goalOne.reason}`;
   const tag = " (gates approved by demo stand-in)";
   const offers = standIn.tally.byGate.offer.approved;
-  if (goalOne.verdict === "met" && offers > 0) {
-    // An approval that rests on a scorecard from a SIMULATED interview is never a plain "met":
-    // the candidate was played by the model, and the headline says so (ADR-0011, 2026-10-06).
+  const end = standIn.endState;
+  const endLine = end ? `; run end state: ${end.runEndState}` : "";
+  const clauseOne = goalOne.verdict === "met" && offers > 0;
+  if (clauseOne && end && end.failing.length === 0) {
+    // Clause (ii) passed, so a simulated interview that ended by protocol is behind an offer:
+    // the headline keeps the label, because the candidate was played by the model (ADR-0011).
     const simulated = standIn.simulatedOffers ?? 0;
-    if (simulated > 0) {
-      const share = simulated < offers ? `, ${simulated} of ${offers} approved offers on a simulated interview` : "";
-      return `goal 1: met on a SIMULATED interview (candidate played by the model from the CV on the entry), gates by the demo stand-in: ${count(offers, "offer")} approved on a recorded basis${share}`;
-    }
-    return `goal 1: met: ${count(offers, "offer")} approved on a recorded basis${tag}`;
+    const share = simulated < offers ? `, ${simulated} of ${offers} approved offers on a simulated interview` : "";
+    return `goal 1: met on a SIMULATED interview (candidate played by the model from the CV on the entry), gates by the demo stand-in: ${count(offers, "offer")} approved on a recorded basis${share}, ${end.protocolEndedBases} on an interview that ended by protocol${endLine}`;
   }
-  const clauses = stoppedClauses(standIn.tally);
-  // A human act outside the gates, or a stop the stand-in did not cause, is the ledger's to name.
-  if ((goalOne.humanStepsOutsideGates ?? 0) > 0 || clauses.length === 1) clauses.push(goalOne.reason ?? "no offer approved");
-  return `goal 1: not met: ${clauses.join("; ")}${tag}`;
+  const clauses = [];
+  if (!clauseOne) {
+    clauses.push(...stoppedClauses(standIn.tally));
+    // A human act outside the gates, or a stop the stand-in did not cause, is the ledger's to name.
+    if ((goalOne.humanStepsOutsideGates ?? 0) > 0 || clauses.length === 1) clauses.push(goalOne.reason ?? "no offer approved");
+  }
+  if (!end) clauses.push("the run's end state was not evaluated");
+  else clauses.push(...end.failing);
+  return `goal 1: not met: ${clauses.join("; ")}${endLine}${tag}`;
 }
 
 /** The stand-in's tally as lines: one per gate with approved / declined / left, then every

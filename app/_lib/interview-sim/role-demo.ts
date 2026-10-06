@@ -200,25 +200,31 @@ export function spokenTranscript(turns: readonly SimTurn[]): VoiceTurn[] {
 
 const FIXTURE_OF_BRANCH: Record<string, SimFixture> = { kit: "kit", prep: "prep", debrief: "debrief", student: "student", case: "student" };
 
-/** Play and score ONE branch (a pipeline entry id). Never throws: every refusal is a row. */
-export async function simulateInterviewForEntry(
-  entryId: string,
-  workspaceId: string,
-  deps: RoleDemoSimDeps = {}
-): Promise<SimulatedInterviewRow> {
-  // BEFORE the first read, let alone the first write: a declared throwaway copy, not
-  // merely a path that does not look like data/kp.sqlite (see assertRoleDemoScratchDb).
+type PrecheckedEntry = {
+  entry: NonNullable<ReturnType<typeof getPipelineEntry>>;
+  profile: NonNullable<ReturnType<typeof getProfileRecord>>;
+};
+
+/**
+ * The local pre-checks of ONE branch, shared by the single-entry path and the batch loop so
+ * neither can reach the cap, a provider or a prompt without having run them: the scratch-DB
+ * declaration, the entry, its CV profile, and the seed-origin proof. Returns the refusal row,
+ * or the entry and profile that passed. Reads only; it builds nothing and calls no model.
+ *
+ * BEFORE the first read, let alone the first write: a declared throwaway copy, not merely a
+ * path that does not look like data/kp.sqlite (see assertRoleDemoScratchDb).
+ *
+ * SEEDED ENTRIES ONLY, and it is a proof rather than a convention (seed-origin.ts; finding 2b,
+ * the operator's answer of 2026-10-06). An entry whose row and CV payload do not match the
+ * committed fixtures is refused, and its CV is never rendered into a prompt. Unreadable
+ * fixtures refuse everything.
+ */
+function precheckEntry(entryId: string, workspaceId: string): { refused: SimulatedInterviewRow } | PrecheckedEntry {
   assertRoleDemoScratchDb();
   const entry = getPipelineEntry(entryId, workspaceId);
-  if (!entry) return skippedRow(entryId, "not simulated: no pipeline entry");
+  if (!entry) return { refused: skippedRow(entryId, "not simulated: no pipeline entry") };
   const profile = entry.candidateId ? getProfileRecord(entry.candidateId, workspaceId) : null;
-  if (!profile) return skippedRow(entryId, "not simulated: no CV profile for the entry");
-
-  // 0. SEEDED ENTRIES ONLY, and it is a proof rather than a convention (seed-origin.ts;
-  // finding 2b, the operator's answer of 2026-10-06). BEFORE the provider preflight, before
-  // candidatePersona, before a session exists and before any model call: an entry whose row
-  // and CV payload do not match the committed fixtures is refused, and its CV is never
-  // rendered into a prompt. Unreadable fixtures refuse everything.
+  if (!profile) return { refused: skippedRow(entryId, "not simulated: no CV profile for the entry") };
   const notSeed = seedOriginProblem({
     entryId,
     candidateId: entry.candidateId ?? null,
@@ -226,8 +232,27 @@ export async function simulateInterviewForEntry(
     profileId: profile.row.id,
     profilePayload: profile.payload,
   });
-  if (notSeed) return skippedRow(entryId, `${NOT_SEED_DATA}: ${notSeed}`);
+  if (notSeed) return { refused: skippedRow(entryId, `${NOT_SEED_DATA}: ${notSeed}`) };
+  return { entry, profile };
+}
 
+/** Play and score ONE branch (a pipeline entry id). Never throws: every refusal is a row. */
+export async function simulateInterviewForEntry(
+  entryId: string,
+  workspaceId: string,
+  deps: RoleDemoSimDeps = {}
+): Promise<SimulatedInterviewRow> {
+  const checked = precheckEntry(entryId, workspaceId);
+  if ("refused" in checked) return checked.refused;
+  return playCheckedEntry(entryId, workspaceId, checked, deps);
+}
+
+async function playCheckedEntry(
+  entryId: string,
+  workspaceId: string,
+  { entry, profile }: PrecheckedEntry,
+  deps: RoleDemoSimDeps
+): Promise<SimulatedInterviewRow> {
   // 1. The provider FIRST: offline or without a CLI nothing is built and no session exists.
   try {
     (deps.preflight ?? (deps.llms ? () => undefined : defaultPreflight))();
@@ -367,11 +392,19 @@ export function createRoleDemoSimulator(opts: { cap?: number; workspaceId: strin
     /** Simulate one approved-invite branch, or record why it was not. */
     async run(branchRef: string): Promise<SimulatedInterviewRow> {
       if (rows.some((r) => r.branchRef === branchRef)) return rows.find((r) => r.branchRef === branchRef) as SimulatedInterviewRow;
+      // The pre-check runs for EVERY branch, capped or not: a branch that fails the seed proof
+      // is a not-seed refusal whatever the cap says (so the reading's count is complete), and
+      // only a branch that passed it and finds the cap spent reads "not simulated: cap".
+      // Nothing past the pre-check runs for either.
       let row: SimulatedInterviewRow;
-      if (played >= cap) {
+      const checked = precheckEntry(branchRef, opts.workspaceId);
+      if ("refused" in checked) {
+        row = checked.refused;
+        if (!NO_SPEND_REFUSALS.some((prefix) => row.skipped?.startsWith(prefix))) played += 1;
+      } else if (played >= cap) {
         row = skippedRow(branchRef, "not simulated: cap");
       } else {
-        row = await simulateInterviewForEntry(branchRef, opts.workspaceId, opts.deps);
+        row = await playCheckedEntry(branchRef, opts.workspaceId, checked, opts.deps ?? {});
         // The cap bounds SPEND. A branch that never reached a provider spent nothing — an
         // unavailable provider, or an entry refused as not-seed before anything was built.
         if (!NO_SPEND_REFUSALS.some((prefix) => row.skipped?.startsWith(prefix))) played += 1;

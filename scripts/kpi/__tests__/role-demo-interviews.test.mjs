@@ -45,6 +45,7 @@ import {
   NOT_SEED_REFUSAL,
   SIM_PROVIDER_LINE,
   formatSimulatedInterviews,
+  goalOneEndState,
   goalOneHeadline,
   notSeedRefusalCount,
   simulatedOfferCount,
@@ -126,6 +127,14 @@ const noMint = { mint: async () => ({ credited: [] }) };
 const cardOf = (record, entryId) =>
   record.artifacts.filter((a) => a.kind === "scorecard" && a.branchRef === entryId).sort((a, b) => b.seq - a.seq)[0]?.payload.cards.find((c) => c.entryId === entryId);
 
+/** The standIn the script hands goalOneHeadline, built the way the script builds it. */
+const standInOf = (record) => ({
+  mode: "policy",
+  tally: tallyStandIn(record.standInDecisions),
+  simulatedOffers: simulatedOfferCount(record.standInDecisions, record.simulatedInterviews),
+  endState: goalOneEndState({ runStatus: record.status, artifacts: record.artifacts, decisions: record.standInDecisions, simulatedInterviews: record.simulatedInterviews, cap: record.simulatedInterviewCap }),
+});
+
 const offerOf = (record, entryId) => record.standInDecisions.find((d) => d.gate === "offer" && d.branchRef === entryId);
 
 test("the simulated interview is sealed between the invite approval and the S5 pass, and S5 carries it", async () => {
@@ -167,12 +176,14 @@ test("an 'advance' card lets the stand-in approve the offer, and the headline sa
   assert.equal(record.goalOne.verdict, "met");
 
   const reading = summarizeRoleDemoRun({ runStatus: record.status, artifacts: record.artifacts, failure: record.failure });
-  const standIn = { mode: "policy", tally: tallyStandIn(record.standInDecisions), simulatedOffers: simulatedOfferCount(record.standInDecisions, record.simulatedInterviews) };
+  const standIn = standInOf(record);
   assert.equal(standIn.simulatedOffers, 1);
   const headline = goalOneHeadline(record.goalOne, reading, standIn);
   assert.match(headline, /^goal 1: met on a SIMULATED interview \(candidate played by the model from the CV on the entry\), gates by the demo stand-in/);
-  // Without the simulated count the same ledger would read as a plain "met": the label is the guard.
-  assert.doesNotMatch(goalOneHeadline(record.goalOne, reading, { ...standIn, simulatedOffers: 0 }), /SIMULATED/);
+  // The fake interview ended by protocol, so clause (ii) holds and the headline says so; the label
+  // can no longer be dropped by a count, because a plain "met" does not exist in a policy run.
+  assert.match(headline, /1 on an interview that ended by protocol; run end state: complete$/);
+  assert.match(goalOneHeadline(record.goalOne, reading, { ...standIn, endState: undefined }), /^goal 1: not met: .*end state was not evaluated/);
 });
 
 test("a 'hold' scorecard from the simulated interview is not a basis for an offer", async () => {
@@ -181,7 +192,7 @@ test("a 'hold' scorecard from the simulated interview is not a basis for an offe
   assert.equal(cardOf(record, entries[0]).recommendation, "hold");
   assert.equal(offerOf(record, entries[0]).action, "decline");
   const reading = summarizeRoleDemoRun({ runStatus: record.status, artifacts: record.artifacts, failure: record.failure });
-  const standIn = { mode: "policy", tally: tallyStandIn(record.standInDecisions), simulatedOffers: simulatedOfferCount(record.standInDecisions, record.simulatedInterviews) };
+  const standIn = standInOf(record);
   assert.match(goalOneHeadline(record.goalOne, reading, standIn), /^goal 1: not met/);
 });
 
@@ -280,7 +291,7 @@ test("the reading carries counts and the recommendation, never transcript or sco
   const stored = latestInterviewByEntry(entries[0]);
   assert.ok(stored.transcript.some((t) => t.text.includes(MARK)), "the sentinel is in the transcript");
   const reading = summarizeRoleDemoRun({ runStatus: record.status, artifacts: record.artifacts, failure: record.failure });
-  const standIn = { mode: "policy", tally: tallyStandIn(record.standInDecisions), simulatedOffers: simulatedOfferCount(record.standInDecisions, record.simulatedInterviews) };
+  const standIn = standInOf(record);
   const printed = [
     JSON.stringify(record.simulatedInterviews),
     ...formatSimulatedInterviews(record.simulatedInterviews),
@@ -370,7 +381,7 @@ test("a failing provider and a failing scorer put NO interview text in the row's
   assert.ok(rows.some((r) => /message withheld/.test(r.skipped)), `nothing was redacted: ${JSON.stringify(rows)}`);
 
   const reading = summarizeRoleDemoRun({ runStatus: record.status, artifacts: record.artifacts, failure: record.failure });
-  const standIn = { mode: "policy", tally: tallyStandIn(record.standInDecisions), simulatedOffers: simulatedOfferCount(record.standInDecisions, record.simulatedInterviews) };
+  const standIn = standInOf(record);
   const printed = [
     JSON.stringify(rows),
     ...formatSimulatedInterviews(rows),
@@ -495,6 +506,7 @@ test("the run's own output names where a played CV goes", () => {
   const parent = readFileSync(new URL("../role-demo-run.mjs", import.meta.url), "utf8");
   assert.match(parent, /console\.log\(`\s*provider: \$\{SIM_PROVIDER_LINE\}`\)/, "the printed reading no longer names the provider");
   assert.match(parent, /simulatedInterviewProvider: SIM_PROVIDER_LINE/, "the --json reading no longer names the provider");
+  assert.match(parent, /runEndState: endState\.runEndState, protocolEndedBases: endState\.protocolEndedBases/, "the --json reading no longer carries the end-state fields");
   assert.match(parent, /refusedNotSeedData: notSeedRefusalCount\(simulatedInterviews\)/, "the --json reading no longer counts the not-seed refusals");
   assert.match(parent, /refused as not seed data: \$\{notSeedRefusalCount\(simulatedInterviews\)\}/, "the printed reading no longer counts the not-seed refusals");
 });
@@ -529,4 +541,41 @@ test("the demo child is sealed against comms egress, however the relay is config
   for (const key of ["KP_DB_PATH: copy", "KP_ROLE_DEMO_SCRATCH_DB: copy", 'KP_NO_COMMS_EGRESS: "1"']) {
     assert.ok(spawnEnv[1].includes(key), `the child spawn does not set ${key}: ${spawnEnv[1]}`);
   }
+});
+
+// ---- 2026-10-06: the seed proof is counted past the cap ------------------------------
+
+test("a CAPPED non-seed entry is a not-seed refusal, counted — never 'not simulated: cap'", async () => {
+  const { entryId } = await unseededRole("capped-unseeded");
+  const { calls, deps } = tripwireDeps();
+  // cap 0: the budget is spent before the first branch, so every branch meets a spent cap.
+  const simulator = createRoleDemoSimulator({ cap: 0, workspaceId: DEFAULT_WORKSPACE_ID, deps });
+  const row = await simulator.run(entryId);
+  assert.ok(row.skipped.startsWith(NOT_SEED_DATA), `a capped non-seed entry read: ${row.skipped}`);
+  assert.match(row.skipped, /pipeline seed holds no entry with this id/);
+  assert.equal(notSeedRefusalCount(simulator.rows), 1);
+  assert.deepEqual(calls, [], "no preflight, provider or scorer for a refused entry");
+  assert.equal(latestInterviewByEntry(entryId), null);
+});
+
+test("a CAPPED seed entry reads 'not simulated: cap', and nothing past the pre-check runs for it", async () => {
+  const { entries } = await seedRole("capped-seed", 1);
+  const { calls, deps } = tripwireDeps();
+  const simulator = createRoleDemoSimulator({ cap: 0, workspaceId: DEFAULT_WORKSPACE_ID, deps });
+  const row = await simulator.run(entries[0]);
+  assert.equal(row.skipped, "not simulated: cap");
+  assert.equal(notSeedRefusalCount(simulator.rows), 0, "a seed branch kept out by the cap is not a refusal");
+  assert.deepEqual(calls, [], "no preflight, persona, provider or scorer for a capped entry");
+  assert.equal(latestInterviewByEntry(entries[0]), null, "no session was minted");
+});
+
+test("past a spent cap the proof still runs: a seed entry reads cap, a non-seed one a refusal, in one batch", async () => {
+  const { entries } = await seedRole("capped-batch", 2);
+  const { entryId: stranger } = await unseededRole("capped-batch-stranger");
+  const simulator = createRoleDemoSimulator({ cap: 1, workspaceId: DEFAULT_WORKSPACE_ID, deps: { llms: fakeLlms, score: llmScorer("advance"), finalize: noMint } });
+  const rows = [await simulator.run(entries[0]), await simulator.run(entries[1]), await simulator.run(stranger)];
+  assert.equal(rows[0].skipped, null, "the first seed branch spent the cap");
+  assert.equal(rows[1].skipped, "not simulated: cap");
+  assert.ok(rows[2].skipped.startsWith(NOT_SEED_DATA), `the stranger past the cap read: ${rows[2].skipped}`);
+  assert.equal(notSeedRefusalCount(simulator.rows), 1);
 });
