@@ -38,8 +38,28 @@ enter the funnel. The wire schema is in [outbound-export.md](./outbound-export.m
 |---|---|---|---|
 | *(sealed)* | `KP_NO_COMMS_EGRESS=1` | `OutboxChannel` (local) | Ahead of everything below: the resolver answers *no relay* whatever is configured, so every message queues locally. See §1.1. |
 | — | Neither env nor stored config set | `OutboxChannel` (local) | Records the message in `dev_outbox` as `queued`. Nothing is delivered — the outbox **is** the destination. |
-| `env` | `COMMS_WEBHOOK_URL` set | `WebhookChannel` | POSTs the `kp.comm.v1` envelope to that URL; no HMAC secret (env path never carried one). |
-| `config` | A relay URL is saved via the UI (Channels → Delivery relay, `night/setup/SetupRelay.tsx`) | `WebhookChannel` | POSTs the envelope to the stored URL, HMAC-signed with the stored secret (`x-kp-signature`, same scheme as the ATS webhook) when one is configured. |
+| `env` | `COMMS_WEBHOOK_URL` set | `WebhookChannel` | POSTs the `kp.comm.v1` envelope to that URL; no HMAC secret (env path never carried one). **Host-level — not org-checked** (below). |
+| `config` | A relay URL is saved via the UI (Channels → Delivery relay, `night/setup/SetupRelay.tsx`) | `WebhookChannel` | POSTs the envelope to the stored URL, HMAC-signed with the stored secret (`x-kp-signature`, same scheme as the ATS webhook) when one is configured. **Org-scoped** (below). |
+
+**The stored relay belongs to the organization that saved it (F-2).**
+`comms_relay_config` is one deployment-wide row, and until this gate existed
+nothing tied it to an org — so in a multi-org deployment every message org B
+sent (recipient, subject, the whole body, the envelope naming the candidate and
+the role) was POSTed to the endpoint org A saved. `POST /api/comms/relay` now
+stamps the saver's org (`owner_org_id`) from the **session**, never from the
+body; `WebhookChannel.send` resolves the message's own org — from `ref`'s
+pipeline entry when there is one, else the dispatch's `workspaceId`, exactly how
+`recordOutbox` files the row — and **refuses** a mismatch before the envelope is
+built and before any fetch: no POST, a `failed` outbox row whose `failureDetail`
+names both org ids (and no candidate data), plus the dead-letter alert, so the
+refusal is operator-visible rather than a silent drop. A **NULL owner reads as
+the default org**, as does a workspace with no `org_id`, so a row written before
+the column existed and every single-org self-host are unchanged. The **env relay
+is deliberately exempt**: `COMMS_WEBHOOK_URL` is host-level configuration an
+operator put in the process environment to serve the whole deployment, not an
+integration one organization saved — the two are told apart by the resolver's
+`source`, never by the owner being null. Proofs:
+`app/_lib/comms-relay-org-scope.test.ts`.
 
 Env keeps precedence so an existing `COMMS_WEBHOOK_URL` deployment behaves
 exactly as before. `isRelayConfigured()` is the one capability bit every

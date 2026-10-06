@@ -433,7 +433,13 @@ export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
   // connected once for the company, not per hiring team. It holds no candidate data; the
   // per-candidate rows it produces land in ats_links, which IS workspace-scoped.
   "ats_connections",
-  "comms_relay_config", // the org's outbound comms delivery relay (one endpoint; sibling of ats_config)
+  // The org's outbound comms delivery relay (one endpoint; sibling of ats_config). Still
+  // org-level — one row, no workspace column — but it now RECORDS the org that saved it
+  // (`owner_org_id`), and the delivery boundary refuses to POST another organization's
+  // candidate messages to it (F-2, security scan 2026-10-06; comms.ts crossOrgRefusal). A
+  // NULL owner reads as the default org, so a pre-upgrade row and a single-org install are
+  // unchanged. The env relay (COMMS_WEBHOOK_URL) is host-level and is not org-checked.
+  "comms_relay_config",
   // The local half of the edge pairing (edge-config.ts, docs/concepts/local-first-edge.md):
   // where the edge lives, the shared HMAC secret, this INSTALL's sealing keypair and the
   // drain cursor. Its own header says it is "modeled on comms-relay-store.ts down to the

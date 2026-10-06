@@ -1682,7 +1682,9 @@ const ROUTES: RouteSpec[] = [
     optsSrc: "RELAY_RATE_LIMIT",
     optsDef: "const RELAY_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };",
     refusalCode: "TOO_MANY_REQUESTS",
-    expensive: "setRelayConfig(body)",
+    // The store write; the spread carries the session-stamped `ownerOrgId` the limiter
+    // must still sit in front of (F-2, 2026-10-06).
+    expensive: "setRelayConfig({ ...body, ownerOrgId })",
   },
   // ------------------------------------------------------------------
   // ADDED /perfect 2026-09-03 (integrations-settings), with the limiters themselves. The

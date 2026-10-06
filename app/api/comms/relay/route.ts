@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { CommsRelayError, CommsRelayStaleError, getRelayConfig, setRelayConfig } from "@/app/_lib/comms-relay-store";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { requireOrgCapability } from "@/app/_lib/auth/current-user";
+import { currentSession, requireOrgCapability } from "@/app/_lib/auth/current-user";
+import { currentOrgId } from "@/app/_lib/auth/session";
+import { DEFAULT_ORG_ID } from "@/app/_lib/db/organizations";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { relayHealth } from "@/app/_lib/comms-relay";
@@ -56,7 +58,12 @@ export async function POST(request: NextRequest) {
     // `expectedVersion` is the version the editor READ. The write is a full replace, so
     // without it a second tab (or a second operator) silently overwrote the endpoint
     // the first had just saved; the store re-asserts it under the write lock.
-    const config = setRelayConfig(body);
+    // F-2 — stamp the SAVER's organization on the row. The delivery path refuses to POST
+    // any other org's candidate messages to this endpoint, so "who owns this relay" has to
+    // be recorded here, where a session proves it, and never taken from the body. Open mode
+    // (no operator password, no session) is the single default org by definition.
+    const ownerOrgId = currentOrgId(await currentSession()) ?? DEFAULT_ORG_ID;
+    const config = setRelayConfig({ ...body, ownerOrgId });
     return NextResponse.json({ ok: true, config });
   } catch (error) {
     // Checked FIRST: a stale write subclasses CommsRelayError, and it is a refusal

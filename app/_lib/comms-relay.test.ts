@@ -117,7 +117,10 @@ test("a readable stored relay is 'configured', secret and all", () => {
   process.env.KP_ATS_SECRET_KEY = "unit-test-relay-key";
   setRelayConfig({ url: "https://relay.example/live", secret: "sign-me" });
   assert.equal(relayHealth(), "configured");
-  assert.deepEqual(resolveRelay(), { url: "https://relay.example/live", secret: "sign-me", source: "config" });
+  // `ownerOrgId` rides the resolution (F-2): the delivery boundary refuses a message
+  // belonging to another organization, and null here is a row saved with no session —
+  // which the refusal reads as the default org, so a single-org install is unchanged.
+  assert.deepEqual(resolveRelay(), { url: "https://relay.example/live", secret: "sign-me", source: "config", ownerOrgId: null });
 });
 
 test("an undecryptable secret is 'unreadable', NOT 'unconfigured', and is logged once with a remedy", () => {

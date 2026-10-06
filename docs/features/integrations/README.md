@@ -373,6 +373,28 @@ ping (`POST /api/ats/test`).
   sweep re-derives it the same way, because a ledger row carries no tenant column. Both reads
   used to be unscoped — they resolved against the default workspace, so `candidate.hired` never
   fired for any other team and left no trace that it hadn't.
+- **The outbound COMMS relay carries the same owner rule — and it is the hotter path.**
+  `comms_relay_config` (`app/_lib/comms-relay-store.ts`) is the identically-shaped singleton
+  behind the Channels tab's relay card, and every candidate-facing message is POSTed to it:
+  recipient, subject, the whole letter body, and the enriched `kp.comm.v1` envelope naming
+  the candidate, the role and the stage. The ATS mirror carries an outcome *record*; this
+  carries the *letter*. So it too records the **organization that saved it**: `POST
+  /api/comms/relay` stamps the saver's org (`owner_org_id`) from the session, never from the
+  body — an `ownerOrgId` in the request body is ignored. Before the envelope is built and
+  long before any fetch, `WebhookChannel.send` (`app/_lib/comms.ts`) resolves the message's
+  own org — from `ref`'s pipeline entry when there is one, else the dispatch's `workspaceId`,
+  exactly the way `recordOutbox` files the row — and a mismatch is **refused**: no POST, a
+  `failed` outbox row whose `failureDetail` names both org ids and no candidate data, and the
+  dead-letter alert, so the refusal is operator-visible rather than a silent drop. A **NULL
+  owner reads as the default org**, and so does a workspace with no `org_id`: a row written
+  before the column existed and every single-org self-host behave exactly as before. The
+  **env relay (`COMMS_WEBHOOK_URL`) is NOT org-checked** — it is host-level configuration an
+  operator put in the process environment to serve the whole deployment, not an integration
+  one organization saved through the UI, and the two are told apart by the resolver's
+  `source`, never by the owner being null. `GET /api/comms/relay` returns `ownerOrgId` (an id,
+  not a secret) and still never the signing secret; the test probe `POST
+  /api/comms/relay/test` is unchanged. (F-2, security scan 2026-10-06; proofs in
+  `app/_lib/comms-relay-org-scope.test.ts`.)
 - **Nothing exits without a ledger row.** A dispatch opens its `ats_delivery` row *before* the
   record is built, so an entry that cannot be resolved — or a build that throws — becomes a
   `failed`, retryable, operator-visible row that says why, never a silent return. A hire that
