@@ -1873,6 +1873,8 @@ Publishing a role executes the state transition, billing gate, and receipt initi
 
 If candidate sourcing is aborted (e.g. client disconnect or navigation) or encounters an error, the receipt is finished in an incomplete state (`abandoned`, `sourcing_failed`, or `raise_failed`). The role remains live, but a durable team-scoped receipt persists the interruption. When reopening the role's modal, `GET /api/jobs/[id]/publish` reads the receipt, and `JobsPostingModalFooter` presents **Finish sourcing**. Clicking this issues a `POST /api/jobs/[id]/publish` with an empty body: the route detects `already`, atomically claims the resume attempt (`claimResume` CAS with a 10-minute in-flight grace window), and re-executes `runGoLive(mode: 'resume')` without re-billing or re-flipping the status. Only newly filed pipeline entries (`createPipelineEntry().created`) count toward `sourced`, ensuring honest reporting on both first go-live and resume.
 
+**Erasure.** `job_golive_receipts` is workspace-scoped (`TENANCY_SCOPED_TABLES`) and is listed in `ERASURE_EXEMPT` (`app/_lib/db/pipeline.ts`): it is job-keyed bookkeeping (attempt, state, counts) with no entry or person column, so an Art. 17 scrub, which is entry-keyed, has nothing in it to reach. `golive-receipt-tenancy.test.ts` pins the column set, so a candidate-keyed column added later fails there instead of becoming undeletable.
+
 ### Auto-close, and why two simultaneous hires cannot double-close it
 
 `app/_lib/stage-hooks-role-fill.ts` is a post-commit arrival hook, scheduled from
