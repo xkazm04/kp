@@ -2,11 +2,13 @@ import { readFile, writeFile, rename } from "node:fs/promises";
 import path from "node:path";
 // ArchetypeChecklistItem is a leaf type with no node:fs dependency, so it is
 // single-sourced from the client-safe ProfileTypes (a type-only import, erased at
-// compile time — it does not pull this server module into the client bundle). The
+// compile time — it does not pull app/features/ into this server module's graph). The
 // full ArchetypeDef stays declared separately on each side: the client/server
 // split is intentional (this module imports node:fs) and the weight/dimension
-// maps differ (Record<Slot,...> here vs the literal object client-side).
-import { BUILT_IN_ARCHETYPE_IDS, type ArchetypeChecklistItem } from "@/app/features/shared/profileTypes";
+// maps differ (Record<Slot,...> here vs the literal object client-side). The
+// built-in ids are a VALUE, so they come from the _lib leaf, not from features/.
+import type { ArchetypeChecklistItem } from "@/app/features/shared/profileTypes";
+import { BUILT_IN_ARCHETYPE_IDS } from "./archetypes";
 
 // Server-side read/write for the shared archetype registry (pipeline/jobfit/
 // archetypes.json) — the SAME file the Python pipeline reads per spawn, so an

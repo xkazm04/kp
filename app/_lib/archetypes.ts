@@ -20,6 +20,13 @@
 
 import archetypeRegistry from "@/pipeline/jobfit/archetypes.json";
 
+// The baseline (shipped) archetypes: the ids with dedicated `choice.<id>` translations
+// and detection rules. They are PROTECTED from archival — retiring them would strip the
+// fairness shield / default routing the pipeline depends on. Single-sourced here, in a
+// _lib leaf the archetype-registry write layer can import without reaching into
+// app/features/. Mirrors ARCHETYPE_CHOICES (minus "auto").
+export const BUILT_IN_ARCHETYPE_IDS = ["bau", "student", "career_switcher"] as const;
+
 type ArchetypeDef = {
   id: string;
   label: string;
