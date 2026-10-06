@@ -164,3 +164,11 @@ back-measure is named up front:
    unassessed agent — no fabricated zero.
 5. No existing all-human board changes its counts, its fairness metric, or its
    sealed decisions as a result of the population column.
+
+**Status of the evidence adapters (increment 5, first half).**
+`app/_lib/slate-evidence.ts` holds the two adapters: `humanEvidence` (a CV
+analysis's matched/missing skills) and `agentEvidence` (an agent-fit spec's
+`coverage[]`), each producing a `CandidateEvidence` for `evaluateAgainstRubric`.
+Both are pure, fill only `requirement_coverage` axes, leave an unnamed axis
+unassessed rather than 0, and have no caller yet — where evidence is computed and
+persisted is the next increment.

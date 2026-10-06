@@ -39,6 +39,7 @@
         "app/_lib/db/job-postings.ts",
         "app/_lib/db/role-rubrics.ts",
         "app/_lib/db/role-slate.ts",
+        "app/_lib/slate-evidence.ts",
         "app/_lib/role-rubric.ts",
         "app/api/roles/**",
         "app/api/intake/**",
