@@ -2082,7 +2082,14 @@
       "reasons": {
         "reject": "The decisive facts: your match score of {score} was below the screening threshold of {threshold}.",
         "staleScore": "This score was calculated before the role description was last changed, so it may not reflect the current requirements. You can ask for a human review.",
-        "rubric": "The decisive facts, by competency:"
+        "rubric": "The decisive facts, by competency:",
+        "verdict": "The decisive facts: an AI review of your application recommended {recommendation}.",
+        "verdictConfidence": "The decisive facts: an AI review of your application recommended {recommendation}, with {confidence}% confidence."
+      },
+      "recommendations": {
+        "advance": "moving you forward",
+        "hold": "holding your application for a closer look",
+        "reject": "not moving you forward"
       },
       "kinds": {
         "auto_rejected": "Application not progressed at automated screening",

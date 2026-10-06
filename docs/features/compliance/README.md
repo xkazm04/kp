@@ -487,13 +487,14 @@ ratio.** Each variant is produced by exactly one extractor, registered in
 | --- | --- | --- |
 | `threshold` | `auto_rejected` | the score and the cutoff the screen wave compared (`autoRejectFacts`) |
 | `rubric` | `ai_scorecard` | the assessed competency keys and their 1–5 ratings (`aiScorecardFacts`) |
+| `verdict` | `auto_advanced` | the AI recommendation the advance rode on — only a member of the closed advance/hold/reject set — and its 0–100 confidence when sealed and in range (`autoAdvanceFacts`). An advance sealed with no AI verdict, or an off-set recommendation, carries `facts: null`; a bad confidence drops the number, not the verdict. Stage, approval kind, hand-off and the recruiter's free-text `detail` never cross |
 
-`factsCoverage()` reports that as **2 of 14 candidate-visible kinds, and 2 of
+`factsCoverage()` reports that as **3 of 14 candidate-visible kinds, and 3 of
 the 5 `AI_VERDICT_DECISION_KINDS`** — the subset where a machine judged the
 person, which is the denominator Art. 86 bites hardest on. The ratio is
 asserted in `app/api/status/status-decisions.test.ts`, so raising it is a number
 that moves rather than a claim in a commit message. The still-uncovered AI
-verdicts are `auto_advanced`, `group_eval_lead` and `group_eval_advisory`.
+verdicts are `group_eval_lead` and `group_eval_advisory`.
 
 Two rules constrain what an extractor may put on the wire, and both are pinned
 by tests:

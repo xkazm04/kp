@@ -28,6 +28,7 @@ import {
   CANDIDATE_VISIBLE_DECISION_KINDS,
   MAX_CANDIDATE_RUBRIC_DIMENSIONS,
   aiScorecardFacts,
+  autoAdvanceFacts,
   autoRejectFacts,
   candidateDecisionHistory,
   factsCoverage,
@@ -288,15 +289,68 @@ test("the seal side drops what must never be sealed, and the two sides share one
   assert.equal(CANDIDATE_RUBRIC_RATING_MAX, RATING_MAX);
 });
 
+test("auto_advanced carries the AI verdict it rode on — and none of the workflow around it", () => {
+  const sealed = {
+    kind: "auto_advanced",
+    actor: "auto:sim",
+    reasonCode: "accept",
+    createdAt: "2026-07-20T00:00:00.000Z",
+    payloadJson: JSON.stringify({
+      inputs: {
+        fromStage: "interview",
+        detail: "Recruiter note naming bob@example.com",
+        aiRecommendation: "advance",
+        aiConfidence: 82,
+        approvalKind: "plan_gate",
+        handoff: "human_round",
+      },
+    }),
+  };
+  const view = redactDecisionForCandidate(sealed);
+  assert.deepEqual(view?.facts, { type: "verdict", recommendation: "advance", confidence: 82 });
+  assert.equal(view?.attribution, "automated");
+  const wire = JSON.stringify(view);
+  for (const leak of ["bob@example.com", "fromStage", "approvalKind", "plan_gate", "handoff", "detail", "aiRecommendation"]) {
+    assert.ok(!wire.includes(leak), `the verdict view must not contain "${leak}"`);
+  }
+  const facts = (inputs: unknown) => autoAdvanceFacts(JSON.stringify({ inputs }));
+  // The closed vocabulary survives case/space drift in the producer's string…
+  assert.deepEqual(facts({ aiRecommendation: " Hold ", aiConfidence: 40 }), { type: "verdict", recommendation: "hold", confidence: 40 });
+  // …but an advance sealed with NO AI verdict (a plain board move) has no facts.
+  assert.equal(facts({ aiRecommendation: null, aiConfidence: null }), null);
+  assert.equal(facts({ fromStage: "screen" }), null);
+  assert.equal(autoAdvanceFacts("not json"), null);
+  assert.equal(autoAdvanceFacts(JSON.stringify({ inputs: null })), null);
+});
+
+test("auto_advanced never guesses: an out-of-set recommendation is null, a bad confidence is dropped", () => {
+  const facts = (inputs: unknown) => autoAdvanceFacts(JSON.stringify({ inputs }));
+  // Not coerced to the "hold" fallback — that would show a verdict the machine never made.
+  assert.equal(facts({ aiRecommendation: "strong_yes", aiConfidence: 90 }), null, "outside INTERVIEW_RECOMMENDATIONS");
+  assert.equal(facts({ aiRecommendation: "", aiConfidence: 90 }), null);
+  assert.equal(facts({ aiRecommendation: 1, aiConfidence: 90 }), null, "a non-string verdict");
+  // A malformed or non-finite confidence loses the NUMBER, never the verdict, and is
+  // never defaulted to 0 (a sealed absence is not "0% sure").
+  for (const bad of [null, undefined, "high", "", "82", NaN, Infinity, -1, 101, {}, []]) {
+    assert.deepEqual(
+      facts({ aiRecommendation: "advance", aiConfidence: bad }),
+      { type: "verdict", recommendation: "advance", confidence: null },
+      `confidence ${JSON.stringify(bad)} reads as no confidence`
+    );
+  }
+  assert.deepEqual(facts({ aiRecommendation: "advance", aiConfidence: 0 }), { type: "verdict", recommendation: "advance", confidence: 0 }, "a real 0 stands");
+  assert.deepEqual(facts({ aiRecommendation: "reject", aiConfidence: 66.6 }), { type: "verdict", recommendation: "reject", confidence: 67 });
+});
+
 test("the Art. 86 coverage ratio is a number, and it is the number this change claims", () => {
   // The goal this serves ("every automated step is explainable to the candidate") is
   // a ratio, so it is asserted as one. Raising it means adding an extractor AND its
   // candidate copy; this line is what makes that a movement rather than a claim.
   const c = factsCoverage();
   assert.equal(c.visible, CANDIDATE_VISIBLE_DECISION_KINDS.size);
-  assert.equal(c.withFacts, 2, "auto_rejected + ai_scorecard carry decisive facts");
+  assert.equal(c.withFacts, 3, "auto_rejected + ai_scorecard + auto_advanced carry decisive facts");
   assert.equal(c.aiVerdict, 5, "the kinds where a machine judged the person");
-  assert.equal(c.aiVerdictWithFacts, 2, "…of which two can say what they were judged on");
+  assert.equal(c.aiVerdictWithFacts, 3, "…of which three can say what they were judged on; group_eval_* are the open gap");
   // Every kind with an extractor must be a kind the candidate can actually SEE —
   // an extractor for a hidden kind is dead code pretending to be coverage.
   for (const kind of AI_VERDICT_DECISION_KINDS) {

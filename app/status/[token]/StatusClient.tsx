@@ -17,6 +17,7 @@ import { StatusNextActionCard } from "./StatusNextActionCard";
 import type { CandidateNextAction } from "@/app/_lib/candidate-next-action";
 import { rubricLabel } from "@/app/_lib/interview-rubric";
 import { useRubricStrings } from "@/app/_lib/use-rubric-strings";
+import type { InterviewRecommendation } from "@/app/_lib/interview-recommendation";
 import type { CandidateDecisionView } from "@/app/_lib/status-decisions";
 import type { DisclosureCompliance } from "@/app/_lib/compliance-regimes";
 import type { CandidateLetterView } from "@/app/_lib/interview-letter-types";
@@ -201,6 +202,16 @@ export function StatusClient({
     offer_terms: t("decisions.kinds.offer_terms"),
   };
 
+  // The AI verdict vocabulary, in the candidate's register. Total by construction:
+  // the server projects only members of the closed INTERVIEW_RECOMMENDATIONS set
+  // (autoAdvanceFacts), so a verdict outside it never reaches this map. Literal
+  // keys, same constraint as the kind labels above.
+  const recommendationLabels: Record<InterviewRecommendation, string> = {
+    advance: t("decisions.recommendations.advance"),
+    hold: t("decisions.recommendations.hold"),
+    reject: t("decisions.recommendations.reject"),
+  };
+
   return (
     <main className="mx-auto max-w-xl px-4 py-12">
       {/* The candidate's own escape hatch, mirroring the public apply page: the
@@ -366,6 +377,15 @@ export function StatusClient({
                         {d.facts.dimensions
                           .map((dim) => `${rubricLabel(dim.competency, rubricStrings)} ${dim.rating}/${dim.ratingMax}`)
                           .join(" · ")}
+                      </span>
+                    ) : d.facts?.type === "verdict" ? (
+                      <span className="w-full text-body text-steel">
+                        {d.facts.confidence === null
+                          ? t("decisions.reasons.verdict", { recommendation: recommendationLabels[d.facts.recommendation] })
+                          : t("decisions.reasons.verdictConfidence", {
+                              recommendation: recommendationLabels[d.facts.recommendation],
+                              confidence: d.facts.confidence,
+                            })}
                       </span>
                     ) : null}
                   </li>

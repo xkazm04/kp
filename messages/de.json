@@ -2082,7 +2082,14 @@
       "reasons": {
         "reject": "Die entscheidenden Fakten: Ihr Match-Score von {score} lag unter der Screening-Schwelle von {threshold}.",
         "staleScore": "Dieser Score wurde berechnet, bevor die Stellenbeschreibung zuletzt geändert wurde, und spiegelt die aktuellen Anforderungen daher möglicherweise nicht wider. Sie können eine menschliche Überprüfung anfordern.",
-        "rubric": "Die entscheidenden Fakten nach Kompetenz:"
+        "rubric": "Die entscheidenden Fakten nach Kompetenz:",
+        "verdict": "Die entscheidenden Fakten: Eine KI-Prüfung Ihrer Bewerbung hat empfohlen: {recommendation}.",
+        "verdictConfidence": "Die entscheidenden Fakten: Eine KI-Prüfung Ihrer Bewerbung hat empfohlen: {recommendation} (Konfidenz {confidence} %)."
+      },
+      "recommendations": {
+        "advance": "Sie weiterzubringen",
+        "hold": "Ihre Bewerbung für eine genauere Prüfung zurückzustellen",
+        "reject": "Sie nicht weiterzubringen"
       },
       "kinds": {
         "auto_rejected": "Bewerbung im automatisierten Screening nicht weitergekommen",

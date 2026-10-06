@@ -2082,7 +2082,14 @@
       "reasons": {
         "reject": "Les éléments décisifs : votre score de correspondance de {score} était inférieur au seuil de présélection de {threshold}.",
         "staleScore": "Ce score a été calculé avant la dernière modification de la description du poste : il peut ne pas refléter les exigences actuelles. Vous pouvez demander un réexamen humain.",
-        "rubric": "Les éléments décisifs, par compétence :"
+        "rubric": "Les éléments décisifs, par compétence :",
+        "verdict": "Les éléments décisifs : un examen de votre candidature par IA a recommandé de {recommendation}.",
+        "verdictConfidence": "Les éléments décisifs : un examen de votre candidature par IA a recommandé de {recommendation}, avec un niveau de confiance de {confidence} %."
+      },
+      "recommendations": {
+        "advance": "vous faire avancer",
+        "hold": "garder votre candidature pour un examen plus approfondi",
+        "reject": "ne pas vous faire avancer"
       },
       "kinds": {
         "auto_rejected": "Candidature non retenue lors de la présélection automatisée",

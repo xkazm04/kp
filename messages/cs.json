@@ -2082,7 +2082,14 @@
       "reasons": {
         "reject": "Rozhodující skutečnosti: vaše skóre shody {score} bylo pod prahem screeningu {threshold}.",
         "staleScore": "Toto skóre bylo spočítáno před poslední změnou popisu pozice, takže nemusí odpovídat současným požadavkům. Můžete požádat o lidské přezkoumání.",
-        "rubric": "Rozhodující skutečnosti podle hodnocených oblastí:"
+        "rubric": "Rozhodující skutečnosti podle hodnocených oblastí:",
+        "verdict": "Rozhodující skutečnosti: AI posouzení vaší přihlášky doporučilo {recommendation}.",
+        "verdictConfidence": "Rozhodující skutečnosti: AI posouzení vaší přihlášky doporučilo {recommendation} s jistotou {confidence} %."
+      },
+      "recommendations": {
+        "advance": "posunout vás dál",
+        "hold": "podržet vaši přihlášku k bližšímu posouzení",
+        "reject": "vás dál neposouvat"
       },
       "kinds": {
         "auto_rejected": "Přihláška nepostoupila při automatizovaném screeningu",

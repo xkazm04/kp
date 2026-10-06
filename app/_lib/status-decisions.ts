@@ -13,6 +13,7 @@
 import { consentWithholdsPii, type ConsentSnapshot } from "./consent";
 import { decisionAttribution } from "./decision-attribution";
 import { isNamedApprover } from "./auth/operator-approver";
+import { isInterviewRecommendation, type InterviewRecommendation } from "./interview-recommendation";
 
 /** The decisive facts behind ONE decision — Art. 86's "main elements of the
  *  decision", in the shape the decision itself has.
@@ -37,7 +38,13 @@ export type CandidateDecisionFacts =
   /** A rubric verdict: WHICH competencies were assessed and what each scored.
    *  `competency` is the CANONICAL rubric key the scorecard stored, so the page
    *  localizes it through `rubricLabel` rather than shipping English. */
-  | { type: "rubric"; dimensions: { competency: string; rating: number; ratingMax: number }[] };
+  | { type: "rubric"; dimensions: { competency: string; rating: number; ratingMax: number }[] }
+  /** An AI verdict an automated advance rode on: the recommendation, from the CLOSED
+   *  `INTERVIEW_RECOMMENDATIONS` set (never the producer's raw string), and the 0–100
+   *  confidence behind it. `confidence` is null when none was sealed or the sealed one
+   *  is off the scale — the verdict stands without a number rather than with one the
+   *  scale cannot mean. */
+  | { type: "verdict"; recommendation: InterviewRecommendation; confidence: number | null };
 
 /** What one sealed record is allowed to look like on the candidate's own wire.
  *  Exactly these fields — the shape is closed on purpose (leak tests pin it). */
@@ -208,6 +215,31 @@ export function aiScorecardFacts(payloadJson: string): CandidateDecisionFacts | 
   return dimensions.length > 0 ? { type: "rubric", dimensions } : null;
 }
 
+/** The AI verdict an `auto_advanced` record rode on, out of the
+ *  `aiRecommendation` / `aiConfidence` pair pipeline-entry-action.ts seals beside
+ *  it: what the machine recommended and how sure it was.
+ *
+ *  What does NOT cross: `fromStage`, `approvalKind`, `handoff` and `detail` are the
+ *  workflow's business (and `detail` is a person's free text), not a reason. An
+ *  advance sealed with no AI verdict behind it yields null rather than implying one
+ *  existed, and a recommendation outside the closed set yields null too — it is
+ *  NOT coerced to the "hold" fallback, because coercing would put a verdict the
+ *  machine never made in front of the person it was made about.
+ *
+ *  Confidence is the scorer's 0–100 integer. A non-number, non-finite or off-scale
+ *  value is a producer fault: the verdict is kept and the number dropped. */
+export function autoAdvanceFacts(payloadJson: string): CandidateDecisionFacts | null {
+  const o = sealedInputs(payloadJson);
+  if (!o || typeof o.aiRecommendation !== "string") return null;
+  const recommendation = o.aiRecommendation.trim().toLowerCase();
+  if (!isInterviewRecommendation(recommendation)) return null;
+  // typeof-gated: Number(null) is 0 and Number("") is 0, and a sealed absence must
+  // not read as "0% confident".
+  const c = o.aiConfidence;
+  const inScale = typeof c === "number" && Number.isFinite(c) && c >= 0 && c <= 100;
+  return { type: "verdict", recommendation, confidence: inScale ? Math.round(c) : null };
+}
+
 /** THE COVERAGE REGISTRY: sealed kind → the one extractor allowed to build its
  *  facts. A kind absent from this map crosses with `facts: null` — visible, but
  *  with no decisive element behind it, which is the state every kind but
@@ -219,6 +251,7 @@ export function aiScorecardFacts(payloadJson: string): CandidateDecisionFacts | 
 const FACT_EXTRACTORS: ReadonlyMap<string, (payloadJson: string) => CandidateDecisionFacts | null> = new Map([
   ["auto_rejected", autoRejectFacts],
   ["ai_scorecard", aiScorecardFacts],
+  ["auto_advanced", autoAdvanceFacts],
 ]);
 
 /** The sealed kinds that are an AI VERDICT ABOUT A PERSON — the subset Art. 86's
