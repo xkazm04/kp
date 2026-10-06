@@ -60,7 +60,7 @@
     "e2e:me-live": "node scripts/e2e/me-live.mjs",
     "e2e:gigs-live": "node scripts/gigs/e2e-live.mjs",
     "api:check": "node --import ./scripts/test-alias-loader.mjs --experimental-transform-types --disable-warning=ExperimentalWarning scripts/docs/api-reference.mjs --check",
-    "test:docs": "node scripts/docs/__tests__/check-doc-sync.test.mjs && node scripts/docs/__tests__/check-adrs.test.mjs && node scripts/docs/__tests__/check-guidance.test.mjs && node scripts/__tests__/schemas-gen.test.mjs && node scripts/__tests__/test-alias-loader.test.mjs && node scripts/docs/__tests__/toolchain-pin.test.mjs && node scripts/docs/__tests__/keyless-e2e-pin.test.mjs && node scripts/__tests__/market-fetch.test.mjs && node scripts/docs/__tests__/api-reference.test.mjs && node scripts/dev-inspector/__tests__/inject-source-loc.test.mjs && node scripts/dev-inspector/__tests__/source-loc-loader.test.mjs",
+    "test:docs": "node scripts/docs/__tests__/check-doc-sync.test.mjs && node scripts/docs/__tests__/check-adrs.test.mjs && node scripts/docs/__tests__/check-guidance.test.mjs && node scripts/__tests__/schemas-gen.test.mjs && node scripts/__tests__/test-alias-loader.test.mjs && node scripts/docs/__tests__/toolchain-pin.test.mjs && node scripts/docs/__tests__/keyless-e2e-pin.test.mjs && node scripts/__tests__/market-fetch.test.mjs && node scripts/docs/__tests__/api-reference.test.mjs && node scripts/dev-inspector/__tests__/inject-source-loc.test.mjs && node scripts/dev-inspector/__tests__/source-loc-loader.test.mjs && node scripts/contest/__tests__/app-kit-pack.test.mjs",
     "release:check": "node scripts/release/prepare.mjs --check",
     "release:prepare": "node scripts/release/prepare.mjs",
     "commit:check": "node scripts/release/commit-msg.mjs",
