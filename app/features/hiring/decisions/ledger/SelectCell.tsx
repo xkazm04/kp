@@ -4,6 +4,7 @@
 // own deadline and secure link) or leaves a gap of the same width.
 import { CheckSquare, Square } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { BTN_GHOST } from "@/app/_components/ui/recipes";
 import type { LedgerRow } from "./decisionsLedgerModel";
 
 export function SelectCell({ row, selected, onToggle }: { row: LedgerRow; selected: boolean; onToggle?: () => void }) {
@@ -16,7 +17,7 @@ export function SelectCell({ row, selected, onToggle }: { row: LedgerRow; select
       aria-checked={selected}
       aria-label={t("select", { name: row.entry.candidateLabel })}
       onClick={onToggle}
-      className="focus-ring inline-flex cursor-pointer rounded p-0.5"
+      className={`${BTN_GHOST} cursor-pointer p-0.5`}
     >
       {selected ? <CheckSquare size={15} className="text-coral" aria-hidden /> : <Square size={15} className="text-steel" aria-hidden />}
     </button>
