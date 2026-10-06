@@ -56,6 +56,7 @@ delete process.env.DATABASE_URL;
 // throwaway file. The stores each open their own connection on the SAME file (db-path.ts).
 const { createPipelineEntry, setEntryNotes, anonymizeEntry, getPipelineEntry, saveAnalysis, loadAnalysis, createInterviewSession, completeInterviewSession, latestInterviewByEntry, recordOutbox, getOutboxEntry } =
   await import("./db.ts");
+const { appendEntryNoteFromBody, listEntryNotes } = await import("./db/entry-notes.ts");
 const { createOffer, listOffersForEntry } = await import("./offers-store.ts");
 const { createScheduleInvite, getScheduleInviteByToken } = await import("./schedule-store.ts");
 const { saveInterviewPrep, getInterviewPrep } = await import("./interview-prep.ts");
@@ -104,6 +105,9 @@ test("erasure scrubs the candidate's PII from EVERY entry-linked table (transcri
   });
   // Recruiter call-notes: free text about the candidate (name + phone).
   setEntryNotes(entry.id, `${NAME} — reachable on ${PHONE}, wants 80k, available August`);
+  // The authored note THREAD beside the scratchpad (pipeline_entry_notes): same free text.
+  appendEntryNoteFromBody(entry.id, "workspace", `Call with ${NAME}: ${EMAIL}, ${PHONE}`, null);
+  assert.match(JSON.stringify(listEntryNotes(entry.id, "workspace")), /Zdenka/, "thread holds PII pre-erasure");
 
   // analyses (exact-label link the earlier fix already covered).
   const { slug: exactSlug } = saveAnalysis({
@@ -176,6 +180,7 @@ test("erasure scrubs the candidate's PII from EVERY entry-linked table (transcri
   assert.equal(scrubbedEntry.contact, null, "contact nulled");
   assert.equal(scrubbedEntry.notes, null, "recruiter notes nulled");
   assertScrubbed(JSON.stringify(scrubbedEntry), "pipeline_entry");
+  assert.deepEqual(listEntryNotes(entry.id, "workspace"), [], "the note thread is deleted in the same erasure");
 
   assertScrubbed(JSON.stringify(loadAnalysis(exactSlug)), "analyses(exact)");
   assertScrubbed(JSON.stringify(loadAnalysis(driftSlug)), "analyses(drift-label)");
