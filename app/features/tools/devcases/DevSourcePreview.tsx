@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { BTN_GHOST, BTN_PRIMARY, BTN_SECONDARY } from "@/app/_components/ui/recipes";
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import {
@@ -128,7 +129,7 @@ export function DevSourcePreview({
       <h3 className="flex items-center gap-1.5 text-meta font-semibold uppercase tracking-wide text-coral">
         <Users size={13} /> {t("title")}
       </h3>
-      <p className="mt-1 text-sm text-steel">{t("subtitle")}</p>
+      <p className="mt-1 text-micro text-steel">{t("subtitle")}</p>
 
       {loading ? (
         <div className="mt-4 flex items-center gap-2 text-micro text-steel">
@@ -136,7 +137,7 @@ export function DevSourcePreview({
         </div>
       ) : summary ? (
         <div className="mt-4 space-y-3">
-          <div className="rounded-md border border-moss/30 bg-moss/10 p-3 text-sm text-moss-dark">
+          <div className="rounded-md border border-moss/30 bg-moss/10 p-3 text-micro text-moss-dark">
             {summary.key === "filed" ? (
               <p>
                 {t("summaryFiled", {
@@ -154,7 +155,7 @@ export function DevSourcePreview({
               <p>{t("summaryDropped", { dropped: summary.dropped })}</p>
             )}
             {summary.key === "filed" && summary.dropped > 0 ? (
-              <p className="mt-1 text-micro text-amber-700">
+              <p className="mt-1 text-micro text-ink">
                 {t("summaryDropped", { dropped: summary.dropped })}
               </p>
             ) : null}
@@ -163,7 +164,7 @@ export function DevSourcePreview({
             <button
               type="button"
               onClick={onClose}
-              className="focus-ring inline-flex h-8 items-center rounded-md bg-stone-900 px-3 text-micro font-semibold text-white hover:bg-stone-800"
+              className={`${BTN_PRIMARY} h-8 px-3 text-micro`}
             >
               {t("done")}
             </button>
@@ -195,14 +196,14 @@ export function DevSourcePreview({
                         )
                       )
                     }
-                    className="font-medium text-coral hover:underline"
+                    className={`${BTN_GHOST} h-7 px-2 text-micro`}
                   >
                     {t("selectAll")}
                   </button>
                   <button
                     type="button"
                     onClick={() => setSelected(new Set())}
-                    className="font-medium text-steel hover:underline"
+                    className={`${BTN_GHOST} h-7 px-2 text-micro`}
                   >
                     {t("deselectAll")}
                   </button>
@@ -233,21 +234,21 @@ export function DevSourcePreview({
                       />
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="text-sm font-semibold text-ink">
+                          <span className="text-micro font-semibold text-ink">
                             {row.label}
                           </span>
                           {row.archetype ? (
-                            <span className="rounded bg-stone-100 px-1.5 py-0.5 text-micro text-steel">
+                            <span className="rounded-md bg-stone-100 px-1.5 py-0.5 text-micro text-steel">
                               {row.archetype}
                             </span>
                           ) : null}
                           {row.score != null ? (
-                            <span className="rounded bg-moss/10 px-1.5 py-0.5 text-micro font-medium text-moss">
+                            <span className="rounded-md bg-moss/10 px-1.5 py-0.5 text-micro font-medium text-moss">
                               {t("score", { score: row.score })}
                             </span>
                           ) : null}
                           {row.onBoard ? (
-                            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-micro font-medium text-amber-800">
+                            <span className="rounded-md bg-dial-amber/20 px-1.5 py-0.5 text-micro font-medium text-ink">
                               {t("onBoardBadge", {
                                 status: row.onBoard.status,
                               })}
@@ -259,7 +260,7 @@ export function DevSourcePreview({
                             {row.matchedSkills.map((skill) => (
                               <span
                                 key={skill}
-                                className="rounded bg-stone-50 px-1.5 py-0.5 text-micro text-steel"
+                                className="rounded-md bg-stone-50 px-1.5 py-0.5 text-micro text-steel"
                               >
                                 {skill}
                               </span>
@@ -278,7 +279,7 @@ export function DevSourcePreview({
                     type="button"
                     onClick={handleFile}
                     disabled={selected.size === 0 || submitting}
-                    className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md bg-coral px-3 text-micro font-semibold text-white hover:bg-coral/90 disabled:opacity-50"
+                    className={`${BTN_PRIMARY} h-8 gap-1.5 px-3 text-micro`}
                   >
                     <Users size={12} />
                     {submitting
@@ -289,7 +290,7 @@ export function DevSourcePreview({
                     type="button"
                     onClick={onClose}
                     disabled={submitting}
-                    className="focus-ring inline-flex h-8 items-center rounded-md border border-stone-200 bg-white px-3 text-micro font-semibold text-steel hover:text-ink disabled:opacity-50"
+                    className={`${BTN_SECONDARY} h-8 bg-white px-3 text-micro`}
                   >
                     {t("cancel")}
                   </button>

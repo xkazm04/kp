@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { useTts } from "@/packages/voice-tts/src/react/useTts";
 import { LOCALES, type Locale } from "@/i18n/locales";
 import type { TtsProviderId, TtsStatus } from "@/packages/voice-tts/src/index";
-import { BTN_PRIMARY, BTN_SECONDARY, EYEBROW, FIELD } from "@/app/_components/ui/recipes";
+import { BTN_GHOST, BTN_PRIMARY, BTN_SECONDARY, EYEBROW, FIELD, NOTICE } from "@/app/_components/ui/recipes";
 
 // One sentence per SHIPPED locale, not per locale someone got round to. The
 // panel exists to answer "does this engine sound acceptable to our users", and
@@ -158,7 +158,7 @@ export function TtsComparePanel() {
       </div>
 
       {!coversLang(activeProvider, lang) ? (
-        <p className="mt-2 text-meta text-amber-800" role="status">
+        <p className={`${NOTICE()} mt-2 px-3 py-1.5 text-meta`} role="status">
           {t("noVoiceFor", {
             provider: activeProvider?.label ?? active ?? "",
             language: LANGUAGE_ENDONYM[lang] ?? lang,
@@ -194,7 +194,7 @@ export function TtsComparePanel() {
               <button
                 type="button"
                 onClick={() => void tts.resume()}
-                className="ml-2 font-medium underline hover:text-ink"
+                className={`${BTN_GHOST} ml-2 h-7 px-2 text-meta underline`}
               >
                 {t("continue")}
               </button>
