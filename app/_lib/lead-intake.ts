@@ -37,6 +37,9 @@ export type LeadIntakeInput = {
   locale: string | null;
   /** Attribution stored on the entry ('quick-apply' | 'email' | 'boards'). */
   sourceChannel: string;
+  /** Who filed the lead on the 'added' event ('human:candidate' for the applicant's own form).
+   *  A webhook relay omits it: the sender is not the candidate and not a recruiter. */
+  actor?: string | null;
   /** E5 — campaign/creative attribution (already bounded by the caller). */
   sourceCampaign?: string | null;
   sourceVariant?: string | null;
@@ -198,6 +201,7 @@ export async function intakeLead(input: LeadIntakeInput): Promise<LeadIntakeOutc
     email,
     locale: input.locale,
     sourceChannel: input.sourceChannel,
+    actor: input.actor ?? null,
     sourceCampaign,
     sourceVariant,
     channelLabel: input.channelLabel,

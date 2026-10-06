@@ -70,6 +70,9 @@ function gateApproval(analysis: LifecycleAnalysis | null, designCase?: Record<st
 
 type Progress = (done: number, total: number, msg?: string) => void;
 
+// The lifecycle runner has no session: what it files on the board it files as the machine.
+const ORCHESTRATOR_ACTOR = "auto:devcase-orchestrator";
+
 const STAGES = ["intake", "analyzed", "designed", "awaiting_approval", "approved", "published", "collecting", "ranked", "promoted", "closed"];
 
 // The stages where a lifecycle sits at the human review gate (a designed case
@@ -443,6 +446,7 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
           caseId: lc.caseId,
           roleTitle,
           workspaceId: lc.workspaceId,
+          actor: ORCHESTRATOR_ACTOR,
         }).added;
       } catch (err) {
         // Sourcing is best-effort — never block publishing — but record the failure so a real
@@ -627,7 +631,7 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
         // The calibrated floor rides into promoteSubmission so the reviewer-facing
         // advice and this stage's behavior share ONE threshold (case-sim round 2:
         // the advice hardcoded 70 while this stage promoted on the floor).
-        const result = promoteSubmission(s.id, floor);
+        const result = promoteSubmission(s.id, floor, ORCHESTRATOR_ACTOR);
         if (!result) continue;
         promoted += 1;
         // Take-home -> observed bridge: a promoted submission already cleared the

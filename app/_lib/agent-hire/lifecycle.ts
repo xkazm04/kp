@@ -92,6 +92,7 @@ export function placeAgentOnBoard(
     ...(offerStage ? { stage: offerStage } : {}),
     sourceChannel: "agent-bridge",
     workspaceId,
+    actor: AGENT_BRIDGE_ACTOR,
   });
   if (move === "offer") {
     const req = opts.requestId ?? agent.requestId ?? "";

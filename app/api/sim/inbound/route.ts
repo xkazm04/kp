@@ -76,6 +76,8 @@ export async function POST(request: NextRequest) {
       // The simulated applicant is a seeded profile — infer their language from
       // the profile's CV languages so demo comms render like real inbound ones.
       locale: inferProfileLocale(applicant.id, target.workspaceId),
+      // The demo's simulated applicant, not a person: the simulation filed this row.
+      actor: "auto:sim",
     });
     // `jobTitle` is the MARKED title actually stored (visibly a sim row), mirroring
     // /api/sim/apply-cv's response so the Channels note can say where it landed.

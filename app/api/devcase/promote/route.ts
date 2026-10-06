@@ -5,6 +5,7 @@ import { ownedSubmission } from "../devcase-owned-lifecycle";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { mintObservedFromSubmission, promoteSubmission } from "@/app/_lib/devcase-run";
 import { activePromoteFloor } from "@/app/_lib/devcase-orchestrator";
+import { humanActor } from "@/app/_lib/auth/operator-approver";
 
 
 // Bridge: an evaluated submission becomes a pipeline entry + a Decisions review card.
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "submission not found" }, { status: 404 });
     }
     if (!sub.evaluation) return NextResponse.json({ error: "evaluate the submission first." }, { status: 400 });
-    const result = promoteSubmission(body.submissionId, activePromoteFloor());
+    const result = promoteSubmission(body.submissionId, activePromoteFloor(), await humanActor());
     // Take-home -> observed bridge (best-effort): a promoted submission cleared the
     // transfer floor, so a resolvable candidate profile gains observed-provenance
     // skills. Failures never block the promotion itself.

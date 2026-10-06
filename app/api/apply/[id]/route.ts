@@ -366,6 +366,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       locale: applicantLocale,
       // E3 — inbound source attribution (the conversational careers-page flow).
       sourceChannel: "apply",
+      // The applicant's own act: the conversational apply is the candidate typing it.
+      actor: "human:candidate",
       sourceCampaign: typeof body.campaign === "string" ? capAttribution(body.campaign.trim()) || null : null,
       sourceVariant: typeof body.variant === "string" ? capAttribution(body.variant.trim()) || null : null,
       channelLabel: "conversational apply",

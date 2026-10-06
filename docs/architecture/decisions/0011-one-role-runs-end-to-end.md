@@ -226,3 +226,23 @@ sent. An approval that arrives after the effect is not an approval, and
   act is still a person acting. Before this, `applied` (written with a null
   actor) fell through to the kind map and read as human, so every applied
   thread scored a first human step at sourcing and no role could be autonomous.
+- **2026-10-06 — an intake with no actor is unknown, not human.** The kinds
+  `added` and `intake_degraded` are written by one writer
+  (`createPipelineEntry`, `app/_lib/db/pipeline.ts`), and that writer is called
+  by recruiter routes (`api/pipeline`, the outreach route), by machine intakes
+  (automation rematch, the dev-case orchestrator, the agent-hire lifecycle, the
+  guided-demo inbound) and by the candidate's own filing. The kind therefore
+  cannot say who acted; only the actor can. For goal-1 scoring,
+  `eventAttribution` in `app/_lib/thread-autonomy.ts` returns `unknown` for
+  those kinds when the row has no usable actor (`INTAKE_KINDS_WITHOUT_WITNESS`)
+  before it consults the shared kind map. An explicit actor still wins. Unknown
+  never makes a rung autonomous and is counted in `unknownEvents`; it is not a
+  first human step either, so missing data no longer reads as a hiring-side act.
+  `decision-attribution.ts` is unchanged: the decision log and the analytics
+  rollup keep `added` as human. Writers now stamp the actor they know
+  (`CreatePipelineInput.actor`): `human:<name>` / `human:recruiter` from the
+  recruiter routes, `human:candidate` from the applicant's own forms,
+  `auto:<engine>` from machine paths. A door that cannot honestly name the
+  actor (webhook and CV-channel relays, the ATS import, the interview-create
+  promote-on-demand) stamps nothing, and its rows read unknown. Rows written
+  before this change carry no actor and read unknown too.

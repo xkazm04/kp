@@ -780,6 +780,7 @@ export async function runAutomationTask(
         locale: entry.locale,
         // …and the target lands in the SAME team as the source (one candidate, one team).
         workspaceId,
+        actor: engineActor,
       });
       if (created) {
         // Define what rematch does to the SOURCE entry (idea-9ad8a777): close it so

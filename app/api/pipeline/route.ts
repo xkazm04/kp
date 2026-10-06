@@ -140,6 +140,7 @@ export async function POST(request: NextRequest) {
       if (withheld) return jsonRefusal("PIPELINE_ADD_CANDIDATE_WITHHELD", 409, { withheld });
     }
     const ws = await currentWorkspace();
+    const humanRef = await humanActor();
     const result = createPipelineEntry({
       candidateId: body.candidateId,
       candidateLabel: body.candidateLabel || body.candidateId,
@@ -163,7 +164,10 @@ export async function POST(request: NextRequest) {
       // human doors that may reopen a closed entry, and it names who did it, so the
       // reversal lands in the decision log as a `reinstated` event with an actor.
       // Erased, role-closed and rematched entries still refuse (body.reopenRefused).
-      reopen: { actorRef: await humanActor() },
+      reopen: { actorRef: humanRef },
+      // The same recruiter stamped on the 'added' event, so goal 1's meter reads this intake as
+      // a hiring-side human act from the row itself rather than guessing from the kind.
+      actor: humanRef,
     });
     // Close-the-prior for SOURCING adds (mirrors the reach-out route): a
     // rediscovery/sourcing add re-engages a silver medalist under a new role, so

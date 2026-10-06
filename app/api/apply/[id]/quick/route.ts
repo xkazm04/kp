@@ -137,6 +137,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       email,
       locale: applicantLocale,
       sourceChannel: "quick-apply",
+      // The applicant filled this form themselves.
+      actor: "human:candidate",
       // The quick door bypasses extractLead, so it caps the attribution itself:
       // the same helper, the same marker, one group-by key length everywhere.
       sourceCampaign: campaign ? capAttribution(campaign) : null,

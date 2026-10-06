@@ -862,6 +862,9 @@ export function seedPipelineFromMatches(
     roleTitle: string;
     workspaceId?: string;
     candidateIds?: readonly string[];
+    /** Who sourced them ('human:<name>' from the recruiter door, 'auto:<engine>' from the
+     *  orchestrator), stamped on each 'added' event. Omitted = not identified. */
+    actor?: string | null;
   },
 ): { added: number; alreadyOnBoard: number } {
   // ONE THREAD: file these candidates under the assignment's REAL opening when it has
@@ -908,6 +911,7 @@ export function seedPipelineFromMatches(
       // other team and every entry is stamped locale:null.
       locale: inferProfileLocale(m.candidateId, opts.workspaceId),
       workspaceId: opts.workspaceId,
+      actor: opts.actor ?? null,
     });
     if (entry.created) {
       added += 1;
@@ -1063,7 +1067,9 @@ export type PromoteResult = {
 // the old hardcoded `score >= 70` here diverged from the calibration-adjustable floor
 // the orchestrator actually promoted on (case-sim round 2 canary c1). Returns null if
 // the submission isn't evaluated yet.
-export function promoteSubmission(submissionId: string, floor: number): PromoteResult | null {
+// `actor` is who promoted ('human:<name>' from the recruiter door, 'auto:<engine>' from the
+// orchestrator); it lands on the 'added' event of a NEW entry. Omitted = not identified.
+export function promoteSubmission(submissionId: string, floor: number, actor?: string | null): PromoteResult | null {
   const sub = getSubmission(submissionId);
   if (!sub || !sub.evaluation) return null;
   const bundle = sub.evaluation as {
@@ -1162,6 +1168,7 @@ export function promoteSubmission(submissionId: string, floor: number): PromoteR
     jobTitle: identity.jobTitle,
     devCaseId: posting?.caseId ?? null,
     devSubmissionId: sub.id,
+    actor: actor ?? null,
     // ONE THREAD (gap 2) — NOT `matchScore: score`. `score` is the work-sample
     // TRANSFER score: how well the skills this person demonstrated on the
     // assignment carry to the role. `match_score` answers a different question —

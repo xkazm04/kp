@@ -26,7 +26,9 @@
 //   candidate  the CANDIDATE acted — "human:candidate", or a candidate-act kind (see
 //              CANDIDATE_ACT_KINDS) on a row with no usable actor.
 //   human      the hiring side acted — a recruiter or operator, or a named person.
-//   unknown    stays unknown: it never makes a rung autonomous, and it is reported.
+//   unknown    stays unknown: it never makes a rung autonomous, and it is reported. An intake
+//              event ('added' / 'intake_degraded', INTAKE_KINDS_WITHOUT_WITNESS) with no usable
+//              actor is unknown — never human, never auto.
 //
 // WHY `candidate` IS ITS OWN CLASS (ADR-0011, amendment 2026-10-06): goal 1 is "one role runs
 // end to end without a human step", and a human step is one the HIRING SIDE took. A candidate
@@ -36,6 +38,13 @@
 // changed — so before this class existed every applied thread read firstHumanStage=slate and
 // no role could ever score autonomous. A candidate event neither dirties its rung nor is ever
 // firstHuman; `candidateEvents` keeps the exclusion visible rather than silent.
+//
+// WHY AN ACTOR-LESS INTAKE IS `unknown` (ADR-0011, amendment 2026-10-06, second): 'added' is one
+// kind written by one writer (createPipelineEntry) that recruiter routes, machine intakes and
+// the candidate's own filing all call, so the kind cannot say who acted — only the actor can.
+// decisionAttribution() maps 'added' to human (right for the decision log, untouched), which
+// made a row with no actor blame a hiring-side step on missing data. The intake writers now
+// stamp the actor; an old row without one reads unknown.
 
 import { decisionAttribution, parseEventActor } from "./decision-attribution.ts";
 import { DEFAULT_STAGE_AXIS, roleOf, type StageDef, type StageRole } from "./pipeline-stages.ts";
@@ -60,6 +69,11 @@ export type EventAttribution = "auto" | "human" | "candidate" | "unknown";
  *  - profile_enriched: the candidate's answer to a follow-up question
  *    (api/apply/[id]/followup). */
 export const CANDIDATE_ACT_KINDS: readonly string[] = ["applied", "re_applied", "offer_accepted", "offer_declined", "profile_enriched"];
+
+/** Intake kinds that no kind-level rule can attribute: one writer, called by recruiter, machine
+ *  and candidate paths alike. With no usable actor they read `unknown`, not the shared map's
+ *  `human`. An explicit actor still wins (eventAttribution). */
+export const INTAKE_KINDS_WITHOUT_WITNESS: readonly string[] = ["added", "intake_degraded"];
 
 /** Kinds whose rung does not depend on how a workspace named its columns. Deliberately
  *  short: a kind that can happen at several rungs (`rejected`, `advanced`, `moved`) is
@@ -121,6 +135,7 @@ export function eventAttribution(event: Pick<ThreadEvent, "kind" | "actor">): Ev
     return (event.actor ?? "").trim().slice("human:".length).trim().toLowerCase() === "candidate" ? "candidate" : "human";
   }
   if (actor !== "unknown") return actor;
+  if (INTAKE_KINDS_WITHOUT_WITNESS.includes(event.kind)) return "unknown";
   return CANDIDATE_ACT_KINDS.includes(event.kind) ? "candidate" : decisionAttribution(event.kind);
 }
 

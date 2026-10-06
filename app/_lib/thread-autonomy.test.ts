@@ -152,6 +152,39 @@ test("a candidate-act kind written by a machine stays auto, and an explicit huma
   for (const kind of CANDIDATE_ACT_KINDS) assert.equal(eventAttribution({ kind, actor: null }), "candidate", kind);
 });
 
+test("an actor-less intake reads unknown and is never the first human step; an explicit actor still wins", () => {
+  assert.equal(eventAttribution({ kind: "added", actor: null }), "unknown");
+  assert.equal(eventAttribution({ kind: "intake_degraded", actor: null }), "unknown");
+  assert.equal(eventAttribution({ kind: "added", actor: "human:recruiter" }), "human");
+  assert.equal(eventAttribution({ kind: "added", actor: "auto:x" }), "auto");
+  assert.equal(eventAttribution({ kind: "added", actor: "human:candidate" }), "candidate");
+
+  const bare = threadAutonomy([ev("added", null, "Accepted", "2026-03-10T09:00:00Z")]);
+  assert.equal(bare.firstHumanStage, null, "missing data is not a hiring-side human step");
+  assert.equal(bare.firstHumanKind, null);
+  assert.equal(bare.unknownEvents, 1);
+  assert.equal(bare.stagesReached, 1, "NON-VACUITY: the intake still stands on its rung");
+  assert.equal(bare.stagesAutonomous, 0, "unknown never makes a rung autonomous");
+
+  const stamped = threadAutonomy([ev("added", "human:recruiter", "Accepted", "2026-03-10T09:00:00Z")]);
+  assert.equal(stamped.firstHumanStage, "slate");
+  assert.equal(stamped.firstHumanKind, "added");
+  assert.equal(stamped.unknownEvents, 0);
+  assert.equal(threadAutonomy([ev("added", "auto:x", "Accepted", "2026-03-10T09:00:00Z")]).stagesAutonomous, 1);
+  assert.equal(threadAutonomy([ev("added", "human:candidate", "Accepted", "2026-03-10T09:00:00Z")]).candidateEvents, 1);
+});
+
+test("createPipelineEntry stamps the passed actor on the 'added' event, and nothing when none is passed", () => {
+  const withActor = createPipelineEntry({ candidateId: "auto-actor-1", candidateLabel: "Actor One", jobId: "job-actor", jobTitle: "Actor Role", actor: "human:recruiter" }).entry;
+  const without = createPipelineEntry({ candidateId: "auto-actor-2", candidateLabel: "Actor Two", jobId: "job-actor", jobTitle: "Actor Role" }).entry;
+  const degraded = createPipelineEntry({ candidateId: "auto-actor-3", candidateLabel: "Actor Three", jobId: "job-actor", jobTitle: "Actor Role", intakeDegraded: true, intakeDegradedReason: "stub", actor: "human:candidate" }).entry;
+  const read = (id: string) =>
+    ensureDb().prepare(`SELECT kind, actor FROM pipeline_events WHERE entry_id = ? ORDER BY id`).all(id) as { kind: string; actor: string | null }[];
+  assert.deepEqual(read(withActor.id), [{ kind: "added", actor: "human:recruiter" }]);
+  assert.deepEqual(read(without.id), [{ kind: "added", actor: null }]);
+  assert.deepEqual(read(degraded.id), [{ kind: "intake_degraded", actor: "human:candidate" }]);
+});
+
 // ---- (b) the server read, against the REAL schema -----------------------------------
 
 const WS_A = DEFAULT_WORKSPACE_ID;

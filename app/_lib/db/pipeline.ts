@@ -1514,6 +1514,12 @@ export type CreatePipelineInput = {
   // The frozen rubric version the candidate's evaluation was produced against,
   // when the caller has already evaluated it. Omitted ⇒ NULL ⇒ "unknown standard".
   rubricVersion?: number | null;
+  // Who created the entry, in the pipeline_events.actor vocabulary ('auto:<engine>',
+  // 'human:recruiter', 'human:candidate', 'human:<name>'). Stamped on the 'added' /
+  // 'intake_degraded' event only. Omitted when the caller cannot honestly name the actor:
+  // the kind is shared by recruiter, machine and candidate intakes, so an unstamped row
+  // reads as UNKNOWN to the goal-1 meter (thread-autonomy.ts), never as human.
+  actor?: string | null;
 };
 
 /** Why a re-add left a closed entry closed: no human asked; a role_closed/rematched
@@ -1717,6 +1723,7 @@ export function createPipelineEntry(input: CreatePipelineInput): CreatePipelineR
       kind: intakeDegraded ? "intake_degraded" : "added",
       toStage: stage,
       detail: intakeDegraded ? intakeDegradedReason : pipelineReasonDetail("addedToPipeline"),
+      actor: input.actor ?? null,
     });
     const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow;
     return { entry: rowToEntry(row), created: true, reopened: false };

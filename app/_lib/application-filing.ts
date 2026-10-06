@@ -95,6 +95,10 @@ export type ApplicationFilingInput = ProofInput & {
   locale: string | null;
   /** Attribution stored on the entry and on the consent record. */
   sourceChannel: string;
+  /** Who filed it, on the 'added' / 'intake_degraded' event ('human:candidate' for the
+   *  applicant's own door). A relayed or imported filing omits it: the filing core cannot
+   *  tell whose act it was, and an unstamped row reads as unknown, not human. */
+  actor?: string | null;
   /** Event prose for the audit trail ("inbound CV", "conversational apply"). */
   channelLabel: string;
   /** E5 campaign/creative attribution, already bounded by the door. */
@@ -311,6 +315,7 @@ export async function fileApplication(input: ApplicationFilingInput): Promise<Ap
     sourceCampaign: input.sourceCampaign ?? null,
     sourceVariant: input.sourceVariant ?? null,
     workspaceId,
+    actor: input.actor ?? null,
   });
   if (!created) return repeat(entry, true);
 

@@ -93,6 +93,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // jobTitle / roleFamily come from the authoritative server-side record (the
     // path's job id), not the client body — same trust posture as the rest of the
     // pipeline writes.
+    const humanRef = await humanActor();
     const { entry, created, reopened, reopenRefused } = createPipelineEntry({
       candidateId: body.candidateId,
       candidateLabel: body.candidateLabel || body.candidateId,
@@ -116,7 +117,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       // A recruiter clicking "Reach out" on someone already closed on THIS role is a
       // human decision to reconsider them: reopen on the record, named. The store still
       // refuses an erased, role-closed or rematched entry.
-      reopen: { actorRef: await humanActor() },
+      reopen: { actorRef: humanRef },
+      // Same recruiter on the 'added' event (goal 1's meter attributes the intake by actor).
+      actor: humanRef,
     });
 
     // The entry on THIS role is closed and stays closed (erased, role closed, or moved

@@ -5,6 +5,7 @@ import { withoutOutcomeWarning } from "@/app/_lib/devcase-stage-outcome";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { humanActor } from "@/app/_lib/auth/operator-approver";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { runSourceForRole, seedPipelineFromMatches } from "@/app/_lib/devcase-run";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
@@ -116,6 +117,7 @@ export async function POST(request: NextRequest) {
       roleTitle,
       workspaceId: ws,
       candidateIds,
+      actor: await humanActor(),
     });
     // This door is the fix the lifecycle row offers for a `sourcing_failed` warning, so a
     // sourcing that just SUCCEEDED clears it (other warnings stay). Only here, after the
