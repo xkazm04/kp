@@ -26,8 +26,10 @@ import {
   ANALYZE_DRAFT_KEY,
   parseAnalyzeDraft,
   restoreDraftValue,
+  restoreJdSource,
   serializeAnalyzeDraft,
 } from "./analyzeDraft.ts";
+import { JD_NONE, nextJdSource } from "./analyzeJdSource.ts";
 
 const CAP = 3;
 
@@ -177,13 +179,29 @@ test("the restore only fills a field that is still empty", () => {
   assert.equal(restoreDraftValue("", undefined), "");
 });
 
+test("the JD restore only fills a source that is still empty", () => {
+  // The same rule as restoreDraftValue, for the tagged JD source: a pick or a typed
+  // character from THIS mount beats the stale draft.
+  const restored = restoreJdSource({ jd: "stale draft" });
+  assert.equal(restored.kind, "typed");
+  const typedNow = nextJdSource(JD_NONE, { type: "edit", text: "typed now" });
+  assert.equal(nextJdSource(typedNow, { type: "restore", source: restored }), typedNow);
+  assert.equal(nextJdSource(JD_NONE, { type: "restore", source: restored }), restored);
+});
+
 test("the form uses the shared codec and the documented key", () => {
   assert.equal(ANALYZE_DRAFT_KEY, "kp.analyzeDraft");
   const form = readFileSync(fileURLToPath(new URL("./useAnalyzeForm.ts", import.meta.url)), "utf8");
   assert.match(form, /parseAnalyzeDraft\(sessionStorage\.getItem\(ANALYZE_DRAFT_KEY\)\)/);
   assert.match(form, /serializeAnalyzeDraft\(\{/);
   assert.match(form, /payload === null\) sessionStorage\.removeItem\(ANALYZE_DRAFT_KEY\)/);
-  assert.match(form, /restoreDraftValue\(prev, jd\)/);
+  // The JD is a tagged source since bead7bfa7: the restore goes through restoreJdSource
+  // and the reducer's "restore" action, not restoreDraftValue(prev, jd). The company and
+  // GitHub fields are still plain strings and still use restoreDraftValue.
+  assert.match(form, /restoreJdSource\(draft\)/);
+  assert.match(form, /dispatchJd\(\{ type: "restore", source: restoredJd \}\)/);
+  assert.match(form, /restoreDraftValue\(prev, company\)/);
+  assert.match(form, /restoreDraftValue\(prev, github\)/);
   // The storage catches say WHY they drop (the house rule bans a bare catch {}).
   assert.ok(!/catch \{\s*\/\* ignore \*\/\s*\}/.test(form), "a catch that says 'ignore' says nothing");
 });
