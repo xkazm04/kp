@@ -1374,6 +1374,7 @@
     "PIPELINE_STAGE_CHANGED": "L’étape de ce candidat a changé depuis l’ouverture de la vue. Actualisez et décidez à nouveau.",
     "PIPELINE_ACTION_UNKNOWN": "Ce tableau ne prend pas en charge cette action.",
     "PIPELINE_GITHUB_EVIDENCE_INVALID": "Ces éléments GitHub ne sont pas au format attendu.",
+    "PIPELINE_ADD_REASONS_INVALID": "Les raisons jointes à cet ajout n'ont pas le format attendu.",
     "PIPELINE_ADD_IDS_REQUIRED": "Choisissez une candidature et un poste avant de les ajouter au suivi.",
     "PIPELINE_ADD_STAGE_UNKNOWN": "Cette étape du recrutement n’est pas disponible dans cet espace de travail.",
     "PIPELINE_ADD_APPROVAL_KIND_UNKNOWN": "Ce type d’approbation ne peut pas être demandé lors de l’ajout d’une candidature.",
@@ -6325,6 +6326,17 @@
       "partial": "Adéquation partielle",
       "unknown": "Adéquation"
     },
+    "reasons": {
+      "headlineRangeTier": "{tier} : le plus fort sur {best} ({bestPercent}), le plus faible sur {worst} ({worstPercent}).",
+      "headlineRange": "Le plus fort sur {best} ({bestPercent}), le plus faible sur {worst} ({worstPercent}).",
+      "headlineOneTier": "{tier} : {best} atteint {bestPercent}.",
+      "headlineOne": "{best} atteint {bestPercent}.",
+      "headlineTier": "{tier}.",
+      "skillsMatched": "correspond sur {skills}",
+      "skillsUnproven": "déclare sans l'avoir encore démontré : {skills}",
+      "skillsMissing": "manque : {skills}",
+      "skillsSentence": "Compétences : {parts}."
+    },
     "tab": {
       "eyebrow": "Espace de travail",
       "title": "Matching candidat → postes",
@@ -6487,7 +6499,8 @@
         "fitTier": "Niveau de correspondance",
         "matchedSkills": "Compétences correspondantes",
         "unprovenSkills": "Compétences déclarées, non encore prouvées",
-        "missingSkills": "Compétences manquantes"
+        "missingSkills": "Compétences manquantes",
+        "reasons": "Pourquoi ce classement"
       }
     },
     "jobCompare": {

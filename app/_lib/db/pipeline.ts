@@ -1488,6 +1488,11 @@ export type CreatePipelineInput = {
   // after the fact, never at creation. Omitted (the default) leaves the entry
   // ungated — every non-Match add path is byte-identical to before.
   approvalKind?: "decision" | null;
+  // The reasons snapshot a Match add carries (JSON in the AiNarrative shape:
+  // summary / strengths / redFlags), written to approval_detail on INSERT ONLY. An
+  // idempotent re-add never overwrites what is already there, and no other writer
+  // passes it.
+  approvalDetail?: string | null;
   // Applicant's locale from inbound apply (SIM3); drives downstream comm
   // language. Omitted by recruiter/Match adds ⇒ NULL ⇒ "en" at dispatch.
   locale?: string | null;
@@ -1677,7 +1682,7 @@ export function createPipelineEntry(input: CreatePipelineInput): CreatePipelineR
             source_campaign, source_variant, dev_case_id, dev_submission_id, workspace_id, applicant_key,
             population, rubric_version)
          VALUES (@id, @candidate_id, @candidate_label, @archetype, @role_family, @job_id, @job_title,
-            @stage, @match_score, 'active', @approval_kind, NULL, @now, @now, @now,
+            @stage, @match_score, 'active', @approval_kind, @approval_detail, @now, @now, @now,
             @intake_degraded, @intake_degraded_reason, @contact, @locale, @github_json, @github_handle, @source_channel,
             @source_campaign, @source_variant, @dev_case_id, @dev_submission_id, @workspace_id, @applicant_key,
             @population, @rubric_version)`
@@ -1692,6 +1697,7 @@ export function createPipelineEntry(input: CreatePipelineInput): CreatePipelineR
         stage,
         match_score: input.matchScore ?? null,
         approval_kind: input.approvalKind ?? null,
+        approval_detail: input.approvalDetail ?? null,
         now,
         intake_degraded: intakeDegraded,
         intake_degraded_reason: intakeDegradedReason,

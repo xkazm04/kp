@@ -55,6 +55,34 @@ export async function GET() {
   }
 }
 
+const REASONS_MAX_CHARS = 600;
+const REASONS_MAX_ITEMS = 3;
+const REASONS_ITEM_MAX_CHARS = 60;
+
+function coerceNameList(v: unknown): string[] | null {
+  if (v === undefined || v === null) return [];
+  if (!Array.isArray(v) || v.length > REASONS_MAX_ITEMS) return null;
+  const out: string[] = [];
+  for (const item of v) {
+    if (typeof item !== "string") return null;
+    const s = item.trim();
+    if (!s || s.length > REASONS_ITEM_MAX_CHARS) return null;
+    out.push(s);
+  }
+  return out;
+}
+
+/** Trimmed, non-blank, bounded line + bounded skill-name lists, or null. */
+function coerceMatchReasons(body: { reasons?: unknown; reasonsStrengths?: unknown; reasonsRedFlags?: unknown }) {
+  if (typeof body.reasons !== "string") return null;
+  const summary = body.reasons.trim();
+  if (!summary || summary.length > REASONS_MAX_CHARS) return null;
+  const strengths = coerceNameList(body.reasonsStrengths);
+  const redFlags = coerceNameList(body.reasonsRedFlags);
+  if (!strengths || !redFlags) return null;
+  return { summary, strengths, redFlags };
+}
+
 /** The provenance markers that mean "re-surfaced from the pool for a role this person
  *  never applied to" — the rediscovery feed ("rediscovery") and the recruiter/rediscover
  *  panels ("sourcing"). Read twice below: the eligibility gate and the prior link. */
@@ -74,6 +102,9 @@ export async function POST(request: NextRequest) {
       github?: unknown;
       source?: unknown;
       approvalKind?: unknown;
+      reasons?: unknown;
+      reasonsStrengths?: unknown;
+      reasonsRedFlags?: unknown;
     };
     if (!body.candidateId || !body.jobId) {
       return jsonRefusal("PIPELINE_ADD_IDS_REQUIRED", 400);
@@ -89,6 +120,19 @@ export async function POST(request: NextRequest) {
         return jsonRefusal("PIPELINE_GITHUB_EVIDENCE_INVALID", 400);
       }
       githubJson = JSON.stringify(summary);
+    }
+    // A Match add's reasons snapshot: the composed plain-language line plus the
+    // matched / missing skill names. Only the Match surface sends it, so any other
+    // source carrying one is drift. Like the GH2 block, a present-but-malformed value
+    // is refused loudly rather than dropped; unlike `source`, it is stored.
+    let approvalDetail: string | null = null;
+    const hasReasons = [body.reasons, body.reasonsStrengths, body.reasonsRedFlags].some((v) => v !== undefined && v !== null);
+    if (hasReasons) {
+      const reasons = coerceMatchReasons(body);
+      if (!reasons || body.source !== "match") {
+        return jsonRefusal("PIPELINE_ADD_REASONS_INVALID", 400);
+      }
+      approvalDetail = JSON.stringify({ summary: reasons.summary, strengths: reasons.strengths, redFlags: reasons.redFlags });
     }
     // Reject an unknown stage at the boundary: createPipelineEntry inserts any
     // string, but the board only renders columns the workspace's axis declares, so
@@ -153,6 +197,7 @@ export async function POST(request: NextRequest) {
       githubJson,
       sourceChannel: source,
       approvalKind,
+      approvalDetail,
       // Recruiter/Match adds carry no explicit language choice — infer it from the
       // candidate's CV languages (already on the saved profile) so downstream comms
       // speak their language; no signal stays NULL and resolves to the workspace

@@ -1374,6 +1374,7 @@
     "PIPELINE_STAGE_CHANGED": "Der Schritt dieser Person hat sich seit dem Öffnen der Ansicht geändert. Aktualisieren Sie und entscheiden Sie erneut.",
     "PIPELINE_ACTION_UNKNOWN": "Diese Aktion unterstützt dieses Board nicht.",
     "PIPELINE_GITHUB_EVIDENCE_INVALID": "Diese GitHub-Belege haben nicht die erwartete Form.",
+    "PIPELINE_ADD_REASONS_INVALID": "Die dieser Aufnahme beigefügte Begründung hat nicht das erwartete Format.",
     "PIPELINE_ADD_IDS_REQUIRED": "Wählen Sie eine Person und eine Stelle, bevor Sie sie zur Pipeline hinzufügen.",
     "PIPELINE_ADD_STAGE_UNKNOWN": "Diese Pipeline-Phase ist in diesem Arbeitsbereich nicht verfügbar.",
     "PIPELINE_ADD_APPROVAL_KIND_UNKNOWN": "Diese Freigabeart kann beim Hinzufügen einer Person nicht angefordert werden.",
@@ -6325,6 +6326,17 @@
       "partial": "Teilweise Eignung",
       "unknown": "Eignung"
     },
+    "reasons": {
+      "headlineRangeTier": "{tier}: am stärksten bei {best} ({bestPercent}), am schwächsten bei {worst} ({worstPercent}).",
+      "headlineRange": "Am stärksten bei {best} ({bestPercent}), am schwächsten bei {worst} ({worstPercent}).",
+      "headlineOneTier": "{tier}: {best} erreicht {bestPercent}.",
+      "headlineOne": "{best} erreicht {bestPercent}.",
+      "headlineTier": "{tier}.",
+      "skillsMatched": "passt bei {skills}",
+      "skillsUnproven": "gibt an, aber noch nicht belegt: {skills}",
+      "skillsMissing": "es fehlt: {skills}",
+      "skillsSentence": "Skills: {parts}."
+    },
     "tab": {
       "eyebrow": "Arbeitsbereich",
       "title": "Kandidat → Stellen matchen",
@@ -6487,7 +6499,8 @@
         "fitTier": "Eignungsstufe",
         "matchedSkills": "Passende Skills",
         "unprovenSkills": "Angegebene, noch nicht belegte Skills",
-        "missingSkills": "Fehlende Skills"
+        "missingSkills": "Fehlende Skills",
+        "reasons": "Begründung des Rankings"
       }
     },
     "jobCompare": {

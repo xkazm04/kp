@@ -952,6 +952,8 @@ export const REFUSAL_ERRORS = {
   PIPELINE_ACTION_UNKNOWN: "That is not an action this board supports.",
   /** A GitHub evidence payload that did not clamp to the shared coercer (400). */
   PIPELINE_GITHUB_EVIDENCE_INVALID: "That GitHub evidence is not in the expected shape.",
+  /** The reasons carried by a Match add are malformed, over-long, or not from Match (400). */
+  PIPELINE_ADD_REASONS_INVALID: "The reasons attached to this add are not in the expected shape.",
   /** A board add cannot identify both its candidate and role (400). */
   PIPELINE_ADD_IDS_REQUIRED: "Choose a candidate and role before adding to the board.",
   /** The requested destination is not on this workspace's pipeline axis (400). */

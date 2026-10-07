@@ -1374,6 +1374,7 @@
     "PIPELINE_STAGE_CHANGED": "Krok tohoto kandidáta se od otevření pohledu změnil. Obnovte stránku a rozhodněte znovu.",
     "PIPELINE_ACTION_UNKNOWN": "Tuto akci tato nástěnka nepodporuje.",
     "PIPELINE_GITHUB_EVIDENCE_INVALID": "Tato data z GitHubu nemají očekávaný tvar.",
+    "PIPELINE_ADD_REASONS_INVALID": "Důvody přiložené k tomuto přidání nemají očekávaný tvar.",
     "PIPELINE_ADD_IDS_REQUIRED": "Před přidáním na nástěnku vyberte kandidáta a pozici.",
     "PIPELINE_ADD_STAGE_UNKNOWN": "Tato fáze náboru není v tomto pracovním prostoru dostupná.",
     "PIPELINE_ADD_APPROVAL_KIND_UNKNOWN": "Tento typ schválení nelze při přidávání kandidáta požadovat.",
@@ -6325,6 +6326,17 @@
       "partial": "Částečná shoda",
       "unknown": "Shoda"
     },
+    "reasons": {
+      "headlineRangeTier": "{tier}: nejsilnější v oblasti {best} ({bestPercent}), nejslabší v oblasti {worst} ({worstPercent}).",
+      "headlineRange": "Nejsilnější v oblasti {best} ({bestPercent}), nejslabší v oblasti {worst} ({worstPercent}).",
+      "headlineOneTier": "{tier}: {best} dosahuje {bestPercent}.",
+      "headlineOne": "{best} dosahuje {bestPercent}.",
+      "headlineTier": "{tier}.",
+      "skillsMatched": "shoduje se v: {skills}",
+      "skillsUnproven": "uvádí, ale zatím nedoložil: {skills}",
+      "skillsMissing": "chybí: {skills}",
+      "skillsSentence": "Dovednosti: {parts}."
+    },
     "tab": {
       "eyebrow": "Pracovní prostor",
       "title": "Spárovat kandidáta → pozice",
@@ -6487,7 +6499,8 @@
         "fitTier": "Úroveň vhodnosti",
         "matchedSkills": "Odpovídající dovednosti",
         "unprovenSkills": "Uvedené, zatím neprokázané dovednosti",
-        "missingSkills": "Chybějící dovednosti"
+        "missingSkills": "Chybějící dovednosti",
+        "reasons": "Proč toto pořadí"
       }
     },
     "jobCompare": {

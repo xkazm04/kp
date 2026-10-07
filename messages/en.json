@@ -1374,6 +1374,7 @@
     "PIPELINE_STAGE_CHANGED": "This candidate's step changed since the view was opened. Refresh and decide again.",
     "PIPELINE_ACTION_UNKNOWN": "That is not an action this board supports.",
     "PIPELINE_GITHUB_EVIDENCE_INVALID": "That GitHub evidence is not in the expected shape.",
+    "PIPELINE_ADD_REASONS_INVALID": "The reasons attached to this add are not in the expected shape.",
     "PIPELINE_ADD_IDS_REQUIRED": "Choose a candidate and role before adding to the board.",
     "PIPELINE_ADD_STAGE_UNKNOWN": "That pipeline stage is not available in this workspace.",
     "PIPELINE_ADD_APPROVAL_KIND_UNKNOWN": "That approval kind cannot be requested when adding a candidate.",
@@ -6325,6 +6326,17 @@
       "partial": "Partial fit",
       "unknown": "Fit"
     },
+    "reasons": {
+      "headlineRangeTier": "{tier}: strongest on {best} ({bestPercent}), weakest on {worst} ({worstPercent}).",
+      "headlineRange": "Strongest on {best} ({bestPercent}), weakest on {worst} ({worstPercent}).",
+      "headlineOneTier": "{tier}: {best} scores {bestPercent}.",
+      "headlineOne": "{best} scores {bestPercent}.",
+      "headlineTier": "{tier}.",
+      "skillsMatched": "matches {skills}",
+      "skillsUnproven": "claims but has not yet proven {skills}",
+      "skillsMissing": "lacks {skills}",
+      "skillsSentence": "Skills: {parts}."
+    },
     "tab": {
       "eyebrow": "Workspace",
       "title": "Match candidate → jobs",
@@ -6487,7 +6499,8 @@
         "fitTier": "Fit tier",
         "matchedSkills": "Matched skills",
         "unprovenSkills": "Claimed, not yet proven",
-        "missingSkills": "Missing skills"
+        "missingSkills": "Missing skills",
+        "reasons": "Why this ranking"
       }
     },
     "jobCompare": {

@@ -190,3 +190,52 @@ test("reject closes the entry and its queued rejection is auditable via GET /api
   assert.ok(mine.some((m) => m.kind === "rejection"), "the human reject must queue a rejection comm for this entry");
   assert.equal(body.relayConfigured, false, "no relay in tests — the Comms Center must be told");
 });
+
+// ---- Match reasons snapshot (key goal 4) -----------------------------------------------
+const matchAdd = (extra: Record<string, unknown>) => {
+  seq += 1;
+  const body = {
+    candidateId: `prt-m${seq}`, candidateLabel: "Match Reasons", jobId: `prt-mjob-${seq}`, jobTitle: "Role",
+    source: "match", approvalKind: "decision", ...extra,
+  };
+  return { body, send: () => boardPost(jsonRequest("http://localhost/api/pipeline", body)) };
+};
+
+test("a Match add with reasons stores approval_detail in the shape AiNarrative reads", async () => {
+  const { send } = matchAdd({ reasons: "  Strong fit: strongest on Skills (82).  ", reasonsStrengths: ["Java"], reasonsRedFlags: ["Rust"] });
+  const res = await send();
+  assert.equal(res.status, 200);
+  const { entry } = (await res.json()) as { entry: { id: string } };
+  const stored = getPipelineEntry(entry.id);
+  assert.deepEqual(JSON.parse(stored!.approvalDetail!), {
+    summary: "Strong fit: strongest on Skills (82).",
+    strengths: ["Java"],
+    redFlags: ["Rust"],
+  });
+});
+
+test("a malformed or off-source reasons value is refused with a code, and nothing is filed", async () => {
+  for (const extra of [
+    { reasons: 42 },
+    { reasons: "   " },
+    { reasons: "x".repeat(601) },
+    { reasons: "ok", reasonsStrengths: "Java" },
+    { reasons: "ok", reasonsRedFlags: ["a", "b", "c", "d"] },
+    { reasonsStrengths: ["Java"] },
+    { reasons: "ok", source: "outreach" },
+  ]) {
+    const { body, send } = matchAdd(extra);
+    const res = await send();
+    assert.equal(res.status, 400, JSON.stringify(extra));
+    assert.equal((await res.json()).code, "PIPELINE_ADD_REASONS_INVALID");
+    assert.equal(getPipelineEntry(`m-${body.candidateId}-${body.jobId}`), null);
+  }
+});
+
+test("a re-add never overwrites the stored approval_detail", async () => {
+  const first = matchAdd({ reasons: "First line." });
+  const { entry } = (await (await first.send()).json()) as { entry: { id: string } };
+  const again = await boardPost(jsonRequest("http://localhost/api/pipeline", { ...first.body, reasons: "Second line." }));
+  assert.equal((await again.json()).created, false);
+  assert.equal(JSON.parse(getPipelineEntry(entry.id)!.approvalDetail!).summary, "First line.");
+});
