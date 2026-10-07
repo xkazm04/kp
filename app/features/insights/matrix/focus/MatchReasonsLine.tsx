@@ -10,5 +10,5 @@ export function MatchReasonsLine({ m }: { m: MatchResult }) {
   const t = useTranslations("match") as unknown as MatchReasonsTranslator;
   const reasons = matchReasons(m, t);
   if (!reasons) return null;
-  return <p className="mt-1.5 text-sm text-ink">{reasons.line}</p>;
+  return <p className="mt-1.5 text-body text-ink">{reasons.line}</p>;
 }
