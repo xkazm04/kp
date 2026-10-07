@@ -829,7 +829,7 @@
         },
         "sealed": {
           "title": "Des décisions scellées, pas affirmées",
-          "body": "Chaque avancement, rejet et offre est scellé dans une chaîne d’audit inviolable, avec le nom de l’humain qui a signé. Le candidat voit ce qui a été décidé à son sujet, et pourquoi."
+          "body": "Chaque avancement, rejet et offre est scellé dans une chaîne d’audit inviolable, avec le nom de celui qui a décidé. Le candidat voit ce qui a été décidé à son sujet, et pourquoi."
         }
       },
       "footline": "la question de chaque embauche en 2026, avec des preuves à l’appui"
@@ -895,7 +895,7 @@
       "subtitle": "Conçu pour le recrutement réglementé par le règlement européen sur l’AI (EU AI Act) et le RGPD : la machine lit, mais une personne qualifiée prend chaque décision qui concerne un candidat.",
       "human": {
         "title": "L’humain dans la boucle",
-        "body": "Un rejet revient toujours à une personne : la machine ne peut pas en prononcer un, et un rejet en masse exige l’approbation humaine signée de cette liste exacte. L’avancement et la remise d’une offre sont eux aussi validés par un humain par défaut. Un espace de travail peut déléguer l’un ou l’autre, étape par étape, et chaque étape qui s’exécute alors sans surveillance est journalisée avec la règle qui l’a autorisée."
+        "body": "Hormis un seul refus automatique, un rejet revient à une personne : la machine ne peut pas en prononcer un, et un rejet en masse exige l’approbation humaine signée de cette liste exacte. Ce refus automatique est l’élimination : répondre non à une condition que le poste exige expressément met fin à la candidature aussitôt, et le candidat sait laquelle et peut demander qu’une personne réexamine la décision. L’avancement et la remise d’une offre sont eux aussi validés par un humain par défaut. Un espace de travail peut déléguer l’un ou l’autre, étape par étape, et chaque étape qui s’exécute alors sans surveillance est journalisée avec la règle qui l’a autorisée."
       },
       "oversight": {
         "title": "AI Act, article par article"
@@ -926,7 +926,7 @@
           },
           "auto": "auto",
           "you": "vous",
-          "lockedNote": "les refus restent toujours à vous : celui-là ne se déverrouille pas"
+          "lockedNote": "les refus, une fois la candidature reçue, restent toujours à vous : celui-là ne se déverrouille pas"
         }
       }
     },
@@ -1227,7 +1227,7 @@
     "loadFailed": "Impossible de confirmer les règles de cet espace de travail. Les informations par défaut sont affichées.",
     "retry": "Réessayer",
     "title": "Comment ça marche",
-    "body": "Nous utilisons l’AI pour assister la présélection et les entretiens, en évaluant vos <highlight>compétences, votre expérience et votre adéquation</highlight> au poste. Un rejet revient toujours à une personne : aucun réglage ne peut confier cette décision à la machine. L’avancement et la remise d’une offre sont validés par un humain par défaut ; un espace de travail peut déléguer l’un ou l’autre, étape par étape, et chaque étape qui s’exécute alors sans surveillance est journalisée. Vous pouvez demander un examen humain à tout moment.",
+    "body": "Nous utilisons l’AI pour assister la présélection et les entretiens, en évaluant vos <highlight>compétences, votre expérience et votre adéquation</highlight> au poste. Répondre non à une condition que le poste exige expressément met fin à la candidature automatiquement ; vous savez laquelle et vous pouvez demander qu’une personne réexamine la décision. Tout autre rejet revient à une personne : aucun réglage ne peut confier cette décision à la machine. L’avancement et la remise d’une offre sont validés par un humain par défaut ; un espace de travail peut déléguer l’un ou l’autre, étape par étape, et chaque étape qui s’exécute alors sans surveillance est journalisée. Vous pouvez demander un examen humain à tout moment.",
     "dataConsent": "En soumettant, vous acceptez que nous traitions vos données personnelles pour ce poste pendant une durée maximale de {months, plural, one {# mois} other {# mois}}. Vous pouvez consulter vos données ou en demander l’effacement à tout moment via le lien présent dans nos messages.",
     "interviewData": "À propos de cet entretien : le recruteur peut lire votre transcription et l’évaluation de l’AI pendant {months, plural, one {# mois} other {# mois}} au maximum. Ensuite, vos propos lui sont masqués. Pour demander l’effacement de vos données, utilisez le lien « gérer mes données » présent dans nos messages. Pour demander qu’une personne réexamine une décision, répondez à n’importe quel message de l’équipe de recrutement.",
     "regimeNote": "Évalué selon {framework}. Vos données personnelles sont traitées selon {dataLaw}."
@@ -4118,7 +4118,7 @@
       "standardFallback": "analyse des quatre cinquièmes",
       "postureCoveredTitle": "Ce que la plateforme applique",
       "postureCeilingTitle": "Ce qu’elle ne fait pas",
-      "covered1": "Un humain examine et prend chaque décision d’avancement, d’offre et de rejet. Rien de défavorable n’est entièrement automatisé ({oversight}).",
+      "covered1": "Un humain examine et prend chaque décision d’avancement, d’offre et de rejet une fois la candidature reçue. La seule décision automatique est l’élimination : un non à une condition exigée expressément met fin à la candidature, et le candidat sait laquelle et peut demander qu’une personne réexamine la décision ({oversight}).",
       "covered2": "Chaque décision est scellée dans un enregistrement d’audit inviolable.",
       "covered3": "Les candidats voient une mention d’utilisation d’AI et peuvent demander un examen humain à tout moment.",
       "covered4": "Les candidats en début de carrière et non classés sont protégés du rejet automatisé (fail-closed).",
@@ -12015,7 +12015,7 @@
       "ai": {
         "title": "Transparence de l’AI",
         "oversight": "Au titre du règlement européen sur l’AI, trier, noter, classer et interroger des candidats est un usage à haut risque. Chaque page destinée aux candidats affiche donc une mention AI avant qu’une AI ne lise vos données, comme l’exige l’article 50.",
-        "sealed": "Aucun candidat n’est retenu, écarté ou destinataire d’une offre par la seule machine. Toute décision défavorable exige un humain, et chaque décision, humaine ou automatisée, est scellée dans un registre d’audit infalsifiable indiquant qui a décidé et pourquoi."
+        "sealed": "Par défaut, aucun candidat n’est retenu ni destinataire d’une offre par la seule machine (un espace de travail peut déléguer l’un ou l’autre, et chaque étape sans surveillance est journalisée). Le seul refus que la machine prononce seule est l’élimination : répondre non à une condition que le poste exige expressément met fin à la candidature automatiquement, et le candidat sait laquelle et peut demander qu’une personne réexamine la décision. Toute autre décision défavorable exige un humain, et chaque décision, humaine ou automatisée, est scellée dans un registre d’audit infalsifiable indiquant qui a décidé et pourquoi."
       },
       "subprocessors": {
         "title": "Sous-traitants",
@@ -12350,7 +12350,7 @@
       "gate": "une personne",
       "stops": "s'arrête",
       "applied": "appliqué automatiquement",
-      "noteRejection": "La ligne qui compte est celle du rejet. La passe le calcule, le fait passer par le garde-fou d'équité, puis refuse de l'appliquer et le met en file pour une personne. Un rejet est la seule action irréversible et visible par le candidat dans le produit, donc rien ne l'applique de lui-même.",
+      "noteRejection": "La ligne qui compte est celle du rejet. La passe le calcule, le fait passer par le garde-fou d'équité, puis refuse de l'appliquer et le met en file pour une personne. Un rejet est la seule action irréversible et visible par le candidat dans le produit, donc rien ne l'applique de lui-même. (Le seul refus automatique intervient avant : le candidat qui répond non à une condition que le poste exige expressément sait laquelle et peut demander qu’une personne réexamine la décision.)",
       "noteAutonomous": "Les avancées, les mises en attente, les alertes, l'évaluation et la rédaction des brouillons restent autonomes, et c'est le fait de le dire franchement qui donne du poids au reste.",
       "noteHired": "Recruté ne se trouve pas du tout sur ce chemin. Un passage manuel à Recruté renvoie 422, car cette étape est fixée par l'acceptation d'une offre par le candidat et par rien d'autre.",
       "status": {
@@ -16270,7 +16270,7 @@
       "flow4Text": "Ce qui a été décidé à son sujet, et pourquoi.",
       "rejection": "Refus",
       "neverUnlocks": "jamais déverrouillé",
-      "neverText": "Un refus revient toujours à une personne. La machine ne peut pas en prononcer.",
+      "neverText": "Un non à une condition exigée met fin à la candidature automatiquement et dit pourquoi. Tout autre refus revient à une personne.",
       "detailNote": "Un seul interrupteur met en pause toutes les étapes qui tournent sans surveillance."
     }
   },

@@ -829,7 +829,7 @@
         },
         "sealed": {
           "title": "Rozhodnutí zapečetěná, ne tvrzená",
-          "body": "Každý postup, zamítnutí i nabídka se pečetí do auditního řetězce odolného proti manipulaci, se jménem člověka, který je podepsal. Kandidát vidí, co se o něm rozhodlo a proč."
+          "body": "Každý postup, zamítnutí i nabídka se pečetí do auditního řetězce odolného proti manipulaci, se jménem toho, kdo rozhodl. Kandidát vidí, co se o něm rozhodlo a proč."
         }
       },
       "footline": "otázka, kterou v roce 2026 vyvolá každý nábor, a odpověď podložená důkazy"
@@ -895,7 +895,7 @@
       "subtitle": "Stavěno pro regulovaný nábor podle EU AI Act a GDPR: čtení obstará stroj, ale každé rozhodnutí, které se dotkne kandidáta, dělá kvalifikovaný člověk.",
       "human": {
         "title": "Člověk v řídicí smyčce",
-        "body": "Zamítnutí je vždy na člověku: stroj ho sám provést nemůže a hromadné zamítnutí potřebuje podepsaný lidský souhlas s přesně tímto seznamem. Posun dál i podání nabídky ve výchozím nastavení také schvaluje člověk. Pracovní prostor může kterýkoli z nich svěřit automatice, fázi po fázi, a každý krok, který pak proběhne bez dozoru, se zaznamená i s pravidlem, které ho povolilo."
+        "body": "Až na jedno automatické vyřazení je zamítnutí na člověku: stroj ho sám provést nemůže a hromadné zamítnutí potřebuje podepsaný lidský souhlas s přesně tímto seznamem. Tím jedním je základní podmínka pozice: odpověď „ne“ u požadavku, který pozice výslovně stanoví, ukončí přihlášku hned, kandidát se dozví, o který požadavek šlo, a může požádat o přezkoumání člověkem. Posun dál i podání nabídky ve výchozím nastavení také schvaluje člověk. Pracovní prostor může kterýkoli z nich svěřit automatice, fázi po fázi, a každý krok, který pak proběhne bez dozoru, se zaznamená i s pravidlem, které ho povolilo."
       },
       "oversight": {
         "title": "AI Act, článek po článku"
@@ -926,7 +926,7 @@
           },
           "auto": "auto",
           "you": "vy",
-          "lockedNote": "zamítnutí je vždycky na vás: tohle se odemknout nedá"
+          "lockedNote": "zamítnutí po přijetí přihlášky je vždycky na vás: tohle se odemknout nedá"
         }
       }
     },
@@ -1227,7 +1227,7 @@
     "loadFailed": "Pravidla tohoto prostoru se nepodařilo ověřit. Zobrazujeme výchozí informace.",
     "retry": "Zkusit znovu",
     "title": "Jak to funguje",
-    "body": "K asistenci při screeningu a pohovorech používáme AI a posuzujeme vaše <highlight>dovednosti, zkušenosti a vhodnost</highlight> pro danou pozici. Zamítnutí je vždy na člověku: žádné nastavení toto rozhodnutí stroji nesvěří. Posun dál i nabídku ve výchozím nastavení schvaluje člověk; pracovní prostor může kterýkoli z nich svěřit automatice, fázi po fázi, a každý krok, který pak proběhne bez dozoru, se zaznamená. Kdykoli můžete požádat o přezkoumání člověkem.",
+    "body": "K asistenci při screeningu a pohovorech používáme AI a posuzujeme vaše <highlight>dovednosti, zkušenosti a vhodnost</highlight> pro danou pozici. Odpověď „ne“ u požadavku, který pozice výslovně stanoví, ukončí přihlášku automaticky; dozvíte se, o který požadavek šlo, a můžete požádat, aby rozhodnutí posoudil člověk. Každé jiné zamítnutí je na člověku: žádné nastavení toto rozhodnutí stroji nesvěří. Posun dál i nabídku ve výchozím nastavení schvaluje člověk; pracovní prostor může kterýkoli z nich svěřit automatice, fázi po fázi, a každý krok, který pak proběhne bez dozoru, se zaznamená. Kdykoli můžete požádat o přezkoumání člověkem.",
     "dataConsent": "Odesláním souhlasíte, že můžeme zpracovávat vaše osobní údaje pro tuto pozici po dobu až {months, plural, one {# měsíc} few {# měsíce} other {# měsíců}}. Své údaje můžete kdykoli zkontrolovat nebo požádat o jejich výmaz přes odkaz v našich zprávách.",
     "interviewData": "K tomuto pohovoru: recruiter si může přečíst váš přepis a hodnocení od AI po dobu až {months, plural, one {# měsíc} few {# měsíce} other {# měsíců}}. Poté mu vaše slova zůstanou skrytá. O výmaz svých údajů požádáte přes odkaz „spravovat moje údaje“ v kterékoli naší zprávě. O posouzení rozhodnutí člověkem požádáte odpovědí na kteroukoli zprávu od náborového týmu.",
     "regimeNote": "Posuzováno podle {framework}; vaše osobní údaje zpracováváme podle {dataLaw}."
@@ -4118,7 +4118,7 @@
       "standardFallback": "analýza pravidla čtyř pětin",
       "postureCoveredTitle": "Co platforma vynucuje",
       "postureCeilingTitle": "Co nedělá",
-      "covered1": "Každé rozhodnutí o postupu, nabídce i zamítnutí přezkoumává a dělá člověk. Nic nepříznivého není čistě automatické ({oversight}).",
+      "covered1": "Každé rozhodnutí o postupu, nabídce i zamítnutí po přijetí přihlášky přezkoumává a dělá člověk. Jediné automatické rozhodnutí je základní podmínka pozice: odpověď „ne“ u výslovně stanoveného požadavku ukončí přihlášku, kandidát se dozví, o který šlo, a může požádat o přezkoumání člověkem ({oversight}).",
       "covered2": "Každé rozhodnutí se zapečetí do auditního záznamu odolného proti manipulaci.",
       "covered3": "Kandidáti vidí informaci o použití AI a mohou kdykoli požádat o přezkoumání člověkem.",
       "covered4": "Kandidáti na začátku kariéry a nezařazení jsou chráněni před automatickým zamítnutím (fail-closed).",
@@ -11919,7 +11919,7 @@
       "ai": {
         "title": "Transparentnost AI",
         "oversight": "Podle nařízení EU o umělé inteligenci je třídění, hodnocení, řazení a vedení pohovorů s kandidáty vysoce rizikovým použitím. Každá stránka pro kandidáty proto zobrazuje upozornění na zapojení AI dřív, než AI vaše údaje čte, jak vyžaduje článek 50.",
-        "sealed": "Žádný kandidát nepostupuje, není zamítnut ani nedostává nabídku jen na základě stroje. Každé nepříznivé rozhodnutí vyžaduje člověka a každé rozhodnutí, lidské i automatické, se zapečetí do auditního záznamu chráněného proti manipulaci, který uvádí, kdo rozhodl a proč."
+        "sealed": "Ve výchozím nastavení žádný kandidát nepostupuje ani nedostává nabídku jen na základě stroje (pracovní prostor může kterékoli z toho svěřit automatice a každý krok bez dozoru se zaznamená). Jediné zamítnutí, které stroj provede sám, je základní podmínka pozice: odpověď „ne“ u požadavku, který pozice výslovně stanoví, ukončí přihlášku automaticky, kandidát se dozví, o který požadavek šlo, a může požádat o přezkoumání člověkem. Každé jiné nepříznivé rozhodnutí vyžaduje člověka a každé rozhodnutí, lidské i automatické, se zapečetí do auditního záznamu chráněného proti manipulaci, který uvádí, kdo rozhodl a proč."
       },
       "subprocessors": {
         "title": "Další zpracovatelé",
@@ -12350,7 +12350,7 @@
       "gate": "člověk",
       "stops": "zastaví se",
       "applied": "provedeno automaticky",
-      "noteRejection": "Podstatný je řádek se zamítnutím. Průchod ho spočítá, protáhne ho kontrolou spravedlnosti a pak ho odmítne provést a zařadí ho člověku. Zamítnutí je jediná nevratná akce v produktu, kterou kandidát uvidí, takže ji nic neprovádí samo od sebe.",
+      "noteRejection": "Podstatný je řádek se zamítnutím. Průchod ho spočítá, protáhne ho kontrolou spravedlnosti a pak ho odmítne provést a zařadí ho člověku. Zamítnutí je jediná nevratná akce v produktu, kterou kandidát uvidí, takže ji nic neprovádí samo od sebe. (Jediné automatické zamítnutí leží před touto fází: kandidát, který odpoví „ne“ u požadavku, který pozice výslovně stanoví, se dozví, o který šlo, a může požádat o přezkoumání člověkem.)",
       "noteAutonomous": "Postupy, pozdržení, upozornění, hodnocení a příprava návrhů zůstávají automatické, a právě to, že to říkáme na rovinu, dává zbytku tvrzení váhu.",
       "noteHired": "Přijat na téhle cestě vůbec není. Ruční přesun na Přijat vrátí 422, protože tuhle fázi nastavuje přijetí nabídky kandidátem a nic jiného.",
       "status": {
@@ -16270,7 +16270,7 @@
       "flow4Text": "Co se o něm rozhodlo a proč.",
       "rejection": "Zamítnutí",
       "neverUnlocks": "nikdy se neodemkne",
-      "neverText": "Zamítnutí je vždy na člověku. Stroj ho sám provést nemůže.",
+      "neverText": "Odpověď „ne“ u základní podmínky ukončí přihlášku automaticky a řekne proč. Každé jiné zamítnutí je na člověku.",
       "detailNote": "Jeden přepínač pozastaví každý krok, který běží bez dozoru."
     }
   },

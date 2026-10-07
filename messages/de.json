@@ -829,7 +829,7 @@
         },
         "sealed": {
           "title": "Entscheidungen versiegelt, nicht behauptet",
-          "body": "Jedes Weiterkommen, jede Absage und jedes Angebot wird in einer manipulationssicheren Audit-Kette festgeschrieben, mit dem Namen des Menschen, der unterschrieben hat. Kandidaten sehen, was über sie entschieden wurde und warum."
+          "body": "Jedes Weiterkommen, jede Absage und jedes Angebot wird in einer manipulationssicheren Audit-Kette festgeschrieben, mit dem Namen dessen, der entschieden hat. Kandidaten sehen, was über sie entschieden wurde und warum."
         }
       },
       "footline": "die Frage jeder Einstellung 2026, beantwortet mit Belegen"
@@ -895,7 +895,7 @@
       "subtitle": "Gebaut für reguliertes Recruiting nach EU AI Act und DSGVO: Die Maschine liest, aber eine qualifizierte Person trifft jede Entscheidung, die einen Kandidaten betrifft.",
       "human": {
         "title": "Human in the Loop",
-        "body": "Eine Ablehnung trifft immer ein Mensch: die Maschine kann keine vollziehen, und eine Sammelablehnung braucht eine unterschriebene menschliche Freigabe genau dieser Liste. Auch das Weiterreichen und das Unterbreiten eines Angebots sind standardmäßig menschlich freigegeben. Ein Workspace kann beides Stufe für Stufe an die Automatik übergeben, und jeder dann unbeaufsichtigte Schritt wird samt der Regel protokolliert, die ihn erlaubt hat."
+        "body": "Bis auf ein automatisches Ausschlusskriterium trifft eine Ablehnung ein Mensch: die Maschine kann keine vollziehen, und eine Sammelablehnung braucht eine unterschriebene menschliche Freigabe genau dieser Liste. Das Ausschlusskriterium: Wer eine Voraussetzung, die die Stelle ausdrücklich nennt, mit Nein beantwortet, dessen Bewerbung endet sofort; die Person erfährt, um welche es ging, und kann eine Überprüfung durch einen Menschen verlangen. Auch das Weiterreichen und das Unterbreiten eines Angebots sind standardmäßig menschlich freigegeben. Ein Workspace kann beides Stufe für Stufe an die Automatik übergeben, und jeder dann unbeaufsichtigte Schritt wird samt der Regel protokolliert, die ihn erlaubt hat."
       },
       "oversight": {
         "title": "AI Act, Artikel für Artikel"
@@ -926,7 +926,7 @@
           },
           "auto": "auto",
           "you": "Sie",
-          "lockedNote": "Absagen bleiben immer bei Ihnen: dieser Schalter bleibt gesperrt"
+          "lockedNote": "Absagen nach Eingang der Bewerbung bleiben immer bei Ihnen: dieser Schalter bleibt gesperrt"
         }
       }
     },
@@ -1227,7 +1227,7 @@
     "loadFailed": "Die Regeln dieses Arbeitsbereichs konnten nicht bestätigt werden. Die Standardinformationen werden angezeigt.",
     "retry": "Erneut versuchen",
     "title": "So funktioniert es",
-    "body": "Wir setzen AI zur Unterstützung von Screening und Interviews ein und bewerten dabei Ihre <highlight>Fähigkeiten, Erfahrung und Eignung</highlight> für die Stelle. Eine Ablehnung trifft immer ein Mensch: keine Einstellung kann diese Entscheidung an die Maschine übergeben. Das Weiterreichen und ein Angebot sind standardmäßig menschlich freigegeben; ein Workspace kann beides Stufe für Stufe an die Automatik übergeben, und jeder Schritt, der dann unbeaufsichtigt läuft, wird protokolliert. Sie können jederzeit eine Prüfung durch einen Menschen verlangen.",
+    "body": "Wir setzen AI zur Unterstützung von Screening und Interviews ein und bewerten dabei Ihre <highlight>Fähigkeiten, Erfahrung und Eignung</highlight> für die Stelle. Wer eine Voraussetzung, die die Stelle ausdrücklich nennt, mit Nein beantwortet, dessen Bewerbung endet automatisch; Sie erfahren, um welche es ging, und können eine Überprüfung durch einen Menschen verlangen. Jede andere Ablehnung trifft ein Mensch: keine Einstellung kann diese Entscheidung an die Maschine übergeben. Das Weiterreichen und ein Angebot sind standardmäßig menschlich freigegeben; ein Workspace kann beides Stufe für Stufe an die Automatik übergeben, und jeder Schritt, der dann unbeaufsichtigt läuft, wird protokolliert. Sie können jederzeit eine Prüfung durch einen Menschen verlangen.",
     "dataConsent": "Mit dem Absenden stimmen Sie zu, dass wir Ihre personenbezogenen Daten für diese Stelle bis zu {months, plural, one {# Monat} other {# Monate}} verarbeiten dürfen. Sie können Ihre Daten jederzeit über den Link in unseren Nachrichten einsehen oder deren Löschung verlangen.",
     "interviewData": "Zu diesem Interview: Der/die Recruiter/in kann Ihr Transkript und die AI-Bewertung bis zu {months, plural, one {# Monat} other {# Monate}} lesen. Danach bleiben Ihre Worte verborgen. Um die Löschung Ihrer Daten zu verlangen, nutzen Sie den Link „Meine Daten verwalten“ in einer unserer Nachrichten. Um eine Überprüfung durch eine Person zu verlangen, antworten Sie auf eine beliebige Nachricht des Einstellungsteams.",
     "regimeNote": "Bewertet gemäß {framework}; Ihre personenbezogenen Daten werden gemäß {dataLaw} verarbeitet."
@@ -4118,7 +4118,7 @@
       "standardFallback": "Vier-Fünftel-Analyse",
       "postureCoveredTitle": "Was die Plattform durchsetzt",
       "postureCeilingTitle": "Was sie nicht tut",
-      "covered1": "Ein Mensch prüft und trifft jede Weiterleitung, jedes Angebot und jede Ablehnung. Nichts Nachteiliges läuft rein automatisiert ab ({oversight}).",
+      "covered1": "Ein Mensch prüft und trifft jede Weiterleitung, jedes Angebot und jede Ablehnung, sobald eine Bewerbung eingegangen ist. Die einzige automatische Entscheidung ist das Ausschlusskriterium: Ein Nein bei einer ausdrücklich genannten Voraussetzung beendet die Bewerbung, die Person erfährt, um welche es ging, und kann eine Überprüfung durch einen Menschen verlangen ({oversight}).",
       "covered2": "Jede Entscheidung wird in einem manipulationssicheren Audit-Protokoll versiegelt.",
       "covered3": "Kandidaten sehen einen Hinweis zur AI-Nutzung und können jederzeit eine menschliche Prüfung anfordern.",
       "covered4": "Kandidaten am Karriereanfang und nicht klassifizierte Kandidaten sind vor automatischer Ablehnung geschützt (fail-closed).",
@@ -11919,7 +11919,7 @@
       "ai": {
         "title": "AI-Transparenz",
         "oversight": "Nach der EU-AI-Verordnung ist das Screenen, Bewerten, Einstufen und Interviewen von Kandidaten eine Hochrisiko-Anwendung. Jede Kandidatenseite zeigt deshalb einen AI-Hinweis, bevor eine AI Ihre Daten liest, wie es Artikel 50 verlangt.",
-        "sealed": "Kein Kandidat kommt allein durch die Maschine weiter, wird von ihr abgelehnt oder erhält von ihr ein Angebot. Jede nachteilige Entscheidung erfordert einen Menschen, und jede Entscheidung, ob menschlich oder automatisiert, wird in einem manipulationssicheren Audit-Protokoll festgeschrieben, das dokumentiert, wer entschieden hat und warum."
+        "sealed": "Standardmäßig kommt kein Kandidat allein durch die Maschine weiter oder erhält von ihr ein Angebot (ein Workspace kann beides an die Automatik übergeben, jeder unbeaufsichtigte Schritt wird protokolliert). Die einzige Ablehnung, die die Maschine allein ausspricht, ist das Ausschlusskriterium: Wer eine Voraussetzung, die die Stelle ausdrücklich nennt, mit Nein beantwortet, dessen Bewerbung endet automatisch; die Person erfährt, um welche es ging, und kann eine Überprüfung durch einen Menschen verlangen. Jede andere nachteilige Entscheidung erfordert einen Menschen, und jede Entscheidung, ob menschlich oder automatisiert, wird in einem manipulationssicheren Audit-Protokoll festgeschrieben, das dokumentiert, wer entschieden hat und warum."
       },
       "subprocessors": {
         "title": "Unterauftragsverarbeiter",
@@ -12350,7 +12350,7 @@
       "gate": "ein Mensch",
       "stops": "stoppt",
       "applied": "automatisch ausgeführt",
-      "noteRejection": "Entscheidend ist die Zeile mit der Ablehnung. Der Durchlauf berechnet sie, führt sie durch das Fairness-Gate und weigert sich dann, sie auszuführen, und stellt sie stattdessen einem Menschen in die Warteschlange. Eine Ablehnung ist die eine unumkehrbare, für die Person sichtbare Maßnahme im Produkt, also führt sie nichts von allein aus.",
+      "noteRejection": "Entscheidend ist die Zeile mit der Ablehnung. Der Durchlauf berechnet sie, führt sie durch das Fairness-Gate und weigert sich dann, sie auszuführen, und stellt sie stattdessen einem Menschen in die Warteschlange. Eine Ablehnung ist die eine unumkehrbare, für die Person sichtbare Maßnahme im Produkt, also führt sie nichts von allein aus. (Die einzige automatische Absage liegt davor: Wer eine Voraussetzung, die die Stelle ausdrücklich nennt, mit Nein beantwortet, erfährt, um welche es ging, und kann eine Überprüfung durch einen Menschen verlangen.)",
       "noteAutonomous": "Weiterleitungen, Zurückstellungen, Hinweise, Bewertung und Entwürfe bleiben autonom, und genau dass wir das klar benennen, gibt dem Rest der Aussage Gewicht.",
       "noteHired": "Eingestellt liegt gar nicht auf diesem Weg. Ein manueller Wechsel zu Eingestellt liefert 422, denn diese Phase setzt die Annahme eines Angebots durch die Person und sonst nichts.",
       "status": {
@@ -16270,7 +16270,7 @@
       "flow4Text": "Was über sie entschieden wurde und warum.",
       "rejection": "Absage",
       "neverUnlocks": "bleibt gesperrt",
-      "neverText": "Eine Absage kommt immer von einem Menschen. Die Maschine kann keine erteilen.",
+      "neverText": "Ein Nein bei einer ausdrücklich genannten Voraussetzung beendet die Bewerbung automatisch und nennt den Grund. Jede andere Absage kommt von einem Menschen.",
       "detailNote": "Ein Schalter pausiert jeden Schritt, der unbeaufsichtigt läuft."
     }
   },

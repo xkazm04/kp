@@ -829,7 +829,7 @@
         },
         "sealed": {
           "title": "Decisions sealed, not asserted",
-          "body": "Every advance, rejection and offer is sealed into a tamper-evident audit chain naming the human who signed it. Candidates see what was decided about them, and why."
+          "body": "Every advance, rejection and offer is sealed into a tamper-evident audit chain naming who decided it. Candidates see what was decided about them, and why."
         }
       },
       "footline": "the question every 2026 hire raises, answered with evidence"
@@ -895,7 +895,7 @@
       "subtitle": "Built for regulated hiring under the EU AI Act and GDPR: the machine does the reading, but a qualified person makes every decision that touches a candidate.",
       "human": {
         "title": "Human in the loop",
-        "body": "A rejection is always a person's: the machine cannot commit one, and a bulk reject needs a signed human approval of that exact list. Advancing and extending an offer are human-approved by default too. A workspace can delegate either one, stage by stage, and every step that then runs unattended is logged with the plan that allowed it."
+        "body": "Apart from one automatic knockout, a rejection is a person's: the machine cannot commit one, and a bulk reject needs a signed human approval of that exact list. The knockout: answering no to a must-have the role states ends that application at once, and the candidate is told which one and can ask a person to review it. Advancing and extending an offer are human-approved by default too. A workspace can delegate either one, stage by stage, and every step that then runs unattended is logged with the plan that allowed it."
       },
       "oversight": {
         "title": "AI Act, article by article"
@@ -926,7 +926,7 @@
           },
           "auto": "auto",
           "you": "you",
-          "lockedNote": "rejections are always yours: that one doesn’t unlock"
+          "lockedNote": "every rejection once an application is in is yours: that one doesn’t unlock"
         }
       }
     },
@@ -1227,7 +1227,7 @@
     "loadFailed": "Could not confirm this workspace's rules. Showing the default disclosure.",
     "retry": "Try again",
     "title": "How this works",
-    "body": "We use AI to assist screening and interviews, assessing your <highlight>skills, experience, and fit</highlight> for the role. A rejection is always a person's: no setting can hand that decision to the machine. Advancing and offers are human-approved by default; a workspace can delegate either one, stage by stage, and every step that then runs unattended is logged. You can ask for a human review at any point.",
+    "body": "We use AI to assist screening and interviews, assessing your <highlight>skills, experience, and fit</highlight> for the role. Answering no to a must-have the role states ends an application automatically; you are told which one and can ask a person to review it. Every other rejection is a person's: no setting can hand that decision to the machine. Advancing and offers are human-approved by default; a workspace can delegate either one, stage by stage, and every step that then runs unattended is logged. You can ask for a human review at any point.",
     "dataConsent": "By submitting, you agree we may process your personal data for this role for up to {months, plural, one {# month} other {# months}}. You can review or request erasure of your data anytime via the link in our messages.",
     "interviewData": "About this interview: the recruiter can read your transcript and the AI scorecard for up to {months, plural, one {# month} other {# months}}. After that, your words are hidden from them. To ask us to delete your data, use the \"manage your data\" link in any message from us. To ask for a person to review a decision, reply to any message from the hiring team.",
     "regimeNote": "Assessed under {framework}; your personal data is processed under {dataLaw}."
@@ -4118,7 +4118,7 @@
       "standardFallback": "four-fifths analysis",
       "postureCoveredTitle": "What the platform enforces",
       "postureCeilingTitle": "What it does not do",
-      "covered1": "A human reviews and makes every advance, offer, and rejection. Nothing adverse is solely automated ({oversight}).",
+      "covered1": "A human reviews and makes every advance, offer, and rejection once an application is in. The one automatic decision is the knockout: a no to a stated must-have ends the application, and the candidate is told which one and can ask a person to review it ({oversight}).",
       "covered2": "Every decision is sealed to a tamper-evident audit record.",
       "covered3": "Candidates see an AI-use disclosure and can request human review anytime.",
       "covered4": "Early-career and unclassified candidates are shielded from automated rejection (fail-closed).",
@@ -11919,7 +11919,7 @@
       "ai": {
         "title": "AI transparency",
         "oversight": "Under the EU AI Act, screening, scoring, ranking and interviewing candidates is a high-risk use. Every candidate-facing page shows an AI disclosure before an AI reads your data, as Article 50 requires.",
-        "sealed": "No candidate is advanced, rejected or offered by the machine alone. Every adverse decision requires a human, and every decision, human or automated, is sealed into a tamper-evident audit record stating who made it and why."
+        "sealed": "By default no candidate is advanced or offered by the machine alone (a workspace can delegate either, and every unattended step is logged). The only rejection the machine makes alone is the knockout: answering no to a must-have the role states ends that application automatically, and the candidate is told which one and can ask a person to review it. Every other adverse decision requires a human, and every decision, human or automated, is sealed into a tamper-evident audit record stating who made it and why."
       },
       "subprocessors": {
         "title": "Subprocessors",
@@ -12350,7 +12350,7 @@
       "gate": "a person",
       "stops": "stops",
       "applied": "applied automatically",
-      "noteRejection": "The rejection row is the one that matters. The pass computes it, clears it through the fairness gate, and then refuses to apply it, queueing it for a person instead. A rejection is the one irreversible, candidate-visible adverse action in the product, so nothing applies one on its own.",
+      "noteRejection": "The rejection row is the one that matters. The pass computes it, clears it through the fairness gate, and then refuses to apply it, queueing it for a person instead. A rejection is the one irreversible, candidate-visible adverse action in the product, so nothing applies one on its own. (The one automatic decline comes before this: a candidate who answers no to a must-have the role states is told which one and can ask a person to review it.)",
       "noteAutonomous": "Advances, holds, alerts, scoring and drafting stay autonomous, and naming that plainly is what makes the rest of the claim worth anything.",
       "noteHired": "Hired is not on this road at all. A manual move to Hired returns 422, because that stage is set when the candidate accepts an offer and by nothing else.",
       "status": {
@@ -16382,7 +16382,7 @@
       "flow4Text": "What was decided about them, and why.",
       "rejection": "Rejection",
       "neverUnlocks": "never unlocks",
-      "neverText": "A rejection is always a person’s. The machine cannot commit one.",
+      "neverText": "A knockout no ends an application automatically, and says why. Every other rejection is a person’s.",
       "detailNote": "One switch pauses every step that runs unattended."
     }
   },

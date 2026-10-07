@@ -113,8 +113,29 @@ test("the human-gate copy carries its 'by default' qualifier in every locale", (
   assert.doesNotMatch(
     automation,
     /getPlanGateForRole\("(rejection|reject)"/,
-    "a rejection gate would falsify landing.trust.human.body's first sentence"
+    "a rejection gate would falsify landing.trust.human.body's rejection claim"
   );
+  // The rejection claim itself is qualified by the ONE automatic decline: the apply
+  // knockout. Pin the exception per locale so a retranslation cannot quietly restore
+  // "always a person's" while that gate is automatic.
+  const KNOCKOUT_EXCEPTION: Record<string, RegExp> = {
+    en: /apart from one automatic knockout[\s\S]*ask a person to review/i,
+    cs: /až na jedno automatické vyřazení[\s\S]*přezkoumání člověkem/i,
+    de: /bis auf ein automatisches ausschlusskriterium[\s\S]*überprüfung durch einen menschen/i,
+    fr: /hormis un seul refus automatique[\s\S]*qu’une personne réexamine/i,
+  };
+  assert.match(
+    source("app", "api", "apply", "[id]", "route.ts"),
+    /recordKnockoutDecline\(/,
+    "the automatic knockout decline is gone — re-check the exception in landing.trust.human.body"
+  );
+  for (const locale of LOCALES) {
+    assert.match(
+      CATALOGS[locale].landing.trust.human.body,
+      KNOCKOUT_EXCEPTION[locale],
+      `${locale}: landing.trust.human.body must name the automatic knockout and the review route`
+    );
+  }
 
   // The qualifier, per locale. Editing the sentence is fine; dropping the hedge
   // is not, and a translation that drops it is the failure nobody would notice.
