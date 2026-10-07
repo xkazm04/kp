@@ -16,6 +16,9 @@ sources:
   - app/api/pipeline/pipeline-routes.test.ts
   - app/api/pipeline/match-add-not-sealed.test.ts
   - app/_lib/kpi-reasons-meter.test.ts
+  - app/_lib/db/match-runs.ts
+  - app/api/match/route.ts
+  - app/api/pipeline/match-add-provenance.test.ts
 ---
 
 ## Context
@@ -181,3 +184,36 @@ the recruiter was shown when they filed". The actor field says exactly that.
     - For Match, key goal 4 is met through what a recruiter can tell the candidate from
       the sealed record, not through the candidate's own page.
     - Reopening the question needs a new owner ruling, not a code change.
+
+- **2026-10-07: the record now attests a result the server holds, not only what the
+  recruiter was shown.** The pipeline write-doors scan
+  ([`docs/security/2026-10-07-pipeline-write-doors-scan.md`](../../security/2026-10-07-pipeline-write-doors-scan.md),
+  finding 1, High) found that the add door checked the facts for shape only. Anyone who
+  could reach the door could seal any score, tier, dimension or skill list under any
+  scorer version, and the filed score then steered `reject below` and `advance top`.
+  - *What changed.*
+    - `POST /api/match` records each result it returns (`match_run_results`,
+      `app/_lib/db/match-runs.ts`; workspace-scoped; one row per run and job, primary key
+      workspace, run, job; each row holds the candidate, scorer version and a hash of the
+      sanitized weights; 12-hour TTL) and answers with a `matchRunId`.
+    - The Match client sends the id with every add.
+    - Before the seal and the insert, the add door loads the run in the current
+      workspace and refuses with a coded 409 when it is missing, expired, foreign or for
+      another candidate or role (`PIPELINE_ADD_MATCH_RUN_UNKNOWN`), or when the tier,
+      either dimension, the skill lists, the score or the scorer version differ from the
+      stored result (`PIPELINE_ADD_MATCH_RUN_MISMATCH`). A refusal seals and files
+      nothing.
+    - The sealed record's `inputs` now carry `matchRunId` beside the facts.
+      `coerceMatchReasonFacts` accepts and drops that one extra key, so records sealed
+      before and after this change both resolve.
+  - *What it attests.* The actor is still the filing recruiter. But the facts are the
+    ones the server derived from the engine's own output for that run, so the record no
+    longer rests on what the browser said it was shown. The decision above (facts, not
+    prose; seal first; 400 on a malformed add) is unchanged.
+  - *What it does not do.* It does not recompute the score at the add door: no Python is
+    spawned per add. A run older than the TTL cannot back an add, and the recruiter runs
+    Match again. Records sealed before this amendment carry no `matchRunId` and were
+    never checked against a stored result.
+  - *Erasure.* The stored rows hold a candidate id and skill names, so they are candidate
+    data. Erasure deletes them with the entry (`scrubEntryLinkedPii`); the sealed record
+    keeps only the run id, which names nothing.
