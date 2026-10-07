@@ -66,7 +66,7 @@ const SENDABLE_CASE_STATUS = "approved";
 
 export type HomeworkArrivalOutcome =
   /** The hook does not govern this arrival. */
-  | { outcome: "skipped"; reason: "no_job" | "no_jd" }
+  | { outcome: "skipped"; reason: "no_job" | "no_jd" | "agent_population" }
   /** An assignment letter already exists for this (entry, posting) — the idempotence guard. */
   | { outcome: "already_invited" }
   /** No case yet and the column gates case creation for a human: the lifecycle is
@@ -122,6 +122,8 @@ export async function runHomeworkArrival(
     // live apply token (or ran the whole design chain first) and only the dispatch threw.
     // entryContactability asks commsSendSuppression the way sendComm will.
     const gate = entryContactability(entry, CASE_INVITE_KIND);
+    // An AI agent is never sent an assignment: skip before a case is designed or parked.
+    if (!gate.ok && gate.reason === "agent_population") return { outcome: "skipped", reason: "agent_population" };
     if (!gate.ok && gate.code) {
       return refuse(entry, "suppressed", `the send gate refuses this candidate (${gate.reason})`);
     }
@@ -160,6 +162,7 @@ async function inviteToCase(
   // for. The dispatch's own gate stays the final re-check.
   const contactable = entryContactability(entry, CASE_INVITE_KIND);
   if (!contactable.ok) {
+    if (contactable.reason === "agent_population") return { outcome: "skipped", reason: "agent_population" };
     return contactable.code
       ? refuse(entry, "suppressed", `the send gate refuses this candidate (${contactable.reason})`)
       : refuse(entry, "unaddressable", "no deliverable contact address is on file");

@@ -102,7 +102,7 @@ const DEFAULT_PROPOSED_SLOT = "Tue 14:00";
 
 export type StageEnteredOutcome =
   /** The hook does not govern this arrival (wrong role, no AI round, stale, closed). */
-  | { outcome: "skipped"; reason: "entry_gone" | "terminal" | "stage_moved" | "not_interview_role" | "no_ai_round" }
+  | { outcome: "skipped"; reason: "entry_gone" | "terminal" | "stage_moved" | "not_interview_role" | "no_ai_round" | "agent_population" }
   /** The arrival was a `homework` column; the work-sample hook answered it. */
   | HomeworkArrivalOutcome
   /** An invite already exists for this (entry, stage) — the idempotence guard. */
@@ -261,6 +261,10 @@ export async function runStageEnteredHook(input: StageEnteredInput): Promise<Sta
     // scheduling-invite door is refused with the same COMMS_SUPPRESSED code.
     const contactable = entryContactability(entry, "interview_invite");
     if (!contactable.ok) {
+      // An AI agent has no inbox by design: that is not a missing address a person can
+      // fix, so nothing is parked in the Schedule docket (the role-fill hook skips the
+      // same population under the same reason).
+      if (contactable.reason === "agent_population") return { outcome: "skipped", reason: "agent_population" };
       return contactable.code
         ? failOpenToTheHumanQueue(entry, workspaceId, "suppressed", `the send gate refuses this candidate (${contactable.reason})`)
         : failOpenToTheHumanQueue(entry, workspaceId, "unaddressable", "no deliverable contact address is on file");

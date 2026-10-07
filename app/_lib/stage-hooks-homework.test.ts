@@ -152,6 +152,28 @@ test("no deliverable address: nothing is sent, nothing is published, the move st
   assert.equal(getPipelineEntry(entry.id, WS_AUTO)?.stage, "Homework");
 });
 
+test("an AI agent on the Homework column is skipped: no assignment, no token, nothing parked", async () => {
+  const job = jobWithJd(WS_AUTO);
+  const caseId = approvedCaseFor(job.slug, job.title, WS_AUTO);
+  const entry = createPipelineEntry({
+    candidateId: "agent-fit-hw-agent",
+    candidateLabel: "Fit Agent",
+    jobId: job.jobId,
+    jobTitle: job.title,
+    contact: null,
+    stage: "Homework",
+    population: "agent",
+    workspaceId: WS_AUTO,
+  }).entry;
+
+  const res = await runStageEnteredHook({ entryId: entry.id, stage: "Homework", workspaceId: WS_AUTO });
+
+  assert.deepEqual(res, { outcome: "skipped", reason: "agent_population" });
+  assert.equal(invites(entry.id, WS_AUTO).length, 0);
+  assert.equal(getOpenPosting(caseId, "local", WS_AUTO), null, "no live token for an entity with no inbox");
+  assert.equal(getPipelineEntry(entry.id, WS_AUTO)?.approvalKind, null, "nothing for a person to dismiss");
+});
+
 test("human gate + no case: the lifecycle parks at awaiting_approval and nothing is sent", async () => {
   const job = jobWithJd(WS_HUMAN);
   const entry = entryAt(WS_HUMAN, job.jobId, job.title, "hw-human@example.com");

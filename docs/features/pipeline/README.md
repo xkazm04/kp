@@ -1379,6 +1379,9 @@ whose consent lapsed or who was erased answers `failed`/`suppressed` with no ses
 grounding build or apply token spent. The interview hook parks that candidate on the
 `calendar` gate exactly as it parks an `unaddressable` one, so the Schedule docket shows
 them; the homework hook asks before it designs a case and again before it publishes.
+An `agent` entry is the exception: both hooks answer `skipped`/`agent_population` (the reason
+`runRoleFillHook` already uses) and park nothing, because an AI agent has no inbox by design and a
+person has nothing to dismiss in the docket.
 
 Both hold the same three rules (post-commit, best-effort, never claim more than
 happened) and both deliberately introduce **no new pipeline event kind** — the event

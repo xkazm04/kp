@@ -168,6 +168,25 @@ test("no deliverable address: the invite FAILS on the record and the stage move 
   assert.equal(getPipelineEntry(entry.id, WS_AUTO)?.approvalKind, "calendar");
 });
 
+test("an AI agent on the AI-round column is skipped, not parked on the Schedule docket", async () => {
+  const entry = createPipelineEntry({
+    candidateId: "agent-fit-sh-agent",
+    candidateLabel: "Fit Agent",
+    jobId: "sh-job-agent",
+    jobTitle: "Hook Test Role",
+    contact: null,
+    stage: "Interview",
+    population: "agent",
+    workspaceId: WS_AUTO,
+  }).entry;
+
+  const res = await runStageEnteredHook({ entryId: entry.id, stage: "Interview", workspaceId: WS_AUTO });
+
+  assert.deepEqual(res, { outcome: "skipped", reason: "agent_population" });
+  assert.equal(getPipelineEntry(entry.id, WS_AUTO)?.approvalKind, null, "nothing for a person to dismiss");
+  assert.equal(sessionsFor(entry.id, WS_AUTO).length, 0);
+});
+
 test("a HUMAN round at the interview step is not this hook's business", async () => {
   const entry = entryAt(WS_HUMAN_ROUND, "Interview", "person@example.com");
 
