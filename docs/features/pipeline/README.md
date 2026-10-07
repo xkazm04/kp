@@ -1750,6 +1750,13 @@ reads the body, narrows `body.action` through `entryActionOf` (anything else is 
 | `engineClaim` | `accept` only | `body.actor` (`"sim"`) is forwarded to `runPipelineEntryAction` only where declared. The guided sim sends it on accept and nowhere else (`useSimulationEngine.ts`, `useSimulationWalk.ts`). On a reject it used to file the recruiter's decision as `auto_rejected` sealed `auto:sim` and route it into the Reconsider queue; it is now dropped and the reject stays human. |
 | `reverses` | `reinstate`: `auto_rejected` | a reinstate is refused 409 `PIPELINE_NOT_REINSTATABLE` unless the entry's newest decision event is the machine's `auto_rejected`. The decision events are `auto_rejected`, `rejected` and `reinstated`, and `reinstated` counts explicitly, so an auto-rejection already reversed (by this door or by the human re-add above) is spent. A recruiter's hand reject is reopened through the re-add door, never recorded as "Auto-rejection reversed". The sealed `reinstated` record's `inputs.restoredStage` is the stage the store actually landed the candidate on (this board's screened column), not the literal `Screened`. The rule is one SQL predicate in `app/_lib/db/pipeline.ts` (`newestDecisionIsAutoRejection`), and `listReconsiderQueue` filters by the same predicate, so the Reconsider queue lists a rejected entry only while its newest decision is the machine's `auto_rejected`: an entry auto-rejected, reinstated and then rejected by a recruiter leaves the queue instead of offering a Reinstate the door refuses. |
 
+The four move/decide actions (`set_stage`, `accept`, `reject`, `approve_event`) can each
+queue candidate email, so they spend a per-IP window (`pipeline-entry-move:<ip>`,
+300/10min → `429 TOO_MANY_REQUESTS`, nothing applied) just before
+`runPipelineEntryAction`. The note, evidence, reinstate and intake branches send nothing
+and return before it, so the drawer's notes autosave is never throttled. Pinned by
+`app/api/rate-limit-contract.test.ts` and `app/api/pipeline/[id]/move-rate-limit.test.ts`.
+
 `POST /api/pipeline/outcomes` (the hire rating) asks `pipeline:write` the same way; its
 GET stays an operator read, so a viewer still sees the Quality counter and a hire's
 rating. Pinned by `app/api/pipeline/[id]/entry-actions.test.ts` (the table), `app/api/pipeline/entry-route.test.ts`

@@ -1396,6 +1396,23 @@ const ROUTES: RouteSpec[] = [
     servedBefore: "if (!body.confirm) {",
   },
   {
+    // ADDED 2026-10-07 (pipeline write-doors scan), with the limiter itself. The
+    // per-card door's move/decide actions (set_stage / accept / reject / approve_event)
+    // each can queue candidate email, and the door had no throttle while the bulk doors
+    // beside it did; with the add door's reopen, reject → re-add → reject could mail one
+    // candidate without bound. 300/10min per IP is far above a recruiter dragging cards.
+    rel: "./pipeline/[id]/route.ts",
+    key: "`pipeline-entry-move:${clientIpFrom(request.headers)}`",
+    limit: 300,
+    optsSrc: "MOVE_RATE_LIMIT",
+    optsDef: "const MOVE_RATE_LIMIT = { limit: 300, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "const result = await runPipelineEntryAction({",
+    // The branches that send nothing (notes, evidence, reinstate, intake) return before
+    // the budget is spent — the drawer's notes autosave through set_notes.
+    servedBefore: 'if (action === "resolve_intake") {',
+  },
+  {
     // ADDED 2026-10-07 (pipeline write-doors scan), with the limiter itself. The add
     // door files an entry, can reopen a rejected one and seals a Match verdict per
     // call, and it carried no throttle at all while its siblings (batch, command,

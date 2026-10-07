@@ -9,6 +9,7 @@ import { currentUser, requireCapability } from "@/app/_lib/auth/current-user";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { humanActor } from "@/app/_lib/auth/operator-approver";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { withCanonicalScores } from "@/app/_lib/match-score-resolve";
 import { runPipelineEntryAction } from "@/app/_lib/pipeline-entry-action";
 import { ENTRY_ACTIONS, engineClaimOf, entryActionOf } from "./entry-actions";
@@ -27,6 +28,17 @@ import { ENTRY_ACTIONS, engineClaimOf, entryActionOf } from "./entry-actions";
 // (already gated at its own /api/decisions/screen-wave step — it runs open-mode or
 // under a real operator) are unaffected; a valid operator session passes; the
 // anonymous demo-workspace session the proxy waves through is refused (401).
+
+// The board move/decide actions (set_stage / accept / reject / approve_event) can each
+// queue candidate email — a rejection letter, an extended offer, the AI-interview invite
+// or work-sample assignment a stage arrival sets off — and this door had no throttle
+// while the bulk doors beside it (batch, command) did. One card per call, but open mode
+// leaves the operator gate a no-op, and paired with the add door's reopen a loop of
+// reject → re-add → reject could mail one candidate without bound (2026-10-07 pipeline
+// write-doors scan). 300/10min per IP is far above a recruiter dragging cards and the
+// guided sim's walk; the note, evidence, reinstate and intake branches send nothing
+// and stay unthrottled (the drawer's notes autosave through them).
+const MOVE_RATE_LIMIT = { limit: 300, windowMs: 10 * 60_000 };
 
 // MAX_NOTES_LENGTH (db/entry-notes.ts) bounds the persistent recruiter note (set_notes)
 // and every thread note (add_note) from one number. The drawer's textarea enforces the
@@ -204,6 +216,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       return NextResponse.json({ entry: cleared });
     }
 
+    if (!rateLimit(`pipeline-entry-move:${clientIpFrom(request.headers)}`, MOVE_RATE_LIMIT)) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
+    }
     // The three board move/decide actions (set_stage / accept / reject / approve_event)
     // run through the shared runPipelineEntryAction so the single route and the batch
     // route (/api/pipeline/batch) can never diverge on the expectedStage CAS, the
