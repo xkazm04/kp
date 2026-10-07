@@ -17,6 +17,7 @@ proposing to reverse one; each ends with what would change our mind.
 | Doc | Covers |
 | --- | --- |
 | [decisions/](decisions/README.md) | **Architecture decision records** — the reasoning behind the choices, and what would reopen them |
+| [reviews/2026-10-07-architecture-review.md](reviews/2026-10-07-architecture-review.md) | **The first architecture review** — six structural problems ranked by cost of waiting, each with a verdict (compete now / later), plus a "not worth it" list so those are not raised again |
 | [llm-provider-layer.md](llm-provider-layer.md) | The multi-provider LLM wrapper: adapters, capability matrix, key storage, local model servers, benchmarks harness |
 | [llm-model-matrix.md](llm-model-matrix.md) | Dated judged quality grid — which model for which recruiter task |
 | [engine-setup.md](engine-setup.md) | Setting up the default engines: Claude subscription via the CLI, the ElevenLabs agent, env notes that surprise people |
