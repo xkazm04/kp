@@ -948,6 +948,13 @@ export const REFUSAL_ERRORS = {
   PIPELINE_MOVE_CONFLICT: "Couldn't move this candidate: they were just changed, or they are closed out. Refresh and try again.",
   /** An accept/reject decided against a stage that has since moved (409). */
   PIPELINE_STAGE_CHANGED: "This candidate's step changed since the view was opened. Refresh and decide again.",
+  /** An accept/reject whose decision record could not be sealed (503). The seal is
+   *  the PRECONDITION of the write (pipeline-entry-action.ts, the screen-wave.ts rule:
+   *  no seal, no rejection), so nothing happened: the candidate kept their step, no
+   *  letter went out and no ATS event fired. The fresh entry rides alongside in
+   *  `entry`. A server condition, not a business rule — retrying once the decision
+   *  chain is writable is the remedy. */
+  PIPELINE_DECISION_NOT_SEALED: "This decision couldn't be recorded, so it was not applied. Nothing changed and nothing was sent. Try again shortly.",
   /** A body naming an action this board does not have (400). */
   PIPELINE_ACTION_UNKNOWN: "That is not an action this board supports.",
   /** A GitHub evidence payload that did not clamp to the shared coercer (400). */

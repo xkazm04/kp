@@ -1372,6 +1372,7 @@
     "PIPELINE_TERMINAL_NOT_ADVANCE": "Der letzte Schritt wird erreicht, wenn die Person ein Angebot annimmt, nicht durch Weiterleiten. Erstellen und unterbreiten Sie stattdessen ein Angebot.",
     "PIPELINE_MOVE_CONFLICT": "Verschieben nicht möglich: Die Person wurde gerade geändert oder ist abgeschlossen. Aktualisieren Sie und versuchen Sie es erneut.",
     "PIPELINE_STAGE_CHANGED": "Der Schritt dieser Person hat sich seit dem Öffnen der Ansicht geändert. Aktualisieren Sie und entscheiden Sie erneut.",
+    "PIPELINE_DECISION_NOT_SEALED": "Diese Entscheidung konnte nicht aufgezeichnet werden und wurde deshalb nicht ausgeführt. Nichts wurde geändert und nichts versendet. Versuchen Sie es in Kürze erneut.",
     "PIPELINE_ACTION_UNKNOWN": "Diese Aktion unterstützt dieses Board nicht.",
     "PIPELINE_GITHUB_EVIDENCE_INVALID": "Diese GitHub-Belege haben nicht die erwartete Form.",
     "PIPELINE_ADD_REASONS_INVALID": "Die dieser Aufnahme beigefügte Begründung hat nicht das erwartete Format.",

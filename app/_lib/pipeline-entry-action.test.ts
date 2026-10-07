@@ -25,7 +25,8 @@ import assert from "node:assert/strict";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { createPipelineEntry, getPipelineEntry, listPipelineEventsForEntry, setApproval } from "./db/pipeline.ts";
 import { setDecisionConfig } from "./decision-config-store.ts";
-import { runPipelineEntryAction } from "./pipeline-entry-action.ts";
+import { listDecisionRecords, sealDecisionSafe } from "./decision-record-store.ts";
+import { runPipelineEntryAction, type EntryActionDeps } from "./pipeline-entry-action.ts";
 
 after(() => cleanupUnitDb());
 
@@ -249,4 +250,119 @@ test("reject: a throwing dispatchRejection still answers 200, marks the entry, a
   assert.ok(kinds.includes("rejection_comms_failed"), `a nudge marker is recorded (got ${kinds.join(",")})`);
   assert.deepEqual(ats, [`candidate.rejected:${entry.id}`], "the ATS mirror still fires");
   assert.deepEqual(expired, [entry.jobId], "the group-eval cache is still expired");
+});
+
+// ---- SEAL FIRST: no seal, no decision -----------------------------------------
+// Council d676869f (compliant-hiring-decision), line 3. The accept/reject seal ran
+// AFTER the write, through sealDecisionSafe with its result discarded: a seal that
+// failed still answered 200, emailed the candidate and fired the ATS event, and only
+// a server log recorded that the decision had no tamper-evident record. The record is
+// now the precondition (the screen-wave.ts rule): sealed first, and a failed seal is a
+// coded 503 with nothing changed.
+const WS_SEAL = "team-seal-first";
+
+type Spied = { deps: Partial<EntryActionDeps>; sent: string[]; ats: string[]; expired: string[] };
+function spied(seal?: EntryActionDeps["seal"]): Spied {
+  const sent: string[] = [];
+  const ats: string[] = [];
+  const expired: string[] = [];
+  return {
+    sent,
+    ats,
+    expired,
+    deps: {
+      ...(seal ? { seal } : {}),
+      dispatchRejection: async (e) => {
+        sent.push(e.id);
+        return { claim: "queued", status: "queued", outboxId: `spy-${e.id}`, detail: null };
+      },
+      dispatchAtsEvent: async (event, entryId) => {
+        ats.push(`${event}:${entryId}`);
+      },
+      invalidateGroupEvalSelection: (roleKey) => {
+        expired.push(roleKey);
+        return 0;
+      },
+    },
+  };
+}
+
+const decisionKinds = (entryId: string) => listPipelineEventsForEntry(entryId, 50, WS_SEAL).map((e) => e.kind);
+const recordsFor = (entryId: string) => listDecisionRecords({ candidateRef: entryId, workspaceId: WS_SEAL });
+const sealedInputs = (payloadJson: string) => (JSON.parse(payloadJson) as { inputs: Record<string, unknown> }).inputs;
+
+test("seal-first (1): a reject whose record cannot be sealed is refused with a code — no state change, no letter, no ATS event", async () => {
+  const entry = entryFixture(WS_SEAL, "Screened");
+  const s = spied(() => null);
+  const res = await runPipelineEntryAction(
+    { id: entry.id, action: "reject", expectedStage: "Screened", origin: ORIGIN, workspaceId: WS_SEAL },
+    s.deps
+  );
+  assert.equal(res.status, 503);
+  assert.equal(res.body.code, "PIPELINE_DECISION_NOT_SEALED");
+  assert.equal((res.body.entry as { id?: string } | undefined)?.id, entry.id, "the fresh entry rides along");
+  const fresh = getPipelineEntry(entry.id, WS_SEAL)!;
+  assert.equal(fresh.status, "active", "the candidate was not rejected");
+  assert.equal(fresh.stage, "Screened", "the entry keeps its stage");
+  assert.ok(!decisionKinds(entry.id).includes("rejected"), "no rejected event was written");
+  assert.deepEqual(s.sent, [], "no rejection letter was dispatched");
+  assert.deepEqual(s.ats, [], "no candidate.rejected ATS event fired");
+  assert.deepEqual(s.expired, [], "nothing moved, so no cohort cache was expired");
+  assert.equal(recordsFor(entry.id).length, 0);
+});
+
+test("seal-first (2): an accept whose record cannot be sealed is refused the same way — the entry does not advance", async () => {
+  const entry = entryFixture(WS_SEAL, "Screened");
+  setApproval(entry.id, "decision", "", WS_SEAL);
+  const s = spied(() => null);
+  const res = await runPipelineEntryAction(
+    { id: entry.id, action: "accept", expectedStage: "Screened", origin: ORIGIN, workspaceId: WS_SEAL },
+    s.deps
+  );
+  assert.equal(res.status, 503);
+  assert.equal(res.body.code, "PIPELINE_DECISION_NOT_SEALED");
+  const fresh = getPipelineEntry(entry.id, WS_SEAL)!;
+  assert.equal(fresh.stage, "Screened", "the entry did not advance");
+  assert.equal(fresh.approvalKind, "decision", "the approval gate is still open for a retry");
+  assert.ok(!decisionKinds(entry.id).includes("advanced"), "no advanced event was written");
+  assert.deepEqual(s.ats, []);
+  assert.equal(recordsFor(entry.id).length, 0);
+});
+
+test("seal-first (3): a successful reject is sealed BEFORE the write — the record exists while the entry is still active", async () => {
+  const entry = entryFixture(WS_SEAL, "Screened");
+  let statusWhenSealed: string | undefined;
+  const s = spied((input, ws) => {
+    statusWhenSealed = getPipelineEntry(entry.id, WS_SEAL)?.status;
+    return sealDecisionSafe(input, ws);
+  });
+  const res = await runPipelineEntryAction(
+    { id: entry.id, action: "reject", expectedStage: "Screened", origin: ORIGIN, workspaceId: WS_SEAL },
+    s.deps
+  );
+  assert.equal(res.status, 200);
+  assert.equal(statusWhenSealed, "active", "the seal ran before actOnPipelineEntry wrote the rejection");
+  assert.equal(getPipelineEntry(entry.id, WS_SEAL)!.status, "rejected");
+  const records = recordsFor(entry.id);
+  assert.equal(records.length, 1);
+  assert.equal(records[0].kind, "rejected");
+  assert.equal(records[0].reasonCode, "reject", "the reasonCode vocabulary is unchanged");
+  assert.deepEqual(s.sent, [entry.id], "the letter goes out once the decision is sealed and applied");
+  assert.deepEqual(s.ats, [`candidate.rejected:${entry.id}`]);
+});
+
+test("seal-first: an accept on a closed-out entry is refused BEFORE anything is sealed", async () => {
+  // actOnPipelineEntry refuses an accept on a terminal status. Sealed ahead of that
+  // refusal, the chain would record an advance that never happened — so the core
+  // answers it from the live row first.
+  const entry = entryFixture(WS_SEAL, "Screened");
+  await runPipelineEntryAction({ id: entry.id, action: "reject", expectedStage: "Screened", origin: ORIGIN, workspaceId: WS_SEAL }, spied().deps);
+  const before = recordsFor(entry.id).length;
+  const res = await runPipelineEntryAction(
+    { id: entry.id, action: "accept", expectedStage: "Screened", origin: ORIGIN, workspaceId: WS_SEAL },
+    spied().deps
+  );
+  assert.equal(res.status, 409);
+  assert.equal(res.body.code, "PIPELINE_STAGE_CHANGED");
+  assert.equal(recordsFor(entry.id).length, before, "no advance was sealed");
 });

@@ -1372,6 +1372,7 @@
     "PIPELINE_TERMINAL_NOT_ADVANCE": "The final step is reached when the candidate accepts an offer, not by advancing them. Draft and extend an offer instead.",
     "PIPELINE_MOVE_CONFLICT": "Couldn't move this candidate: they were just changed, or they are closed out. Refresh and try again.",
     "PIPELINE_STAGE_CHANGED": "This candidate's step changed since the view was opened. Refresh and decide again.",
+    "PIPELINE_DECISION_NOT_SEALED": "This decision couldn't be recorded, so it was not applied. Nothing changed and nothing was sent. Try again shortly.",
     "PIPELINE_ACTION_UNKNOWN": "That is not an action this board supports.",
     "PIPELINE_GITHUB_EVIDENCE_INVALID": "That GitHub evidence is not in the expected shape.",
     "PIPELINE_ADD_REASONS_INVALID": "The reasons attached to this add are not in the expected shape.",

@@ -14,6 +14,7 @@ import { dispatchAtsEvent } from "@/app/_lib/ats-egress";
 import { getOrCreateOpenOffer } from "@/app/_lib/offers-store";
 import { validateOfferTerms } from "@/app/_lib/offer-policy";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
+import { isTerminalEntryStatus } from "@/app/_lib/pipeline-status";
 import { planRoutesAiScorecardToHumanRound } from "@/app/_lib/decision-config-schema";
 import { getInterviewPlan } from "@/app/_lib/interview-plan";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
@@ -38,6 +39,10 @@ import { stageHasRole, stageIndex, stageWithRole, type StageDef } from "@/app/_l
 // Scope: the three board actions — `set_stage` (manual override), `accept`,
 // `reject`. The route keeps owning the non-move actions (set_github, set_notes,
 // reinstate, resolve_intake) since those never appear in a batch.
+//
+// An accept/reject is SEALED BEFORE IT IS WRITTEN, and a decision whose record cannot
+// be sealed is not applied: the three doors hear a coded 503
+// (PIPELINE_DECISION_NOT_SEALED), never a 200 — see the generic path at the bottom.
 
 // gsim-l2-103 — a caller may DECLARE itself the engine (actor:"sim"); only the
 // known non-human value is honored, so the claim can only DOWNGRADE authority
@@ -99,13 +104,19 @@ export type EntryActionInput = {
 // The post-commit mirrors, injectable so a test can force the one failure a real
 // board cannot produce on demand: a rejection comm that throws AFTER the write
 // committed. Defaults are the real functions; every production caller passes none.
+//
+// `seal` is the PRE-commit seam: the accept/reject decision record, written before
+// the write it records. A test injects a failing seal (a locked chain, a keyed chain
+// whose key went missing) to prove the decision is then refused, not applied.
+// Callers pass any subset; the rest default to the real functions.
 export type EntryActionDeps = {
   dispatchRejection: typeof dispatchRejection;
   dispatchAtsEvent: typeof dispatchAtsEvent;
   invalidateGroupEvalSelection: typeof invalidateGroupEvalSelection;
+  seal: typeof sealDecisionSafe;
 };
 
-const REAL_DEPS: EntryActionDeps = { dispatchRejection, dispatchAtsEvent, invalidateGroupEvalSelection };
+const REAL_DEPS: EntryActionDeps = { dispatchRejection, dispatchAtsEvent, invalidateGroupEvalSelection, seal: sealDecisionSafe };
 
 // A plain, transport-agnostic result: status + JSON body. ok is the 200 case.
 export type EntryActionResult = { status: number; body: Record<string, unknown> };
@@ -317,8 +328,9 @@ export async function extendDraftedOffer(
 
 export async function runPipelineEntryAction(
   input: EntryActionInput,
-  deps: EntryActionDeps = REAL_DEPS
+  overrides: Partial<EntryActionDeps> = {}
 ): Promise<EntryActionResult> {
+  const deps: EntryActionDeps = { ...REAL_DEPS, ...overrides };
   const { id, action, toStage, expectedStage, origin, workspaceId } = input;
   // See SIM_ACTOR: an unrecognized/absent value stays "human" (real clicks).
   const simActor = input.actor === SIM_ACTOR;
@@ -482,51 +494,84 @@ export async function runPipelineEntryAction(
   }
 
   const detail = typeof input.detail === "string" ? input.detail : undefined;
-  const updated = actOnPipelineEntry(
-    id,
-    action as PipelineAction,
-    detail,
-    { ...(expectedStage ? { expectedStage } : {}), actor: simActor ? "system" : "human", actorRef: sealActor },
-    workspaceId
-  );
-  if (!updated) {
-    // The pre-check passed but the guarded write refused — a concurrent actor moved
-    // the stage in the gap (the CAS held) or the row vanished.
-    const fresh = getPipelineEntry(id, workspaceId);
-    if (!fresh) return err(404, "PIPELINE_ENTRY_NOT_FOUND");
-    return staleResponse(fresh);
-  }
-  // Seal the HUMAN accept/reject into the tamper-evident decision chain. A declared
-  // programmatic caller is recorded as the engine ("auto:sim"), never a recruiter —
-  // the audit chain must tell the truth about machine actions even inside a demo.
+  const actOpts = { actor: simActor ? ("system" as const) : ("human" as const), actorRef: sealActor };
+  let updated: PipelineEntry | null;
   if (action === "accept" || action === "reject") {
+    // SEAL FIRST — the rule screen-wave.ts states for its own rejections ("no seal, no
+    // rejection"), now on the recruiter's commit door too. The seal used to run AFTER
+    // the write, through sealDecisionSafe with its result discarded, so a seal that
+    // failed (a locked DB, a keyed chain whose key went missing) still answered 200,
+    // emailed the candidate and fired the ATS event for a decision with no
+    // tamper-evident record — and only a server log said so. Now the record is the
+    // precondition: no seal, no state change, no letter, no ATS event, and a coded 503
+    // the three doors report as a failure (the single route's status, the batch
+    // route's per-id row, the command bar's `failed` bucket).
+    //
+    // Re-read the row synchronously and seal against IT: the seal must describe the
+    // row the write below is pinned to. Every refusal the write could still answer
+    // from this process is answered here first, before anything is sealed — a moved
+    // stage, and an accept on a closed-out entry (actOnPipelineEntry refuses that
+    // one too, and a seal ahead of it would record an advance that never happened).
+    const live = getPipelineEntry(id, workspaceId);
+    if (!live) return err(404, "PIPELINE_ENTRY_NOT_FOUND");
+    if (live.stage !== current.stage) return staleResponse(live);
+    if (action === "accept" && isTerminalEntryStatus(live.status)) return staleResponse(live);
+
     const trimmedDetail = detail?.trim() ?? "";
-    // Read from `current` (the pre-write snapshot), never `updated` — the write
-    // above already cleared the approval columns.
-    const { aiRecommendation, aiConfidence } = aiVerdict(current);
+    // Read from the pre-write row, never from the write's result — the write clears
+    // the approval columns the AI verdict lives in.
+    const { aiRecommendation, aiConfidence } = aiVerdict(live);
     const viaCommandBar = input.via === "command_bar";
-    sealDecisionSafe({
+    // A declared programmatic caller is recorded as the engine ("auto:sim"), never a
+    // recruiter — the audit chain must tell the truth about machine actions even
+    // inside a demo.
+    const sealed = deps.seal({
       kind: action === "reject" ? (simActor ? "auto_rejected" : "rejected") : simActor ? "auto_advanced" : "advanced",
       actor: sealActor,
       policyVersion: viaCommandBar ? "command-bar" : "manual",
       candidateRef: id,
-      rationale: trimmedDetail || `${simActor ? "Guided simulation" : "Recruiter"} ${action} from ${current.stage}.`,
+      rationale: trimmedDetail || `${simActor ? "Guided simulation" : "Recruiter"} ${action} from ${live.stage}.`,
       reasonCode: action,
       inputs: {
-        fromStage: current.stage,
+        fromStage: live.stage,
         detail: trimmedDetail || null,
         // The pair that makes the override rate computable: what the machine
         // proposed (null when the human acted without an AI verdict on the card),
         // which gate raised it, and how sure it was.
         aiRecommendation,
         aiConfidence,
-        approvalKind: current.approvalKind ?? null,
+        approvalKind: live.approvalKind ?? null,
         // The rule the recruiter typed is a decisive input: "below 40%" and "below
         // 60%" reject different people, and only the seal can say which was run.
         // Added only for the command bar, so the manual seal's shape is unchanged.
         ...(viaCommandBar && typeof input.threshold === "number" ? { threshold: input.threshold } : {}),
       },
     });
+    if (!sealed) {
+      // sealDecisionSafe has logged the cause; this line names what was NOT done.
+      console.warn(`[pipeline-entry-action] decision seal failed for ${id} — the ${action} was NOT applied`);
+      return err(503, "PIPELINE_DECISION_NOT_SEALED", { entry: live });
+    }
+    // Adjacent to the seal, NO await between them: nothing in this process can run in
+    // the gap, and the CAS is pinned to the stage the seal was made against.
+    // The residue seal-first accepts (screen-wave.ts names the same one): a write that
+    // loses its CAS AFTER the seal leaves a record of a decision that did not apply.
+    // Only ANOTHER PROCESS writing this row between two synchronous statements can
+    // cause it, and the alternative it replaces is worse — an applied, emailed
+    // decision with no record at all.
+    updated = actOnPipelineEntry(id, action, detail, { expectedStage: live.stage, ...actOpts }, workspaceId);
+    if (!updated) {
+      console.warn(`[pipeline-entry-action] ${id} changed between seal #${sealed.seq} and the write — the sealed ${action} did not apply`);
+    }
+  } else {
+    updated = actOnPipelineEntry(id, action as PipelineAction, detail, { ...(expectedStage ? { expectedStage } : {}), ...actOpts }, workspaceId);
+  }
+  if (!updated) {
+    // The pre-check passed but the guarded write refused — a concurrent actor moved
+    // the stage in the gap (the CAS held) or the row vanished.
+    const fresh = getPipelineEntry(id, workspaceId);
+    if (!fresh) return err(404, "PIPELINE_ENTRY_NOT_FOUND");
+    return staleResponse(fresh);
   }
   // A human reject is the gate; the candidate hears about it (queued by default).
   //
