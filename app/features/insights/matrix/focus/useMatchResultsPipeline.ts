@@ -5,19 +5,21 @@ import { useState } from "react";
 import type { useTranslations } from "next-intl";
 import { matchScoreForPipeline } from "@/app/features/shared/matchTypes";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { matchReasons, type MatchReasonsTranslator } from "./matchReasons";
 import type { MatchResponse, MatchResult } from "@/app/features/shared/matchTypes";
 
 type Translator = ReturnType<typeof useTranslations>;
 
 export function useMatchResultsPipeline(args: {
   t: Translator;
+  tMatch: MatchReasonsTranslator;
   candidateId: string;
   candidate: MatchResponse["candidate"];
   archetype: string;
   matches: MatchResult[];
   onFiled?: (jobId: string, jobTitle: string, entryId: string) => void;
 }) {
-  const { t, candidateId, candidate, archetype, matches, onFiled } = args;
+  const { t, tMatch, candidateId, candidate, archetype, matches, onFiled } = args;
   // Resolve API failures from the machine `code`, never from the server's
   // English `error` — see app/_lib/use-error-message.ts.
   const errMsg = useErrorMessage();
@@ -42,6 +44,9 @@ export function useMatchResultsPipeline(args: {
       n.delete(m.jobId);
       return n;
     });
+    // The deterministic reasons line travels with the add, so the Decisions cohort
+    // can say why this candidate was shortlisted (stored on INSERT only).
+    const reasons = matchReasons(m, tMatch);
     try {
       const r = await fetch("/api/pipeline", {
         method: "POST",
@@ -65,6 +70,9 @@ export function useMatchResultsPipeline(args: {
           // (RoleDecisionRow) where the group-eval comparison lives. Match is the
           // ONLY add path that requests this; the route validates the closed set.
           approvalKind: "decision",
+          ...(reasons
+            ? { reasons: reasons.line, reasonsStrengths: reasons.matched, reasonsRedFlags: reasons.missing }
+            : {}),
         }),
       });
       if (r.ok) {

@@ -12,6 +12,8 @@ import { MatchResultsHeader } from "./MatchResultsHeader";
 import { MatchResultsGroupEvalBanner } from "./MatchResultsGroupEvalBanner";
 import { MatchResultsBulkToolbar } from "./MatchResultsBulkToolbar";
 import { useMatchResultsPipeline } from "./useMatchResultsPipeline";
+import { matchCsvRows } from "./matchCsv";
+import type { MatchReasonsTranslator } from "./matchReasons";
 import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import type { WeightVector } from "@/app/features/shared/matchTypes";
 
@@ -65,6 +67,7 @@ export function MatchResults({
 }) {
   const t = useTranslations("match.results");
   const tShared = useTranslations("match.shared");
+  const tMatch = useTranslations("match") as unknown as MatchReasonsTranslator;
   const { candidate, meta, matches } = result;
   // The routing value we CARRY (posted to the pipeline, passed to MatchCard, fed to
   // isEarlyCareer): honour the matcher's fail-closed "unknown" sentinel instead of
@@ -85,27 +88,24 @@ export function MatchResults({
     toggleSelect,
     shortlistTop,
     addSelected,
-  } = useMatchResultsPipeline({ t, candidateId, candidate, archetype, matches, onFiled });
+  } = useMatchResultsPipeline({ t, tMatch, candidateId, candidate, archetype, matches, onFiled });
 
   // Export the ranking as CSV (Theme C) — a hiring decision happens in a meeting
   // or email thread outside the app, so the ranking has to be able to leave it.
   // Built entirely from data already on screen; no backend call.
   const exportCsv = () => {
-    const header = [t("csv.rank"), t("csv.role"), t("csv.company"), t("csv.score"), t("csv.confLow"), t("csv.confHigh"), t("csv.fitTier"), t("csv.matchedSkills"), t("csv.unprovenSkills"), t("csv.missingSkills")];
-    const rows = matches.map((m, i) => [
-      i + 1,
-      m.title,
-      m.company ?? "",
-      m.total,
-      m.confidence.low,
-      m.confidence.high,
-      m.fitTier,
-      (m.matchedSkills ?? []).join("; "),
-      (m.unprovenSkills ?? []).join("; "),
-      (m.missingSkills ?? []).join("; "),
-    ]);
+    const csv = matchCsvRows(
+      matches,
+      {
+        rank: t("csv.rank"), role: t("csv.role"), company: t("csv.company"), score: t("csv.score"),
+        confLow: t("csv.confLow"), confHigh: t("csv.confHigh"), fitTier: t("csv.fitTier"),
+        matchedSkills: t("csv.matchedSkills"), unprovenSkills: t("csv.unprovenSkills"),
+        missingSkills: t("csv.missingSkills"), reasons: t("csv.reasons"),
+      },
+      tMatch
+    );
     const safe = (candidate.label ?? "candidate").replace(/[^\w-]+/g, "_").slice(0, 60) || "candidate";
-    downloadFile(`matches-${safe}.csv`, toCsv([header, ...rows]), "text/csv");
+    downloadFile(`matches-${safe}.csv`, toCsv(csv), "text/csv");
   };
 
   return (

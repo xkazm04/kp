@@ -11,6 +11,7 @@ import { Checkbox } from "@/app/_components/Checkbox";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { useMatchCardReasoning } from "./useMatchCardReasoning";
 import { MatchCardSkillChips } from "./MatchCardSkillChips";
+import { MatchReasonsLine } from "./MatchReasonsLine";
 
 export function MatchCard({
   m,
@@ -170,6 +171,8 @@ export function MatchCard({
               <Bar label={early ? t("dims.fit") : t("dims.personal")} value={m.personalScore} />
             </div>
           )}
+
+          <MatchReasonsLine m={m} />
 
           {/* A non-tight band's WHY belongs in plain sight, not in a tooltip — a
               recruiter reading "34–62" must see "early-career, thinner record"
