@@ -84,11 +84,16 @@ function loadCompliance(): Promise<CompliancePayload> {
 export function AiDisclosure({
   className = "",
   showDataConsent = false,
+  interviewNote = false,
   regimeId,
   retentionMonths,
 }: {
   className?: string;
   showDataConsent?: boolean;
+  /** The AI-interview portal's own retention + erasure + human-review line
+   *  (`aiDisclosure.interviewData`). NOT `showDataConsent`: that one begins "By
+   *  submitting…", the apply surfaces' consent, which a ticked interview checkbox is not. */
+  interviewNote?: boolean;
   /** The active compliance regime for THIS surface's workspace, resolved
    *  server-side (`disclosureComplianceFor`). Its presence is the discriminator:
    *  supplied, the component never fetches. */
@@ -161,6 +166,7 @@ export function AiDisclosure({
       {showDataConsent ? (
         <p className="mt-2 text-meta text-steel">{t("dataConsent", { months })}</p>
       ) : null}
+      {interviewNote ? <p className="mt-2 text-meta text-steel">{t("interviewData", { months })}</p> : null}
     </div>
   );
 }

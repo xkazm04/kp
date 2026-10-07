@@ -85,3 +85,25 @@ test("every locale keeps the <highlight> tag t.rich renders", () => {
     assert.match(body, /<\/highlight>/, `${locale}: closing </highlight> is required by t.rich in AiDisclosure.tsx`);
   }
 });
+
+// The candidate interview portal's consent sentence (voice.consent / voice.consentRecordable)
+// must name what the candidate is actually agreeing to: an AI scorecard and a recommendation.
+test("the interview consent sentence names the AI scorecard and the recommendation, in every locale", () => {
+  const words: Record<string, RegExp[]> = {
+    en: [/scores the transcript/i, /recommendation/i],
+    cs: [/vyhodnotí přepis/i, /doporučení/i],
+    de: [/bewertet das Transkript/i, /Empfehlung/i],
+    fr: [/note la transcription/i, /recommandation/i],
+  };
+  for (const locale of LOCALES) {
+    const raw = readFileSync(path.join(HERE, "..", "..", "messages", `${locale}.json`), "utf-8");
+    const voice = (JSON.parse(raw) as { interview?: { voice?: { consent?: string; consentRecordable?: string } } }).interview?.voice;
+    for (const key of ["consent", "consentRecordable"] as const) {
+      const text = voice?.[key];
+      assert.equal(typeof text, "string", `${locale}: voice.${key} must exist`);
+      for (const re of words[locale]) assert.match(text as string, re, `${locale}: voice.${key} must match ${re}`);
+    }
+    const note = (JSON.parse(raw) as { aiDisclosure?: { interviewData?: string } }).aiDisclosure?.interviewData;
+    assert.match(note ?? "", /\{months/, `${locale}: aiDisclosure.interviewData states the retention window`);
+  }
+});

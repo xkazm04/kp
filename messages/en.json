@@ -1227,6 +1227,7 @@
     "title": "How this works",
     "body": "We use AI to assist screening and interviews, assessing your <highlight>skills, experience, and fit</highlight> for the role. A rejection is always a person's: no setting can hand that decision to the machine. Advancing and offers are human-approved by default; a workspace can delegate either one, stage by stage, and every step that then runs unattended is logged. You can ask for a human review at any point.",
     "dataConsent": "By submitting, you agree we may process your personal data for this role for up to {months, plural, one {# month} other {# months}}. You can review or request erasure of your data anytime via the link in our messages.",
+    "interviewData": "About this interview: the recruiter can read your transcript and the AI scorecard for up to {months, plural, one {# month} other {# months}}. After that, your words are hidden from them. To ask us to delete your data, use the \"manage your data\" link in any message from us. To ask for a person to review a decision, reply to any message from the hiring team.",
     "regimeNote": "Assessed under {framework}; your personal data is processed under {dataLaw}."
   },
   "errors": {
@@ -2326,8 +2327,8 @@
       "providerLabel": "Voice provider",
       "notSet": "not set",
       "keysNotConfigured": "{provider} keys not configured",
-      "consent": "I understand this is an <b>AI-conducted</b> first-round screen and that the conversation is <b>transcribed</b> for a human recruiter to review. No audio is stored.",
-      "consentRecordable": "I understand this is an <b>AI-conducted</b> first-round screen and that the conversation is <b>transcribed</b> for a human recruiter to review. Audio is kept only if you tick the box below.",
+      "consent": "I understand this is an <b>AI-conducted</b> first-round screen and that the conversation is <b>transcribed</b>. AI <b>scores the transcript</b> against the role's competencies and gives the recruiter a <b>recommendation</b>. A person reviews it and decides any rejection. No audio is stored.",
+      "consentRecordable": "I understand this is an <b>AI-conducted</b> first-round screen and that the conversation is <b>transcribed</b>. AI <b>scores the transcript</b> against the role's competencies and gives the recruiter a <b>recommendation</b>. A person reviews it and decides any rejection. Audio is kept only if you tick the box below.",
       "recording": {
         "optInLabel": "Also keep an audio recording of my answers",
         "what": "Only your microphone is recorded: never the interviewer's voice, your screen or your camera.",

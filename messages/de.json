@@ -1227,6 +1227,7 @@
     "title": "So funktioniert es",
     "body": "Wir setzen AI zur Unterstützung von Screening und Interviews ein und bewerten dabei Ihre <highlight>Fähigkeiten, Erfahrung und Eignung</highlight> für die Stelle. Eine Ablehnung trifft immer ein Mensch: keine Einstellung kann diese Entscheidung an die Maschine übergeben. Das Weiterreichen und ein Angebot sind standardmäßig menschlich freigegeben; ein Workspace kann beides Stufe für Stufe an die Automatik übergeben, und jeder Schritt, der dann unbeaufsichtigt läuft, wird protokolliert. Sie können jederzeit eine Prüfung durch einen Menschen verlangen.",
     "dataConsent": "Mit dem Absenden stimmen Sie zu, dass wir Ihre personenbezogenen Daten für diese Stelle bis zu {months, plural, one {# Monat} other {# Monate}} verarbeiten dürfen. Sie können Ihre Daten jederzeit über den Link in unseren Nachrichten einsehen oder deren Löschung verlangen.",
+    "interviewData": "Zu diesem Interview: Der/die Recruiter/in kann Ihr Transkript und die AI-Bewertung bis zu {months, plural, one {# Monat} other {# Monate}} lesen. Danach bleiben Ihre Worte verborgen. Um die Löschung Ihrer Daten zu verlangen, nutzen Sie den Link „Meine Daten verwalten“ in einer unserer Nachrichten. Um eine Überprüfung durch eine Person zu verlangen, antworten Sie auf eine beliebige Nachricht des Einstellungsteams.",
     "regimeNote": "Bewertet gemäß {framework}; Ihre personenbezogenen Daten werden gemäß {dataLaw} verarbeitet."
   },
   "errors": {
@@ -2326,8 +2327,8 @@
       "providerLabel": "Voice-Anbieter",
       "notSet": "nicht festgelegt",
       "keysNotConfigured": "{provider}-Schlüssel nicht konfiguriert",
-      "consent": "Ich verstehe, dass dies ein <b>AI-durchgeführtes</b> Screening der ersten Runde ist und dass das Gespräch <b>transkribiert</b> wird, damit ein/e Recruiter/in es prüfen kann. Es wird kein Audio gespeichert.",
-      "consentRecordable": "Ich verstehe, dass dies ein <b>AI-durchgeführtes</b> Screening der ersten Runde ist und dass das Gespräch <b>transkribiert</b> wird, damit ein/e Recruiter/in es prüfen kann. Audio wird nur gespeichert, wenn Sie das Kästchen unten ankreuzen.",
+      "consent": "Ich verstehe, dass dies ein <b>AI-durchgeführtes</b> Screening der ersten Runde ist und dass das Gespräch <b>transkribiert</b> wird. Die AI <b>bewertet das Transkript</b> anhand der Kompetenzen der Stelle und gibt dem/der Recruiter/in eine <b>Empfehlung</b>. Eine Person prüft sie und entscheidet über jede Absage. Es wird kein Audio gespeichert.",
+      "consentRecordable": "Ich verstehe, dass dies ein <b>AI-durchgeführtes</b> Screening der ersten Runde ist und dass das Gespräch <b>transkribiert</b> wird. Die AI <b>bewertet das Transkript</b> anhand der Kompetenzen der Stelle und gibt dem/der Recruiter/in eine <b>Empfehlung</b>. Eine Person prüft sie und entscheidet über jede Absage. Audio wird nur gespeichert, wenn Sie das Kästchen unten ankreuzen.",
       "recording": {
         "optInLabel": "Zusätzlich eine Audioaufnahme meiner Antworten speichern",
         "what": "Aufgenommen wird nur Ihr Mikrofon: nie die Stimme des Interviewers, Ihr Bildschirm oder Ihre Kamera.",

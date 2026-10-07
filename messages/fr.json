@@ -1227,6 +1227,7 @@
     "title": "Comment ça marche",
     "body": "Nous utilisons l’AI pour assister la présélection et les entretiens, en évaluant vos <highlight>compétences, votre expérience et votre adéquation</highlight> au poste. Un rejet revient toujours à une personne : aucun réglage ne peut confier cette décision à la machine. L’avancement et la remise d’une offre sont validés par un humain par défaut ; un espace de travail peut déléguer l’un ou l’autre, étape par étape, et chaque étape qui s’exécute alors sans surveillance est journalisée. Vous pouvez demander un examen humain à tout moment.",
     "dataConsent": "En soumettant, vous acceptez que nous traitions vos données personnelles pour ce poste pendant une durée maximale de {months, plural, one {# mois} other {# mois}}. Vous pouvez consulter vos données ou en demander l’effacement à tout moment via le lien présent dans nos messages.",
+    "interviewData": "À propos de cet entretien : le recruteur peut lire votre transcription et l’évaluation de l’AI pendant {months, plural, one {# mois} other {# mois}} au maximum. Ensuite, vos propos lui sont masqués. Pour demander l’effacement de vos données, utilisez le lien « gérer mes données » présent dans nos messages. Pour demander qu’une personne réexamine une décision, répondez à n’importe quel message de l’équipe de recrutement.",
     "regimeNote": "Évalué selon {framework}. Vos données personnelles sont traitées selon {dataLaw}."
   },
   "errors": {
@@ -2326,8 +2327,8 @@
       "providerLabel": "Fournisseur vocal",
       "notSet": "non défini",
       "keysNotConfigured": "Clés {provider} non configurées",
-      "consent": "Je comprends qu’il s’agit d’une présélection de premier tour <b>menée par AI</b> et que la conversation est <b>transcrite</b> pour être examinée par un recruteur humain. Aucun audio n’est conservé.",
-      "consentRecordable": "Je comprends qu’il s’agit d’une présélection de premier tour <b>menée par AI</b> et que la conversation est <b>transcrite</b> pour être examinée par un recruteur humain. L’audio n’est conservé que si vous cochez la case ci-dessous.",
+      "consent": "Je comprends qu’il s’agit d’une présélection de premier tour <b>menée par AI</b> et que la conversation est <b>transcrite</b>. L’AI <b>note la transcription</b> selon les compétences du poste et donne au recruteur une <b>recommandation</b>. Une personne l’examine et décide de tout refus. Aucun audio n’est conservé.",
+      "consentRecordable": "Je comprends qu’il s’agit d’une présélection de premier tour <b>menée par AI</b> et que la conversation est <b>transcrite</b>. L’AI <b>note la transcription</b> selon les compétences du poste et donne au recruteur une <b>recommandation</b>. Une personne l’examine et décide de tout refus. L’audio n’est conservé que si vous cochez la case ci-dessous.",
       "recording": {
         "optInLabel": "Conserver aussi un enregistrement audio de mes réponses",
         "what": "Seul votre microphone est enregistré : jamais la voix de l’intervieweur, ni votre écran, ni votre caméra.",

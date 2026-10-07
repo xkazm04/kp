@@ -1300,6 +1300,23 @@ the hard stop that has to work when the director is unreachable.
 | `app/_components/voice/InterviewPresence.tsx`, `presence-state.ts` | The presence orb and the one derivation behind it. |
 | `app/_components/voice/useSpeakerTest.ts` | The keyless speaker check in the pre-call panel. |
 
+### What the candidate consents to
+
+The checkbox sentence (`interview.voice.consent` / `consentRecordable`, the second only when
+audio recording is offered) says the screen is AI-conducted and transcribed, that AI **scores the
+transcript against the role's competencies and gives the recruiter a recommendation**, and that a
+person reviews it and **decides any rejection**. It does not claim a person decides *every* step:
+a workspace may set an interview-plan gate to `auto` (see `ai-disclosure-copy.test.ts`, G16).
+
+Above the card, `AiDisclosure` takes `interviewNote` (not `showDataConsent`, whose "By submitting…"
+is the apply surfaces' consent) and renders `aiDisclosure.interviewData`: the recruiter can read the
+transcript and scorecard for the workspace's consent window (`retentionMonths`, from
+`disclosureComplianceFor`), after which the words are withheld at read time
+(`consentWithholdsPii`); erasure is the "manage your data" (`/data/<token>`) link in any message
+we send; a human review is asked for by replying to any message from the hiring team. Gap: the
+portal itself carries no `/data` link (the erasure token is not on the session), and the window
+withholds reads rather than deleting rows.
+
 ### The loop, from the browser's side
 
 1. **Connect.** `POST /api/interview/connect` answers with `agenda`, `attempt`,

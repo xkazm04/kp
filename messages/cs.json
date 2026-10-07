@@ -1227,6 +1227,7 @@
     "title": "Jak to funguje",
     "body": "K asistenci při screeningu a pohovorech používáme AI a posuzujeme vaše <highlight>dovednosti, zkušenosti a vhodnost</highlight> pro danou pozici. Zamítnutí je vždy na člověku: žádné nastavení toto rozhodnutí stroji nesvěří. Posun dál i nabídku ve výchozím nastavení schvaluje člověk; pracovní prostor může kterýkoli z nich svěřit automatice, fázi po fázi, a každý krok, který pak proběhne bez dozoru, se zaznamená. Kdykoli můžete požádat o přezkoumání člověkem.",
     "dataConsent": "Odesláním souhlasíte, že můžeme zpracovávat vaše osobní údaje pro tuto pozici po dobu až {months, plural, one {# měsíc} few {# měsíce} other {# měsíců}}. Své údaje můžete kdykoli zkontrolovat nebo požádat o jejich výmaz přes odkaz v našich zprávách.",
+    "interviewData": "K tomuto pohovoru: recruiter si může přečíst váš přepis a hodnocení od AI po dobu až {months, plural, one {# měsíc} few {# měsíce} other {# měsíců}}. Poté mu vaše slova zůstanou skrytá. O výmaz svých údajů požádáte přes odkaz „spravovat moje údaje“ v kterékoli naší zprávě. O posouzení rozhodnutí člověkem požádáte odpovědí na kteroukoli zprávu od náborového týmu.",
     "regimeNote": "Posuzováno podle {framework}; vaše osobní údaje zpracováváme podle {dataLaw}."
   },
   "errors": {
@@ -2326,8 +2327,8 @@
       "providerLabel": "Hlasový poskytovatel",
       "notSet": "není nastaveno",
       "keysNotConfigured": "Klíče {provider} nejsou nastavené",
-      "consent": "Beru na vědomí, že jde o screening prvního kola <b>vedený AI</b> a že se konverzace <b>přepisuje</b> k přezkoumání člověkem. Zvukový záznam se neukládá.",
-      "consentRecordable": "Beru na vědomí, že jde o screening prvního kola <b>vedený AI</b> a že se konverzace <b>přepisuje</b> k přezkoumání člověkem. Zvuk se uloží, jen pokud zaškrtnete políčko níže.",
+      "consent": "Beru na vědomí, že jde o screening prvního kola <b>vedený AI</b> a že se konverzace <b>přepisuje</b>. AI <b>vyhodnotí přepis</b> podle kompetencí pro tuto roli a dá recruiterovi <b>doporučení</b>. Člověk ho posoudí a rozhodne o každém zamítnutí. Zvuk se neukládá.",
+      "consentRecordable": "Beru na vědomí, že jde o screening prvního kola <b>vedený AI</b> a že se konverzace <b>přepisuje</b>. AI <b>vyhodnotí přepis</b> podle kompetencí pro tuto roli a dá recruiterovi <b>doporučení</b>. Člověk ho posoudí a rozhodne o každém zamítnutí. Zvuk se uloží, jen pokud zaškrtnete políčko níže.",
       "recording": {
         "optInLabel": "Souhlasím i s uložením zvukového záznamu mých odpovědí",
         "what": "Nahrává se pouze váš mikrofon: nikdy hlas tazatele, vaše obrazovka ani kamera.",

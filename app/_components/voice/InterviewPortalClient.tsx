@@ -78,7 +78,7 @@ export function InterviewPortalClient({
       <div className="order-1 lg:order-2">
         {/* M2: the AI/human-review disclosure sits ABOVE the call card so the
             reassurance is visible before the Start decision. */}
-        <AiDisclosure className="mb-6" regimeId={regimeId} retentionMonths={retentionMonths} />
+        <AiDisclosure className="mb-6" interviewNote regimeId={regimeId} retentionMonths={retentionMonths} />
         <div className={`${PANEL} p-5 sm:p-6`}>
           <VoiceInterviewClient
             token={token}
