@@ -21,6 +21,7 @@ import {
   REASONS_VERDICT_KINDS,
   countReasonsCoverage,
   isReasonsVerdictKind,
+  matchFiledRanking,
   reasonsBlockOf,
   reasonsCoveragePct,
   type ReasonsCatalog,
@@ -200,4 +201,16 @@ test("the demo corpus's ranking arm is a real number with a real denominator", (
   const c = countReasonsCoverage(verdicts, CATALOG);
   assert.ok(c.byKind.ranking.checked >= 50, `the seeded corpus must be substantial, got ${c.byKind.ranking.checked}`);
   assert.equal(reasonsCoveragePct(c.byKind.ranking), 100, `rankings without a reasons block: ${JSON.stringify(c.misses.slice(0, 5))}`);
+});
+
+test("MATCH-FILED — an entry carrying a reasons summary is a hit; one without is a NAMED miss", () => {
+  const hit = matchFiledRanking({ id: "m1", approvalDetail: JSON.stringify({ summary: "Strong fit: strongest on Skills (82).", strengths: [], redFlags: [] }) });
+  const noDetail = matchFiledRanking({ id: "m2", approvalDetail: null });
+  const garbled = matchFiledRanking({ id: "m3", approvalDetail: "{not json" });
+  const noSummary = matchFiledRanking({ id: "m4", approvalDetail: JSON.stringify({ summary: "   " }) });
+  const c = countReasonsCoverage([hit, noDetail, garbled, noSummary], CATALOG);
+  assert.equal(c.byKind.ranking.checked, 4, "none is skipped");
+  assert.equal(c.byKind.ranking.withReasons, 1);
+  assert.deepEqual(c.misses.map((m) => m.id), ["m2", "m3", "m4"]);
+  assert.match(c.misses[0].why, /match-filed entry with no parsable reasons summary/);
 });

@@ -42,9 +42,28 @@ export function isReasonsVerdictKind(v: string): v is ReasonsVerdictKind {
 export type RankingVerdict = {
   kind: "ranking";
   id: string;
+  /** Where the ranking came from. A "match" ranking is a pipeline entry the Match
+   *  surface filed, whose reasons are the summary it carried (see
+   *  `matchFiledRanking`); the meter prints the arm per origin. */
+  origin?: "seed" | "analysis" | "match";
   explanation?: string | null;
   jobFitSummary?: string | null;
 };
+
+/** A Match-filed pipeline entry as a ranking verdict. `approvalDetail` is the raw
+ *  stored column; the reasons are its `summary`. Unparsable or blank is kept as a
+ *  ranking with no explanation, so it counts as a named miss rather than vanishing.
+ *  Pure: the caller reads the row. */
+export function matchFiledRanking(row: { id: string; approvalDetail?: string | null }): RankingVerdict {
+  let summary: string | null = null;
+  try {
+    const parsed = row.approvalDetail ? (JSON.parse(row.approvalDetail) as { summary?: unknown }) : null;
+    if (parsed && typeof parsed.summary === "string") summary = parsed.summary;
+  } catch {
+    // an unreadable detail carries no prose; it falls through as a counted miss
+  }
+  return { kind: "ranking", id: row.id, origin: "match", explanation: summary };
+}
 
 /** A scorecard: the per-competency interview verdict. Its reasons block is the
  *  EVIDENCE behind the ratings — not the ratings themselves, which are the verdict. */
@@ -85,6 +104,11 @@ function isBlank(s: string | null | undefined): boolean {
 export function reasonsBlockOf(verdict: ReasonsVerdict, catalog: ReasonsCatalog): ReasonsBlockResult {
   switch (verdict.kind) {
     case "ranking": {
+      if (verdict.origin === "match") {
+        return isBlank(verdict.explanation)
+          ? { ok: false, why: "match-filed entry with no parsable reasons summary in approval_detail" }
+          : { ok: true, via: "match summary" };
+      }
       if (!isBlank(verdict.explanation)) return { ok: true, via: "explanation" };
       if (!isBlank(verdict.jobFitSummary)) return { ok: true, via: "jobFit.summary" };
       return { ok: false, why: "no explanation and no jobFit summary — a score with no prose behind it" };

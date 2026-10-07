@@ -19,7 +19,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { countReasonsCoverage, reasonsCoveragePct, REASONS_VERDICT_KINDS } from "@/app/_lib/reasons-coverage";
+import { countReasonsCoverage, reasonsCoveragePct, matchFiledRanking, REASONS_VERDICT_KINDS } from "@/app/_lib/reasons-coverage";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const asJson = process.argv.includes("--json");
@@ -49,6 +49,7 @@ function seededRankings() {
   const rows = JSON.parse(readFileSync(file, "utf8"));
   return rows.map((row) => ({
     kind: "ranking",
+    origin: "seed",
     id: `seed:${row.id}`,
     explanation: row?.payload?.explanation ?? null,
     jobFitSummary: row?.payload?.jobFit?.summary ?? null,
@@ -78,10 +79,22 @@ async function producedVerdicts() {
         }
         verdicts.push({
           kind: "ranking",
+          origin: "analysis",
           id: `analysis:${row.id}`,
           explanation: payload?.explanation ?? null,
           jobFitSummary: payload?.jobFit?.summary ?? null,
         });
+      }
+    }
+    // Rankings the Match surface filed: a pipeline entry with source channel 'match'
+    // carries the reasons line it was added with in approval_detail.summary. One with
+    // no parsable summary (every entry filed before the line existed) is a named miss.
+    if (tableExists("pipeline_entries")) {
+      const rows = db
+        .prepare(`SELECT id, approval_detail FROM pipeline_entries WHERE source_channel = 'match'`)
+        .all();
+      for (const row of rows) {
+        verdicts.push(matchFiledRanking({ id: `match:${row.id}`, approvalDetail: row.approval_detail }));
       }
     }
     // Scorecards: the per-competency interview verdict.
@@ -127,15 +140,30 @@ async function producedVerdicts() {
 }
 
 const { verdicts: produced, dbPath } = await producedVerdicts();
-const coverage = countReasonsCoverage([...seededRankings(), ...produced], englishWaveCatalog());
+const allVerdicts = [...seededRankings(), ...produced];
+const catalog = englishWaveCatalog();
+const coverage = countReasonsCoverage(allVerdicts, catalog);
+/** The ranking arm per source, so the headline says what it counts. */
+const RANKING_ORIGINS = [
+  ["seed", "seed analyses"],
+  ["analysis", "stored analyses"],
+  ["match", "match-filed entries"],
+];
+const rankingBySource = Object.fromEntries(
+  RANKING_ORIGINS.map(([origin]) => [
+    origin,
+    countReasonsCoverage(allVerdicts.filter((v) => v.kind === "ranking" && v.origin === origin), catalog).byKind.ranking,
+  ])
+);
 
 if (asJson) {
-  console.log(JSON.stringify({ ...coverage, source: { seed: "data/seed_*", db: dbPath } }, null, 2));
+  console.log(JSON.stringify({ ...coverage, rankingBySource, source: { seed: "data/seed_*", db: dbPath } }, null, 2));
 } else {
   const pct = (a) => (a.measured ? `${reasonsCoveragePct(a)}% (${a.withReasons}/${a.checked})` : "not measured (0 verdicts)");
   console.log("Reasons coverage — produced verdicts that can say why");
   console.log(`  source: data/seed_* ${dbPath ? `+ ${path.relative(REPO_ROOT, dbPath)}` : "(no database — seeded corpus only)"}`);
   for (const kind of REASONS_VERDICT_KINDS) console.log(`  ${kind.padEnd(10)} ${pct(coverage.byKind[kind])}`);
+  for (const [origin, label] of RANKING_ORIGINS) console.log(`    ranking / ${label.padEnd(20)} ${pct(rankingBySource[origin])}`);
   console.log(`  ${"TOTAL".padEnd(10)} ${pct(coverage.total)}`);
   if (coverage.unmeasuredKinds.length > 0) {
     console.log(`  NOT COVERED by the total above: ${coverage.unmeasuredKinds.join(", ")} — nothing produced to count.`);
