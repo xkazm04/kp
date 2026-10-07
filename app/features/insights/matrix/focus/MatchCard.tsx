@@ -22,6 +22,7 @@ export function MatchCard({
   added,
   adding,
   addError,
+  onRerun,
   onAdd,
   selectable = false,
   selected = false,
@@ -35,6 +36,8 @@ export function MatchCard({
   added: boolean;
   adding: boolean;
   addError?: string;
+  // Present when the add was refused because its stored Match result is gone or differs.
+  onRerun?: () => void;
   onAdd: () => void;
   // Bulk-shortlist selection (only meaningful when the candidate can be added and
   // isn't already in the pipeline). The checkbox is hidden otherwise.
@@ -43,6 +46,7 @@ export function MatchCard({
   onToggleSelect?: () => void;
 }) {
   const t = useTranslations("match");
+  const tTab = useTranslations("match.tab");
   // UAT RECON-02 — the shared score-provenance vocabulary (app/_components/
   // ScoreProvenanceLabel.tsx doctrine: "every surface that shows THE match score
   // names where the number came from … so the wording can't drift"). Read from the
@@ -197,6 +201,11 @@ export function MatchCard({
           {addError ? (
             <p className="mt-2 rounded-md bg-red-50 px-2 py-1.5 text-sm text-red-700" role="alert">
               {addError}
+              {onRerun ? (
+                <button type="button" onClick={onRerun} className="focus-ring ml-2 font-semibold underline">
+                  {tTab("runMatching")}
+                </button>
+              ) : null}
             </p>
           ) : null}
 

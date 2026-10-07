@@ -4,8 +4,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { useTranslations } from "next-intl";
-import type { AnalysisRow, MatchRef, MatchResponse, ProfileRow, WeightVector } from "@/app/features/shared/matchTypes";
-import { candidateOptionsPlaceholder, MATCH_FOCUS_LIMIT, matchPostPayload, selectMatchView } from "./matchView";
+import type { AnalysisRow, MatchRef, ProfileRow, WeightVector } from "@/app/features/shared/matchTypes";
+import { candidateOptionsPlaceholder, MATCH_FOCUS_LIMIT, matchPostPayload, selectMatchView, type MatchRunResponse } from "./matchView";
 import { createRunSequence } from "./matchRunSequence";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 
@@ -33,7 +33,7 @@ export function useMatchTabRun(t: Translator) {
 
   // One sequence per hook instance; the ref keeps it stable across re-renders.
   const runSeq = useRef(createRunSequence());
-  const [result, setResult] = useState<MatchResponse | null>(null);
+  const [result, setResult] = useState<MatchRunResponse | null>(null);
   const [matchRef, setMatchRef] = useState<MatchRef>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -156,7 +156,7 @@ export function useMatchTabRun(t: Translator) {
       if (r.status === 404) throw new Error(errMsg(payload, t("candidateNotFound")));
       if (!r.ok) throw new Error(errMsg(payload, t("matchFailedStatus", { status: r.status })));
       if (!current()) return; // a newer run owns the screen
-      setResult(payload as MatchResponse);
+      setResult(payload as MatchRunResponse);
       setMatchRef(ref);
     } catch (caught) {
       // A superseded run's failure is not the reader's problem either: showing it would
@@ -166,6 +166,10 @@ export function useMatchTabRun(t: Translator) {
       if (current()) setLoading(false);
     }
   };
+
+  // Same candidate, same weights and page size: a fresh run, hence a fresh stored result.
+  // What a Match add whose stored run expired or no longer matches offers (MatchCard).
+  const rerunMatch = () => runMatchFor(matchRef, lastWeightsRef.current);
 
   const runMatch = () => {
     lastLimitRef.current = MATCH_FOCUS_LIMIT;
@@ -238,7 +242,7 @@ export function useMatchTabRun(t: Translator) {
     result, matchRef,
     loading,
     filed, recordFiled,
-    runMatchFor, runMatch, expandRankedField,
+    runMatchFor, runMatch, rerunMatch, expandRankedField,
     view,
   };
 }

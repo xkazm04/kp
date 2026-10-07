@@ -20,6 +20,8 @@ import { POST } from "./route.ts";
 import { createPipelineEntry, getPipelineEntry, listPipelineEventsForEntry } from "../../_lib/db/pipeline.ts";
 import { listDecisionRecords, sealDecisionRecord } from "../../_lib/decision-record-store.ts";
 import { MATCH_VERDICT_KIND } from "../../_lib/match-verdict.ts";
+import { recordMatchRun } from "../../_lib/db/match-runs.ts";
+import { DEFAULT_WORKSPACE_ID } from "../../_lib/db/workspaces.ts";
 
 const KEY_ENV = "KP_DECISION_HMAC_KEY";
 const priorKey = process.env[KEY_ENV];
@@ -48,6 +50,8 @@ const ADD = {
   approvalKind: "decision",
   matchScore: 64,
   matchFacts: FACTS,
+  // The stored /api/match result the add is checked against (ADR 0018 amendment).
+  matchRunId: recordMatchRun({ workspaceId: DEFAULT_WORKSPACE_ID, candidateId: "mns-c1", weights: null, results: [{ jobId: "mns-job-1", facts: FACTS as never }] }),
 };
 const ENTRY_ID = `m-${ADD.candidateId}-${ADD.jobId}`;
 const add = () =>

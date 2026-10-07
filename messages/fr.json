@@ -1379,6 +1379,8 @@
     "PIPELINE_ACTION_UNKNOWN": "Ce tableau ne prend pas en charge cette action.",
     "PIPELINE_GITHUB_EVIDENCE_INVALID": "Ces éléments GitHub ne sont pas au format attendu.",
     "PIPELINE_ADD_REASONS_INVALID": "Les raisons jointes à cet ajout n'ont pas le format attendu.",
+    "PIPELINE_ADD_MATCH_RUN_UNKNOWN": "Ce résultat de Match n'est plus disponible pour un ajout. Relancez Match pour ce candidat, puis ajoutez-le.",
+    "PIPELINE_ADD_MATCH_RUN_MISMATCH": "Cet ajout ne correspond pas au résultat produit par Match ; il n'a donc pas été enregistré. Relancez Match pour ce candidat, puis ajoutez-le.",
     "PIPELINE_ADD_NOT_SEALED": "Impossible d’ajouter ce candidat : le verdict de correspondance n’a pas pu être enregistré. Rien n’a été ajouté. Réessayez dans un instant.",
     "PIPELINE_ADD_IDS_REQUIRED": "Choisissez une candidature et un poste avant de les ajouter au suivi.",
     "PIPELINE_ADD_STAGE_UNKNOWN": "Cette étape du recrutement n’est pas disponible dans cet espace de travail.",

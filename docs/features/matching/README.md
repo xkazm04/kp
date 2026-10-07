@@ -61,12 +61,24 @@ than silently dropping a reason.
     list, no unknown key, and `matchScore` equal to the score being filed). Every
     `source: "match"` add must carry them and no other add may; the retired prose fields
     (`reasons` / `reasonsStrengths` / `reasonsRedFlags`) are refused. Any of those is a
-    400 `PIPELINE_ADD_REASONS_INVALID` with nothing sealed and nothing filed. Then,
-    **before the insert**, it seals one `match_verdict` decision record against the entry
+    400 `PIPELINE_ADD_REASONS_INVALID` with nothing sealed and nothing filed. Then the add
+    is checked against **a result the server holds**: `POST /api/match` records each
+    result it returns (`match_run_results`, `app/_lib/db/match-runs.ts`, one row per
+    run and job, 12-hour TTL, keyed by workspace, candidate, job, scorer version and a
+    hash of the sanitized weights) and answers with a `matchRunId` beside the unchanged
+    results; the Match client sends it with every add. The door loads the run in the
+    current workspace and refuses with a 409 — before the seal and the insert — when it is
+    missing, expired, another workspace's or for another candidate or role
+    (`PIPELINE_ADD_MATCH_RUN_UNKNOWN`), or when the tier, either dimension, the skill
+    lists, the score or the scorer version differ from the stored result
+    (`PIPELINE_ADD_MATCH_RUN_MISMATCH`); the card then offers "Run matching" again. The
+    stored rows are candidate data, so erasure deletes them (`scrubEntryLinkedPii`). Only
+    then, **before the insert**, it seals one `match_verdict` decision record against the entry
     id the insert will use (`pipelineEntryIdFor`, so a re-add seals its own record on the
-    same id): actor = the filing recruiter (`humanActor()`, not `auto:match` — the facts
-    come from their browser, so the record attests what they were shown),
-    `policyVersion` = the scorer version, `reasonCode` `match_fit`, `inputs` = the facts,
+    same id): actor = the filing recruiter (`humanActor()`, not `auto:match` — the record
+    attests the result the server held for the run, not only what they were shown),
+    `policyVersion` = the scorer version, `reasonCode` `match_fit`, `inputs` = the facts
+    plus the `matchRunId` they were checked against,
     `rationale` = a byte-stable code string (`matchVerdictRationale`, e.g.
     `match_fit tier=strong best=skills:82 worst=career:40 skills=3/1/1 score=71 scorer=match-scorer.v1`),
     the workspace passed explicitly. A seal that fails refuses the add with 503

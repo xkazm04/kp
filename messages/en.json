@@ -1379,6 +1379,8 @@
     "PIPELINE_ACTION_UNKNOWN": "That is not an action this board supports.",
     "PIPELINE_GITHUB_EVIDENCE_INVALID": "That GitHub evidence is not in the expected shape.",
     "PIPELINE_ADD_REASONS_INVALID": "The reasons attached to this add are not in the expected shape.",
+    "PIPELINE_ADD_MATCH_RUN_UNKNOWN": "This match result is no longer available to file from. Run Match again for this candidate, then add.",
+    "PIPELINE_ADD_MATCH_RUN_MISMATCH": "This add does not match the result Match produced, so it was not filed. Run Match again for this candidate, then add.",
     "PIPELINE_ADD_NOT_SEALED": "This candidate couldn't be added because the match verdict couldn't be recorded. Nothing was filed. Try again shortly.",
     "PIPELINE_ADD_IDS_REQUIRED": "Choose a candidate and role before adding to the board.",
     "PIPELINE_ADD_STAGE_UNKNOWN": "That pipeline stage is not available in this workspace.",

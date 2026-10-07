@@ -967,6 +967,14 @@ export const REFUSAL_ERRORS = {
    *  a non-Match add — or the add carried the retired prose `reasons` fields (400).
    *  Nothing was sealed and nothing was filed. */
   PIPELINE_ADD_REASONS_INVALID: "The reasons attached to this add are not in the expected shape.",
+  /** A Match add naming no stored Match result the server can use (409): no run id, a run
+   *  that expired (12h), one from another workspace, or one for a different candidate or
+   *  role. Nothing was sealed and nothing was filed; run Match again for this candidate. */
+  PIPELINE_ADD_MATCH_RUN_UNKNOWN: "This match result is no longer available to file from. Run Match again for this candidate, then add.",
+  /** A Match add whose score, tier, strongest/weakest dimension, skills or scorer version
+   *  differ from the result the server holds for its run (409). Nothing was sealed and
+   *  nothing was filed. */
+  PIPELINE_ADD_MATCH_RUN_MISMATCH: "This add does not match the result Match produced, so it was not filed. Run Match again for this candidate, then add.",
   /** A Match add whose verdict could not be sealed into the decision chain (503). The
    *  seal is the PRECONDITION of the insert (ADR 0018, the ADR 0017 rule: no record, no
    *  write), so the candidate was not filed. A server condition — retry once the chain

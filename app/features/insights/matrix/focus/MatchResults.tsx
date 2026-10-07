@@ -2,7 +2,8 @@
 
 import { useTranslations } from "next-intl";
 import dynamic from "next/dynamic";
-import type { MatchRef, MatchResponse } from "@/app/features/shared/matchTypes";
+import type { MatchRef } from "@/app/features/shared/matchTypes";
+import type { MatchRunResponse } from "./matchView";
 import { isEarlyCareer } from "@/app/features/shared/matchTypes";
 import { KoReasonsNote, NoMatchesExplainer } from "@/app/features/shared/MatchPresentation";
 import { buildUrl } from "@/app/features/shell/tabs";
@@ -40,8 +41,9 @@ export function MatchResults({
   onShowRemaining,
   filed,
   onFiled,
+  onRerun,
 }: {
-  result: MatchResponse;
+  result: MatchRunResponse;
   matchRef: MatchRef;
   // MAT1: re-run the match with a recruiter weight override (undefined = reset to
   // the archetype baseline). Omitted where re-weighting isn't wired.
@@ -64,6 +66,9 @@ export function MatchResults({
   // where the handoff isn't wired.
   filed?: Record<string, { jobTitle: string; entryIds: string[] }>;
   onFiled?: (jobId: string, jobTitle: string, entryId: string) => void;
+  // Run Match again for this candidate (same weights): offered on a card whose add the
+  // server refused because the stored result it checks against is gone or differs.
+  onRerun?: () => void;
 }) {
   const t = useTranslations("match.results");
   const tShared = useTranslations("match.shared");
@@ -79,7 +84,7 @@ export function MatchResults({
 
   const candidateId = matchRef.profileId ?? matchRef.analysisSlug ?? "";
   const {
-    added, adding, errors,
+    added, adding, errors, stale,
     selected, setSelected,
     bulkBusy,
     comparing, setComparing,
@@ -88,7 +93,7 @@ export function MatchResults({
     toggleSelect,
     shortlistTop,
     addSelected,
-  } = useMatchResultsPipeline({ t, candidateId, candidate, archetype, matches, onFiled });
+  } = useMatchResultsPipeline({ t, candidateId, candidate, archetype, matches, matchRunId: result.matchRunId, onFiled });
 
   // Export the ranking as CSV (Theme C) — a hiring decision happens in a meeting
   // or email thread outside the app, so the ranking has to be able to leave it.
@@ -181,6 +186,7 @@ export function MatchResults({
                 added={added.has(m.jobId)}
                 adding={adding.has(m.jobId)}
                 addError={errors.get(m.jobId)}
+                onRerun={stale.has(m.jobId) ? onRerun : undefined}
                 onAdd={() => addToPipeline(m)}
                 selectable={Boolean(candidateId)}
                 selected={selected.has(m.jobId)}

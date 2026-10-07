@@ -2630,6 +2630,16 @@ function scrubEntryLinkedPii(
   if (candidateId && tables.has("rediscovery_alerts")) {
     db.prepare(`UPDATE rediscovery_alerts SET candidate_label = ?, prior_label = ? WHERE candidate_id = ?`).run(masked, masked, candidateId);
   }
+  // The Match results the server holds to check a Match add against (db/match-runs.ts):
+  // per-job verdict facts (skill names, tier, dimensions) keyed by the candidate's profile
+  // id / analysis slug. DELETED rather than masked — they are short-lived scratch with no
+  // retained half — and scoped to the entry's own workspace, so a same-id candidate in
+  // another tenant keeps theirs.
+  if (candidateId && tables.has("match_run_results")) {
+    db.prepare(
+      `DELETE FROM match_run_results WHERE candidate_id = ? AND workspace_id = (SELECT workspace_id FROM pipeline_entries WHERE id = ?)`
+    ).run(candidateId, entryId);
+  }
 }
 
 /** Anonymize one entry in place: mask the candidate label to "First L.", null the

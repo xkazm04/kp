@@ -8,6 +8,9 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { matrixEngineAnswer, MATCH_RUN_SURFACE } from "@/app/api/matrix/matrix-error-code";
 import { resolveMatchLimit, sanitizeMatchWeights } from "./match-request";
+import { recordMatchRun } from "@/app/_lib/db/match-runs";
+import { matchReasonFacts } from "@/app/features/insights/matrix/focus/matchReasons";
+import type { MatchResult } from "@/app/features/shared/matchTypes";
 import {
   cleanupWorkdir,
   createWorkdir,
@@ -93,7 +96,28 @@ export async function POST(request: NextRequest) {
     // stray non-JSON to stdout AFTER the result line (asyncio shutdown chatter,
     // ResourceWarnings) — a successful match must not be reported as a 500
     // because the interpreter logged a teardown notice.
-    return NextResponse.json(parsePythonJson<Record<string, unknown>>(stdout, stderr));
+    const answer = parsePythonJson<Record<string, unknown>>(stdout, stderr);
+    // The server HOLDS what it returned (ADR 0018 amendment): each result's verdict facts
+    // are recorded under a run id the response carries, and POST /api/pipeline checks a
+    // Match add against them. Only a run for a saved profile / analysis can be filed (the
+    // add needs that id), so an inline-candidate run stores nothing. Best-effort by
+    // classification: a store hiccup must not fail a ranking the recruiter can still
+    // read — the add then meets "run Match again", never a forged-score pass.
+    const candidateId = body.profileId ?? body.analysisSlug;
+    if (candidateId && Array.isArray(answer.matches)) {
+      try {
+        const matchRunId = recordMatchRun({
+          workspaceId,
+          candidateId,
+          weights,
+          results: (answer.matches as MatchResult[]).map((m) => ({ jobId: m.jobId, facts: matchReasonFacts(m) })),
+        });
+        return NextResponse.json({ ...answer, matchRunId });
+      } catch (storeErr) {
+        console.error("[match] could not record the run (the ranking is still returned):", storeErr);
+      }
+    }
+    return NextResponse.json(answer);
   } catch (error) {
     // Refused at the engine's admission door (the spawn semaphore): the child never ran,
     // so this is "busy, try again in a moment" in the reader's language, not a fault.

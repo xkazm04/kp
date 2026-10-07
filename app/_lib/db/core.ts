@@ -1171,6 +1171,27 @@ export function ensureDb(): Database.Database {
 
     CREATE INDEX IF NOT EXISTS idx_pipeline_entry_notes_entry ON pipeline_entry_notes (entry_id, workspace_id, created_at);
 
+    -- The Match results the server HOLDS (db/match-runs.ts, ADR 0018 amendment): one row
+    -- per (run, job) of every /api/match answer, carrying the verdict facts the server
+    -- derived itself. POST /api/pipeline checks a Match add against it before it seals.
+    -- Short-lived (expires_at); candidate_id is the profile id / analysis slug, so the
+    -- erasure scrub deletes a candidate's rows (db/pipeline.ts, scrubEntryLinkedPii).
+    CREATE TABLE IF NOT EXISTS match_run_results (
+      run_id TEXT NOT NULL,
+      job_id TEXT NOT NULL,
+      workspace_id TEXT NOT NULL,
+      candidate_id TEXT NOT NULL,
+      scorer_version TEXT NOT NULL,
+      weights_hash TEXT NOT NULL,
+      facts_json TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      PRIMARY KEY (workspace_id, run_id, job_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_match_run_results_key ON match_run_results (workspace_id, candidate_id, job_id, scorer_version, weights_hash);
+    CREATE INDEX IF NOT EXISTS idx_match_run_results_expiry ON match_run_results (expires_at);
+
     -- App master repo scans (db/repo-scans.ts, docs/features/app-master/README.md,
     -- phase P2): one row per "read this codebase into a RepoDossier" run. The row is
     -- the source of truth the poller reads, so a scan survives the operator

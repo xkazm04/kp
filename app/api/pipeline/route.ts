@@ -14,8 +14,10 @@ import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { humanActor } from "@/app/_lib/auth/operator-approver";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
+import { loadMatchRunFacts } from "@/app/_lib/db/match-runs";
 import {
   coerceMatchReasonFacts,
+  MATCH_RUN_ID_RE,
   MATCH_VERDICT_KIND,
   MATCH_VERDICT_REASON_CODE,
   matchVerdictRationale,
@@ -99,6 +101,7 @@ export async function POST(request: NextRequest) {
       reasonsStrengths?: unknown;
       reasonsRedFlags?: unknown;
       matchFacts?: unknown;
+      matchRunId?: unknown;
     };
     if (!body.candidateId || !body.jobId) {
       return jsonRefusal("PIPELINE_ADD_IDS_REQUIRED", 400);
@@ -190,12 +193,31 @@ export async function POST(request: NextRequest) {
     if (!rateLimit(`pipeline-add:${ws}:${clientIpFrom(request.headers)}`, ADD_RATE_LIMIT)) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
+    // A Match add is checked against the result the SERVER holds (ADR 0018 amendment, scan
+    // finding 1): POST /api/match recorded each result under a run id, and the facts being
+    // sealed must be exactly that result's facts — tier, dimensions, skill lists, score and
+    // scorer version. Refused BEFORE the seal and the insert, so a forged or stale verdict
+    // leaves no record, no entry and no event. A missing, expired, foreign-workspace or
+    // other-candidate/job run is one answer on purpose (loadMatchRunFacts): the remedy is
+    // the same — run Match again.
+    let matchRunId: string | null = null;
+    if (matchFacts) {
+      matchRunId = typeof body.matchRunId === "string" && MATCH_RUN_ID_RE.test(body.matchRunId) ? body.matchRunId : null;
+      const held = matchRunId
+        ? loadMatchRunFacts({ workspaceId: ws, runId: matchRunId, candidateId: body.candidateId, jobId: body.jobId })
+        : null;
+      if (!held) return jsonRefusal("PIPELINE_ADD_MATCH_RUN_UNKNOWN", 409);
+      // Both sides are in the coercer's canonical form (fixed key order), so a string
+      // compare is a field-by-field compare.
+      if (JSON.stringify(held) !== JSON.stringify(matchFacts)) return jsonRefusal("PIPELINE_ADD_MATCH_RUN_MISMATCH", 409);
+    }
     const humanRef = await humanActor();
     // SEAL FIRST (ADR 0018, ADR 0017's rule): the Match verdict is recorded before the
     // entry exists, and a seal that fails files nothing. One record per add — a re-add
     // lands on the same id (pipelineEntryIdFor) and seals its own. The actor is the
-    // recruiter who filed: the facts come from their browser, so the record attests
-    // what they were shown, not what the server recomputed. The workspace is passed
+    // recruiter who filed; the facts are the ones the server itself held for the run
+    // (checked above) and `inputs.matchRunId` names that run, so the record attests a
+    // result the server produced, not only what the recruiter was shown. The workspace is passed
     // explicitly because the store resolves an entry it cannot find yet to the default
     // workspace. No await from here to the insert, so nothing in this process can
     // interleave; a failed insert after the seal leaves a record of a verdict that was
@@ -209,7 +231,7 @@ export async function POST(request: NextRequest) {
           candidateRef: pipelineEntryIdFor({ candidateId: body.candidateId, jobId: body.jobId, workspaceId: ws }),
           rationale: matchVerdictRationale(matchFacts),
           reasonCode: MATCH_VERDICT_REASON_CODE,
-          inputs: matchFacts,
+          inputs: { ...matchFacts, matchRunId },
         },
         ws
       );

@@ -72,6 +72,7 @@ const { recordRediscoveryAlerts, listRediscoveryAlerts } = await import("./redis
 // Every dynamic import this file makes is therefore taken BEFORE the first test.
 const { TENANCY_SCOPED_TABLES, TENANCY_EXEMPT_TABLES } = await import("./tenancy.ts");
 const { ERASURE_EXEMPT, ERASURE_DELEGATED_SCRUBS } = await import("./db/pipeline.ts");
+const { recordMatchRun, loadMatchRunFacts } = await import("./db/match-runs.ts");
 
 after(() => {
   try {
@@ -166,6 +167,17 @@ test("erasure scrubs the candidate's PII from EVERY entry-linked table (transcri
   // Rediscovery alert (isolated store, keyed by candidate_id).
   recordRediscoveryAlerts(jobId, "Data Engineer", [{ candidateId: cid, label: NAME, archetype: "builder", score: 71, prior: { kind: "rejected", label: NAME, stage: "Interview", depth: 2 } }]);
 
+  // The Match results the server holds to check a Match add against (db/match-runs.ts):
+  // per-job verdict facts keyed by the candidate id. The same id in ANOTHER tenant is a
+  // different person's run and must survive.
+  const matchFacts = { fitTier: "strong" as const, best: { labelCode: "skills" as const, percent: 80 }, worst: null, matched: ["Spark"], unproven: [], missing: [], matchScore: 80, scorerVersion: "match-scorer.v1" };
+  const runIn = (workspaceId: string) =>
+    recordMatchRun({ workspaceId, candidateId: cid, weights: null, results: [{ jobId, facts: matchFacts }] });
+  const heldRun = runIn("workspace");
+  const namesakeRun = runIn("other-team");
+  const heldFacts = (workspaceId: string, runId: string) => loadMatchRunFacts({ workspaceId, runId, candidateId: cid, jobId });
+  assert.ok(heldFacts("workspace", heldRun), "the run is held pre-erasure");
+
   // --- Sanity: the PII is present BEFORE erasure (guards against a tautological test). ---
   assert.match(JSON.stringify(latestInterviewByEntry(entry.id)), /zdenka\.prochazkova@example\.com/i, "transcript holds PII pre-erasure");
   assert.match(JSON.stringify(getOutboxEntry(outbox.id)), /zdenka\.prochazkova@example\.com/i, "outbox holds PII pre-erasure");
@@ -198,6 +210,8 @@ test("erasure scrubs the candidate's PII from EVERY entry-linked table (transcri
   assertScrubbed(JSON.stringify(getInterviewPrep(entry.id)), "interview_preps");
   assertScrubbed(JSON.stringify(getScheduleInviteByToken(invite.token)), "schedule_invites");
   assertScrubbed(JSON.stringify(listRediscoveryAlerts()), "rediscovery_alerts");
+  assert.equal(heldFacts("workspace", heldRun), null, "the stored Match run (skill names, tier, score) is deleted with the candidate");
+  assert.ok(heldFacts("other-team", namesakeRun), "another tenant's run for the same candidate id is not over-scrubbed");
 
   // --- finding #2: a same-named NAMESAKE in another tenant is NOT over-scrubbed. ---
   const namesake = loadAnalysis(namesakeSlug, "other-team")!;

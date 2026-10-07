@@ -1379,6 +1379,8 @@
     "PIPELINE_ACTION_UNKNOWN": "Diese Aktion unterstützt dieses Board nicht.",
     "PIPELINE_GITHUB_EVIDENCE_INVALID": "Diese GitHub-Belege haben nicht die erwartete Form.",
     "PIPELINE_ADD_REASONS_INVALID": "Die dieser Aufnahme beigefügte Begründung hat nicht das erwartete Format.",
+    "PIPELINE_ADD_MATCH_RUN_UNKNOWN": "Dieses Match-Ergebnis steht zum Aufnehmen nicht mehr zur Verfügung. Starten Sie Match für diese Person erneut und nehmen Sie sie dann auf.",
+    "PIPELINE_ADD_MATCH_RUN_MISMATCH": "Diese Aufnahme stimmt nicht mit dem Ergebnis überein, das Match erzeugt hat, und wurde deshalb nicht angelegt. Starten Sie Match für diese Person erneut und nehmen Sie sie dann auf.",
     "PIPELINE_ADD_NOT_SEALED": "Die Person konnte nicht hinzugefügt werden, weil das Match-Urteil nicht aufgezeichnet werden konnte. Nichts wurde angelegt. Versuchen Sie es in Kürze erneut.",
     "PIPELINE_ADD_IDS_REQUIRED": "Wählen Sie eine Person und eine Stelle, bevor Sie sie zur Pipeline hinzufügen.",
     "PIPELINE_ADD_STAGE_UNKNOWN": "Diese Pipeline-Phase ist in diesem Arbeitsbereich nicht verfügbar.",

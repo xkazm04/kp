@@ -18,6 +18,7 @@ import { getPipelineEntry, listPipelineEventsForEntry } from "../../_lib/db/pipe
 import { DEFAULT_WORKSPACE_ID } from "../../_lib/db/workspaces.ts";
 import { listDecisionRecords } from "../../_lib/decision-record-store.ts";
 import { rateLimit, SHARED_CLIENT_KEY } from "../../_lib/rate-limit.ts";
+import { recordMatchRun } from "../../_lib/db/match-runs.ts";
 
 after(() => cleanupUnitDb());
 
@@ -41,6 +42,13 @@ const ADD = {
     scorerVersion: "match-scorer.v1",
   },
 };
+// A Match add names the stored result it was ranked from; the throttle is spent before that check.
+(ADD as Record<string, unknown>).matchRunId = recordMatchRun({
+  workspaceId: DEFAULT_WORKSPACE_ID,
+  candidateId: ADD.candidateId,
+  weights: null,
+  results: [{ jobId: ADD.jobId, facts: ADD.matchFacts as never }],
+});
 const ENTRY_ID = `m-${ADD.candidateId}-${ADD.jobId}`;
 const post = (body: unknown) =>
   POST(new NextRequest("http://localhost/api/pipeline", { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json" } }));

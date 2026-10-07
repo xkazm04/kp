@@ -16,15 +16,20 @@ export function useMatchResultsPipeline(args: {
   candidate: MatchResponse["candidate"];
   archetype: string;
   matches: MatchResult[];
+  /** The stored run these `matches` came from (the /api/match answer's `matchRunId`). */
+  matchRunId?: string;
   onFiled?: (jobId: string, jobTitle: string, entryId: string) => void;
 }) {
-  const { t, candidateId, candidate, archetype, matches, onFiled } = args;
+  const { t, candidateId, candidate, archetype, matches, matchRunId, onFiled } = args;
   // Resolve API failures from the machine `code`, never from the server's
   // English `error` — see app/_lib/use-error-message.ts.
   const errMsg = useErrorMessage();
   const [added, setAdded] = useState<Set<string>>(new Set());
   const [adding, setAdding] = useState<Set<string>>(new Set());
   const [errors, setErrors] = useState<Map<string, string>>(new Map());
+  // Roles whose add the server refused because the stored result is gone or differs
+  // (a coded 409): the only remedy is a fresh Match run, so the card offers one.
+  const [stale, setStale] = useState<Set<string>>(new Set());
   // Bulk shortlist: which roles are ticked, and whether a batch add is running.
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -37,6 +42,12 @@ export function useMatchResultsPipeline(args: {
     if (!candidateId || added.has(m.jobId) || adding.has(m.jobId)) return false;
     setAdding((s) => new Set(s).add(m.jobId));
     // Clear any prior failure so a retry doesn't show a stale banner.
+    setStale((s) => {
+      if (!s.has(m.jobId)) return s;
+      const n = new Set(s);
+      n.delete(m.jobId);
+      return n;
+    });
     setErrors((e) => {
       if (!e.has(m.jobId)) return e;
       const n = new Map(e);
@@ -71,6 +82,8 @@ export function useMatchResultsPipeline(args: {
           // ONLY add path that requests this; the route validates the closed set.
           approvalKind: "decision",
           matchFacts,
+          // The stored result the server checks these facts against (ADR 0018 amendment).
+          matchRunId,
         }),
       });
       if (r.ok) {
@@ -90,6 +103,10 @@ export function useMatchResultsPipeline(args: {
         return true;
       }
       const payload = await r.json().catch(() => null);
+      const code = (payload as { code?: unknown } | null)?.code;
+      if (code === "PIPELINE_ADD_MATCH_RUN_UNKNOWN" || code === "PIPELINE_ADD_MATCH_RUN_MISMATCH") {
+        setStale((s) => new Set(s).add(m.jobId));
+      }
       const message = errMsg(payload as { error?: string; code?: string } | null, t("addFailedStatus", { status: r.status }));
       setErrors((e) => new Map(e).set(m.jobId, message));
       return false;
@@ -136,7 +153,7 @@ export function useMatchResultsPipeline(args: {
   };
 
   return {
-    added, adding, errors,
+    added, adding, errors, stale,
     selected, setSelected,
     bulkBusy,
     comparing, setComparing,

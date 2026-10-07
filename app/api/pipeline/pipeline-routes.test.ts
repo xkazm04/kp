@@ -16,6 +16,7 @@ import { getPipelineEntry, PIPELINE_STAGES } from "../../_lib/db/pipeline.ts";
 import { listDecisionRecords, verifyDecisionChain } from "../../_lib/decision-record-store.ts";
 import { DEFAULT_WORKSPACE_ID } from "../../_lib/db/workspaces.ts";
 import { MATCH_VERDICT_KIND, MATCH_VERDICT_REASON_CODE } from "../../_lib/match-verdict.ts";
+import { recordMatchRun } from "../../_lib/db/match-runs.ts";
 
 after(() => cleanupUnitDb());
 
@@ -205,11 +206,17 @@ const FACTS = {
   matchScore: 71,
   scorerVersion: "match-scorer.v1",
 };
+// A Match add names the stored /api/match result it was ranked from (ADR 0018 amendment);
+// this stands in for the run the real route records, holding the facts the add carries.
+const storedRun = (candidateId: string, jobId: string, facts: unknown) =>
+  recordMatchRun({ workspaceId: DEFAULT_WORKSPACE_ID, candidateId, weights: null, results: [{ jobId, facts: facts as never }] });
 const matchAdd = (extra: Record<string, unknown> = {}) => {
   seq += 1;
+  const ids = { candidateId: `prt-m${seq}`, jobId: `prt-mjob-${seq}` };
   const body = {
-    candidateId: `prt-m${seq}`, candidateLabel: "Match Verdict", jobId: `prt-mjob-${seq}`, jobTitle: "Role",
-    source: "match", approvalKind: "decision", matchScore: 71, matchFacts: FACTS, ...extra,
+    candidateId: ids.candidateId, candidateLabel: "Match Verdict", jobId: ids.jobId, jobTitle: "Role",
+    source: "match", approvalKind: "decision", matchScore: 71, matchFacts: FACTS,
+    matchRunId: storedRun(ids.candidateId, ids.jobId, "matchFacts" in extra ? extra.matchFacts : FACTS), ...extra,
   };
   return { body, entryId: `m-${body.candidateId}-${body.jobId}`, send: () => boardPost(jsonRequest("http://localhost/api/pipeline", body)) };
 };
@@ -231,7 +238,7 @@ test("a Match add seals ONE match_verdict record of codes and params — no pros
   assert.equal(rec.actor, "human:recruiter", "the filing recruiter (no session in a unit test → the role token), never auto:match");
   assert.equal(rec.policyVersion, "match-scorer.v1", "the scorer version is the policy version");
   assert.equal(rec.rationale, "match_fit tier=strong best=skills:82 worst=career:40 skills=2/1/1 score=71 scorer=match-scorer.v1");
-  assert.deepEqual(JSON.parse(rec.payloadJson).inputs, FACTS, "the facts ARE the inputs");
+  assert.deepEqual(JSON.parse(rec.payloadJson).inputs, { ...FACTS, matchRunId: add.body.matchRunId }, "the facts AND the stored run they were checked against ARE the inputs");
   assert.doesNotMatch(rec.payloadJson, /Strong fit|strongest|weakest|matches|lacks/, "no rendered words anywhere in the record");
   // Sealed BEFORE the insert: the record's instant is not after the entry's.
   assert.ok(Date.parse(rec.createdAt) <= Date.parse(getPipelineEntry(entry.id)!.createdAt ?? ""));
@@ -263,7 +270,11 @@ test("a re-add lands on the same entry and seals its own record; the gate slot s
   const first = matchAdd();
   const { entry } = (await (await first.send()).json()) as { entry: { id: string } };
   const again = await boardPost(
-    jsonRequest("http://localhost/api/pipeline", { ...first.body, matchFacts: { ...FACTS, fitTier: "promising" } })
+    jsonRequest("http://localhost/api/pipeline", {
+      ...first.body,
+      matchFacts: { ...FACTS, fitTier: "promising" },
+      matchRunId: storedRun(first.body.candidateId, first.body.jobId, { ...FACTS, fitTier: "promising" }),
+    })
   );
   assert.equal(again.status, 200);
   assert.equal((await again.json()).created, false);

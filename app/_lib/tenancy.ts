@@ -82,6 +82,10 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // way recordEvent does, so a note cannot be filed on another team's entry
   // (entry-notes.test.ts). Erased with the entry in anonymizeEntry.
   "pipeline_entry_notes",
+  // The Match results the server holds for a short while (db/match-runs.ts): POST /api/match
+  // writes them, POST /api/pipeline reads them to verify a Match add. Every statement binds
+  // workspace_id (match-runs-tenancy.test.ts); deleted per candidate in anonymizeEntry.
+  "match_run_results",
   "consent_events",
   // W0.6b — candidate NPS captured on the public status page. Scoped because it feeds a
   // team's metric pack: pooling it would let one team's candidate-experience number be

@@ -70,6 +70,13 @@ const FACT_KEYS: ReadonlySet<string> = new Set([
   "scorerVersion",
 ]);
 const DIMENSION_KEYS: ReadonlySet<string> = new Set(["labelCode", "percent"]);
+
+/** The id of the stored /api/match result a Match add was checked against (db/match-runs.ts).
+ *  It rides in the sealed record's `inputs` beside the facts — the record then names the
+ *  server-held result it attests — and is NOT a fact: coerceMatchReasonFacts accepts a
+ *  well-formed one and drops it, so the resolvers that read a record's inputs back
+ *  (decision-attribution.ts) keep working on sealed records of either shape. */
+export const MATCH_RUN_ID_RE = /^[A-Za-z0-9-]{1,64}$/;
 const SCORER_VERSION_RE = /^[a-z0-9][a-z0-9._-]{0,39}$/;
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -105,7 +112,8 @@ function coerceSkills(v: unknown): string[] | undefined {
  *  percent, a weakest dimension stronger than the strongest, an over-long or repeated
  *  skill name — because the only producer is our own client and a mismatch is drift. */
 export function coerceMatchReasonFacts(v: unknown): MatchReasonFacts | null {
-  if (!isRecord(v) || Object.keys(v).some((k) => !FACT_KEYS.has(k))) return null;
+  if (!isRecord(v) || Object.keys(v).some((k) => k !== "matchRunId" && !FACT_KEYS.has(k))) return null;
+  if (v.matchRunId !== undefined && (typeof v.matchRunId !== "string" || !MATCH_RUN_ID_RE.test(v.matchRunId))) return null;
   const fitTier = v.fitTier === null || v.fitTier === undefined ? null : isFitTier(v.fitTier) ? v.fitTier : undefined;
   const best = coerceDimension(v.best);
   const worst = coerceDimension(v.worst);

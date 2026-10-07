@@ -17,6 +17,8 @@ import { ensureDb } from "./db/core.ts";
 import { saveAnalysis } from "./db/analyses.ts";
 import { createPipelineEntry, getPipelineEntry } from "./db/pipeline.ts";
 import { sealDecisionRecord } from "./decision-record-store.ts";
+import { recordMatchRun } from "./db/match-runs.ts";
+import { DEFAULT_WORKSPACE_ID } from "./db/workspaces.ts";
 import { POST as addToBoard } from "../api/pipeline/route.ts";
 import { POST as actOnEntry } from "../api/pipeline/[id]/route.ts";
 
@@ -64,10 +66,11 @@ const FACTS = {
 
 /** A Match add through the real door: facts in, verdict sealed, entry filed. */
 async function matchAdd(candidateId: string, jobId: string): Promise<string> {
+  const matchRunId = recordMatchRun({ workspaceId: DEFAULT_WORKSPACE_ID, candidateId, weights: null, results: [{ jobId, facts: FACTS as never }] });
   const res = await addToBoard(
     new NextRequest("http://localhost/api/pipeline", {
       method: "POST",
-      body: JSON.stringify({ candidateId, candidateLabel: candidateId, jobId, jobTitle: "Engineer", source: "match", approvalKind: "decision", matchScore: 71, matchFacts: FACTS }),
+      body: JSON.stringify({ candidateId, candidateLabel: candidateId, jobId, jobTitle: "Engineer", source: "match", approvalKind: "decision", matchScore: 71, matchFacts: FACTS, matchRunId }),
       headers: { "content-type": "application/json" },
     })
   );

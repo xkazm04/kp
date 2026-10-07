@@ -1379,6 +1379,8 @@
     "PIPELINE_ACTION_UNKNOWN": "Tuto akci tato nástěnka nepodporuje.",
     "PIPELINE_GITHUB_EVIDENCE_INVALID": "Tato data z GitHubu nemají očekávaný tvar.",
     "PIPELINE_ADD_REASONS_INVALID": "Důvody přiložené k tomuto přidání nemají očekávaný tvar.",
+    "PIPELINE_ADD_MATCH_RUN_UNKNOWN": "Tento výsledek shody už nelze použít k přidání. Spusťte Match pro tohoto kandidáta znovu a pak ho přidejte.",
+    "PIPELINE_ADD_MATCH_RUN_MISMATCH": "Toto přidání neodpovídá výsledku, který Match vytvořil, a proto nebylo zapsáno. Spusťte Match pro tohoto kandidáta znovu a pak ho přidejte.",
     "PIPELINE_ADD_NOT_SEALED": "Kandidáta se nepodařilo přidat, protože verdikt shody nešlo zaznamenat. Nic nebylo založeno. Zkuste to za chvíli znovu.",
     "PIPELINE_ADD_IDS_REQUIRED": "Před přidáním na nástěnku vyberte kandidáta a pozici.",
     "PIPELINE_ADD_STAGE_UNKNOWN": "Tato fáze náboru není v tomto pracovním prostoru dostupná.",
