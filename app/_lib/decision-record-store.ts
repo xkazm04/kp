@@ -381,10 +381,14 @@ export function sealDecisionRecord(input: DecisionRecordInput, workspaceOverride
   return tx();
 }
 
-/** Best-effort seal: never throws. Sealing a decision record is an audit side
- *  effect that must NEVER abort or fail the decision it records (a hire, a
- *  scorecard, an offer). Logs + returns null on failure (e.g. KP-less env, DB
- *  lock). Use this at every decision call site instead of a hand-rolled try/catch. */
+/** Never throws: logs + returns null on failure (e.g. missing key, DB lock), so the
+ *  caller decides what a failed seal means. For the decisions whose record is a side
+ *  effect of an action already committed (a hire, a scorecard, an offer, a reinstate)
+ *  the caller ignores null: the seal is best-effort there and must not fail the action.
+ *  It is NOT the rule at the recruiter's accept/reject commit door: that door seals
+ *  BEFORE it writes and refuses (503 PIPELINE_DECISION_NOT_SEALED) when this returns
+ *  null. See docs/architecture/decisions/0017-a-human-adverse-decision-is-sealed-before-it-commits.md.
+ *  Use this at every decision call site instead of a hand-rolled try/catch. */
 export function sealDecisionSafe(input: DecisionRecordInput, workspaceOverride?: string): DecisionRecord | null {
   try {
     return sealDecisionRecord(input, workspaceOverride);
