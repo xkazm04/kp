@@ -2435,3 +2435,8 @@ roster and Quality rating queue (`listWorkspaceHires`), and not by analytics
 `placeAgentOnBoard` files its dispatch card as `agent`, and a boot fixup corrects
 cards filed before that. The shared predicates are `isAgentPopulation` and
 `notAgentSql` in `app/_lib/db/core.ts`.
+
+Nor is an `agent` entry ever exported as a person: `buildAtsRecord` (`app/_lib/ats-record.ts`)
+throws `AtsRecordRefusedError` with reason `agent_population`, exactly as it refuses an anonymized
+entry, and the egress door (`app/_lib/ats-egress.ts`) dead-letters it as terminal. The wire gains
+no `population` field, so `ATS_SCHEMA_VERSION` is unchanged.

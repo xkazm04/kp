@@ -2,7 +2,7 @@ import { getJob } from "./db/jobs";
 import { getEntryWorkspace, getPipelineEntry } from "./db/pipeline";
 import { listDecisionRecords } from "./decision-record-store";
 import { getOpenOfferForEntry, listOffersForEntry } from "./offers-store";
-import { AtsRecordRefusedError, buildAtsRecord, type AtsCandidateRecord } from "./ats-record.ts";
+import { AtsRecordRefusedError, buildAtsRecord, type AtsCandidateRecord, type AtsRefusalReason } from "./ats-record.ts";
 import { getAtsConfig, getAtsSecret } from "./ats-config-store.ts";
 import { assertDeliverableWebhookUrl } from "./ats-egress-guard.ts";
 import {
@@ -50,7 +50,7 @@ export function getAtsRecord(entryId: string, workspaceId?: string): AtsCandidat
 export type AtsRecordResult = {
   record: AtsCandidateRecord | null;
   /** Set only when a record existed but the consent gate refused to release it. */
-  refusal: { reason: "anonymized"; message: string } | null;
+  refusal: { reason: AtsRefusalReason; message: string } | null;
 };
 
 export function getAtsRecordResult(

@@ -21,10 +21,15 @@
 // Pure + dependency-free (structural input types, no DB import) so it loads under
 // `node --test` and can't drag better-sqlite3 into a bundle.
 
+import { isAgentPopulation } from "./db/core.ts";
 import { consentStatus, consentWithholdsPii, maskCandidateName, type ConsentSnapshot } from "./consent.ts";
 
 /** Bump on any breaking change to AtsCandidateRecord so consumers can pin a map. */
 export const ATS_SCHEMA_VERSION = "kp.ats.v1";
+
+/** Why the mapper refused: an erased candidate, or an AI agent (not a person — `population`
+ *  has no field on the kp.ats.v1 wire, so there is no honest way to export one). */
+export type AtsRefusalReason = "anonymized" | "agent_population";
 
 /** The mapper REFUSED to build a record. Not a failure to fetch and not a transport
  *  problem: a standing decision that this candidate's data may not leave kp.
@@ -36,8 +41,8 @@ export const ATS_SCHEMA_VERSION = "kp.ats.v1";
  *  function every egress path funnels through means a future caller cannot forget it. */
 export class AtsRecordRefusedError extends Error {
   /** A stable machine reason, so the ledger records WHY without parsing prose. */
-  readonly reason: "anonymized";
-  constructor(reason: "anonymized", message: string) {
+  readonly reason: AtsRefusalReason;
+  constructor(reason: AtsRefusalReason, message: string) {
     super(message);
     this.name = "AtsRecordRefusedError";
     this.reason = reason;
@@ -68,6 +73,8 @@ export type AtsEntryInput = {
   consentGivenAt?: string | null;
   consentExpiresAt?: string | null;
   anonymizedAt?: string | null;
+  /** ADR-0012 slate population (`human` | `agent`). Absent means a person. */
+  population?: string | null;
 };
 
 export type AtsJobInput = { id: string; title: string | null; company: string | null } | null | undefined;
@@ -181,6 +188,15 @@ export function buildAtsRecord(input: {
 }): AtsCandidateRecord {
   const { entry, job, decision, offer, exportedAt = null, nowMs = Date.now() } = input;
   const snap = snapshot(entry);
+  // An AI agent is not a candidate: exported, it would land in the customer's system of
+  // record as a person (hired, on `candidate.hired`). Refused, never redacted — and with
+  // no schema field, so ATS_SCHEMA_VERSION stands.
+  if (isAgentPopulation(entry)) {
+    throw new AtsRecordRefusedError(
+      "agent_population",
+      `pipeline entry ${entry.id} is an AI agent — it is not a person and is never mirrored to an external ATS`
+    );
+  }
   if (consentStatus(snap, nowMs) === "anonymized") {
     throw new AtsRecordRefusedError(
       "anonymized",
