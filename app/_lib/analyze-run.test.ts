@@ -439,6 +439,25 @@ test("the analyze log says whether a deep-dive rode along (it was hard-coded fal
   assert.equal(baseAnalyzeLog({ ...p, githubProfile: "  " }, Date.now()).github_present, false);
 });
 
+test("a BLANK explanation is a contract failure: not persisted, not cached, not debited", async () => {
+  const { baseDir, cvPath } = tempCv("blank-explanation.pdf");
+  const before = usage();
+  const rows = listAnalyses().length;
+  nextSpawn = { kind: "ok", payload: { ...PAYLOAD, explanation: "   " } };
+  const err = await runAnalyze(params("blank-explanation.pdf", baseDir, cvPath)).then(
+    () => null,
+    (e: unknown) => e
+  );
+  assert.ok(err instanceof AnalyzeError, `expected an AnalyzeError, got ${String(err)}`);
+  assert.equal(err.status, 502);
+  assert.equal(usage(), before, "nothing debited");
+  assert.equal(listAnalyses().length, rows, "nothing persisted");
+  // Nothing cached: the same CV re-runs the engine (a cache hit would bill nothing).
+  nextSpawn = { kind: "ok", payload: PAYLOAD };
+  await runAnalyze(params("blank-explanation.pdf", baseDir, cvPath));
+  assert.equal(usage(), before + 1, "the retry ran the engine, so the blank payload was never cached");
+});
+
 // LAST: it drops the table the earlier tests write to.
 test("a PERSIST FAILURE charges nothing - the unit follows the row, not the spawn", async () => {
   const { baseDir, cvPath } = tempCv("unsaved.pdf");

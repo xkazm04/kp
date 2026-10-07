@@ -218,6 +218,19 @@ career-switcher) that other features key off. Downstream ranking is
   `analyses.score` as NULL, never as a measured 0. Prompt-injection flags are
   scoped `input`, so they never move the authenticity band. The cache
   `PROMPT_VERSION` moved to v7 so a pre-coding cached payload is not served.
+- **The reasons guarantee for an analysis (key goal 4)** — an analysis's
+  `explanation` counts as a reasons block only when the model wrote it. When the
+  model returns none, `pipeline.py` substitutes `_explanation_fallback` (a template
+  over score, strengths and gaps) and emits a coded `explanation_fallback` finding
+  (`warn`, scope `insight`; the seeder marks the same way). When the score was not
+  computed (`score_section_missing`) the template says "Score not computed" and
+  quotes no number. Three seams hold it: `analyze-run.ts` refuses a blank or
+  whitespace explanation as the generic 502 contract failure (not cached, not
+  persisted, not debited; a cached payload with a blank one is a miss);
+  `analysisSchema` is deliberately NOT tightened, so legacy rows still read; and
+  `npm run kpi:reasons` (`hasFallbackExplanation` in `reasons-coverage.ts`) counts a
+  fallback-marked explanation as a named miss unless a `jobFit.summary` stands behind
+  it, per source arm.
 - **Public skill credential** — `app/skill/[token]/page.tsx`. Token-gated, no
   session; `verifySkillProfileToken` re-checks signature + revocation on every
   render, and `skillProfileFreshnessNow` re-checks age, so a revoked or aged-out

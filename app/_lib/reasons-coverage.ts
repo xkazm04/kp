@@ -48,7 +48,23 @@ export type RankingVerdict = {
   origin?: "seed" | "analysis" | "match";
   explanation?: string | null;
   jobFitSummary?: string | null;
+  /** True when `explanation` is the pipeline's template fallback (the stored
+   *  analysis carries an `explanation_fallback` trust finding): text the model did
+   *  not write, so it is not a reasons block. */
+  fallbackExplanation?: boolean;
 };
+
+/** The one reading of the pipeline's `explanation_fallback` marker, shared by the
+ *  write path and the meter so they cannot disagree about what a fallback is. */
+export const EXPLANATION_FALLBACK_CODE = "explanation_fallback";
+
+export function hasFallbackExplanation(payload: unknown): boolean {
+  const findings = (payload as { trustFindings?: unknown } | null | undefined)?.trustFindings;
+  return (
+    Array.isArray(findings) &&
+    findings.some((f) => (f as { code?: unknown } | null)?.code === EXPLANATION_FALLBACK_CODE)
+  );
+}
 
 /** A Match-filed pipeline entry as a ranking verdict. `approvalDetail` is the raw
  *  stored column; the reasons are its `summary`. Unparsable or blank is kept as a
@@ -109,8 +125,11 @@ export function reasonsBlockOf(verdict: ReasonsVerdict, catalog: ReasonsCatalog)
           ? { ok: false, why: "match-filed entry with no parsable reasons summary in approval_detail" }
           : { ok: true, via: "match summary" };
       }
-      if (!isBlank(verdict.explanation)) return { ok: true, via: "explanation" };
+      if (!isBlank(verdict.explanation) && !verdict.fallbackExplanation) return { ok: true, via: "explanation" };
       if (!isBlank(verdict.jobFitSummary)) return { ok: true, via: "jobFit.summary" };
+      if (verdict.fallbackExplanation) {
+        return { ok: false, why: "has a template fallback explanation only — no model-written reasons and no jobFit summary" };
+      }
       return { ok: false, why: "no explanation and no jobFit summary — a score with no prose behind it" };
     }
     case "scorecard": {

@@ -19,7 +19,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { countReasonsCoverage, reasonsCoveragePct, matchFiledRanking, REASONS_VERDICT_KINDS } from "@/app/_lib/reasons-coverage";
+import { countReasonsCoverage, reasonsCoveragePct, matchFiledRanking, hasFallbackExplanation, REASONS_VERDICT_KINDS } from "@/app/_lib/reasons-coverage";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const asJson = process.argv.includes("--json");
@@ -53,6 +53,7 @@ function seededRankings() {
     id: `seed:${row.id}`,
     explanation: row?.payload?.explanation ?? null,
     jobFitSummary: row?.payload?.jobFit?.summary ?? null,
+    fallbackExplanation: hasFallbackExplanation(row?.payload),
   }));
 }
 
@@ -83,6 +84,7 @@ async function producedVerdicts() {
           id: `analysis:${row.id}`,
           explanation: payload?.explanation ?? null,
           jobFitSummary: payload?.jobFit?.summary ?? null,
+          fallbackExplanation: hasFallbackExplanation(payload),
         });
       }
     }

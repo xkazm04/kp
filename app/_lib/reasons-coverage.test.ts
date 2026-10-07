@@ -20,6 +20,7 @@ import { fileURLToPath } from "node:url";
 import {
   REASONS_VERDICT_KINDS,
   countReasonsCoverage,
+  hasFallbackExplanation,
   isReasonsVerdictKind,
   matchFiledRanking,
   reasonsBlockOf,
@@ -213,4 +214,31 @@ test("MATCH-FILED — an entry carrying a reasons summary is a hit; one without 
   assert.equal(c.byKind.ranking.withReasons, 1);
   assert.deepEqual(c.misses.map((m) => m.id), ["m2", "m3", "m4"]);
   assert.match(c.misses[0].why, /match-filed entry with no parsable reasons summary/);
+});
+
+test("a fallback-marked ranking with no jobFit summary is a named miss; a real explanation is a hit", () => {
+  const cat = CATALOG;
+  const fallback = reasonsBlockOf(
+    { kind: "ranking", id: "f1", origin: "analysis", explanation: "Jane was assessed as senior. Score 70/100.", fallbackExplanation: true },
+    cat
+  );
+  assert.equal(fallback.ok, false);
+  assert.match(fallback.ok ? "" : fallback.why, /template fallback explanation only/);
+  const real = reasonsBlockOf(
+    { kind: "ranking", id: "f2", origin: "analysis", explanation: "Strong Go evidence.", fallbackExplanation: false },
+    cat
+  );
+  assert.equal(real.ok, true);
+  const viaSummary = reasonsBlockOf(
+    { kind: "ranking", id: "f3", explanation: "template", fallbackExplanation: true, jobFitSummary: "Matches the Go requirement." },
+    cat
+  );
+  assert.deepEqual(viaSummary, { ok: true, via: "jobFit.summary" });
+});
+
+test("hasFallbackExplanation reads the coded finding, never the prose", () => {
+  assert.equal(hasFallbackExplanation({ trustFindings: [{ code: "explanation_fallback" }] }), true);
+  assert.equal(hasFallbackExplanation({ trustFindings: [{ code: "score_section_missing" }] }), false);
+  assert.equal(hasFallbackExplanation({}), false);
+  assert.equal(hasFallbackExplanation(null), false);
 });

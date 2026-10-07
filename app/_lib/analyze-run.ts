@@ -291,6 +291,13 @@ function startGithubStage(
   }
 }
 
+/** The goal-4 reasons guarantee at the seam: an analysis with no prose behind its score
+ *  is not delivered. (The pipeline's template fallback is non-blank by design; it is
+ *  marked by an `explanation_fallback` finding and refused by the meter instead.) */
+function hasExplanation(analysis: { explanation?: string | null }): boolean {
+  return typeof analysis.explanation === "string" && analysis.explanation.trim().length > 0;
+}
+
 export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, signal?: AbortSignal): Promise<unknown> {
   // Every input path must lie inside the workdir /api/analyze made for this run, and
   // baseDir must BE such a workdir — checked before anything is read, and before the try
@@ -355,7 +362,9 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
           const cached = lookupCachedAnalysis(cacheKey);
           if (cached) {
             const parsed = analysisSchema.safeParse(cached);
-            if (parsed.success) {
+            // A cached payload with no explanation was stored before the write-path
+            // guard below: it is a miss, so the engine runs again.
+            if (parsed.success && hasExplanation(parsed.data)) {
               onProgress?.(++done, total, ANALYZE_PHASE.analyzing);
               return { label, ok: true, analysis: parsed.data, cached: true };
             }
@@ -408,7 +417,10 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
             };
           }
           const parsed = analysisSchema.safeParse(payload);
-          if (!parsed.success) {
+          // analysisSchema takes `explanation` as a bare string (readers of stored rows
+          // parse with it, so it cannot tighten); a blank one is refused HERE as the same
+          // contract failure - not cached, not persisted, not debited.
+          if (!parsed.success || !hasExplanation(parsed.data)) {
             onProgress?.(++done, total, ANALYZE_PHASE.analyzing);
             // Our own literal (no engine text) → coded so the client localizes it.
             return { label, ok: false, error: `Pipeline returned an unexpected payload for "${label}".`, code: ANALYZE_GENERIC_FAIL_CODE, status: 502 };
