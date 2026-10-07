@@ -27,9 +27,8 @@ import json
 import sys
 from pathlib import Path
 
-from ._cli import CliError, configure_stdio, emit_error, invalid_input, not_found, resolve_job_arg
-from .jobs import Job
-from .matching import MatchCandidate, load_corpus
+from ._cli import CliError, configure_stdio, emit_error, invalid_input, resolve_job_arg
+from .matching import MatchCandidate
 from .profile import CandidateProfileV2
 from .transform import build_match_candidate
 from .winnability import assess_winnability
