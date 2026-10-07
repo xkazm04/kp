@@ -447,12 +447,12 @@ test("an automated decline a named person approved says so — without saying wh
 });
 
 test("the notice's rejection promise and the candidate's own history are the same fact", () => {
-  // aiDisclosure.body promises "A rejection is always a person's". The one adverse
+  // aiDisclosure.body promises "Every other rejection is a person's" (the knockout no is the stated automatic exception). The one adverse
   // kind the machine selects is the screen wave's auto_rejected; the promise holds on
   // this surface only if every committed one carries a NAMED approver (the wave
   // refuses to seal without one) and the view renders that approval.
   const en = JSON.parse(readFileSync(path.join(HERE, "..", "..", "..", "messages", "en.json"), "utf8"));
-  assert.match(en.aiDisclosure.body, /A rejection is always a person's/, "precondition: the promise this test reconciles");
+  assert.match(en.aiDisclosure.body, /Every other rejection is a person's/, "precondition: the promise this test reconciles");
   const waveSrc = readFileSync(path.join(HERE, "..", "..", "_lib", "screen-wave.ts"), "utf8");
   assert.match(waveSrc, /if \(!dryRun && !isNamedApprover\(approvedBy\)\) throw/, "the wave refuses an unnamed approver");
   assert.match(waveSrc, /kind: AUTO_REJECTED_KIND,\s*actor: "auto:screen-wave"/, "the seal is machine-attributed");
