@@ -71,7 +71,7 @@ async function producedVerdicts() {
   try {
     // Rankings: every stored analysis is a produced score about a person.
     if (tableExists("analyses")) {
-      for (const row of db.prepare(`SELECT id, payload_json FROM analyses`).all()) {
+      for (const row of db.prepare(`SELECT slug, payload_json FROM analyses`).all()) {
         let payload = {};
         try {
           payload = JSON.parse(row.payload_json ?? "{}");
@@ -81,7 +81,7 @@ async function producedVerdicts() {
         verdicts.push({
           kind: "ranking",
           origin: "analysis",
-          id: `analysis:${row.id}`,
+          id: `analysis:${row.slug}`,
           explanation: payload?.explanation ?? null,
           jobFitSummary: payload?.jobFit?.summary ?? null,
           fallbackExplanation: hasFallbackExplanation(payload),
@@ -118,7 +118,7 @@ async function producedVerdicts() {
     // and operator-facing surfaces read them (code + the record's inputs as params).
     if (tableExists("decision_records")) {
       const rows = db
-        .prepare(`SELECT id, reason_code, payload_json FROM decision_records WHERE kind IN ('auto_rejected','rejected')`)
+        .prepare(`SELECT seq, reason_code, payload_json FROM decision_records WHERE kind IN ('auto_rejected','rejected')`)
         .all();
       for (const row of rows) {
         let params = {};
@@ -130,7 +130,7 @@ async function producedVerdicts() {
         }
         verdicts.push({
           kind: "rejection",
-          id: `decision:${row.id}`,
+          id: `decision:${row.seq}`,
           reason: { reasonCode: row.reason_code ?? "", reasonParams: params },
         });
       }

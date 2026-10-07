@@ -29,7 +29,7 @@ test("a stored analysis carrying the explanation_fallback marker is a miss on th
   const dbPath = path.join(dir, "t.sqlite");
   try {
     const db = new Database(dbPath);
-    db.exec(`CREATE TABLE analyses (id TEXT PRIMARY KEY, payload_json TEXT)`);
+    db.exec(`CREATE TABLE analyses (slug TEXT PRIMARY KEY, payload_json TEXT)`);
     const ins = db.prepare(`INSERT INTO analyses VALUES (?, ?)`);
     ins.run("real", JSON.stringify({ explanation: "Strong Go evidence.", trustFindings: [] }));
     ins.run("tmpl", JSON.stringify({ explanation: "Ada was assessed as senior. Score 70/100.", trustFindings: [{ code: "explanation_fallback", severity: "warn", scope: "insight", text: "x" }] }));
