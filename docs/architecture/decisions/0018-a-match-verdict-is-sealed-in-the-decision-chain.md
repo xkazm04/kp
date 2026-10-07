@@ -135,9 +135,9 @@ the recruiter was shown when they filed". The actor field says exactly that.
   verdict that was shown but never filed. A re-add onto a terminal entry whose reopen is
   refused still seals its record, because the recruiter did file it.
 - **The kind is internal.** `match_verdict` is not in `status-decisions.ts`'s
-  `CANDIDATE_VISIBLE_DECISION_KINDS` / `AI_VERDICT_DECISION_KINDS`, so a candidate does
-  not see it. Whether they may see a ranking against a role they never applied for is an
-  open owner question.
+  `CANDIDATE_VISIBLE_DECISION_KINDS` / `AI_VERDICT_DECISION_KINDS`, so a candidate does not see it. Whether they may see a ranking against a role they never
+  applied for was an open owner question; the owner ruled on 2026-10-07 that it stays
+  internal (see [Amendments](#amendments)).
 - **It is labelled where sealed kinds are enumerated:** `RECORD_ONLY_KINDS` plus
   `analytics.decisionRecords.kinds.match_verdict`, and the reasons contract (counts as
   `ranking`).
@@ -160,5 +160,24 @@ the recruiter was shown when they filed". The actor field says exactly that.
   This ADR's shape stays.
 - **A seal failure rate high enough to block real adds.** That would need a durable
   pending-seal state. It would not be a return to storing prose in the slot.
-- **The owner ruling that candidates may see the verdict.** That adds the kind and a fact
-  extractor to `status-decisions.ts`. It does not change where the verdict lives.
+- **A new owner ruling that candidates may see the verdict.** The 2026-10-07 ruling is
+  recorded in [Amendments](#amendments): the verdict stays internal. Reversing it would add
+  the kind and a fact extractor to `status-decisions.ts`. It does not change where the
+  verdict lives.
+
+## Amendments
+
+- **2026-10-07 (09:10Z): the owner ruled the Match verdict internal.** Asked whether a
+  candidate may see the verdict once it is a sealed record, the owner answered "Keep it
+  internal". The verdict (fit tier, strongest and weakest dimension, skills) stays
+  recruiter-only, and the candidate's `/status/[token]` page does not show it.
+  - *Forces.* A ranking against a role the candidate may never have applied for is a
+    different disclosure from a rejection (architecture review, "Questions this review
+    cannot answer"). Against that stands key goal 4: every automated step is explainable
+    to the candidate.
+  - *What the ruling pins.*
+    - `match_verdict` stays out of `CANDIDATE_VISIBLE_DECISION_KINDS`
+      (`app/_lib/status-decisions.ts:89`) and `AI_VERDICT_DECISION_KINDS` (`:261`).
+    - For Match, key goal 4 is met through what a recruiter can tell the candidate from
+      the sealed record, not through the candidate's own page.
+    - Reopening the question needs a new owner ruling, not a code change.
