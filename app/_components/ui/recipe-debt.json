@@ -82,9 +82,6 @@
     "features/hiring/pipeline/PassPreviewModal.tsx": {
       "noticeAmber": 1
     },
-    "features/hiring/pipeline/PipelineCandidateMenu.tsx": {
-      "panel": 1
-    },
     "features/hiring/pipeline/PipelineCandidateResultView.tsx": {
       "panel": 1
     },

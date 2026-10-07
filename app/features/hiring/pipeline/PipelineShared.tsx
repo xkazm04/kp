@@ -2,9 +2,8 @@
 
 // Small shared board/drawer display bits: the per-event glyph dot and the
 // board's archetype/status legend. The event taxonomy (icon/tone catalog +
-// useEventVerb/useRelativeTime) now lives in pipelineEventCatalog.ts, and the
-// candidate row lives in PipelineCandidateRow.tsx — both re-exported here so
-// existing "./PipelineShared" imports keep working.
+// useEventVerb/useRelativeTime) now lives in pipelineEventCatalog.ts, re-exported
+// here so existing "./PipelineShared" imports keep working.
 
 import { AlertTriangle } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -20,7 +19,6 @@ export {
   useRelativeTime,
   type EventKind,
 } from "./pipelineEventCatalog";
-export { CandidateRow } from "./PipelineCandidateRow";
 
 export function EventDot({ kind }: { kind: string }) {
   const { Icon, tone } = isEventKind(kind) ? EVENT_CATALOG[kind] : EVENT_FALLBACK;

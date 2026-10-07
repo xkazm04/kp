@@ -494,22 +494,12 @@
       "raw-status-hue": 4,
       "raw-button": 3
     },
-    "features/hiring/pipeline/PipelineCandidateMenu.tsx": {
-      "raw-text-size": 1,
-      "bare-rounded": 1
-    },
     "features/hiring/pipeline/PipelineCandidateNoteField.tsx": {
       "raw-status-hue": 1
     },
     "features/hiring/pipeline/PipelineCandidateResultView.tsx": {
       "raw-text-size": 16,
       "raw-status-hue": 2,
-      "bare-rounded": 1
-    },
-    "features/hiring/pipeline/PipelineCandidateRow.tsx": {
-      "raw-text-size": 1,
-      "raw-status-hue": 2,
-      "raw-button": 2,
       "bare-rounded": 1
     },
     "features/hiring/pipeline/PipelineCommsList.tsx": {

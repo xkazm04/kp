@@ -25,9 +25,7 @@
 // outside this lot's write set, and it exports its list API rather than the
 // resolve. Hoisting the two into one `useTenantStorage` is the follow-up.)
 
-import { normalizeStoredViews } from "./pipelineViews";
 import { clampSlaDays } from "./pipelineSla";
-import type { SavedView } from "./pipelineBoardFilters";
 
 const VIEWS_PREFIX = "kp.pipelineViews:";
 const SLA_PREFIX = "kp.pipelineStageSla:";
@@ -67,29 +65,6 @@ export function migrateLegacyKey(store: KeyValueStore, legacyKey: string, tenant
     return migrated;
   } catch {
     return false; // storage unavailable — nothing to migrate and nothing to clean up
-  }
-}
-
-/** Read one workspace's saved views. `null` tenant ⇒ [] — the whole point: until
- *  the workspace resolves, a board hydrates NOTHING rather than another team's list. */
-export function readStoredViews(store: KeyValueStore, workspaceId: string | null): SavedView[] {
-  if (!workspaceId) return [];
-  try {
-    const raw = store.getItem(pipelineViewsKey(workspaceId));
-    return raw ? normalizeStoredViews(JSON.parse(raw)) : [];
-  } catch {
-    return []; // corrupt / unavailable — start empty
-  }
-}
-
-/** Persist one workspace's saved views. A `null` tenant writes NOTHING (a list we
- *  cannot attribute to a team must not be written "somewhere"). */
-export function writeStoredViews(store: KeyValueStore, workspaceId: string | null, views: readonly SavedView[]): void {
-  if (!workspaceId) return;
-  try {
-    store.setItem(pipelineViewsKey(workspaceId), JSON.stringify(views));
-  } catch {
-    /* storage full / unavailable — the in-memory list still works this session */
   }
 }
 

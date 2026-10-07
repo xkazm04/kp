@@ -1,8 +1,7 @@
 // The board tab's last untested helpers. Both decide something a reader sees:
 // `pipelineActionReason` decides whether a refused move is painted in the reader's
 // LANGUAGE (payload with a code → useErrorMessage resolves `errors.<CODE>`) or in
-// the caller's own generic copy (null → fallback), and `newViewId` decides whether
-// a saved view survives a rename with its identity intact.
+// the caller's own generic copy (null → fallback).
 //
 // The triage has three outcomes and the middle one is the subtle one: a body with
 // an `error` but NO code is still worth returning (the route's sentence beats no
@@ -10,7 +9,7 @@
 // not as a blank red chip under the card.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { newViewId, pipelineActionReason, VIEW_PARAM_KEYS } from "./pipelineTabHelpers.ts";
+import { pipelineActionReason } from "./pipelineTabHelpers.ts";
 
 const body = (payload: unknown): Response =>
   ({ json: async () => payload }) as unknown as Response;
@@ -46,50 +45,4 @@ test("pipelineActionReason: a non-JSON / thrown body is null, never a rejected p
     },
   } as unknown as Response;
   assert.equal(await pipelineActionReason(thrown), null);
-});
-
-test("newViewId: prefers randomUUID and always carries the v- prefix", () => {
-  const id = newViewId();
-  assert.match(id, /^v-/);
-  assert.notEqual(newViewId(), newViewId(), "two mints never collide");
-});
-
-// The fallback exists because a saved view must be mintable on a page served over
-// plain http (no SecureContext → no crypto.randomUUID) and in an older runtime.
-// Both doors are pinned: crypto missing entirely, and a crypto whose randomUUID
-// throws mid-call.
-function withGlobalCrypto(value: unknown, fn: () => void): void {
-  const original = Object.getOwnPropertyDescriptor(globalThis, "crypto");
-  Object.defineProperty(globalThis, "crypto", { value, configurable: true, writable: true });
-  try {
-    fn();
-  } finally {
-    if (original) Object.defineProperty(globalThis, "crypto", original);
-    else delete (globalThis as { crypto?: unknown }).crypto;
-  }
-}
-
-test("newViewId: falls back to a timestamp+random id when crypto is unavailable", () => {
-  withGlobalCrypto(undefined, () => {
-    const id = newViewId();
-    assert.match(id, /^v-\d+-[a-z0-9]+$/, "timestamp fallback shape");
-  });
-});
-
-test("newViewId: falls back when randomUUID itself throws", () => {
-  withGlobalCrypto(
-    {
-      randomUUID() {
-        throw new Error("not a secure context");
-      },
-    },
-    () => {
-      assert.match(newViewId(), /^v-\d+-[a-z0-9]+$/);
-    }
-  );
-});
-
-test("VIEW_PARAM_KEYS: the link-wins vocabulary is closed and deduplicated", () => {
-  assert.deepEqual([...VIEW_PARAM_KEYS], ["q", "quick", "score", "source", "sort", "stage"]);
-  assert.equal(new Set(VIEW_PARAM_KEYS).size, VIEW_PARAM_KEYS.length);
 });

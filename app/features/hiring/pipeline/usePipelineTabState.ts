@@ -1,20 +1,17 @@
 "use client";
 
 // All of PipelineTab's state, effects and handlers (board load/poll, compound
-// filters + URL sync, saved views, bulk select/move/decide/invite/outreach, drag
-// move, and the drawer/profile/job navigation helpers). Split out of the .tsx so
+// filters + URL sync, drag move, and the drawer/profile/job navigation helpers). Split out of the .tsx so
 // the component file is just wiring + markup; this hook owns no JSX.
 //
 // Each of those concerns now lives in its own hook (usePipelineSla,
-// usePipelineBoardData, usePipelineFilters, usePipelineSavedViews, usePipelineBulk,
-// usePipelineNavigation); what is left here is the composition — the tab-level
+// usePipelineBoardData, usePipelineFilters, usePipelineNavigation); what is left here is the composition — the tab-level
 // derivations that read across two concerns (the stat counts, the filtered board,
 // the drawer cohort) and the ONE flat object PipelineTab and its children destructure.
 //
 // The call order below is load-bearing: effects run in hook-call order, so the hooks
 // are composed in the same sequence their effects were registered when this was one
-// body (SLA hydration → board load/poll → URL-sync teardown → view hydration → the
-// outreach-completion watcher → the batch-screen reload).
+// body (SLA hydration → board load/poll → URL-sync teardown → the batch-screen reload).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -38,8 +35,6 @@ import { usePipelineSla } from "./usePipelineSla";
 import { pendingLocalAdoption } from "@/app/_lib/stage-sla";
 import { usePipelineBoardData } from "./usePipelineBoardData";
 import { usePipelineFilters, emptyFacets } from "./usePipelineFilters";
-import { usePipelineSavedViews } from "./usePipelineSavedViews";
-import { usePipelineBulk } from "./usePipelineBulk";
 import { usePipelineNavigation } from "./usePipelineNavigation";
 import {
   nextCandidateView,
@@ -48,10 +43,7 @@ import {
   type ShowCandidateOptions,
 } from "./candidate/candidateView";
 
-/** `scope` is what the caller's OWN narrowing adds to "what the board is showing" (the kit view's
- *  layer / role / waiting-only / brush, useKitFilters): it joins the scope an armed bulk confirm is
- *  stamped with, so narrowing the list de-arms it exactly like a facet change does. */
-export function usePipelineTabState({ scope = "" }: { scope?: string } = {}) {
+export function usePipelineTabState() {
   const t = useTranslations("pipeline.tab");
   // Source-facet chip labels reuse the channel-name catalog Analytics maintains
   // (mirrors the drawer's origin chip), falling back to the raw id for unmapped
@@ -98,12 +90,9 @@ export function usePipelineTabState({ scope = "" }: { scope?: string } = {}) {
   // brings the new axis back as the truth the chip, the dot and the filters age on.
   const setStageSla = (stage: string, days: number | null) => void sla.saveStageSla(stage, days, load);
   const adoptLocalSla = () => void sla.adoptLocalSla(pendingLocalAdoption(sla.localSla, board.axis), load);
-  // The compound filters + their two-way URL sync, and the visible-scope signature
-  // the bulk confirms are stamped with.
+  // The compound filters + their two-way URL sync, and the visible-scope signature.
   const filters = usePipelineFilters();
   const { query, quicks, scoreBands, sources, sort, stageFilter, filtering, visibleScope } = filters;
-  // Saved views read and write the filter state through the handle above.
-  const savedViews = usePipelineSavedViews({ filters });
 
   const positions = useMemo(() => groupPositions(entries ?? []), [entries]);
 
@@ -178,9 +167,6 @@ export function usePipelineTabState({ scope = "" }: { scope?: string } = {}) {
     [boardPositions, filteredEntries, boardColumns]
   );
 
-  // Bulk select mode + the four batch actions, resolved against exactly what the
-  // board renders (filteredEntries) and scoped by what it was showing (visibleScope).
-  const bulk = usePipelineBulk({ t, entries, filteredEntries, visibleScope: scope ? `${visibleScope}|${scope}` : visibleScope, relayConfigured, load });
   const nav = usePipelineNavigation({ entries, showCandidate });
 
   // drawer-flow-friction — the degraded/needs-intake chip ARMS the board's existing
@@ -229,18 +215,6 @@ export function usePipelineTabState({ scope = "" }: { scope?: string } = {}) {
     sort, setSortAndSync: filters.setSortAndSync,
     stageFilter, clearStageFilter: filters.clearStageFilter, showStage: filters.showStage, clearFilters: filters.clearFilters,
     visibleScope,
-    selectMode: bulk.selectMode, toggleSelectMode: bulk.toggleSelectMode,
-    selectedIds: bulk.selectedIds, toggleSelected: bulk.toggleSelected, updateSelection: bulk.updateSelection,
-    selectAllVisible: bulk.selectAllVisible,
-    clearSelection: bulk.clearSelection, selectedOutsideCount: bulk.selectedOutsideCount,
-    bulkStage: bulk.bulkStage, setBulkStage: bulk.setBulkStage, bulkBusy: bulk.bulkBusy, bulkResult: bulk.bulkResult,
-    confirmingBulkReject: bulk.confirmingBulkReject, confirmingBulkOutreach: bulk.confirmingBulkOutreach,
-    dispatchBulkConfirm: bulk.dispatchBulkConfirm,
-    views: savedViews.views, viewDialog: savedViews.viewDialog, setViewDialog: savedViews.setViewDialog,
-    openSaveView: savedViews.openSaveView, openRenameView: savedViews.openRenameView,
-    commitViewDialog: savedViews.commitViewDialog,
-    toggleDefaultView: savedViews.toggleDefaultView, applyView: savedViews.applyView, deleteView: savedViews.deleteView,
-    activeViewId: savedViews.activeViewId, copyViewLink: savedViews.copyViewLink, copiedViewId: savedViews.copiedViewId,
     slaOverrides, setStageSla, editingSla, setEditingSla,
     slaSaveError: sla.slaSaveError,
     localSlaOffers: pendingLocalAdoption(sla.localSla, board.axis),
@@ -251,9 +225,6 @@ export function usePipelineTabState({ scope = "" }: { scope?: string } = {}) {
     isStale, moveError, moveErrorEntryId, dismissMoveError, moveEntry,
     openCandidate: nav.openCandidate, recordEntry: nav.recordEntry, openEntryById: nav.openEntryById, openProfile: nav.openProfile,
     openJob: nav.openJob, openPositionRanking: nav.openPositionRanking, goToDecisions: nav.goToDecisions,
-    selectedAwaiting: bulk.selectedAwaiting, awaitingKinds: bulk.awaitingKinds, selectedActive: bulk.selectedActive,
-    bulkMove: bulk.bulkMove, bulkDecide: bulk.bulkDecide, bulkInvite: bulk.bulkInvite, bulkOutreach: bulk.bulkOutreach,
-    outreachTaskActive: bulk.outreachTaskActive,
     sim,
     focusDegradedCohort,
     SCORE_BANDS,

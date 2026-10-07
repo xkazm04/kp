@@ -528,9 +528,9 @@ predicates use the same live, non-simulation population and workspace stage role
 as the counts, so clicking either count filters the board to the cohort it names.
 | `app/features/hiring/pipeline/usePipelineTabState.ts` | Composes the tab's state from six single-concern hooks and hands `PipelineTab` one flat object. Owns only the cross-concern derivations (stat counts, `filteredEntries`, the candidate modal cohort). Hook-call order is load-bearing — it reproduces the effect-registration order the concerns had as one body. |
 | `usePipelineSla.ts` / `usePipelineBoardData.ts` / `usePipelineFilters.ts` | The team's per-stage aging cadence writes (`PATCH /api/pipeline/stage-sla`), their optimistic value until the board reloads, and the one-time offer of a browser's leftover cadences · the entries/events fetch, its 30s poll and the optimistic drag move (sole owner of `setEntries`) · the compound filters, their two-way URL sync and the `visibleScope` signature. |
-| `pipelineBoardStorage.ts` / `usePipelineTenant.ts` | The board's `localStorage` memories keyed per workspace (saved views; the SLA half is read-and-clear only now), and the once-per-document tenant resolve they wait on. Pure half pinned by `pipelineBoardStorage.test.ts`. |
+| `pipelineBoardStorage.ts` / `usePipelineTenant.ts` | The board's `localStorage` memories keyed per workspace (the saved-views key is only MIGRATED from its legacy global name — nothing reads or writes the list since the Orbit; the SLA half is read-and-clear only), and the once-per-document tenant resolve they wait on. Pure half pinned by `pipelineBoardStorage.test.ts`. |
 | `pipelineBoardMove.ts` / `pipelineDrawerNote.ts` | The two densest state machines, extracted pure: the drag move's apply / reconcile / roll-back decision plus its field-selective merge, and the candidate modal note's dirty / flush / hydrate bookkeeping. Pinned by their own `*.test.ts`. |
-| `usePipelineSavedViews.ts` / `usePipelineBulk.ts` / `usePipelineNavigation.ts` | Saved views + the save/rename dialog and share link (PIPE5) · select mode and the four batch actions (PIPE1 / bdc7fc01 / P2-2), the network around the pure `pipelineBulkSelection.ts` reducer · opening the candidate modal, profile, job, ranking and Decisions. |
+| `usePipelineNavigation.ts` | Opening the candidate modal, profile, job, ranking and Decisions. (Saved views — `usePipelineSavedViews`, `pipelineViews` — and the row/menu components were deleted with the roles board's dead UI; `usePipelineBulk.ts` and the four modules it imports are UNMOUNTED but kept, see [Bulk actions today](#bulk-actions-today).) |
 
 ## The surface — the Orbit
 
@@ -652,8 +652,9 @@ truncated list says so. Aging is the product's one clock (`slaForStage` over `st
 
 **What the roles board had that the Orbit does not (removed with it, 2026-09-28):** the facet
 menus (State, Score, Source, Sort) as controls (their URL parameters still filter the Matches
-table), saved views as chips (`usePipelineSavedViews` still restores a view's URL), select mode
-and the bulk bar, the reading pane with its Move to, the Sieve and the Skyline, the rejected
+table), saved views as chips (the hook that stored them is deleted; a `?q=` / `?quick=` / `?score=` /
+`?source=` / `?sort=` / `?stage=` link is applied by `usePipelineFilters`, so a pasted link still
+opens its filters), select mode and the bulk bar (see [Bulk actions today](#bulk-actions-today)), the reading pane with its Move to, the Sieve and the Skyline, the rejected
 shelf, and the `?role=` deep link. The subsections below that describe the roles board, the
 board header and the Subway are the record of the retired views.
 
@@ -991,6 +992,8 @@ the same bounds. The range is stated inline beside the inputs (`tab.slaEditorRan
 
 ### Board storage is keyed by tenant
 
+*Update (pipeline-board rework): the saved-views half is now migrate-only — the Orbit mounts no saved views, so `readStoredViews` / `writeStoredViews` are deleted and a leftover list simply stays in `localStorage` unread. The tenant keying and the legacy-key migration below still hold.*
+
 The board's two `localStorage` memories — saved views (`kp.pipelineViews`) and the
 per-stage SLA overrides (`kp.pipelineStageSla`, now only a read-and-clear leftover:
 see "Stage aging SLAs are team data" above) — were browser-wide, and
@@ -1067,6 +1070,8 @@ self-hiding component (`PipelineAttentionStrip`, `TodayRail`,
 `PipelineSavedViews`) owns its `Fade`/`Collapse` *internally* — a parent can only
 animate out what it can still render during the exit.
 
+*(`PipelineCandidateRow` and `PipelineCandidateMenu` described below were deleted with the roles board's dead UI; nothing rendered them after the Orbit.)*
+
 **The candidate row spends its width on the name.** A stage column is 280px, and
 `PipelineCandidateRow` used to carry a `w-28` "Move to…" combobox plus an
 AI-actions button *inside its flex flow* — `opacity-0` hides pixels but still
@@ -1119,103 +1124,39 @@ the components only wire it:
   board's `moveEntry` exactly once: the optimistic paint, the `expectedStage` CAS,
   the rollback and the bounced-bead reason are the existing move machine's.
 
-## The board's select-mode bulk bar
+## Bulk actions today
 
-`PipelineBulkActionBar.tsx` (state in `usePipelineBulk.ts`) batches move,
-scheduling invite, outreach draft and accept/reject over the selected rows. Two
-rules keep it honest about **which** rows it is about to touch:
+The Orbit mounts **no select mode, no bulk bar and no saved-view chips** (removed 2026-09-28).
+The bulk paths that ship:
 
-- **The selection survives a filter change; the over-reach is disclosed.** Filtering
-  down to review a subset does not abandon the rest, so `selectedIds` is never pruned
-  when the filter changes — instead `selectionOutsideVisible`
-  (`pipelineSelectionScope.ts`) counts the selected rows the current filter hides and
-  the bar states it (`pipeline.tab.selectedOutsideFilter`) before any bulk action can
-  run. Acting silently on invisible rows is the failure mode; a silently *shrunk*
-  cohort would be the mirror-image one.
-- **A destructive confirm cannot outlive the cohort it was armed for.** The two
-  two-step confirms (reject — emails N candidates; outreach — with a relay configured,
-  a draft *is* a send) are one single-slot reducer state (`pipelineBulkConfirm.ts`).
-  Arming stamps the confirm with `visibleScopeSignature` — the identity of every
-  membership-affecting filter input (query, quick state filters, score bands, sources,
-  funnel stage; **not** sort, which only reorders). `armedConfirm(state, currentScope)`
-  reports it armed only while that scope still holds, so any filter, facet, saved-view
-  or degraded-cohort change makes the next click **re-arm** rather than fire. This is a
-  derivation, not a disarm dispatched from each of the ~9 filter mutators — the
-  per-call-site version is what leaked twice already. `bulkDecide("reject")` and
-  `bulkOutreach` re-check the same predicate at the fire site.
-- **A confirm only ever applies to the people it named** (cohort-drift-forces-a-fresh-review).
-  The scope stamp alone let the 30s poll, which keeps running in select mode, change the
-  cohort under an armed confirm: a reject armed over 2 awaiting candidates fired on however
-  many were awaiting at the click, and a named candidate whose stage or pending decision
-  moved was rejected under a confirm that described another situation. Arming now also
-  stamps `cohortSignature` (the sorted id + stage + decision kind of exactly the rows the
-  action would touch, prefixed with the action), and `armedBulkConfirm` reports the confirm
-  armed only while the scope holds AND the cohort signs identically. Any membership or
-  status drift makes the next click re-arm, naming the new count.
+- **The CommandBar waves** (`CommandBar.tsx`, `POST /api/pipeline/command`): `reject below N%` and
+  `advance top N` act on the whole matching cohort after a preview and a confirm, each target through
+  the one write door `runPipelineEntryAction`; a reject wave has an undo
+  (`command/reverse`). See the command-route rows in the API table above.
+- **The Decisions tab's own batch bar** (`app/features/hiring/decisions/DecisionsBatchBar.tsx`,
+  state in `useDecisionsQueue`): batch accept / reject of awaiting reviews through
+  `POST /api/pipeline/batch`, folded by `decisionsDecideOutcome.ts`.
+- **`POST /api/pipeline/batch`** itself is unchanged: operator gate, `pipeline:write`, per-id
+  isolation, and `dryRun: true` answering what a move would set off (`planArrival`) while writing
+  nothing. Its only client is the Decisions bar.
 
-Since challenge-r06 the selection, the confirm slot, the status line, the busy flag and the
-outreach run are one pure reducer, `pipelineBulkSelection.ts` (`bulkSelectionReducer`);
-`usePipelineBulk` only turns clicks and board loads into events. Every selection change is
-an event that disarms in the same transition (bulkMove used to reset the selection with no
-disarm at all), and an action changes the selection only through its `settled` event, fed by
-ONE fold, `foldBatchSettle`: successes deselect, per-id failures and untouched rows stay
-selected, and a whole-request refusal keeps every attempted row and overrides the per-id
-codes (its code and capability when the door named one, else the client's gate or transport
-sentence). A failed outreach task reports the cohort it was started with, not the selection
-at completion. An id whose entry left the board (closed elsewhere; the list excludes terminal
-rows) is pruned on the next load and stated once on the status line
-(`pipeline.tab.selectionDeparted`) rather than counted as hidden by the filter forever;
-`reconcileSelection` checks against the whole board, never the filtered view, so a row the
-filter hides is still kept and disclosed.
+What stays of the old board's rules: `visibleScopeSignature` (`pipelineSelectionScope.ts`) is
+still the order-independent identity of the filter shape that `usePipelineFilters` hands out, and
+`moveTargetStages` (`pipelineMoveTargets.ts`) is still the one list every move affordance derives
+its targets from — it drops the terminal role, which `pipeline-entry-action.ts` refuses with a 422
+(a hire is reached only by an accepted offer).
 
-**A bulk move says what it sets off before it fires** (blast-radius-computation,
-challenge-r06). A committed move schedules the arrival hook: a `homework` column mails a
-work-sample assignment (designing one first when the job has none), an `interview` column
-whose first round is AI mints a voice-screen link and emails it (`auto`) or parks the
-candidate on the Schedule docket (`human`; a never-saved plan runs `auto`), and
-`setPipelineEntryStage` erases the row's pending approval, including a drafted offer whose
-terms exist only there. What an arrival sets off is decided once, in the pure
-`app/_lib/pipeline-arrival-plan.ts`: `arrivalBranch` / `arrivalEffect` (`ai_invite`,
-`ai_invite_held`, `homework`, `plain`, `refused_terminal`) and `planArrival`, which adds
-`noop` / `closed`, the approval the move `clears`, and `holdBack` for an `offer_review`.
-`runStageEnteredHook` reads `arrivalBranch` for its own branch, so the preview cannot
-describe a hook that no longer exists. `POST /api/pipeline/batch` with `dryRun: true`
-answers each `set_stage` item with `{ ok, preview: { effect, clears, holdBack, stage } }`
-through set_stage's own gates in its own order (unknown stage, terminal 422, missing,
-CAS / closed 409) and writes nothing: no row, no event, no hook. On the board the first
-*Move N* click asks for that preview (`pipelineBulkMovePreview.ts`). A move that sets
-nothing off still commits on the one click; otherwise the bar states the preview
-(`pipeline.tab.bulkMovePreview*`: moving, AI invites now, held for you, work-samples,
-decisions cleared, drafted offers kept back, already there, changed since) and the button
-becomes *Confirm move*. The move confirm sits in the reducer's single confirm slot and
-signs the cohort AND the target column, so a poll that re-stages anyone or a new *Move to*
-choice makes the next click preview again. The commit (`commitItemsFromPreview`) sends
-exactly the previewed rows, each with its previewed stage as `expectedStage` (a row that
-moved since is a per-id 409 that stays selected); a drafted-offer holder is never sent and
-stays selected with `pipeline.tab.bulkMoveOfferHeld`. Pinned by
-`app/_lib/pipeline-arrival-plan.test.ts` (including unit-DB parity with the set_stage door
-and the hook), `app/api/pipeline/batch/route.test.ts` (dry run writes nothing) and
-`pipelineBulkMovePreview.test.ts`. Keyless: the preview is a DB read, no model is called.
+**Unmounted code kept on purpose.** `usePipelineBulk.ts`, `pipelineBulkSelection.ts`,
+`pipelineBulkConfirm.ts`, `pipelineBulkMovePreview.ts` and `pipelineSelectionScope.ts`'s
+`selectionOutsideVisible`, with their tests, are no longer composed by `usePipelineTabState` and no
+component renders them. They stay for one reason: `usePipelineBulk` is the last client caller of
+`startTask("batch_outreach")`, and `app/_lib/task-admission.test.ts` pins that kind as
+client-started because the dock door (`POST /api/tasks`) still admits it. Moving `batch_outreach`
+to a server-only door in `app/_lib/task-admission.ts` (it is also enqueued server-side by
+`companion-actions.ts`) lets that cluster be deleted in the same change.
 
-A third rule keeps it honest about **which stages** it can move rows to:
-
-- **Every move affordance derives its target list from `moveTargetStages`**
-  (`pipelineMoveTargets.ts`) — drag, the row menu, the candidate modal `<Select>`, and now the
-  bulk bar via `bulkMoveTargetStages()`. That helper drops `Hired`, which
-  `pipeline-entry-action.ts` unconditionally refuses with a 422 (Hired is reached only
-  when a candidate *accepts* an offer). The bulk bar previously built its list from the
-  raw stage axis, so picking "Hired" and applying returned N × 422 with the whole
-  selection still selected. A bulk selection has no single current stage, so only the
-  unconditional exclusion applies: `Hired` out, every other canonical stage offered —
-  per-row current-stage exclusion is deliberately not attempted (the move preview reports
-  an already-at-target card as `noop`, and the commit counts it as moved without sending it).
-
-Pinned by `pipelineSelectionScope.test.ts` (reproduces select → arm reject → apply a
-saved view → confirm), `pipelineBulkConfirm.test.ts`, `pipelineBulkSelection.test.ts` (cohort
-drift, ghost pruning, the settle fold), `usePipelineBulk.test.ts` (no `setSelectedIds` call
-site remains) and `pipelineMoveTargets.test.ts`
-(which also pins that the candidate modal's "open full match" link is gated on `candidateId`
-like its "edit profile" sibling, instead of rendering and silently no-opping).
+Pinned by `pipelineMoveTargets.test.ts` (which also pins that the candidate modal's "open full
+match" link is gated on `candidateId` like its "edit profile" sibling) and the cluster's own tests.
 
 `app/_lib/stage-ai-actions.test.ts` is the same proof for the candidate modal's AI actions: it
 runs a fully renamed five-column axis and asserts each column still offers exactly
@@ -1705,6 +1646,22 @@ filed, because an opt-out stops outreach rather than withdrawing a person, and t
 gate still refuses to contact them. The rule and its reasoning:
 [the jobs doc](../jobs/README.md#silver-medalist-alerts-are-a-reconciled-projection-behind-one-eligibility-gate).
 Pinned by `app/api/pipeline/add-eligibility.test.ts`.
+
+The add door has two more front-door refusals, both answered before the throttle is spent, the
+Match verdict is sealed or any row is written (`app/api/pipeline/add-door-gate.test.ts`):
+
+- **The seat.** `POST /api/pipeline` asks `pipeline:write` (after the operator gate) like its
+  siblings, so a viewer seat gets `403 FORBIDDEN_CAPABILITY` and files nothing — it used to be able
+  to file candidates, reopen a rejected entry through the reconsider door and seal Match verdicts.
+  `GET` stays a read for every seat.
+- **The terminal stage.** An add whose requested `stage` has the **terminal role** on this
+  workspace's axis (resolved by role with `stageHasRole`, so a renamed final column refuses too,
+  not only the literal `Hired`) answers `422 PIPELINE_TERMINAL_NOT_MANUAL` — the code `set_stage`
+  uses — for a new entry and for a re-add onto an existing one, which is left exactly where it
+  stood. A hire is reached only by an accepted offer. A non-terminal stage still files, and a
+  retired stage (no role on the axis) is unchanged. The rule lives at this HTTP door, not in
+  `createPipelineEntry`: the in-process callers (the role demo, automation, ATS sync, the offer
+  accept path) are not subject to it.
 
 After every cheap refusal and before the first write (the Match verdict's seal), the
 add is throttled per workspace and IP (`pipeline-add:<workspace>:<ip>`, 600/10min →

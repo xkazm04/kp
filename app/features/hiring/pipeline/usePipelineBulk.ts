@@ -1,5 +1,11 @@
 "use client";
 
+// UNMOUNTED since the Orbit (023bc26c2): no component calls this hook, and usePipelineTabState
+// no longer composes it. It is kept — with the four modules it imports — for ONE reason: it is
+// the only client caller of startTask("batch_outreach"), and app/_lib/task-admission.test.ts pins
+// that kind as client-started (the dock door still admits it). Delete this cluster in the same
+// change that moves batch_outreach to a server-only door in app/_lib/task-admission.ts.
+
 // PIPE1 / bdc7fc01 / P2-2 — bulk select mode and everything that acts on a cohort:
 // the selection set, the scope-stamped two-step confirms, and the four batch actions
 // (move, accept/reject, schedule invite, backgrounded outreach drafting) with their

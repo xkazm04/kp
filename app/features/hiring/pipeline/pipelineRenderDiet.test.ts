@@ -2,7 +2,7 @@
 // the React.memo predicates are PURE, so they are pinned here directly. Together
 // they prove the acceptance: a no-change poll produces an IDENTICAL board
 // signature (→ setEntries is skipped → no render), and when the board does change,
-// candidateRowEqual / stageCellSignature flag exactly the rows that changed.
+// entrySignature flags exactly the rows that changed.
 //
 // No DB, no React: entrySignature/provenanceOf read only plain fields.
 import { test } from "node:test";
@@ -11,9 +11,7 @@ import {
   boardSignature,
   eventsSignature,
   eventSignature,
-  candidateRowEqual,
   entrySignature,
-  stageCellSignature,
   agingBucket,
   relativeTimeBucketKey,
 } from "./pipelineRenderDiet.ts";
@@ -75,31 +73,6 @@ test("entrySignature covers the fields the card renders (and only those)", () =>
   ] as Partial<Entry>[]) {
     assert.notEqual(entrySignature(base), entrySignature(makeEntry(change)), `changing ${Object.keys(change)[0]} re-renders the row`);
   }
-});
-
-test("candidateRowEqual: equal when content + flags match across distinct objects; unequal on any visible change", () => {
-  const p = { entry: makeEntry(), pending: false, stale: false, selectMode: false, selected: false, draggable: true, onActions: () => {}, onMove: () => {} };
-  // Fresh entry object + fresh handler closures (what a re-render produces) — still equal.
-  const q = { entry: makeEntry(), pending: false, stale: false, selectMode: false, selected: false, draggable: true, onActions: () => {}, onMove: () => {} };
-  assert.equal(candidateRowEqual(p, q), true, "a bare re-render (new closures, same data) must NOT reconcile the row");
-
-  assert.equal(candidateRowEqual(p, { ...q, entry: makeEntry({ stage: "Interview" }) }), false, "a stage change re-renders");
-  assert.equal(candidateRowEqual(p, { ...q, stale: true }), false, "an aging flip re-renders");
-  assert.equal(candidateRowEqual(p, { ...q, selected: true }), false, "a selection change re-renders");
-  assert.equal(candidateRowEqual(p, { ...q, onActions: undefined }), false, "losing the actions affordance re-renders");
-});
-
-test("stageCellSignature folds stale + selected state, so an SLA/selection change re-renders the cell", () => {
-  const entries = [makeEntry(), makeEntry({ id: "e2" })];
-  const noneStale = () => false;
-  const e1Stale = (e: Entry) => e.id === "e1";
-  const noSel: ReadonlySet<string> = new Set();
-  const e1Sel: ReadonlySet<string> = new Set(["e1"]);
-
-  const base = stageCellSignature(entries, noneStale, noSel);
-  assert.equal(base, stageCellSignature([makeEntry(), makeEntry({ id: "e2" })], noneStale, noSel), "identical cell ⇒ identical signature");
-  assert.notEqual(base, stageCellSignature(entries, e1Stale, noSel), "an SLA override that ages e1 re-renders the cell");
-  assert.notEqual(base, stageCellSignature(entries, noneStale, e1Sel), "selecting e1 re-renders the cell");
 });
 
 // Direction 2 — aging that actually ages. The board signature folds the DERIVED
