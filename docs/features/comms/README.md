@@ -401,7 +401,9 @@ agent) lives once in `comms-recipient.ts` as `resolveCandidateRecipient`. Consum
 arrival hook (`failed`/`suppressed`, parked on the `calendar` gate like
 `unaddressable`), and the homework arrival hook (`failed`/`suppressed`, nothing
 published). Both hooks branch on the distinct `agent_population` reason first and answer
-`skipped`, parking nothing. Verdict-then-mint takes no lock; `sendComm` stays the re-check at the send.
+`skipped`, parking nothing. `dispatchInterviewInvite` and `dispatchCaseInvite` take a `CandidateCommTarget`, so the status
+resend door hands over the whole entry and the agent refusal sees `population`.
+Verdict-then-mint takes no lock; `sendComm` stays the re-check at the send.
 Locked by `comms-contactability.test.ts`,
 `app/api/schedule/invite/invite-suppression-gate.test.ts` and
 `app/_lib/stage-hooks-suppression.test.ts`.

@@ -13,6 +13,8 @@ import assert from "node:assert/strict";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { createPipelineEntry } from "./db/pipeline.ts";
 import { listOutboxFiltered } from "./db/devcase.ts";
+import { createInterviewSession } from "./db/interviews.ts";
+import { resendNextAction } from "./candidate-next-action-server.ts";
 import { REFUSED_COMMS_CHANNEL, dispatchRejection } from "./comms-dispatch.ts";
 import { setRelayHostLookupForTests } from "./comms.ts";
 
@@ -77,4 +79,30 @@ test("a person on the same slate is still delivered", async () => {
   const rows = listOutboxFiltered({ ref: person.id, kind: "rejection" });
   assert.equal(rows[0].status, "sent");
   assert.equal(rows[0].channel, "webhook");
+});
+
+test("the status resend door cannot mail an interview link to an agent that has a contact on file", async () => {
+  // The seam: resendNextAction rebuilt the invite's argument as a literal and dropped
+  // `population`, so the refusal in candidateRecipient could never fire for this door.
+  const agent = createPipelineEntry({
+    candidateId: "agent-cpop-resend",
+    candidateLabel: "Resend Agent",
+    jobId: "cpop-job-resend",
+    jobTitle: "Backend Engineer",
+    contact: "agent-box@example.com",
+    population: "agent",
+    locale: "en",
+  }).entry;
+  createInterviewSession({ provider: "openai", mode: "candidate", entryId: agent.id, candidateLabel: agent.candidateLabel, jobTitle: agent.jobTitle });
+
+  const posted = await withStubbedRelay(async () => {
+    const res = await resendNextAction(agent, { relayConfigured: true });
+    assert.deepEqual(res, { outcome: "dispatched", claim: "failed" });
+  });
+
+  assert.deepEqual(posted, [], "an entity with no mailbox must never be handed to the relay");
+  const rows = listOutboxFiltered({ ref: agent.id, kind: "interview_invite" });
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].status, "failed");
+  assert.equal(rows[0].channel, REFUSED_COMMS_CHANNEL);
 });

@@ -924,7 +924,10 @@ export async function dispatchInterviewReminder(
  *  interview_invite_sent event. `link` must be ABSOLUTE — the candidate opens it
  *  outside the app — so callers resolve it through publicBaseUrl. */
 export async function dispatchInterviewInvite(
-  entry: { id?: string | null; candidateLabel?: string | null; candidateId?: string | null; jobTitle?: string | null; locale?: string | null },
+  // CandidateCommTarget, not an inline shape: it declares `population` and `contact`, so a
+  // caller handing over a literal that drops them is a type error, not a silent bypass of
+  // the agent refusal.
+  entry: CandidateCommTarget & { locale?: string | null },
   link: string,
   // `workspaceId` mirrors dispatchInterviewReminder: this entry is a structural
   // subtype, so the caller supplies the tenant for the outbox row and the audit
@@ -975,7 +978,7 @@ export async function dispatchInterviewInvite(
  *  `link` must be ABSOLUTE: the candidate opens the apply surface outside the app, so
  *  the caller resolves it through publicBaseUrl. */
 export async function dispatchCaseInvite(
-  entry: { id?: string | null; candidateLabel?: string | null; candidateId?: string | null; jobTitle?: string | null; locale?: string | null },
+  entry: CandidateCommTarget & { locale?: string | null },
   link: string,
   // Same structural-subtype reasoning as the interview invite: the caller supplies the
   // tenant, because an entry-shaped argument is not guaranteed to carry one.

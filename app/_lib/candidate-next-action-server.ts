@@ -117,11 +117,7 @@ export async function resendNextAction(
     } else if (action.kind === "take_interview" && interview) {
       const link = pinLinkLocale(`${base}/interview/${interview.token}`, lang);
       claim = toClaim(
-        await dispatchInterviewInvite(
-          { id: entry.id, candidateLabel: entry.candidateLabel, candidateId: entry.candidateId, jobTitle: entry.jobTitle, locale: entry.locale },
-          link,
-          { durationMin: interview.durationMin, workspaceId: entry.workspaceId }
-        )
+        await dispatchInterviewInvite(entry, link, { durationMin: interview.durationMin, workspaceId: entry.workspaceId })
       );
     } else {
       claim = "failed";
