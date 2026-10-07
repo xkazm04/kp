@@ -9,7 +9,7 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { offeredSlotFor, parseInterviewTimes, proposeSlots, SLOT_HORIZON_DAYS, isScheduleInviteExpired, INVITE_LINK_TTL_DAYS, gridSlotToIso, isoToGridSlot, hourBucketKey, proposedSlotFor, validateProposedSlots, MAX_PROPOSALS, dateSlotToIso, isoToDateSlot, scheduleGridWeeks, interviewGridRows, scheduledSealOutcome } from "./schedule-slots.ts";
+import { offeredSlotFor, parseInterviewTimes, proposeSlots, SLOT_HORIZON_DAYS, isScheduleInviteExpired, scheduleInviteExpiryAnchor, INVITE_LINK_TTL_DAYS, gridSlotToIso, isoToGridSlot, hourBucketKey, proposedSlotFor, validateProposedSlots, MAX_PROPOSALS, dateSlotToIso, isoToDateSlot, scheduleGridWeeks, interviewGridRows, scheduledSealOutcome } from "./schedule-slots.ts";
 
 test("parseInterviewTimes is config-driven, validated, deduped, and falls back safely", () => {
   assert.deepEqual(parseInterviewTimes(undefined), ["10:00", "14:00"]);
@@ -197,6 +197,41 @@ test("a cancelled booking re-opens the link — the TTL runs from the cancel, no
   assert.equal(
     isScheduleInviteExpired({ status: "pending", createdAt: minted, attendanceStatus: null, attendanceAt: null }, NOW),
     true
+  );
+});
+
+// --- A candidate who proposed their own times is not stranded by the mint clock ---
+test("a proposal restarts the link clock: proposals_at is the newest anchor", () => {
+  const NOW = Date.parse("2026-06-10T12:00:00.000Z");
+  const D = 86_400_000;
+  const minted = new Date(NOW - 10 * D).toISOString();
+  const base = { status: "pending", createdAt: minted };
+  assert.equal(
+    isScheduleInviteExpired({ ...base, proposalStatus: "pending", proposalsAt: new Date(NOW - 2 * D).toISOString() }, NOW),
+    false,
+    "minted 10 days ago, proposed 2 days ago: still live"
+  );
+  assert.equal(
+    isScheduleInviteExpired({ ...base, proposalStatus: "pending", proposalsAt: new Date(NOW - 8 * D).toISOString() }, NOW),
+    true,
+    "the proposal ages out on its own clock"
+  );
+  // A recruiter's decline keeps the stamp, so it does not expire the link at the decline.
+  assert.equal(
+    isScheduleInviteExpired({ ...base, proposalStatus: "declined", proposalsAt: new Date(NOW - 2 * D).toISOString() }, NOW),
+    false,
+    "a declined proposal does not expire the link at the moment of the decline"
+  );
+  // Rows without proposal fields behave exactly as before.
+  assert.equal(isScheduleInviteExpired(base, NOW), true);
+  assert.equal(isScheduleInviteExpired({ ...base, proposalStatus: null, proposalsAt: null }, NOW), true);
+  assert.equal(scheduleInviteExpiryAnchor(base), Date.parse(minted));
+  // The newest of the three stamps wins.
+  const cancelled = new Date(NOW - 3 * D).toISOString();
+  const proposed = new Date(NOW - 1 * D).toISOString();
+  assert.equal(
+    scheduleInviteExpiryAnchor({ createdAt: minted, attendanceStatus: "cancelled", attendanceAt: cancelled, proposalStatus: "pending", proposalsAt: proposed }),
+    Date.parse(proposed)
   );
 });
 

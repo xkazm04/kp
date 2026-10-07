@@ -5,7 +5,7 @@ import { jdLastEditedAt } from "./db/jobs";
 import { getPipelineEntry, listConsentEvents, listPipelineEventsForEntry, type ConsentEvent, type PipelineEvent } from "./db/pipeline";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { listScheduleInvitesForEntry } from "./schedule-store";
-import { isScheduleInviteExpired, INVITE_LINK_TTL_DAYS } from "./schedule-slots";
+import { isScheduleInviteExpired, scheduleInviteExpiryAnchor, INVITE_LINK_TTL_DAYS } from "./schedule-slots";
 import { listOffersForEntry } from "./offers-store";
 import { jdSlugOfJobId } from "./jd-limits";
 import { withCanonicalScores } from "./match-score-resolve";
@@ -317,10 +317,10 @@ function candidateTimelineForEntry(
       // truthful instant for the lapse.
       items.push({ at: invite.slotAt ?? invite.confirmedAt ?? invite.createdAt, kind: "invite", status: "no_show" });
     } else if (isScheduleInviteExpired(invite)) {
-      // Surface the lapse at its TTL deadline (createdAt + INVITE_LINK_TTL_DAYS) so a
+      // Surface the lapse at its TTL deadline (the expiry anchor + INVITE_LINK_TTL_DAYS) so a
       // never-booked link stops reading as "sent" forever — exactly the offer branch's
       // expired-at-its-deadline handling.
-      const expiredAt = new Date(Date.parse(invite.createdAt) + INVITE_LINK_TTL_DAYS * 86_400_000).toISOString();
+      const expiredAt = new Date(scheduleInviteExpiryAnchor(invite) + INVITE_LINK_TTL_DAYS * 86_400_000).toISOString();
       items.push({ at: expiredAt, kind: "invite", status: "expired" });
     }
   }

@@ -432,6 +432,7 @@ test("declineScheduleInviteProposals clears the times and records the honest 'de
   assert.ok(declined);
   assert.equal(declined!.proposalStatus, "declined");
   assert.equal(declined!.proposals, null, "proposed times are cleared on decline");
+  assert.ok(declined!.proposalsAt, "proposals_at is kept: it anchors the link TTL (scheduleInviteExpiryAnchor)");
   // Idempotent: a second decline (no longer pending) is a no-op.
   assert.equal(declineScheduleInviteProposals(inv.token), null);
 });

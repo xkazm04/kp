@@ -746,12 +746,16 @@ export function setScheduleInviteProposals(token: string, proposals: { value: st
 /** Recruiter declined all of a candidate's proposed times: clear them and record the
  *  honest 'declined' state the candidate page reads ("couldn't accommodate — the
  *  recruiter will reach out"). Only a currently-'pending' proposal declines (so a
- *  double-tap or a stale request is a no-op). Returns the updated row, or null. */
+ *  double-tap or a stale request is a no-op). proposals_at is KEPT: it is the anchor
+ *  scheduleInviteExpiryAnchor restarts the link TTL from, and nulling it would snap the
+ *  anchor back to the mint and expire the link the moment the recruiter declines. The
+ *  'declined' status makes the stamp read as "declined at/after" (candidate-timeline).
+ *  Returns the updated row, or null. */
 export function declineScheduleInviteProposals(token: string): ScheduleInvite | null {
   const updated = db()
     .prepare(
       `UPDATE schedule_invites
-          SET proposals = NULL, proposals_at = NULL, proposal_status = 'declined'
+          SET proposals = NULL, proposal_status = 'declined'
         WHERE token = ? AND proposal_status = 'pending' RETURNING *`
     )
     .get(token) as Record<string, unknown> | undefined;

@@ -41,6 +41,16 @@ test("a pending booking invite is 'book_interview', open until the 7-day TTL", (
   assert.deepEqual(out, { kind: "book_interview", sentAt: iso(T - DAY), expiresAt: iso(T - DAY + 7 * DAY) });
 });
 
+test("a candidate's own proposal moves the stated deadline with proposals_at", () => {
+  const invite = { status: "pending", createdAt: iso(T - 10 * DAY), proposalStatus: "pending", proposalsAt: iso(T - 2 * DAY) };
+  assert.deepEqual(candidateNextAction(input({ invites: [invite] })), {
+    kind: "book_interview",
+    sentAt: iso(T - 10 * DAY),
+    expiresAt: iso(T - 2 * DAY + 7 * DAY),
+  });
+  assert.equal(candidateNextAction(input({ invites: [{ ...invite, proposalsAt: iso(T - 8 * DAY) }] })), null);
+});
+
 test("an invite past its TTL is a dead capability: the page never points at it", () => {
   assert.equal(candidateNextAction(input({ invites: [{ status: "pending", createdAt: iso(T - 8 * DAY) }] })), null);
   // A confirmed (booked) invite is not waiting on the candidate either.

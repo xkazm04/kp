@@ -64,17 +64,44 @@ const INVITE_LINK_TTL_MS = INVITE_LINK_TTL_DAYS * 86_400_000;
  *  stamp — the re-opened link still ages out, on its own clock. attendance_status is
  *  cleared on every (re-)booking, so the marker lives exactly as long as the re-opened
  *  window does; an old row with no attendance columns falls back to created_at. */
-export function isScheduleInviteExpired(
-  invite: { status: string; createdAt: string; attendanceStatus?: string | null; attendanceAt?: string | null },
-  nowMs: number = Date.now()
-): boolean {
-  if (invite.status !== "pending") return false;
+export type ScheduleInviteAnchorInput = {
+  createdAt: string;
+  attendanceStatus?: string | null;
+  attendanceAt?: string | null;
+  proposalsAt?: string | null;
+  proposalStatus?: string | null;
+};
+
+/** The instant the link's TTL counts from: the newest of created_at, the cancel-reopen
+ *  stamp, and proposals_at. A candidate who proposed their own times (the stuck-pending
+ *  escalation) has done their part and been told "they'll confirm one with you shortly";
+ *  the recruiter's reply must not be racing the mint clock, so a proposal restarts it —
+ *  the link still ages out, on its own clock. A recruiter's decline keeps proposals_at
+ *  (declineScheduleInviteProposals), so the stamp counts for 'pending' AND 'declined'
+ *  proposals. Returns NaN when created_at is unparseable. Shared with the stated
+ *  deadlines (candidate-next-action, candidate-timeline) so they cannot disagree with the
+ *  page's own answer. */
+export function scheduleInviteExpiryAnchor(invite: ScheduleInviteAnchorInput): number {
   let anchor = Date.parse(invite.createdAt);
-  if (Number.isNaN(anchor)) return false;
+  if (Number.isNaN(anchor)) return NaN;
   if (invite.attendanceStatus === "cancelled" && invite.attendanceAt) {
     const reopened = Date.parse(invite.attendanceAt);
     if (!Number.isNaN(reopened) && reopened > anchor) anchor = reopened;
   }
+  if ((invite.proposalStatus === "pending" || invite.proposalStatus === "declined") && invite.proposalsAt) {
+    const proposed = Date.parse(invite.proposalsAt);
+    if (!Number.isNaN(proposed) && proposed > anchor) anchor = proposed;
+  }
+  return anchor;
+}
+
+export function isScheduleInviteExpired(
+  invite: { status: string } & ScheduleInviteAnchorInput,
+  nowMs: number = Date.now()
+): boolean {
+  if (invite.status !== "pending") return false;
+  const anchor = scheduleInviteExpiryAnchor(invite);
+  if (Number.isNaN(anchor)) return false;
   return anchor < nowMs - INVITE_LINK_TTL_MS;
 }
 

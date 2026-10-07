@@ -1,4 +1,4 @@
-import { INVITE_LINK_TTL_DAYS, isScheduleInviteExpired } from "./schedule-slots";
+import { INVITE_LINK_TTL_DAYS, isScheduleInviteExpired, scheduleInviteExpiryAnchor } from "./schedule-slots";
 
 // WHAT IS WAITING ON THE CANDIDATE (challenge-r06 application-status-page/B).
 //
@@ -40,7 +40,7 @@ export type NextActionInput = {
   entryStatus: string;
   /** Erased/anonymized entries have nothing waiting: they are not a person any more. */
   anonymized?: boolean;
-  invites: { status: string; createdAt: string; attendanceStatus?: string | null; attendanceAt?: string | null }[];
+  invites: { status: string; createdAt: string; attendanceStatus?: string | null; attendanceAt?: string | null; proposalsAt?: string | null; proposalStatus?: string | null }[];
   openOffer: { status: string; createdAt: string; expiresAt: string | null } | null;
   interview: { mode: string; status: string; createdAt: string } | null;
   nowMs: number;
@@ -49,17 +49,6 @@ export type NextActionInput = {
 function isoPlusDays(iso: string, days: number): string | null {
   const ms = Date.parse(iso);
   return Number.isNaN(ms) ? null : new Date(ms + days * DAY_MS).toISOString();
-}
-
-/** The anchor isScheduleInviteExpired counts the TTL from: a cancel-reopened invite
- *  restarts its clock at the cancel stamp. Same derivation, so the stated deadline and
- *  the booking page's own "expired" answer never disagree. */
-function inviteAnchor(invite: NextActionInput["invites"][number]): string {
-  if (invite.attendanceStatus === "cancelled" && invite.attendanceAt) {
-    const reopened = Date.parse(invite.attendanceAt);
-    if (!Number.isNaN(reopened) && reopened > Date.parse(invite.createdAt)) return invite.attendanceAt;
-  }
-  return invite.createdAt;
 }
 
 /** The booking invite the page points at: the newest still-pending, unexpired one. The
@@ -92,7 +81,7 @@ export function candidateNextAction(input: NextActionInput): CandidateNextAction
 
   const live = pickLiveInvite(input.invites, now);
   if (live) {
-    return { kind: "book_interview", sentAt: live.createdAt, expiresAt: isoPlusDays(inviteAnchor(live), INVITE_LINK_TTL_DAYS) };
+    return { kind: "book_interview", sentAt: live.createdAt, expiresAt: new Date(scheduleInviteExpiryAnchor(live) + INVITE_LINK_TTL_DAYS * DAY_MS).toISOString() };
   }
 
   const iv = input.interview;

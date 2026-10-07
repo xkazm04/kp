@@ -271,6 +271,17 @@ test("a stale pending invite past its TTL renders derived 'expired'", () => {
   assert.deepEqual(inviteStatuses(e.entry.id), ["sent", "expired"], "a never-booked stale link stops reading as live");
 });
 
+test("the expired instant follows proposals_at, not the mint", () => {
+  const e = createPipelineEntry({ candidateId: "cand-exp-prop", candidateLabel: "Ex Prop", jobId: "jd-frontend", jobTitle: "Frontend Engineer" });
+  const inv = createScheduleInvite({ entryId: e.entry.id });
+  setScheduleInviteProposals(inv.token, [{ value: "2030-02-01T09:00:00.000Z", label: "Fri 1 Feb · 09:00" }]);
+  const raw = new Database(UNIT_DB_PATH);
+  raw.prepare(`UPDATE schedule_invites SET created_at = ?, proposals_at = ? WHERE token = ?`).run("2020-01-01T00:00:00.000Z", "2020-01-10T00:00:00.000Z", inv.token);
+  raw.close();
+  const expired = candidateDrawerBundle(e.entry.id)!.items.find((i) => i.kind === "invite" && i.status === "expired");
+  assert.equal(expired?.at, "2020-01-17T00:00:00.000Z", "proposals_at + 7 days, not created_at + 7 days");
+});
+
 test("a live pending/confirmed invite is unchanged (no terminal item)", () => {
   const ep = createPipelineEntry({ candidateId: "cand-live", candidateLabel: "Liv Ely", jobId: "jd-frontend", jobTitle: "Frontend Engineer" });
   createScheduleInvite({ entryId: ep.entry.id });
