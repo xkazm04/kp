@@ -16,7 +16,7 @@ Reconciled first: fixes 1-4 are 9eeba1f70; none of 5-7 was on main.
 | --- | --- | --- | --- |
 | 5 | 849eb78ea | both arrival hooks branch on `contactVerdict`'s `agent_population` and answer `skipped`/`agent_population`, parking nothing. The homework hook skips at its first gate, before a case is designed. No new localized string. | `stage-hooks.test.ts`, `stage-hooks-homework.test.ts` |
 | 6 | ed3ff3ea9 | `dispatchInterviewInvite` and `dispatchCaseInvite` take `CandidateCommTarget & { locale }`; `resendNextAction` passes the whole entry. | `comms-dispatch-population.test.ts` (resend door, agent with a contact) |
-| 7 | see log | `buildAtsRecord` refuses `isAgentPopulation` entries with `AtsRecordRefusedError("agent_population")`; `AtsRefusalReason` widens the egress refusal type, whose handling is unchanged (terminal dead-letter). No schema bump. | `ats-record.test.ts` |
+| 7 | b9f45b1aa | `buildAtsRecord` refuses `isAgentPopulation` entries with `AtsRecordRefusedError("agent_population")`; `AtsRefusalReason` widens the egress refusal type, whose handling is unchanged (terminal dead-letter). No schema bump. | `ats-record.test.ts` |
 
 Each test was run red against the unchanged source before the fix.
 
