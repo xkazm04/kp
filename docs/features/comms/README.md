@@ -369,6 +369,7 @@ It is now re-asserted at the channel handoff, in `comms.ts`:
   rejection or an offer letter is owed to a candidate who replied, not withheld.
 - An **entry-less** comm (a KO decline, a dev-case ack whose `ref` is a submission id)
   carries no candidate identity to consult and passes through.
+- The **KO decline** (`dispatchKnockoutDecline`) now goes out at every public door whenever an address is in hand (no longer webhook-only / `notifyDecline`-gated), after the response. Its `koDecline.body` names the failed must-have(s) (`failedKoIds` → `koMustHaveNames`, in the letter's language) and says a reply reaches a person who will review; no relay = an outbox row only. Contract: `docs/features/candidates/README.md`.
 - An unreadable pipeline store fails **closed** (`consent_expired`, logged) — this gate
   is the last thing between an erased candidate and a letter.
 - A refusal throws `CommsSuppressedError`, whose `code` is `COMMS_SUPPRESSED`
