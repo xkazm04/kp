@@ -292,3 +292,16 @@ export function buildApplyProfileDraft(
     answers.archetype && ARCHETYPE_IDS.has(answers.archetype) ? answers.archetype : "auto";
   return { profile, signals: { selfDeclared } };
 }
+
+/** The short, plain-words name of each knockout must-have — what the decline screen
+ *  and the decline email NAME, not the question the candidate was asked. Keyed by the
+ *  step id `applyKoSteps` mints; an id this table does not know is dropped rather
+ *  than shown raw (an internal id is never candidate copy). */
+const KO_NAME_KEYS = { ko_auth: "koName.auth", ko_mode: "koName.mode", ko_lang: "koName.lang" } as const;
+
+/** Resolve failed KO step ids to their short names in the translator's language.
+ *  `t` is any apply-namespace translator: the request's (routes) or the candidate's
+ *  pinned one (the decline email). Order follows `ids`. */
+export function koMustHaveNames(ids: readonly string[], t: (key: (typeof KO_NAME_KEYS)[keyof typeof KO_NAME_KEYS]) => string): string[] {
+  return ids.flatMap((id) => (id in KO_NAME_KEYS ? [t(KO_NAME_KEYS[id as keyof typeof KO_NAME_KEYS])] : []));
+}

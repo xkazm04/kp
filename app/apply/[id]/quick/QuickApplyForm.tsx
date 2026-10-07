@@ -12,6 +12,7 @@ import { clearApplySession, ensureApplySession, readApplySession } from "@/app/_
 import { BTN_PRIMARY, BTN_SECONDARY } from "@/app/_components/ui/recipes";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { applySubmitFailure } from "../apply-submit-outcome";
+import { ApplyDeclineDetail } from "../ApplyDeclineDetail";
 
 type KoStep = { id: string; prompt: string };
 
@@ -96,6 +97,10 @@ export function QuickApplyForm({
     // The durable status-tracking token (capst-l1-002) — the same one the ack
     // email carries, so the lead can check where they stand after the tab closes.
     statusToken?: string;
+    // A KO decline's detail (see ApplyDeclineDetail): the must-have(s) named in the
+    // applicant's language, and whether a decline email is being sent.
+    failedKoNames?: string[];
+    reviewByEmail?: boolean;
   } | null>(null);
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
 
@@ -167,6 +172,8 @@ export function QuickApplyForm({
           duplicate: Boolean(d.duplicate),
           leadToken: typeof d.leadToken === "string" ? d.leadToken : undefined,
           statusToken: typeof d.statusToken === "string" ? d.statusToken : undefined,
+          failedKoNames: Array.isArray(d.failedKoNames) ? d.failedKoNames.filter((n: unknown): n is string => typeof n === "string") : undefined,
+          reviewByEmail: Boolean(d.reviewByEmail),
         });
       } else {
         // The form retains every answer, so both failure classes recover the same
@@ -199,6 +206,7 @@ export function QuickApplyForm({
             {done.result === "accepted" ? (done.duplicate ? t("alreadyApplied") : t("youreIn")) : t("thanksApplying")}
           </p>
           <p className="mt-1 text-base text-steel">{done.message}</p>
+          {done.result === "declined" ? <ApplyDeclineDetail names={done.failedKoNames ?? []} reviewByEmail={Boolean(done.reviewByEmail)} /> : null}
           {done.result === "declined" ? (
             <button
               type="button"

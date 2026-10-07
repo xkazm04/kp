@@ -4,7 +4,7 @@ import { getServerLocale } from "@/i18n/server";
 import { getJob, getJobWorkspace } from "@/app/_lib/db/jobs";
 import { findApplicationByApplicant } from "@/app/_lib/db/pipeline";
 import { recoverApplicationLinks, recoveryMessageKey } from "@/app/_lib/apply-link-recovery";
-import { applyKoSteps } from "@/app/_lib/apply";
+import { applyKoSteps, koMustHaveNames } from "@/app/_lib/apply";
 import { APPLY_EMAIL_RE, failedKoStepIds, isHoneypotFilled } from "@/app/_lib/apply-intake";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { linkApplySession } from "@/app/_lib/apply-session-store";
@@ -131,6 +131,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const addressOnFile = findApplicationByApplicant(job.id, "", email, getJobWorkspace(job.id));
 
     const expectedKoIds = applyKoSteps(job, t).map((s) => s.id);
+    const failedKoIds = failedKoStepIds(expectedKoIds, answers);
     const outcome = await intakeLead({
       job,
       name,
@@ -160,7 +161,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       // contact of record and mailed them its status link.
       proof: "none",
       // STRICT verdict: every expected KO answer must be present AND true.
-      failedKoIds: failedKoStepIds(expectedKoIds, answers),
+      failedKoIds,
       // …so an ACCEPT means every gate was explicitly answered true: record them
       // all, and the enrichment chat skips exactly these (a gate the job gains
       // later isn't in the record and gets asked).
@@ -181,7 +182,18 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     });
 
     if (outcome.result === "declined") {
-      return NextResponse.json({ result: "declined", message: t("declinedMessage") });
+      // The gate is automatic, so the screen NAMES the must-have(s) and says how to
+      // ask a person to review — and the decline email (lead-intake, deferred like the
+      // ack) carries the same route. The address is always in hand on this form;
+      // `reviewByEmail` is "we are sending it", never "it arrived": the server cannot
+      // vouch for delivery, only for a relay to hand it to.
+      return NextResponse.json({
+        result: "declined",
+        message: t("declinedMessage"),
+        failedKo: failedKoIds,
+        failedKoNames: koMustHaveNames(failedKoIds, t),
+        reviewByEmail: isRelayConfigured(),
+      });
     }
     // The lead was filed (new or duplicate) — link the attempt that produced it.
     linkApplySession(typeof body.applySessionId === "string" ? body.applySessionId : null, outcome.entryId);

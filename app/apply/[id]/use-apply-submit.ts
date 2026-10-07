@@ -105,6 +105,8 @@ export function useApplySubmit({
           duplicate: Boolean(d.duplicate),
           enriched: Boolean(d.enriched),
           statusToken: d.statusToken ?? null,
+          failedKoNames: Array.isArray(d.failedKoNames) ? d.failedKoNames.filter((n: unknown): n is string => typeof n === "string") : undefined,
+          reviewByEmail: Boolean(d.reviewByEmail),
           followupToken: typeof d.followupToken === "string" ? d.followupToken : null,
           followupGaps: Array.isArray(d.followupGaps) ? (d.followupGaps as CompletenessGap[]) : undefined,
         });

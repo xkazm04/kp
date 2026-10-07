@@ -4,7 +4,7 @@ import { getServerLocale } from "@/i18n/server";
 import { getJob, getJobWorkspace } from "@/app/_lib/db/jobs";
 import { ensureLeadEnrichToken, findEntryByLeadToken, recordAutomationEvent, recordKnockoutDecline, setEntryProfileGaps, type EntryProfileGap } from "@/app/_lib/db/pipeline";
 import { GAP_FIELDS } from "@/app/_lib/completeness-followup";
-import { applyKoSteps } from "@/app/_lib/apply";
+import { applyKoSteps, koMustHaveNames } from "@/app/_lib/apply";
 import { ANONYMOUS_APPLICANT_LABEL, APPLY_EMAIL_RE, coerceGithubHandle, coerceLeadTokenParam, failedKoStepIds, isHoneypotFilled } from "@/app/_lib/apply-intake";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { linkApplySession } from "@/app/_lib/apply-session-store";
@@ -17,6 +17,8 @@ import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { afterResponse } from "@/app/_lib/after-response";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 import { capAttribution } from "@/app/_lib/lead-payload";
+import { dispatchKnockoutDecline } from "@/app/_lib/comms-dispatch";
+import { sanitizeFreeText } from "@/app/_lib/text-sanitize";
 
 // How many of the profile's unmet-checklist gaps the candidate is offered right
 // after "You're in". Deliberately small: this is a courtesy ask on a flow that has
@@ -253,9 +255,31 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         // to the default workspace (see recordKnockoutDecline).
         workspaceId,
       });
+      // The gate is automatic, so the candidate is told WHICH must-have ended it and how
+      // to ask a person to review. The conversational door collects the address BEFORE the
+      // KO answers, so whenever a valid one is in hand the decline email goes out (the
+      // lead-intake core's rule, deferred like the ack). The response never claims
+      // delivery: `reviewByEmail` means "we are handing it to a relay".
+      const declineEmail = String(answers.email ?? "").trim();
+      const reachable = declineEmail.length > 0 && declineEmail.length <= MAX_EMAIL_LENGTH && APPLY_EMAIL_RE.test(declineEmail);
+      if (reachable) {
+        afterResponse("apply-ko-decline", () =>
+          dispatchKnockoutDecline({
+            email: declineEmail,
+            name: sanitizeFreeText(providedName) || null,
+            jobTitle: job.title,
+            locale: applicantLocale,
+            workspaceId,
+            failedKoIds: failedKo,
+          })
+        );
+      }
       return NextResponse.json({
         result: "declined",
         message: t("declinedMessage"),
+        failedKo,
+        failedKoNames: koMustHaveNames(failedKo, t),
+        reviewByEmail: reachable && isRelayConfigured(),
       });
     }
 

@@ -74,9 +74,9 @@ export type LeadIntakeInput = {
    *  in keeps byte-identical ordering. Only the dispatch's TIMING moves — every
    *  dispatch still happens, including the "newly reachable" re-ack below. */
   defer?: (task: () => Promise<void>) => void;
-  /** Webhook surfaces pass true so a KO-declined lead is TOLD the outcome — their
-   *  only touchpoint said "submitted" on a third-party board. The own quick-apply
-   *  form keeps this false: it shows the decline live in the UI (no double message). */
+  /** @deprecated No effect. A KO-declined lead is now told by email at EVERY door
+   *  whenever an address is in hand (the gate is automatic, so the letter names the
+   *  must-have and the review route); webhook callers still pass true. */
   notifyDecline?: boolean;
   /** What a repeat may write (application-filing.ts PROOF). Default "channel": a
    *  tokened webhook is an authenticated integration. A PUBLIC door whose match can
@@ -134,26 +134,37 @@ export async function intakeLead(input: LeadIntakeInput): Promise<LeadIntakeOutc
       workspaceId,
     });
     // The adverse outcome is where the never-ghost promise matters most — and the
-    // email is in hand. Best-effort like the ack: a comms failure never changes
-    // the intake verdict, and the outbox row makes the decline auditable.
-    if (input.notifyDecline && email) {
-      try {
-        // Same tenant the decline RECORD above was filed into: the notice is entry-less
-        // (no entry exists yet), so without this its outbox row lands in the DEFAULT
-        // team's Comms Center — invisible to the team that owns the opening.
-        await dispatchKnockoutDecline({
-          email,
-          name: name || null,
-          jobTitle: job.title,
-          locale: input.locale,
-          workspaceId,
-        });
-      } catch (declineErr) {
-        console.error(
-          `[lead-intake] KO decline recorded but notification failed for ${email}:`,
-          declineErr instanceof Error ? declineErr.message : declineErr
-        );
-      }
+    // gate is AUTOMATIC, so whenever an address is in hand the candidate is told which
+    // must-have ended the application and how to ask a person to review it (the
+    // letter's reply route; comms-dispatch dispatchKnockoutDecline). Best-effort like
+    // the ack: a comms failure never changes the intake verdict, the outbox row makes
+    // the decline auditable, and a local start with no relay degrades exactly as the
+    // other comms do. Deferred off the response path when the caller can (the ack's
+    // rule): the decline screen must not wait on an SMTP round-trip.
+    if (email) {
+      const send = async (): Promise<void> => {
+        try {
+          // Same tenant the decline RECORD above was filed into: the notice is entry-less
+          // (no entry exists yet), so without this its outbox row lands in the DEFAULT
+          // team's Comms Center — invisible to the team that owns the opening.
+          await dispatchKnockoutDecline({
+            email,
+            name: name || null,
+            jobTitle: job.title,
+            locale: input.locale,
+            workspaceId,
+            failedKoIds: input.failedKoIds,
+          });
+        } catch (declineErr) {
+          // Never the address: the log line names the role, not the person.
+          console.error(
+            `[lead-intake] KO decline recorded but notification failed for job ${job.id}:`,
+            declineErr instanceof Error ? declineErr.message : declineErr
+          );
+        }
+      };
+      if (input.defer) input.defer(send);
+      else await send();
     }
     return { result: "declined" };
   }

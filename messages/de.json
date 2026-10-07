@@ -576,7 +576,8 @@
     },
     "koDecline": {
       "subject": "Ihre Bewerbung: {role}",
-      "body": "Hallo {name},\n\nvielen Dank für Ihre Bewerbung auf {role}. Eine der Eignungsvoraussetzungen für die Stelle ist derzeit nicht erfüllt, daher können wir Ihre Bewerbung nicht weiterverfolgen.\n\nAnforderungen können sich mit der Zeit ändern. Wir würden uns freuen, wenn Sie sich in Zukunft erneut bewerben.\n\nAlles Gute für Sie,\n{team}"
+      "body": "Hallo {name},\n\nvielen Dank für Ihre Bewerbung auf {role}. Sie haben eine Voraussetzung, die die Stelle ausdrücklich verlangt, mit Nein beantwortet:\n\n{mustHaves}\n\nDamit endet die Bewerbung automatisch; kein Mensch hat darüber entschieden. Halten Sie das für falsch oder haben Sie sich vertippt, antworten Sie einfach auf diese Nachricht, dann überprüft ein Mensch die Entscheidung.\n\nAnforderungen können sich mit der Zeit ändern. Wir würden uns freuen, wenn Sie sich in Zukunft erneut bewerben.\n\nAlles Gute für Sie,\n{team}",
+      "mustHaveFallback": "eine der Voraussetzungen der Stelle"
     },
     "offer": {
       "subjectFallback": "Angebot: {role}",
@@ -2289,7 +2290,16 @@
     },
     "fixAnswer": "Antwort korrigieren",
     "alreadyMessageRecover": "Sie haben sich anscheinend bereits auf diese Stelle beworben, und Ihre frühere Bewerbung ist weiterhin in unserer Pipeline. Falls uns dazu eine E-Mail-Adresse vorliegt, haben wir Ihnen soeben dorthin den Link zu Ihrem Bewerbungsstatus und einen Link zum Aktualisieren Ihrer Bewerbung gesendet.",
-    "alreadyMessageNoRelay": "Sie haben sich anscheinend bereits auf diese Stelle beworben, und Ihre frühere Bewerbung ist weiterhin in unserer Pipeline. Ihren aktuellen Stand sehen Sie über den Statuslink, den Sie bei Ihrer ersten Bewerbung erhalten haben."
+    "alreadyMessageNoRelay": "Sie haben sich anscheinend bereits auf diese Stelle beworben, und Ihre frühere Bewerbung ist weiterhin in unserer Pipeline. Ihren aktuellen Stand sehen Sie über den Statuslink, den Sie bei Ihrer ersten Bewerbung erhalten haben.",
+    "koName": {
+      "auth": "Arbeitserlaubnis für das Land der Stelle",
+      "mode": "Der Arbeitsort der Stelle (vor Ort oder hybrid)",
+      "lang": "Die Arbeitssprache der Stelle"
+    },
+    "declinedMustHave": "Nicht erfüllte Voraussetzung:",
+    "declinedAutoNote": "Wer eine Voraussetzung, die die Stelle ausdrücklich nennt, mit Nein beantwortet, dessen Bewerbung endet automatisch. Diese Entscheidung hat kein Mensch getroffen, und Sie können verlangen, dass ein Mensch sie überprüft.",
+    "declinedReviewEmail": "Wir senden Ihnen diese Entscheidung per E-Mail an die angegebene Adresse. Antworten Sie einfach auf diese Nachricht, dann prüft ein Mensch sie. Kommt nichts an, wenden Sie sich direkt an das Team, das die Stelle besetzt.",
+    "declinedReviewNoEmail": "Wir konnten Ihnen die Entscheidung nicht per E-Mail schicken. Damit ein Mensch sie überprüft, wenden Sie sich bitte direkt an das Team, das die Stelle besetzt."
   },
   "interview": {
     "completedTitle": "Vielen Dank",

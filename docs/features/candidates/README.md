@@ -830,6 +830,28 @@ non-default team, `app/api/apply/[id]/filing-core-door.test.ts`.
   persist an entry-less `ko_declined` event carrying the applicant's display
   name, and `pipeline_events` bounds the event *detail*, not the label — so the
   name cap runs above the gate on both routes.
+- **The knockout decline is automatic, and says so.** A "no" to a stated must-have
+  (`ko_auth` / `ko_mode` / `ko_lang`) ends the application with no person in front of
+  it — the owner's decision is to keep that, and to tell the candidate. Both doors
+  answer the decline with the fixed `declinedMessage` PLUS the failed must-have(s) as
+  data: `failedKo` (the step ids) and `failedKoNames` (their short names in the
+  applicant's locale, `koMustHaveNames` in `app/_lib/apply.ts` — a name, never the
+  question), and `reviewByEmail` (an address is in hand AND a relay is configured).
+  The shared `ApplyDeclineDetail` renders them on both decline screens with the
+  automatic-decision note and the review route; with `reviewByEmail` false it says the
+  email could not be sent and points at the hiring team, because the server can vouch for
+  handing a message to a relay, never for its delivery. Whenever an address is in hand
+  (the quick door always; the conversational door when its `email` answer is valid) the
+  decline email — `dispatchKnockoutDecline`, no longer gated on `notifyDecline` — is
+  sent after the response, names the must-have(s) and says a reply reaches a person who
+  will review (the `status.decisions.humanReviewNote` promise). No relay = the outbox
+  row only, like every other comm. `recordKnockoutDecline`'s `ko_declined` event is
+  unchanged: entry-less, no address, classed `auto`. Pinned by
+  `app/api/apply/[id]/ko-decline-door.test.ts`.
+- **A quick-apply repeat renews nothing.** The form is public, so even a typed address
+  that is on file proves nothing: the door passes proof `none`, the candidate gets the
+  "already applied" answer and the address ON FILE gets its links back, but consent,
+  retention and the `re_applied` trail are untouched (`reapply-capability-gate.test.ts`).
 
 **A duplicate response carries no capability token** (pinned by
 `app/api/apply/apply-error-hygiene.test.ts`). Both surfaces detect a repeat from

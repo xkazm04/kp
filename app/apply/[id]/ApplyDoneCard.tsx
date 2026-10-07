@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { BTN_PRIMARY, BTN_SECONDARY } from "@/app/_components/ui/recipes";
 import type { ApplyOutcome } from "./apply-chat-types";
+import { ApplyDeclineDetail } from "./ApplyDeclineDetail";
 
 /** The outcome card that closes the conversation — the last bubble in the
  *  transcript's aria-live log, so a screen reader announces the verdict the same
@@ -26,6 +27,7 @@ export function ApplyDoneCard({ done, onRestart }: { done: ApplyOutcome; onResta
           : t("thanksApplying")}
       </p>
       <p className="mt-1 text-base text-steel">{done.message}</p>
+      {done.result === "declined" ? <ApplyDeclineDetail names={done.failedKoNames ?? []} reviewByEmail={Boolean(done.reviewByEmail)} /> : null}
       {/* idea-e76a6fb2 — a tokenized link so the applicant can track their
           status instead of going dark after applying. */}
       {done.result === "accepted" && done.statusToken ? (

@@ -576,7 +576,8 @@
     },
     "koDecline": {
       "subject": "Votre candidature : {role}",
-      "body": "Bonjour {name},\n\nMerci d’avoir postulé pour {role}. L’une des conditions d’éligibilité du poste n’est pas remplie pour le moment, nous ne pouvons donc pas donner suite à votre candidature.\n\nLes conditions peuvent évoluer avec les postes. Nous serions ravis de vous revoir postuler à l’avenir.\n\nNous vous souhaitons le meilleur,\n{team}"
+      "body": "Bonjour {name},\n\nMerci d’avoir postulé pour {role}. Vous avez répondu non à une condition que le poste exige expressément :\n\n{mustHaves}\n\nCela met fin à la candidature automatiquement ; aucune personne n’a pris cette décision. Si vous pensez qu’il s’agit d’une erreur, ou si vous avez répondu par erreur, répondez à ce message et une personne réexaminera la décision.\n\nLes conditions peuvent évoluer avec les postes. Nous serions ravis de vous revoir postuler à l’avenir.\n\nNous vous souhaitons le meilleur,\n{team}",
+      "mustHaveFallback": "l’une des conditions du poste"
     },
     "offer": {
       "subjectFallback": "Offre : {role}",
@@ -2289,7 +2290,16 @@
     },
     "fixAnswer": "Corriger la réponse",
     "alreadyMessageRecover": "Il semble que vous ayez déjà postulé à ce poste, et votre candidature précédente est toujours dans notre pipeline. Si nous disposons d'une adresse e-mail pour celle-ci, nous venons d'y envoyer votre lien de suivi et un lien pour mettre à jour votre candidature.",
-    "alreadyMessageNoRelay": "Il semble que vous ayez déjà postulé à ce poste, et votre candidature précédente est toujours dans notre pipeline. Pour savoir où elle en est, utilisez le lien de suivi reçu lors de votre première candidature."
+    "alreadyMessageNoRelay": "Il semble que vous ayez déjà postulé à ce poste, et votre candidature précédente est toujours dans notre pipeline. Pour savoir où elle en est, utilisez le lien de suivi reçu lors de votre première candidature.",
+    "koName": {
+      "auth": "L’autorisation de travailler dans le pays du poste",
+      "mode": "Le mode de travail du poste (sur site ou hybride)",
+      "lang": "La langue de travail du poste"
+    },
+    "declinedMustHave": "Condition non remplie :",
+    "declinedAutoNote": "Répondre non à une condition que le poste exige expressément met fin à la candidature automatiquement. Aucune personne n’a pris cette décision, et vous pouvez demander qu’une personne la réexamine.",
+    "declinedReviewEmail": "Nous vous envoyons cette décision par e-mail à l’adresse indiquée. Répondez simplement à ce message et une personne la réexaminera. Si rien n’arrive, contactez directement l’équipe qui recrute pour ce poste.",
+    "declinedReviewNoEmail": "Nous n’avons pas pu vous envoyer cette décision par e-mail. Pour qu’une personne la réexamine, contactez directement l’équipe qui recrute pour ce poste."
   },
   "interview": {
     "completedTitle": "Merci",

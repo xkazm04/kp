@@ -16,6 +16,7 @@ import { publicBaseUrl, publicOriginIsFallback } from "./public-base-url.ts";
 import { resolveCommsLocale } from "./comms-locale";
 import { commsTranslator, type CommsTranslator } from "./comms-translator";
 import { namespaceTranslator } from "./catalog-translator";
+import { koMustHaveNames } from "./apply";
 import type { Locale } from "@/i18n/locales";
 import { pinLinkLocale } from "./candidate-link-locale";
 import { INTERVIEW_TZ } from "./schedule-slots";
@@ -621,13 +622,14 @@ export async function dispatchInterviewLetter(
   return (await sendCandidateComm(entry, t, { subject, body: lines.join("\n"), kind: "interview_letter" }, letter.locale)).status;
 }
 
-/** Tell a KO-declined lead the outcome — entry-less by design. Channel leads are
- *  declined BEFORE any pipeline entry exists (lead-intake's knockout gate), so the
- *  one identity in hand is the inbound email; `ref` is omitted and the envelope
- *  ships null context (comms-envelope handles a missing entry). The own quick-apply
- *  form shows the decline live in the UI — this comm is for webhook surfaces whose
- *  candidate saw "submitted" on a third-party board and would otherwise hear
- *  nothing, ever.
+/** Tell a KO-declined lead the outcome — entry-less by design. Leads are
+ *  declined BEFORE any pipeline entry exists (lead-intake's knockout gate, and the
+ *  conversational door's own), so the one identity in hand is the email; `ref` is
+ *  omitted and the envelope ships null context (comms-envelope handles a missing
+ *  entry). EVERY door sends it whenever an address is in hand: the gate is automatic,
+ *  so the letter names the must-have and carries the human-review route (a reply
+ *  reaches a person — the same promise as status.decisions.humanReviewNote). Webhook
+ *  candidates additionally saw only "submitted" on a third-party board.
  *
  *  TENANT (comms-tenancy-pair): with no entry there is nothing for recordOutbox to
  *  derive a workspace from, so the row used to land in the DEFAULT team's Comms
@@ -642,13 +644,20 @@ export async function dispatchKnockoutDecline(input: {
   locale?: string | null;
   /** The team that owns the declined lead. Omitted ⇒ the default workspace. */
   workspaceId?: string | null;
+  /** The KO step ids the candidate answered no to. The letter NAMES them (in the
+   *  letter's language) and carries the human-review route — the decline is automatic,
+   *  so the person it affects is told which must-have it was and who to ask. */
+  failedKoIds?: readonly string[];
 }): Promise<DispatchOutcome> {
   const locale = candidateLocale(input.locale, input.workspaceId);
   const t = await commsTranslator(locale);
+  const ta = await namespaceTranslator(locale, "apply");
   const name = (input.name ?? "").trim() || t("there");
   const role = input.jobTitle ?? t("theRole");
   const subject = t("koDecline.subject", { role });
-  const body = t("koDecline.body", { name, role, team: t("team") });
+  const named = koMustHaveNames(input.failedKoIds ?? [], ta);
+  const mustHaves = (named.length > 0 ? named : [t("koDecline.mustHaveFallback")]).map((n) => `- ${n}`).join("\n");
+  const body = t("koDecline.body", { name, role, team: t("team"), mustHaves });
   return dispatchOutcome(await sendCommUnlessSim({ to: input.email, subject, body, kind: "ko_decline", workspaceId: input.workspaceId }, input.jobTitle));
 }
 

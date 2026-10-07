@@ -1585,3 +1585,13 @@ version)`.
   spec card that explains the composer's assumptions does not translate — the
   remaining English-on-the-wire leak in this surface now that every refusal
   carries a code.
+
+## Candidate-side counterpart: the knockout decline
+
+The RoleBrief's must-haves are what a candidate's apply door later gates on, so the
+decline contract is stated here as well. The gate is automatic: a candidate who answers
+no to a stated must-have is declined without a person, is told WHICH must-have on the
+decline screen (in their language) and by email whenever an address is in hand, and is
+told how to ask a person to review. Full contract and pins:
+[candidates/README.md](../candidates/README.md) (*The knockout decline is automatic,
+and says so*).
