@@ -440,3 +440,12 @@ sent. An approval that arrives after the effect is not an approval, and
   (d) *This amendment decides nothing about building it.* Whether role-run gates get a
   door is the owner's call, and it is open as line 1 of the compliant-hiring-decision
   council report.
+- **2026-10-07 — the apply knockout is the one automatic decline; force 2 has
+  this exception.** Force 2 says any automation that reaches a person-affecting
+  decision must arrive at the human gate. A candidate who answers no to a stated
+  must-have is declined at the apply door with no person in the loop, and the
+  owner decided to keep it that way (ask 1df7d0a0). The candidate is told which
+  must-have it was and offered a person to review it afterward. The decline is
+  recorded as an entry-less `ko_declined` event classed `auto`, not sealed in
+  the decision chain. The Art. 22(2) basis is not recorded in the tree. See
+  [ADR 0019](0019-the-knockout-decline-is-automatic-and-says-so.md).

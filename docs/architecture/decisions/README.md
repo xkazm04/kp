@@ -29,6 +29,7 @@ to be true for it to change?*
 - write a `dev_audit` row, or put a candidate's name in an audit reason → [0016](0016-dev-audit-records-the-outcome-never-the-candidate.md)
 - seal or refuse a recruiter accept/reject at the commit door, or add a best-effort seal beside one → [0017](0017-a-human-adverse-decision-is-sealed-before-it-commits.md)
 - store a machine verdict in `approval_detail`, change what a Match add carries, or count Match rankings in the reasons meter → [0018](0018-a-match-verdict-is-sealed-in-the-decision-chain.md)
+- add or change an automatic decline, a knockout question, or a claim that a rejection is a person's → [0019](0019-the-knockout-decline-is-automatic-and-says-so.md)
 
 ## Index
 
@@ -52,6 +53,7 @@ to be true for it to change?*
 | [0016](0016-dev-audit-records-the-outcome-never-the-candidate.md) | A dev_audit row records the outcome and the outcome key, never a candidate label | accepted | 2026-10-07 |
 | [0017](0017-a-human-adverse-decision-is-sealed-before-it-commits.md) | A human adverse decision is sealed before it commits | accepted | 2026-10-07 |
 | [0018](0018-a-match-verdict-is-sealed-in-the-decision-chain.md) | A Match verdict is sealed in the decision chain as facts, before the add files the entry | accepted | 2026-10-07 |
+| [0019](0019-the-knockout-decline-is-automatic-and-says-so.md) | The apply knockout decline is automatic, names the must-have, and offers a person to review it | accepted | 2026-10-07 |
 
 ## Writing a new one
 
