@@ -55,7 +55,7 @@ than silently dropping a reason.
 - **Group evaluation** (fairness matrix, weight rationale) —
   `app/features/hiring/decisions/GroupEvalModal.tsx`, `GroupEvalComparisonCells.tsx`.
 - **Recruiter candidate list** (experienced vs. early-career columns) —
-  `app/features/library/jobs/JobsRecruiterCandidatesCard.tsx`.
+  `app/features/library/jobs/JobsRecruiterCandidates.tsx`.
 - **Interview compare** (per-cohort rubric) —
   `app/features/library/jobs/JobsCompareInterviews.tsx`.
 - **About → Archetypes chapter** (how a candidate is routed, and why the three
@@ -1368,7 +1368,7 @@ side either; it was removed, and a test asserts it does not come back.
     "data/taxonomy.json", "pipeline/jobfit/taxonomy_check.py",
     "app/_lib/candidate-pool.ts", "app/_lib/group-eval*.ts",
     "app/features/insights/matrix/**",
-    "app/features/library/jobs/JobsRecruiterCandidatesCard.tsx",
+    "app/features/library/jobs/JobsRecruiterCandidates.tsx",
     "app/features/library/jobs/JobsCompareInterviews*.tsx",
     "app/features/insights/about/scenes/archetypes/**"
   ] }
