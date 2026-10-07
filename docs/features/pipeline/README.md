@@ -1706,6 +1706,15 @@ gate still refuses to contact them. The rule and its reasoning:
 [the jobs doc](../jobs/README.md#silver-medalist-alerts-are-a-reconciled-projection-behind-one-eligibility-gate).
 Pinned by `app/api/pipeline/add-eligibility.test.ts`.
 
+After every cheap refusal and before the first write (the Match verdict's seal), the
+add is throttled per workspace and IP (`pipeline-add:<workspace>:<ip>`, 600/10min →
+`429 TOO_MANY_REQUESTS`, nothing written). The Fit Matrix's sequential bulk add is the
+heaviest honest caller; the role demo and the automation pass create entries in-process
+and never reach this door. The workspace sits in the key because with no trusted proxy
+every caller shares one IP bucket, and a demo visitor must not be able to lock a real
+team out of adding. Pinned by `app/api/rate-limit-contract.test.ts` and, on the real
+handler, `app/api/pipeline/add-rate-limit.test.ts`.
+
 ### The note thread — authored notes beside the scratchpad
 
 `pipeline_entries.notes` is still one free-text scratchpad (`set_notes`, autosaved, unchanged).

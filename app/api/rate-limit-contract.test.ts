@@ -1378,6 +1378,27 @@ const ROUTES: RouteSpec[] = [
     // non-operator must never be able to spend another caller's window.
     servedBefore: "const denied = await requireOperator();",
   },
+  {
+    // ADDED 2026-10-07 (pipeline write-doors scan), with the limiter itself. The add
+    // door files an entry, can reopen a rejected one and seals a Match verdict per
+    // call, and it carried no throttle at all while its siblings (batch, command,
+    // stage-migration) did. 600/10min sits far above the Fit Matrix's sequential bulk
+    // add; the role demo and the automation pass create entries in-process and never
+    // reach this door. The key carries the WORKSPACE beside the IP, so a demo visitor
+    // filling the shared no-proxy bucket cannot lock a real team out of adding.
+    rel: "./pipeline/route.ts",
+    key: "`pipeline-add:${ws}:${clientIpFrom(request.headers)}`",
+    limit: 600,
+    optsSrc: "ADD_RATE_LIMIT",
+    optsDef: "const ADD_RATE_LIMIT = { limit: 600, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    // The SEAL is the first write (ADR 0018's seal-first order), so the budget must be
+    // spent before it — and therefore before the insert that follows it.
+    expensive: "const sealed = sealDecisionSafe(",
+    // The last cheap refusal — the rediscovery eligibility gate — keeps its semantics
+    // ahead of the throttle, as do the shape refusals above it.
+    servedBefore: 'jsonRefusal("PIPELINE_ADD_CANDIDATE_WITHHELD", 409',
+  },
   // ------------------------------------------------------------------
   // ADDED /perfect 2026-09-02 (api-jd-library), with the limiters themselves. The
   // JD library's four spend doors carried NONE. Every one is operator-gated, and open

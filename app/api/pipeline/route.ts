@@ -11,6 +11,7 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { linkTerminalPriorsToTarget } from "@/app/_lib/rediscovery-prior-link";
 import { withheldCandidateIds } from "@/app/_lib/rediscovery-eligibility";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { humanActor } from "@/app/_lib/auth/operator-approver";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import {
@@ -67,6 +68,18 @@ export async function GET() {
  *  never applied to" — the rediscovery feed ("rediscovery") and the recruiter/rediscover
  *  panels ("sourcing"). Read twice below: the eligibility gate and the prior link. */
 const RESURFACE_SOURCES: ReadonlySet<string> = new Set(["rediscovery", "sourcing"]);
+
+// The add door writes an entry, can REOPEN a rejected one (the reconsider door below)
+// and seals a Match verdict per call — and in open mode (KP_OPERATOR_PASSWORD unset)
+// the whole API is reachable by anyone, so the limiter is the real bound on a scripted
+// flood of entries and sealed records (2026-10-07 pipeline write-doors scan). 600/10min
+// sits far above the heaviest honest caller — the Fit Matrix's bulk add files every
+// ticked cell sequentially through this door — while a loop meets it in seconds. The
+// role demo and the automation pass create entries in-process, never over HTTP, so
+// they never spend it. Keyed by WORKSPACE as well as IP: with no trusted proxy every
+// caller's IP resolves to the one shared bucket (rate-limit.ts, THE TRAP), and a demo
+// visitor filling it must not lock a real team out of adding candidates.
+const ADD_RATE_LIMIT = { limit: 600, windowMs: 10 * 60_000 };
 
 export async function POST(request: NextRequest) {
   try {
@@ -172,6 +185,11 @@ export async function POST(request: NextRequest) {
       if (withheld) return jsonRefusal("PIPELINE_ADD_CANDIDATE_WITHHELD", 409, { withheld });
     }
     const ws = await currentWorkspace();
+    // After every cheap refusal above (a request that could never file spends none of
+    // the window), before the first write — the seal below.
+    if (!rateLimit(`pipeline-add:${ws}:${clientIpFrom(request.headers)}`, ADD_RATE_LIMIT)) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
+    }
     const humanRef = await humanActor();
     // SEAL FIRST (ADR 0018, ADR 0017's rule): the Match verdict is recorded before the
     // entry exists, and a seal that fails files nothing. One record per add — a re-add
