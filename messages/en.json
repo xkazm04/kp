@@ -576,7 +576,7 @@
     },
     "koDecline": {
       "subject": "Your application: {role}",
-      "body": "Hi {name},\n\nThank you for applying for {role}. You answered no to a requirement the role states as a must-have:\n\n{mustHaves}\n\nThat ends the application automatically. A person did not make this decision. If you think it's wrong, or you answered by mistake, reply to this message and a person will review it.\n\nRequirements can change as roles evolve. We'd be glad to see you apply again in the future.\n\nWishing you the very best,\n{team}",
+      "body": "Hi {name},\n\nThank you for applying for {role}. You answered no to a requirement the role states as a must-have:\n\n{mustHaves}\n\nThat ends the application automatically. A person did not make this decision. If you think it's wrong, or you answered by mistake, reply to this message and a person will review it.\n\nWe keep this email address only to record that this letter was sent, and delete it automatically after {days} days.\n\nRequirements can change as roles evolve. We'd be glad to see you apply again in the future.\n\nWishing you the very best,\n{team}",
       "mustHaveFallback": "one of the role's eligibility requirements"
     },
     "offer": {

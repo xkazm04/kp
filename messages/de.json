@@ -576,7 +576,7 @@
     },
     "koDecline": {
       "subject": "Ihre Bewerbung: {role}",
-      "body": "Hallo {name},\n\nvielen Dank für Ihre Bewerbung auf {role}. Sie haben eine Voraussetzung, die die Stelle ausdrücklich verlangt, mit Nein beantwortet:\n\n{mustHaves}\n\nDamit endet die Bewerbung automatisch; kein Mensch hat darüber entschieden. Halten Sie das für falsch oder haben Sie sich vertippt, antworten Sie einfach auf diese Nachricht, dann überprüft ein Mensch die Entscheidung.\n\nAnforderungen können sich mit der Zeit ändern. Wir würden uns freuen, wenn Sie sich in Zukunft erneut bewerben.\n\nAlles Gute für Sie,\n{team}",
+      "body": "Hallo {name},\n\nvielen Dank für Ihre Bewerbung auf {role}. Sie haben eine Voraussetzung, die die Stelle ausdrücklich verlangt, mit Nein beantwortet:\n\n{mustHaves}\n\nDamit endet die Bewerbung automatisch; kein Mensch hat darüber entschieden. Halten Sie das für falsch oder haben Sie sich vertippt, antworten Sie einfach auf diese Nachricht, dann überprüft ein Mensch die Entscheidung.\n\nWir speichern diese E-Mail-Adresse nur, um festzuhalten, dass dieser Brief versendet wurde, und löschen sie nach {days} Tagen automatisch.\n\nAnforderungen können sich mit der Zeit ändern. Wir würden uns freuen, wenn Sie sich in Zukunft erneut bewerben.\n\nAlles Gute für Sie,\n{team}",
       "mustHaveFallback": "eine der Voraussetzungen der Stelle"
     },
     "offer": {

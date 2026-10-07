@@ -576,7 +576,7 @@
     },
     "koDecline": {
       "subject": "Vaše přihláška: {role}",
-      "body": "Dobrý den, {name},\n\nděkujeme za přihlášku na pozici {role}. U požadavku, který pozice výslovně stanoví, jste odpověděli „ne“:\n\n{mustHaves}\n\nTím se přihláška ukončuje automaticky a nerozhodoval o tom člověk. Pokud si myslíte, že jde o omyl, nebo jste odpověď zadali omylem, odpovězte na tuto zprávu a rozhodnutí posoudí člověk.\n\nPodmínky se mohou s vývojem pozic měnit. Budeme rádi, když se v budoucnu přihlásíte znovu.\n\nPřejeme vám vše dobré,\n{team}",
+      "body": "Dobrý den, {name},\n\nděkujeme za přihlášku na pozici {role}. U požadavku, který pozice výslovně stanoví, jste odpověděli „ne“:\n\n{mustHaves}\n\nTím se přihláška ukončuje automaticky a nerozhodoval o tom člověk. Pokud si myslíte, že jde o omyl, nebo jste odpověď zadali omylem, odpovězte na tuto zprávu a rozhodnutí posoudí člověk.\n\nTuto e-mailovou adresu uchováváme pouze proto, abychom zaznamenali, že jsme tento dopis odeslali, a po uplynutí {days} dnů ji automaticky smažeme.\n\nPodmínky se mohou s vývojem pozic měnit. Budeme rádi, když se v budoucnu přihlásíte znovu.\n\nPřejeme vám vše dobré,\n{team}",
       "mustHaveFallback": "jedna ze základních podmínek pozice"
     },
     "offer": {

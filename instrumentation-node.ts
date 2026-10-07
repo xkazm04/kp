@@ -259,6 +259,15 @@ async function sweepExpiredConsents(): Promise<void> {
   } catch (e) {
     console.error("[clock] consent anonymization sweep failed:", e);
   }
+  // Statutory like the sweep above (storage limitation): the contact a KO-declined applicant
+  // left in the outbox and the decline event's name are blanked after the retention window.
+  try {
+    const { sweepKoDeclineContacts } = await import("./app/_lib/db");
+    const blanked = sweepKoDeclineContacts();
+    if (blanked) console.log("[clock] ko-decline contacts past retention → blanked:", blanked);
+  } catch (e) {
+    console.error("[clock] ko-decline retention sweep failed:", e);
+  }
 }
 
 export async function startClock(): Promise<void> {

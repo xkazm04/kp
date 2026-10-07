@@ -576,7 +576,7 @@
     },
     "koDecline": {
       "subject": "Votre candidature : {role}",
-      "body": "Bonjour {name},\n\nMerci d’avoir postulé pour {role}. Vous avez répondu non à une condition que le poste exige expressément :\n\n{mustHaves}\n\nCela met fin à la candidature automatiquement ; aucune personne n’a pris cette décision. Si vous pensez qu’il s’agit d’une erreur, ou si vous avez répondu par erreur, répondez à ce message et une personne réexaminera la décision.\n\nLes conditions peuvent évoluer avec les postes. Nous serions ravis de vous revoir postuler à l’avenir.\n\nNous vous souhaitons le meilleur,\n{team}",
+      "body": "Bonjour {name},\n\nMerci d’avoir postulé pour {role}. Vous avez répondu non à une condition que le poste exige expressément :\n\n{mustHaves}\n\nCela met fin à la candidature automatiquement ; aucune personne n’a pris cette décision. Si vous pensez qu’il s’agit d’une erreur, ou si vous avez répondu par erreur, répondez à ce message et une personne réexaminera la décision.\n\nNous ne conservons cette adresse e-mail que pour consigner l’envoi de ce message, et nous la supprimons automatiquement après {days} jours.\n\nLes conditions peuvent évoluer avec les postes. Nous serions ravis de vous revoir postuler à l’avenir.\n\nNous vous souhaitons le meilleur,\n{team}",
       "mustHaveFallback": "l’une des conditions du poste"
     },
     "offer": {

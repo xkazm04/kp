@@ -2750,6 +2750,16 @@ export function anonymizeEntry(entryId: string, reason: "expiry" | "erasure" = "
     // transcript/scorecard, comms outbox, offer/prep/schedule/onboarding/rediscovery),
     // in this same transaction — the class of PII surfaces the block above never reached.
     scrubEntryLinkedPii(db, entryId, row.candidate_id, masked, row.candidate_label);
+    // The entry-less KO-decline letters this address received BEFORE it ever became an
+    // entry (ADR 0019): ref-less, so the ref-keyed scrub above cannot reach them. Same
+    // workspace only, address compared trimmed and case-insensitive.
+    const address = (row.contact ?? "").trim().toLowerCase();
+    if (address) {
+      db.prepare(
+        `UPDATE dev_outbox SET recipient = NULL, subject = NULL, body = NULL
+          WHERE kind = 'ko_decline' AND ref IS NULL AND workspace_id = ? AND LOWER(TRIM(recipient)) = ?`
+      ).run(workspaceId, address);
+    }
     logConsentEvent(db, entryId, reason === "erasure" ? "erased" : "anonymized", `reason: ${reason}`, workspaceId);
     const updated = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(entryId, workspaceId) as PipelineRow;
     return rowToEntry(updated);
@@ -2806,6 +2816,36 @@ export function anonymizeExpiredConsents(nowIso: string = new Date().toISOString
     }
   }
   return count;
+}
+
+/** Sweep: blank the personal data an entry-less KO decline left behind once it is older than
+ *  KO_DECLINE_CONTACT_RETENTION_DAYS — the ref-less `ko_decline` outbox row's recipient/subject/body
+ *  (as anonymizeEntry blanks a ref'd row) and the `ko_declined` event's candidate_label. Kind,
+ *  status, channel, job title, detail, created_at and workspace stay, so the delivery audit and the
+ *  "turned away at the gate" counts do not move. GLOBAL like anonymizeExpiredConsents (every tenant,
+ *  statutory duty); idempotent. Returns the number of rows blanked. */
+export function sweepKoDeclineContacts(nowIso: string = new Date().toISOString()): number {
+  const nowMs = Date.parse(nowIso);
+  if (!Number.isFinite(nowMs)) return 0;
+  const cutoff = new Date(nowMs - KO_DECLINE_CONTACT_RETENTION_DAYS * 86_400_000).toISOString();
+  const db = ensureDb();
+  const tx = db.transaction(() => {
+    const outbox = db
+      .prepare(
+        `UPDATE dev_outbox SET recipient = NULL, subject = NULL, body = NULL
+          WHERE kind = 'ko_decline' AND ref IS NULL AND created_at <= ?
+            AND (recipient IS NOT NULL OR subject IS NOT NULL OR body IS NOT NULL) -- tenancy:global`
+      )
+      .run(cutoff).changes;
+    const events = db
+      .prepare(
+        `UPDATE pipeline_events SET candidate_label = NULL
+          WHERE kind = 'ko_declined' AND entry_id IS NULL AND created_at <= ? AND candidate_label IS NOT NULL -- tenancy:global`
+      )
+      .run(cutoff).changes;
+    return outbox + events;
+  });
+  return tx.immediate();
 }
 
 /** Entries whose consent is in the 30-day pre-expiry window and that have not
@@ -3237,6 +3277,10 @@ export function recordAutomationEvent(
 // metric (the analytics read IS workspace-scoped) and bleeds their applicants'
 // names + role titles into the default team's activity feed. Callers hold the
 // opening's workspace already; make them pass it.
+/** How long the address, name and letter of an entry-less KO decline are kept (ADR 0019).
+ *  Storage limitation, not a tunable: deliberately no env override. The letter quotes this
+ *  number to the applicant, so it is passed from here, never re-typed. */
+export const KO_DECLINE_CONTACT_RETENTION_DAYS = 30;
 const KO_DECLINE_DETAIL_MAX = 200;
 export function recordKnockoutDecline(input: {
   candidateLabel: string | null;

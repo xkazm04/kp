@@ -4,7 +4,7 @@ import { isSimTitle } from "@/app/features/shell/simulation/constants";
 import type { OutboxStatus } from "./comms-status";
 import type { DeliveryClaim } from "./comms-truth";
 import type { PipelineEntry } from "./db/core";
-import { ensureErasureToken, ensureOptOutToken, entryProfileGaps, recordAutomationEvent } from "./db/pipeline";
+import { KO_DECLINE_CONTACT_RETENTION_DAYS, ensureErasureToken, ensureOptOutToken, entryProfileGaps, recordAutomationEvent } from "./db/pipeline";
 import { buildRejectionFeedback, renderRejectionFeedback } from "./rejection-feedback";
 import { outreachHaltFor, recordOutreachSend } from "./outreach-state-store";
 import type { HaltReason } from "./outreach-halt";
@@ -657,7 +657,7 @@ export async function dispatchKnockoutDecline(input: {
   const subject = t("koDecline.subject", { role });
   const named = koMustHaveNames(input.failedKoIds ?? [], ta);
   const mustHaves = (named.length > 0 ? named : [t("koDecline.mustHaveFallback")]).map((n) => `- ${n}`).join("\n");
-  const body = t("koDecline.body", { name, role, team: t("team"), mustHaves });
+  const body = t("koDecline.body", { name, role, team: t("team"), mustHaves, days: KO_DECLINE_CONTACT_RETENTION_DAYS });
   return dispatchOutcome(await sendCommUnlessSim({ to: input.email, subject, body, kind: "ko_decline", workspaceId: input.workspaceId }, input.jobTitle));
 }
 

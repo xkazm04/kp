@@ -108,11 +108,19 @@ door).
   outside both. It leaves an event row with no actor, policy version, decisive
   inputs or rationale. Today it is an audited discard, not a reasons block in
   the key-goal-4 sense.
-- **What it does not store:** the contact address (no entry exists, so no
-  deliverable identity is retained for a declined applicant), the candidate's
-  answers, or the text of the must-have; the step ids name which gates failed.
-  The email goes out as an outbox row of kind `ko_decline` in the opening's
-  workspace, and that row necessarily holds the address.
+- **What it does not store:** the candidate's answers or the text of the
+  must-have; the step ids name which gates failed. No entry exists, so no
+  deliverable identity is kept past a fixed window. The email goes out as a
+  ref-less outbox row of kind `ko_decline` in the opening's workspace, and that
+  row holds the address, name and role until
+  `KO_DECLINE_CONTACT_RETENTION_DAYS` (30, no env override) have passed. A sweep
+  (`sweepKoDeclineContacts`, run from the clock's statutory consent block, not
+  under the autonomy pause) then blanks the row's recipient, subject and body and
+  the `ko_declined` event's `candidate_label`; kind, status, job title, detail,
+  timestamps and workspace stay, so the delivery audit and the gate counts do not
+  move. If the same address becomes an entry and that entry is erased or expires,
+  `anonymizeEntry` blanks the matching ref-less rows of its own workspace at
+  once. The letter states the window.
 
 ## Alternatives considered
 
