@@ -19,6 +19,16 @@ than silently dropping a reason.
   (jobs-json rows that failed `Job.model_validate`). A poison-pill ingested JD
   is listed rather than dropping a column the recruiter thought was open;
   `respond()` defaults `missingJobs` to `[]` when an older CLI omitted it.
+  The default columns are the roles in the pipeline (`listOpenPositions`).
+  **"Rank in matrix"** in the posting modal opens `?tab=matrix&job=<id>`, and the
+  tab sends that id as `GET /api/matrix?job=<id>`: a role in this workspace whose
+  derived status is `open` or `draft` (`getRoleStatusForWorkspace`, the SQL twin of
+  `roleStatusOf`) is appended to the scored positions even with no pipeline entries
+  (`matrix-positions.ts::withScopedPosition`), so a freshly posted role gets a
+  scored column. A `filled` or `closed` role, or one from another workspace, is not
+  added and the tab keeps its "Position no longer open" state. With an empty
+  candidate pool the role is still returned as a column, so the empty state shows,
+  not the closed one.
   - **Grid** (pool-first: every candidate × every open role) — `MatrixGrid.tsx`,
     `MatrixReasoningPopover.tsx`.
     Its CSV follows the visible candidate and role order, writes the localized

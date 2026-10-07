@@ -19,6 +19,7 @@ import { matrixCsvRows } from "./matrixCsv";
 import { applySlateToSelection, proposeSlate } from "./matrixSlate";
 import { createFrameThrottle } from "./matrixAnchor";
 import { fetchMatchReasoning, isAbortError } from "./matrixReasoningFetch";
+import { isStaleJob } from "./matrixTabState";
 import type { Candidate, Matrix, Popover, Position, ReasonState } from "./matrixTabTypes";
 
 export function useMatrixTab() {
@@ -125,7 +126,8 @@ export function useMatrixTab() {
     const ac = new AbortController();
     (async () => {
       try {
-        const r = await fetch("/api/matrix", { signal: ac.signal });
+        // ?job= rides along so a role with no pipeline entries yet still gets a column.
+        const r = await fetch(jobParam ? `/api/matrix?job=${encodeURIComponent(jobParam)}` : "/api/matrix", { signal: ac.signal });
         // The route returns a structured { error, code } body — resolve its machine
         // `code` so the real cause reaches the screen in the reader's language instead
         // of an opaque status code (or the server's English `error`).
@@ -142,7 +144,7 @@ export function useMatrixTab() {
     })();
     return () => ac.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reloadAt]);
+  }, [reloadAt, jobParam]);
 
   // deec915c popover a11y + layout tracking (bug-ui-scan-2026-07-09 (skill-matrix-coverage
   // #5)). Runs once per OPENED cell (keyed by candId|posId, NOT the rect) so scroll/resize
@@ -244,7 +246,7 @@ export function useMatrixTab() {
   // filled since the link went out). Once the data is in, jobParam-with-no-match
   // means cols is empty and every reset is gated on scopedPosition — detect it so
   // we can offer a way back instead of stranding the user on a zero-column grid.
-  const staleJob = Boolean(jobParam) && Boolean(data) && !scopedPosition;
+  const staleJob = isStaleJob(jobParam, Boolean(data), data ? data.positions.map((p) => p.id) : []);
   const clearJob = () => router.push(buildUrl({ tab: "matrix", job: null }, search.toString()));
 
   // rows: best-visible-fit sort by default, A–Z when toggled, or by a chosen column's

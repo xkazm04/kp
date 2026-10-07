@@ -26,6 +26,13 @@ export function deriveMatrixMode(focusParam: string | null, override: MatrixMode
   return focusParam ? "focus" : "grid";
 }
 
+/** A ?job= deep-link is stale only once the data is in and carries no column for it.
+ *  The route appends an open or draft role that has no pipeline entries, so a fresh
+ *  role is found here; a filled, closed or foreign one is not, and stays stale. */
+export function isStaleJob(jobParam: string | null, hasData: boolean, positionIds: readonly string[]): boolean {
+  return Boolean(jobParam) && hasData && !positionIds.includes(jobParam as string);
+}
+
 /** What the grid half should render. Ordered by precedence, not by likelihood. */
 export type MatrixGridState =
   /** The fetch failed; the reader gets the localized code + a retry. */

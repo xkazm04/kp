@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { getJobsByIds } from "@/app/_lib/db/jobs";
+import { getJobsByIds, getRoleStatusForWorkspace } from "@/app/_lib/db/jobs";
+import { withScopedPosition } from "./matrix-positions";
 import { countMatrixProfiles, listMatrixProfiles, listOpenPositions, MATRIX_POOL_CAP, pipelinePlacements } from "@/app/_lib/db/profiles";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { cleanupWorkdir, createWorkdir, engineRefusal, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
@@ -71,9 +72,21 @@ export async function GET(request: NextRequest) {
     // The unclamped pool size, so the grid can say "Showing 200 of N" instead of
     // silently omitting candidates past the cap (skill-matrix-coverage #1).
     const poolTotal = countMatrixProfiles(ws);
-    const positions = listOpenPositions(ws);
+    // "Rank in matrix" on a role nobody has been added to yet: its id arrives as ?job=
+    // and, if the workspace can still hire for it, it joins the scored positions.
+    // The default grid (no ?job=) is untouched. Never trust the id past this lookup:
+    // getRoleStatusForWorkspace applies the same tenant predicate as getJobsByIds.
+    const jobParam = request.nextUrl.searchParams.get("job");
+    const scopedRole = jobParam ? getRoleStatusForWorkspace(jobParam, ws) : null;
+    const positions = withScopedPosition(listOpenPositions(ws), scopedRole);
     if (profiles.length === 0 || positions.length === 0) {
-      return NextResponse.json({ candidates: [], positions: [], cells: [], missing: [], missingCandidates: [], missingJobs: [], placements: {}, poolTotal, poolCap: MATRIX_POOL_CAP });
+      // An empty pool still carries the requested role as a column, so the tab shows
+      // its empty state rather than claiming the role is gone.
+      const scopedOnly =
+        scopedRole && positions.some((p) => p.id === scopedRole.id)
+          ? [{ id: scopedRole.id, title: scopedRole.title, seniority: "", roleFamily: scopedRole.roleFamily ?? "", salaryBand: [] }]
+          : [];
+      return NextResponse.json({ candidates: [], positions: scopedOnly, cells: [], missing: [], missingCandidates: [], missingJobs: [], placements: {}, poolTotal, poolCap: MATRIX_POOL_CAP });
     }
 
     const profilesJson = JSON.stringify(profiles);

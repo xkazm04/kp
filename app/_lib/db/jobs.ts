@@ -1059,6 +1059,29 @@ export function getJobsByIds(ids: string[], workspaceId: string = DEFAULT_WORKSP
   return ids.map((id) => byId.get(id)).filter((j): j is JobRecord => j !== undefined);
 }
 
+/** One role as this workspace sees it, with its DERIVED status (ROLE_STATUS_SQL — the
+ *  same rule the Roles desk filters by) and no payload. Same tenant predicate as
+ *  getJobsByIds: the shared corpus plus this team's own; another team's id is null.
+ *  The Fit Matrix asks it whether a `?job=` role with no pipeline entries may be
+ *  ranked (open or draft) or is genuinely out of play (filled, closed, not here). */
+export function getRoleStatusForWorkspace(
+  id: string,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): { id: string; title: string; roleFamily: string | null; status: RoleStatus } | null {
+  const terminal = stagesWithRole("terminal", getPipelineAxis(workspaceId).stages);
+  const params: Record<string, unknown> = { workspaceId, id };
+  terminal.forEach((stage, i) => (params[`term${i}`] = stage));
+  const join = hiredJoinSql(terminal.length ? terminal.map((_, i) => `@term${i}`).join(", ") : "NULL");
+  const row = ensureDb()
+    .prepare(
+      `SELECT jobs.id AS id, jobs.title AS title, jobs.role_family AS roleFamily, (${ROLE_STATUS_SQL}) AS status
+       FROM jobs LEFT JOIN job_workspace_state s ON s.workspace_id = @workspaceId AND s.job_id = jobs.id ${join}
+       WHERE jobs.id = @id AND (jobs.workspace_id IS NULL OR jobs.workspace_id = @workspaceId)`
+    )
+    .get(params) as { id: string; title: string; roleFamily: string | null; status: RoleStatus } | undefined;
+  return row ?? null;
+}
+
 // The full live job corpus — every current opening rematch scores against. Unlike
 // listJobs (paginated, filtered, ranked for the browse UI) this returns ALL live
 // jobs as full records, ordered by id, with drafts excluded (an unpublished JD is
