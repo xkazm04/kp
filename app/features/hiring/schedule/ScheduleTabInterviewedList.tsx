@@ -9,11 +9,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { BTN_SECONDARY, PANEL } from "@/app/_components/ui/recipes";
 import { ArrowRight, ClipboardList, FileText, RefreshCw, UserRound } from "lucide-react";
 import type { useTranslations } from "next-intl";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { buildUrl, clearedTabScopedParams } from "@/app/features/shell/tabs";
 import { CandidateCardHeader } from "./ScheduleCandidateCardHeader";
 import type { SchedEntry } from "./ScheduleTypes";
 import type { SchedInterviewedEntry } from "./scheduleTabDerived";
 import type { IvStatus } from "./useScheduleTab";
+import { rescoreSession } from "./scheduleRescore";
 
 export function ScheduleTabInterviewedList({
   t,
@@ -33,6 +35,9 @@ export function ScheduleTabInterviewedList({
   const router = useRouter();
   const search = useSearchParams();
   const [rescoringId, setRescoringId] = useState<string | null>(null);
+  // The refusal of the last re-score, keyed to the session it came from, shown beside that control.
+  const [rescoreError, setRescoreError] = useState<{ sessionId: string; message: string } | null>(null);
+  const errorMessage = useErrorMessage();
 
   if (!interviewedEntries.length) return null;
 
@@ -40,13 +45,11 @@ export function ScheduleTabInterviewedList({
     const sessionId = interviews[e.id]?.sessionId;
     if (!sessionId) return;
     setRescoringId(sessionId);
+    setRescoreError(null);
     try {
-      const res = await fetch(`/api/interview/sessions/${encodeURIComponent(sessionId)}/rescore`, {
-        method: "POST",
-      });
-      if (res.ok) {
-        router.refresh();
-      }
+      const outcome = await rescoreSession(sessionId, errorMessage);
+      if (outcome.ok) router.refresh();
+      else setRescoreError({ sessionId, message: outcome.message });
     } finally {
       setRescoringId(null);
     }
@@ -135,6 +138,9 @@ export function ScheduleTabInterviewedList({
                 {t("reviewScorecard")} <ArrowRight size={13} aria-hidden />
               </button>
             )}
+            {scoringState === "unscored" && rescoreError && rescoreError.sessionId === interviews[e.id]?.sessionId ? (
+              <p role="alert" className="mt-1.5 text-meta text-coral">{rescoreError.message}</p>
+            ) : null}
           </div>
         );
       })}

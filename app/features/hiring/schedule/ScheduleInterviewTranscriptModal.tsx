@@ -5,6 +5,7 @@ import { AlertTriangle, Loader2, RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
 import { BTN_SECONDARY, NOTICE } from "@/app/_components/ui/recipes";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { normalizeScorecardEntities } from "@/app/_lib/interview-scorecard";
 import { readHumanScorecards } from "@/app/_lib/human-scorecard-set";
@@ -16,6 +17,7 @@ import { AiScorecardSection } from "./ScheduleInterviewAiScorecardSection";
 import { HumanScorecardSection } from "./ScheduleInterviewHumanScorecardSection";
 import { InterviewEvidenceSection } from "./ScheduleInterviewEvidenceSection";
 import { TranscriptTurns } from "./ScheduleInterviewTranscriptTurns";
+import { rescoreSession } from "./scheduleRescore";
 
 export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry; onClose: () => void }) {
   const t = useTranslations("scheduleTab.transcript");
@@ -67,16 +69,17 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
     document.getElementById(`iv-turn-${idx}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
   const [rescoring, setRescoring] = useState(false);
+  // Shown inside the modal, next to the control — a toast can render under the modal.
+  const [rescoreError, setRescoreError] = useState<string | null>(null);
+  const errorMessage = useErrorMessage();
   const handleRescore = async () => {
     if (!session?.id) return;
     setRescoring(true);
+    setRescoreError(null);
     try {
-      const res = await fetch(`/api/interview/sessions/${encodeURIComponent(session.id)}/rescore`, {
-        method: "POST",
-      });
-      if (res.ok) {
-        reload();
-      }
+      const outcome = await rescoreSession(session.id, errorMessage);
+      if (outcome.ok) reload();
+      else setRescoreError(outcome.message);
     } finally {
       setRescoring(false);
     }
@@ -127,7 +130,8 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
               t={t}
             />
           ) : transcript.length > 0 ? (
-            <div className={`${NOTICE()} flex items-center justify-between gap-3 p-3 text-micro`}>
+            <div className={`${NOTICE()} p-3 text-micro`}>
+             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <AlertTriangle size={16} className="shrink-0 text-dial-amber" />
                 <span>{t("unscoredNotice")}</span>
@@ -143,6 +147,8 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
                   {rescoring ? t("rescoring") : t("rescoreButton")}
                 </button>
               ) : null}
+             </div>
+              {rescoreError ? <p role="alert" className="mt-2 text-coral">{rescoreError}</p> : null}
             </div>
           ) : null}
 
