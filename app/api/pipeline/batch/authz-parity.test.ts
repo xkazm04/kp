@@ -46,11 +46,7 @@ const ALLOWLIST = new Map<string, string>([
   ],
   [
     "route.ts GET",
-    "debt — the board list; the proxy gates the session, but the handler asks nothing itself. Owned this wave by r06 db-pipeline-store/A (the re-add door); route-capability-coverage.test.ts still lists it",
-  ],
-  [
-    "route.ts POST",
-    "debt — add-to-pipeline / the human re-add reopen door, owned this wave by r06 db-pipeline-store/A; route-capability-coverage.test.ts still lists it",
+    "debt — the board list; a read: the proxy gates the session, the handler asks nothing itself (pipeline:write is the seat for WRITES; the board list is every seat's)",
   ],
 ]);
 

@@ -10,7 +10,10 @@ import { withTransferScores } from "@/app/_lib/pipeline-transfer-score";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { linkTerminalPriorsToTarget } from "@/app/_lib/rediscovery-prior-link";
 import { withheldCandidateIds } from "@/app/_lib/rediscovery-eligibility";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireCapability } from "@/app/_lib/auth/current-user";
+import { stageHasRole } from "@/app/_lib/pipeline-stages";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { humanActor } from "@/app/_lib/auth/operator-approver";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
@@ -84,6 +87,16 @@ const RESURFACE_SOURCES: ReadonlySet<string> = new Set(["rediscovery", "sourcing
 const ADD_RATE_LIMIT = { limit: 600, windowMs: 10 * 60_000 };
 
 export async function POST(request: NextRequest) {
+  const denied = await requireOperator();
+  if (denied) return denied;
+  // AUTHORIZATION (write-routes-check-a-capability). requireOperator proves a trusted
+  // session, never authority (open mode is true for everyone). This door files
+  // candidates, reopens rejected entries and seals Match verdicts: a recruiter
+  // operation, so the seat must hold `pipeline:write` — asked FIRST, before the body is
+  // read, the throttle is spent or anything is sealed, so a viewer spends and writes
+  // nothing. GET stays a read.
+  const under = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (under) return under;
   try {
     const body = (await request.json()) as {
       candidateId?: string;
@@ -151,6 +164,16 @@ export async function POST(request: NextRequest) {
       const known = knownStageIds(axis);
       if (!known.has(body.stage)) {
         return jsonRefusal("PIPELINE_ADD_STAGE_UNKNOWN", 400, { stages: axis.stages.map((stage) => stage.id) });
+      }
+      // The terminal stage is reached by an accepted offer, never by filing someone
+      // onto it: set_stage refuses it for a move (PIPELINE_TERMINAL_NOT_MANUAL), and the
+      // add door — new entry or re-add onto an existing one — must not be the way round
+      // that. Resolved by ROLE on this workspace's axis, not by the literal 'Hired'; a
+      // retired stage has no role here, so a retired-stage add is unchanged. In-process
+      // callers (demo, automation, ATS sync, the offer accept) go through
+      // createPipelineEntry and are not subject to this.
+      if (stageHasRole(body.stage, "terminal", axis.stages)) {
+        return jsonRefusal("PIPELINE_TERMINAL_NOT_MANUAL", 422);
       }
     }
     // d95fed6d — optional provenance: which surface filed this candidate.

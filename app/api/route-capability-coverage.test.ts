@@ -170,7 +170,8 @@ const ALLOWED = new Map<string, string>([
   // declares in app/api/pipeline/[id]/entry-actions.ts (pipeline:write for all eight),
   // and the hire-rating write asks pipeline:write; write-capability-gate.test.ts drives
   // both for the viewer 403.
-  ["pipeline/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
+  // pipeline/route.ts POST was judged and CLOSED (pipeline-board rework): the add door asks
+  // pipeline:write before it spends the throttle or seals; add-door-gate.test.ts drives it.
   ["profile/draft/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["profile/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["rediscovery/alerts/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
