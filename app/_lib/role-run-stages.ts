@@ -72,10 +72,10 @@ export const STAGE_GATE: Record<RoleRunStageKind, ApprovalKind | null> = {
   // The rejection gate. S2 proposes rejections; it never commits one.
   screen: "rejection_review",
   case_assignment: null,
-  // The invite gate. The run drafts the invite; the gate commit mints the token.
+  // The invite gate. The run drafts the invite; the gate commit mints nothing today (ADR 0011, 2026-10-07 amendment).
   interview: "calendar",
   scorecard: null,
-  // The offer gate. The run drafts terms; the gate commit calls createOffer.
+  // The offer gate. The run drafts terms; the gate commit calls no createOffer today (ADR 0011, 2026-10-07 amendment).
   offer_draft: "offer_review",
 };
 

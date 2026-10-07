@@ -210,9 +210,10 @@ const runCaseAssignment: StageRunner = (ctx) => ({
 });
 
 /** S4 — interview. Drafts the invite and parks: the invite gate. The token is NOT minted
- *  here — `createScheduleInvite` is called by the gate commit, the same asymmetry the
- *  offer stage has. An invite token that exists before a human approved it is an invite
- *  that can leak before it was authorised. */
+ *  here, and today the gate commit does not mint it either: it is ledger-only, and no
+ *  `createScheduleInvite` door exists yet (ADR 0011, 2026-10-07 amendment). An invite
+ *  token that exists before a human approved it is an invite that can leak before it was
+ *  authorised. */
 const runInterview: StageRunner = (ctx) => ({
   status: "awaiting_approval",
   payload: {
@@ -254,8 +255,8 @@ const runScorecard: StageRunner = (ctx) => {
   };
 };
 
-/** S6 — offer draft. Drafts terms and STOPS. `createOffer` is never called by the run;
- *  it is called by the gate commit (ADR-0011 Consequences). The band is a reference to
+/** S6 — offer draft. Drafts terms and STOPS. `createOffer` is never called by the run,
+ *  and today not by the gate commit either (ADR 0011, 2026-10-07 amendment). The band is a reference to
  *  the job's own posted range, not a number this stage invents. */
 const runOfferDraft: StageRunner = (ctx) => {
   const ttlDays = resolveOfferTtlDays(null);
@@ -509,8 +510,9 @@ export function commitRoleRunStageGate(
         gate: input.gate,
         decision: input.decision,
         // The approver is recorded as a HASH, not as a name: ADR-0011 §5 bans names from
-        // the ledger, and it bans them for the recruiter too. The sealed decision record
-        // (sealDecisionRecord) is where the attributable identity lives.
+        // the ledger, and it bans them for the recruiter too. Today nothing seals a
+        // decision record for a role-run gate, so this hash is the only trace of the
+        // approver (ADR 0011, 2026-10-07 amendment).
         approverRef: hashOf(input.approver ?? ""),
         decidedAt: new Date(input.now ?? Date.now()).toISOString(),
       },

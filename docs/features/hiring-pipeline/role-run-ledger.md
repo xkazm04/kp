@@ -96,10 +96,12 @@ Two properties worth knowing:
 - **A gate blocks a candidate, not the run.** One branch parked holds that branch;
   the other nineteen keep moving. A per-stage barrier would let one unreviewed
   rejection stop a slate of twenty.
-- **The run drafts; the gate commit mints.** `createOffer` and
+- **The run drafts; nothing mints yet.** `createOffer` and
   `createScheduleInvite` are never reachable from the engine — a test asserts the
-  module does not import them. An invite token that exists before a human approved it
-  is a token that can leak before it was authorised.
+  module does not import them. The gate commit today only verifies and spends the
+  approval token and appends the resolution artifact: it mints no invite and creates no
+  offer, and no route calls it yet. Whether a gate gets a door that does is open (see the
+  [ADR 0011, 2026-10-07 amendment](../../architecture/decisions/0011-one-role-runs-end-to-end.md#amendments)).
 
 ## The PII rule
 
@@ -113,8 +115,9 @@ consequence is that `consentWithholdsPii()` at a read boundary is **sufficient**
 there is no second copy of the candidate's words in the ledger to forget to scrub when
 a consent expires mid-run.
 
-The recruiter is covered too: a gate commit records `approverRef` as a hash. The
-attributable identity lives in the sealed decision record, not here.
+The recruiter is covered too: a gate commit records `approverRef` as a hash. Today that
+hash is the only trace of the approver — the commit seals no decision record, so no
+attributable identity exists anywhere yet. See the [ADR 0011, 2026-10-07 amendment](../../architecture/decisions/0011-one-role-runs-end-to-end.md#amendments).
 
 ## Attaching a real engine
 

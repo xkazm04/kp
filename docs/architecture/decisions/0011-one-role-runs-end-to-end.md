@@ -143,7 +143,7 @@ candidate PII crosses a boundary:
 | P2 | CV text into the Python screening process | S2 | Referenced by `entryId`; the artifact stores scores and reason codes, never CV prose |
 | P3 | Case submission and its transcript | S3, S5 | `consentRequired()` / `isPersistConsentSatisfied()` (`interview-consent.ts`); `redactTranscriptForConsent()` at every read boundary |
 | P4 | Candidate address on an invite, reminder, or offer mail | S4, S6 | Comms dispatch, ADR-0008 delivery truth; recipient resolved per-send, never stored on the artifact |
-| P5 | The sealed decision record behind each gate | S2, S4, S6 | `sealDecisionRecord()` — hash-chained, tenancy-scoped, `candidateRef` not name |
+| P5 | The sealed decision record behind each gate | S2, S4, S6 | `sealDecisionRecord()` — hash-chained, tenancy-scoped, `candidateRef` not name. *Not yet true of a role-run gate commit — see the 2026-10-07 amendment.* |
 
 The standing rule, which the contract test enforces: **a `role_run_stage`
 payload may contain identifiers, scores, codes and hashes. It may not contain a
@@ -191,7 +191,8 @@ sent. An approval that arrives after the effect is not an approval, and
   ADR-0008-style contract test from the first commit, not later.
 - **The offer stage produces a draft and stops.** `createOffer` is never called
   by the run; it is called by the gate commit. This is a deliberate asymmetry
-  with S4, where the invite token is also minted by the gate commit.
+  with S4, where the invite token is also minted by the gate commit. *(Not what the
+  gate commit does today: it is ledger-only — see the 2026-10-07 amendment.)*
 - **Cost per run is unbounded by construction** — S1 fan-out times S2 LLM calls.
   A per-run budget ceiling is a prerequisite, not a follow-up.
 - **A candidate can be at a different stage than their `pipeline_entries.stage`
@@ -416,3 +417,26 @@ sent. An approval that arrives after the effect is not an approval, and
   interview on a short demo agenda (…)`; a `not met` line names it too), and `--json` carries
   `simulatedAgenda` and `simulatedAgendaBlocks` beside `goalOneHeadline`. The four clauses keep
   their meaning.
+- **2026-10-07 — the gate commit is ledger-only today (architecture review finding #3).**
+  §5 row P5 and the Consequences above say the gate commit calls `createOffer`, mints the
+  invite token and leaves a sealed decision record. Checked at 9d98a74ff, it does none of
+  these.
+  (a) *What `commitRoleRunStageGate` does now* (`app/_lib/role-run-engine.ts:465-522`): it
+  verifies the branch is parked at the gate, verifies and spends the approval token
+  (`commitRoleRunGate`, `:482`), and appends the resolution artifact (`:502`). It calls no
+  board door, no `createScheduleInvite` and no `createOffer`, and it seals no decision
+  record. The approver is stored only as `approverRef`, a hash (`:516`), so a role-run
+  gate approval names its approver nowhere. Nothing under `app/api/` imports
+  `role-run-engine.ts` or `app/_lib/db/role-runs.ts`, so no route reaches it yet.
+  (b) *What stays true:* the engine never imports `createOffer` or `createScheduleInvite`,
+  and the stage runners draft and stop. A token that exists before a human approved it is
+  still impossible.
+  (c) *The shape the review recorded for when a door is built.* A rejection goes through
+  `runPipelineEntryAction`'s seal-first reject or screen-wave's commit; an invite goes
+  through `createScheduleInvite`; an offer goes through `extendDraftedOffer` /
+  `getOrCreateOpenOffer`. Each commit seals one record naming the approver, which
+  triggers review finding #4 (the chain has its own connection, so seal and write cannot
+  share one transaction).
+  (d) *This amendment decides nothing about building it.* Whether role-run gates get a
+  door is the owner's call, and it is open as line 1 of the compliant-hiring-decision
+  council report.
