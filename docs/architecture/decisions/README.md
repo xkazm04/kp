@@ -26,6 +26,7 @@ to be true for it to change?*
 - change what an ATS delivery retry sends, or add a subscribable lifecycle event → [0013](0013-ats-mirror-retry-reasserts-its-transition.md)
 - add a deployment-wide integration config or secret, or a door that writes one → [0014](0014-org-owned-singleton-integration-config.md)
 - count, invite, hook or export a board entry without asking whether it is an AI agent → [0015](0015-an-ai-agent-on-the-board-is-not-a-person.md)
+- write a `dev_audit` row, or put a candidate's name in an audit reason → [0016](0016-dev-audit-records-the-outcome-never-the-candidate.md)
 
 ## Index
 
@@ -46,6 +47,7 @@ to be true for it to change?*
 | [0013](0013-ats-mirror-retry-reasserts-its-transition.md) | An ATS mirror retry re-asserts its transition; a reverted decision ends the row | accepted | 2026-10-06 |
 | [0014](0014-org-owned-singleton-integration-config.md) | A singleton integration config records the organization that saved it; only that organization may change it | accepted | 2026-10-06 |
 | [0015](0015-an-ai-agent-on-the-board-is-not-a-person.md) | An AI agent on the role board is not a person; every machine actor refuses or skips it | accepted | 2026-10-07 |
+| [0016](0016-dev-audit-records-the-outcome-never-the-candidate.md) | A dev_audit row records the outcome and the outcome key, never a candidate label | accepted | 2026-10-07 |
 
 ## Writing a new one
 
