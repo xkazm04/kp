@@ -29,7 +29,11 @@ import type { Locale } from "@/i18n/locales";
 // coded at birth. A cached pre-v7 payload lacks it and would be read by the legacy
 // regex, which files a blind-screening redaction miss as a clean pass - so a cache
 // hit must not outlive the fix.
-export const PROMPT_VERSION = "v7-2026-09-23-trust-findings";
+//
+// v8: 8c424ff41 checks strengths and the explanation against the CV and codes an
+// unverified skill. A cached pre-v8 payload has none of this, so a cache hit must
+// not outlive the fix.
+export const PROMPT_VERSION = "v8-2026-10-07-checked-strengths";
 
 export type CacheKeyInput = {
   cvBytes: Buffer;

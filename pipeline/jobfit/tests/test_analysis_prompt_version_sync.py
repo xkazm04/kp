@@ -159,7 +159,12 @@ TAXONOMY_JSON = REPO_ROOT / "data" / "taxonomy.json"
 # unlike run_cost a cached payload WITHOUT it is read by the legacy TS regex, which
 # classifies a blind-screening redaction miss as a pass — so PROMPT_VERSION IS
 # bumped (v7) and stale caches miss.
-EXPECTED_PROMPT_VERSION = "v7-2026-09-23-trust-findings"
+# NOTE (2026-10-07 — checked strengths): 8c424ff41 checks strengths and the
+# explanation against the CV and codes an unverified skill (pipeline.py). A payload
+# cached before it carries none of this, so PROMPT_VERSION IS bumped (v8) and stale
+# caches miss. The fingerprint below is NOT re-recorded: this fingerprint does not
+# hash pipeline.py, which is why nothing forced the bump.
+EXPECTED_PROMPT_VERSION = "v8-2026-10-07-checked-strengths"
 EXPECTED_ANALYSIS_FINGERPRINT = "ef5b860b26dd38e3a81b572d4860157f4000cbd79472d8a5600608230bb6a3ce"
 
 
