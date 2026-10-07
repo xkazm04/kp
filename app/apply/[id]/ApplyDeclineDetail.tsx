@@ -13,7 +13,7 @@ import { useTranslations } from "next-intl";
 export function ApplyDeclineDetail({ names, reviewByEmail }: { names: readonly string[]; reviewByEmail: boolean }) {
   const t = useTranslations("apply");
   return (
-    <div className="mt-3 space-y-2 text-base text-steel">
+    <div className="mt-3 space-y-2 text-body text-steel">
       {names.length > 0 ? (
         <div>
           <p className="font-semibold text-ink">{t("declinedMustHave")}</p>

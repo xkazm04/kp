@@ -2,7 +2,7 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import { ConfidenceBandBadge, confidenceBandTitle } from "@/app/_components/Badge";
-import { CHIP_QUIET } from "@/app/_components/ui/recipes";
+import { BTN_GHOST, CHIP_QUIET } from "@/app/_components/ui/recipes";
 import type { MatchRef, MatchResult } from "@/app/features/shared/matchTypes";
 import { formatBandCompact, isEarlyCareer } from "@/app/features/shared/matchTypes";
 import { Bar, ReasoningPanel, ScoreBreakdown, useConfidenceBandCopy, useFitTierLabels, useMatchLabels } from "@/app/features/shared/MatchPresentation";
@@ -202,7 +202,7 @@ export function MatchCard({
             <p className="mt-2 rounded-md bg-red-50 px-2 py-1.5 text-sm text-red-700" role="alert">
               {addError}
               {onRerun ? (
-                <button type="button" onClick={onRerun} className="focus-ring ml-2 font-semibold underline">
+                <button type="button" onClick={onRerun} className={`${BTN_GHOST} ml-2 px-1 font-semibold underline`}>
                   {tTab("runMatching")}
                 </button>
               ) : null}
