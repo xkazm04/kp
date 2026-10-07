@@ -14,7 +14,7 @@ only bound on a door.
 
 | # | Finding | Where | Severity | State |
 | --- | --- | --- | --- | --- |
-| 1 | A Match verdict is sealed with a score and facts that the server never checks | `app/api/pipeline/route.ts:132-137`, sealed at `:204` | High | **Fixed** `b071685ba` |
+| 1 | A Match verdict is sealed with a score and facts that the server never checks | `app/api/pipeline/route.ts:132-137`, sealed at `:204` | High | **Fixed** `f8290f9e6` |
 | 2 | POST /api/pipeline had no limiter | `app/api/pipeline/route.ts:190` | Medium | **Fixed** `8f5603f4d` |
 | 3 | A confirmed `reject below` / `advance top` on the command bar ran with no limiter (idea d6f86aa9) | `app/api/pipeline/command/route.ts:156` | Medium | **Fixed** `28aac8adb` |
 | 4 | The per-card move/decide actions had no limiter. With the add door's reopen, a loop can email one candidate without bound | `app/api/pipeline/[id]/route.ts:219` | Medium | **Fixed** `e33923da7` |
@@ -32,9 +32,9 @@ Doors with no finding:
 
 Every door that writes scopes its write to `currentWorkspace()`.
 
-## 1. The sealed Match verdict is unverified (KNOWN 1, confirmed, **fixed** `b071685ba`)
+## 1. The sealed Match verdict is unverified (KNOWN 1, confirmed, **fixed** `f8290f9e6`)
 
-**Status: fixed.** The fix below was built as described, in `b071685ba`. `POST /api/match` stores each result (`match_run_results`, `app/_lib/db/match-runs.ts`, 12-hour TTL) and returns a `matchRunId`; the Match client sends it; the add door refuses a missing, expired, foreign or other-candidate/role run (409 `PIPELINE_ADD_MATCH_RUN_UNKNOWN`) and any difference in score, tier, dimensions, skill lists or scorer version (409 `PIPELINE_ADD_MATCH_RUN_MISMATCH`) before the seal and the insert; the sealed record's `inputs` carry the run id (ADR 0018, amendment of 2026-10-07). Pinned by `app/api/pipeline/match-add-provenance.test.ts`, which drives the real handler. The text below is the original finding.
+**Status: fixed.** The fix below was built as described, in `f8290f9e6`. `POST /api/match` stores each result (`match_run_results`, `app/_lib/db/match-runs.ts`, 12-hour TTL) and returns a `matchRunId`; the Match client sends it; the add door refuses a missing, expired, foreign or other-candidate/role run (409 `PIPELINE_ADD_MATCH_RUN_UNKNOWN`) and any difference in score, tier, dimensions, skill lists or scorer version (409 `PIPELINE_ADD_MATCH_RUN_MISMATCH`) before the seal and the insert; the sealed record's `inputs` carry the run id (ADR 0018, amendment of 2026-10-07). Pinned by `app/api/pipeline/match-add-provenance.test.ts`, which drives the real handler. The text below is the original finding.
 
 On a Match add, POST /api/pipeline checks three things:
 - the facts' shape and closed vocabularies (`coerceMatchReasonFacts`, `app/_lib/match-verdict.ts:107`);

@@ -12,8 +12,10 @@ On main `1c21c83c0` no `matchRunId` existed anywhere, and POST /api/pipeline che
 
 | Commit | Change |
 | --- | --- |
-| `b071685ba` | Store, `/api/match` run id, Match client, add-door check, refusal codes in 4 locales, erasure, tests, matching README |
+| `f8290f9e6` | Store, `/api/match` run id, Match client, add-door check, refusal codes in 4 locales, erasure, tests, matching README |
 | the docs commit that adds this file | ADR 0018 amendment, scan report status, this record (the code commit was carried unchanged from run e0d77d32 by fast-forward cherry-pick, so its SHA is the same) |
+
+Citation note (2026-10-07): this record first cited the SHA of the same change on the stale branch, which exists only on the stale branch `autopilot/accepted-idea-delivery-e0d77d32`; main carries the patch-equivalent change as `f8290f9e6` (`git cherry` shows them equal), so the citation was swapped.
 
 How it works:
 - **Store.** `match_run_results` (`app/_lib/db/match-runs.ts`), PK `(workspace_id, run_id, job_id)`, one row per job of a run, holding the verdict facts the *server* derived (`matchReasonFacts` over the engine output), the candidate id, the scorer version, a hash of the sanitized weights and an expiry. Registered in `TENANCY_SCOPED_TABLES`.
