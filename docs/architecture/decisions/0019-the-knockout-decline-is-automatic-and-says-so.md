@@ -166,3 +166,7 @@ door).
   if replies are not read, it is not a route.
 - Measured evidence that declines are often contested and overturned, which
   would say the gate is wrong on the facts and not only on process.
+
+## Amendments
+
+- **2026-10-07 — the Art. 22(2) basis is left to counsel.** The owner answered ask 37e31cc8 with "Leave it to counsel, mark amber". Choosing the GDPR Art. 22(2) basis for this exception is counsel's call. The GDPR Art. 22 row in `docs/features/compliance/ai-act-conformity.md` is now 🟡 until counsel records a basis, and [R-64](../../features/compliance/regulatory-backlog.md) tracks it. The KO gate is unchanged: it stays automatic. The body of this record is not rewritten, and this ADR still supplies no basis.
