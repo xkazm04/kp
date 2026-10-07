@@ -53,7 +53,7 @@ function BenchRow({ peer, rank, self }: { peer: PeerRow | null; rank: number; se
 }
 
 export function AnalysisModalBench({ entry, data, reason, setReason, onClose, onAccept, onReject, t, enumLabel }: AnalysisVariantProps) {
-  const { match, matchLoading, peers, unproven } = data;
+  const { match, matchLoading, matchVerdict, peers, unproven } = data;
   const total = match?.total ?? entry.matchScore ?? null;
 
   const rows: PeerScore[] = [
@@ -89,11 +89,11 @@ export function AnalysisModalBench({ entry, data, reason, setReason, onClose, on
       <div className="mt-5 grid gap-6 lg:grid-cols-[1fr_20rem]">
         {/* ── Evidence, two ruled columns on wide screens ── */}
         <div className="-mx-5 min-w-0 lg:mx-0">
-          {entry.approvalDetail ? (
+          {entry.approvalDetail || matchVerdict ? (
             <>
               <SectionBand label={t("aiReview")} />
               <div className="px-5 py-4 lg:px-3">
-                <AiNarrative entry={entry} />
+                <AiNarrative entry={entry} matchVerdict={matchVerdict} />
               </div>
             </>
           ) : null}

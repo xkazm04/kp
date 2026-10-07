@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { appendEntryNoteFromBody, MAX_NOTES_LENGTH } from "@/app/_lib/db/entry-notes";
 import { clearIntakeDegraded, getPipelineEntry, newestDecisionIsAutoRejection, reinstatePipelineEntry, setEntryGithubEvidence, setEntryNotes } from "@/app/_lib/db/pipeline";
 import { coerceGithubEvidenceSummary } from "@/app/_lib/github-summary";
-import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
+import { listDecisionRecordsForRefs, sealDecisionSafe } from "@/app/_lib/decision-record-store";
+import { sealedMatchVerdictOf, type SealedMatchVerdict } from "@/app/_lib/decision-attribution";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError, type RefusalErrorCode } from "@/app/_lib/api-response";
 import { currentUser, requireCapability } from "@/app/_lib/auth/current-user";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
@@ -39,6 +40,12 @@ import { ENTRY_ACTIONS, engineClaimOf, entryActionOf } from "./entry-actions";
 // provenance stamped so the reopened header matches the board and decisions surfaces.
 // Workspace-scoped (getPipelineEntry) — a deleted or other-tenant id answers 404,
 // which the caller treats as "no navigation", never a broken drawer.
+//
+// `matchVerdict` (ADR 0018): the entry's newest SEALED Match verdict — its facts, read
+// through listDecisionRecordsForRefs on this workspace's chain and re-validated by
+// sealedMatchVerdictOf — or null (not a Match add, or filed before the seal). The
+// Decisions cohort's analysis modal renders it in the reader's language; codes and
+// numbers only, so nothing here is locale-bound.
 export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const denied = await requireOperator();
   if (denied) return denied;
@@ -47,9 +54,22 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
     const ws = await currentWorkspace();
     const entry = getPipelineEntry(id, ws);
     if (!entry) return jsonRefusal("PIPELINE_ENTRY_NOT_FOUND", 404);
-    return NextResponse.json({ entry: withCanonicalScores([entry], ws)[0] });
+    return NextResponse.json({ entry: withCanonicalScores([entry], ws)[0], matchVerdict: matchVerdictFor(id, ws) });
   } catch (error) {
     return safeJsonError(error, "api:pipeline:entry", "PIPELINE_LIST_FAILED");
+  }
+}
+
+/** The entry's sealed Match verdict, or null. The chain is a separate store: a read that
+ *  fails there must not take the entry (and the drawer that refreshes through this GET)
+ *  down with it, so it degrades to null — logged, because an unreadable chain is
+ *  something an operator would act on. */
+function matchVerdictFor(id: string, ws: string): SealedMatchVerdict | null {
+  try {
+    return sealedMatchVerdictOf(listDecisionRecordsForRefs([id], { workspaceId: ws }).get(id) ?? []);
+  } catch (error) {
+    console.error(`[api:pipeline:entry] sealed match verdict unavailable for entry ${id}`, error);
+    return null;
   }
 }
 

@@ -9,7 +9,9 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { apiErrorPayload, LocalizedFailure } from "./analyticsFetchError";
 import { downloadFile } from "@/app/_lib/export-utils";
 import { buildUrl, clearedTabScopedParams } from "@/app/features/shell/tabs";
-import { waveReasonText } from "@/app/_lib/decision-attribution";
+import { matchVerdictReasons, waveReasonText } from "@/app/_lib/decision-attribution";
+import { MATCH_VERDICT_KIND } from "@/app/_lib/match-verdict";
+import type { MatchReasonsTranslator } from "@/app/features/insights/matrix/focus/matchReasons";
 import { resolveAuditTimeZone } from "./analyticsDecisionLogTypes";
 import { DecisionRecordsTable } from "./sections/DecisionRecordsTable";
 // `import type` only — decision-record-store has server imports; types are erased.
@@ -32,6 +34,7 @@ type Payload = { records: DecisionRecord[]; chain: ChainVerdict; resolved?: Reco
 export function DecisionRecordsPanel() {
   const t = useTranslations("analytics.decisionRecords");
   const tReasons = useTranslations("decisions.wave");
+  const tMatch = useTranslations("match") as unknown as MatchReasonsTranslator;
   // The server answers a failure with a CODE, never with prose the UI may paint
   // (api-contracts.md §1.1). This export threw the raw HTTP status and, failing that,
   // the server's English `error` string — neither of which ever reached a reader,
@@ -54,6 +57,9 @@ export function DecisionRecordsPanel() {
   // always committed, so reject uses the "did" phrasing.
   const localizedRationale = (r: DecisionRecord): string => {
     if (!r.reasonCode) return r.rationale;
+    // A sealed Match verdict (ADR 0018) stores facts and a CODE-string rationale, never
+    // prose: render the facts through the same renderer the Match card uses.
+    if (r.kind === MATCH_VERDICT_KIND) return matchVerdictReasons(tMatch, r)?.line ?? r.rationale;
     let params: Record<string, string | number> = {};
     try {
       const inputs = (JSON.parse(r.payloadJson) as { inputs?: unknown })?.inputs;

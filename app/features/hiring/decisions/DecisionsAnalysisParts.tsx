@@ -6,7 +6,7 @@
 // pre-Bench modal during the /prototype round; the sections keep the original
 // decisions.summary catalog keys.
 import { Check, X } from "lucide-react";
-import type { useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { TextArea } from "@/app/_components/TextArea";
 import { ConfidenceBandBadge, ConfidenceRange, FitTierBadge } from "@/app/_components/Badge";
@@ -14,6 +14,8 @@ import { useConfidenceBandCopy, useFitTierLabels } from "@/app/features/shared/M
 import { provLabel } from "@/app/features/shared/matchTypes";
 import type { Entry } from "@/app/features/shared/decisionsTypes";
 import type { useAnalysisSummaryData } from "./decisionsAnalysisSummaryData";
+import type { SealedMatchVerdict } from "@/app/_lib/decision-attribution";
+import { renderMatchReasons, type MatchReasonsTranslator } from "@/app/features/insights/matrix/focus/matchReasons";
 import { BTN_AFFIRM } from "@/app/_components/ui/recipes";
 
 export type SummaryData = ReturnType<typeof useAnalysisSummaryData>;
@@ -164,45 +166,66 @@ export function ProfileFacts({ data, t }: { data: SummaryData; t: SummaryT }) {
   );
 }
 
-/** The AI's screening/scorecard narrative (rationale + strengths/red flags),
- *  parsed from the entry's approvalDetail. This is the long-form prose the
- *  card prototypes REMOVE from the queue cards — it belongs here, one click
- *  deep, next to the evidence it argues from. Renders nothing for entries
- *  without an AI narrative (e.g. plain key decisions). */
-export function AiNarrative({ entry }: { entry: Entry }) {
+type Narrative = { prose: string | null; strengths: string[]; redFlags: string[] };
+
+/** One narrative: prose, then strengths (moss) beside red flags (coral). */
+function NarrativeBlock({ prose, strengths, redFlags }: Narrative) {
+  return (
+    <div>
+      {prose ? <p className="text-body text-ink">{prose}</p> : null}
+      {strengths.length || redFlags.length ? (
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          {[
+            { items: strengths, tone: "text-moss" },
+            { items: redFlags, tone: "text-coral" },
+          ].map(({ items, tone }) =>
+            items.length ? (
+              <ul key={tone} className="space-y-1">
+                {items.slice(0, 4).map((s, i) => (
+                  <li key={i} className="flex gap-1.5 text-sm text-ink">
+                    <span className={tone}>•</span> {s}
+                  </li>
+                ))}
+              </ul>
+            ) : null
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** The narrative an entry's approvalDetail carries (a screening/scorecard rationale, or
+ *  the prose snapshot a pre-ADR-0018 Match add left there), or null. */
+function slotNarrative(approvalDetail: string | null): Narrative | null {
   let parsed: { rationale?: string; summary?: string; strengths?: string[]; redFlags?: string[] } | null = null;
   try {
-    parsed = entry.approvalDetail ? JSON.parse(entry.approvalDetail) : null;
+    parsed = approvalDetail ? JSON.parse(approvalDetail) : null;
   } catch {
     parsed = null;
   }
   const prose = parsed?.rationale ?? parsed?.summary ?? null;
   if (!parsed || (!prose && !parsed.strengths?.length && !parsed.redFlags?.length)) return null;
+  return { prose, strengths: parsed.strengths ?? [], redFlags: parsed.redFlags ?? [] };
+}
+
+/** Why this candidate is in front of the reader: the SEALED Match verdict, when the entry
+ *  was filed from Match (ADR 0018 — its facts rendered in the reader's language by the
+ *  same renderer the Match card uses: the line, then matched skills as strengths and
+ *  missing ones as red flags), and the AI's screening/scorecard narrative from the
+ *  entry's approvalDetail. A legacy Match add with no record still shows the prose it
+ *  left in the slot, exactly as before. This is the long-form text the card prototypes
+ *  REMOVE from the queue cards — it belongs here, one click deep, next to the evidence
+ *  it argues from. Renders nothing for an entry with neither (e.g. a plain key decision). */
+export function AiNarrative({ entry, matchVerdict }: { entry: Entry; matchVerdict?: SealedMatchVerdict | null }) {
+  const tMatch = useTranslations("match") as unknown as MatchReasonsTranslator;
+  const sealed = matchVerdict ? renderMatchReasons(matchVerdict.facts, tMatch) : null;
+  const slot = slotNarrative(entry.approvalDetail);
+  if (!sealed && !slot) return null;
   return (
-    <div>
-      {prose ? <p className="text-body text-ink">{prose}</p> : null}
-      {parsed.strengths?.length || parsed.redFlags?.length ? (
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          {parsed.strengths?.length ? (
-            <ul className="space-y-1">
-              {parsed.strengths.slice(0, 4).map((s, i) => (
-                <li key={i} className="flex gap-1.5 text-sm text-ink">
-                  <span className="text-moss">•</span> {s}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          {parsed.redFlags?.length ? (
-            <ul className="space-y-1">
-              {parsed.redFlags.slice(0, 4).map((s, i) => (
-                <li key={i} className="flex gap-1.5 text-sm text-ink">
-                  <span className="text-coral">•</span> {s}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </div>
-      ) : null}
+    <div className="space-y-4">
+      {sealed ? <NarrativeBlock prose={sealed.line} strengths={sealed.matched} redFlags={sealed.missing} /> : null}
+      {slot ? <NarrativeBlock {...slot} /> : null}
     </div>
   );
 }

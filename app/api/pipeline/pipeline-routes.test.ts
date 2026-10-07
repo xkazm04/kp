@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
 import { cleanupUnitDb } from "../../_lib/testing/unit-db.ts";
 import { GET as boardGet, POST as boardPost } from "./route.ts";
-import { POST as actionPost } from "./[id]/route.ts";
+import { GET as entryGet, POST as actionPost } from "./[id]/route.ts";
 import { GET as commsGet } from "../comms/route.ts";
 import { getPipelineEntry, PIPELINE_STAGES } from "../../_lib/db/pipeline.ts";
 import { listDecisionRecords, verifyDecisionChain } from "../../_lib/decision-record-store.ts";
@@ -280,4 +280,20 @@ test("the decision chain still verifies after Match adds", async () => {
   assert.equal(verdict.ok, true);
   assert.equal(verdict.brokenAtSeq, null);
   assert.ok(verdict.count >= 2);
+});
+
+test("GET /api/pipeline/[id] carries the entry's sealed Match verdict (facts only), and null for a non-Match add", async () => {
+  const add = matchAdd();
+  const { entry } = (await (await add.send()).json()) as { entry: { id: string } };
+  const res = await entryGet(new NextRequest(`http://localhost/api/pipeline/${entry.id}`), idParams(entry.id));
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { entry: { id: string }; matchVerdict: { createdAt: string; facts: unknown } | null };
+  assert.equal(body.entry.id, entry.id);
+  assert.deepEqual(body.matchVerdict?.facts, FACTS, "the Decisions modal renders these in the reader's language");
+
+  const plain = await addViaRoute();
+  const plainBody = (await (await entryGet(new NextRequest(`http://localhost/api/pipeline/${plain.entry.id}`), idParams(plain.entry.id))).json()) as {
+    matchVerdict: unknown;
+  };
+  assert.equal(plainBody.matchVerdict, null);
 });

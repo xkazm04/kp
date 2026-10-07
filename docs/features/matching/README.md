@@ -65,7 +65,16 @@ than silently dropping a reason.
     question, see Known gaps).
     A sealed verdict is turned back into words by `matchVerdictReasons` /
     `sealedMatchVerdictOf` in `app/_lib/decision-attribution.ts` (re-validating the facts,
-    then `renderMatchReasons` in the reader's `match` catalog), and
+    then `renderMatchReasons` in the reader's `match` catalog). The **Decisions cohort**
+    reads it that way: `GET /api/pipeline/[id]` returns the entry's newest verdict as
+    `matchVerdict` (facts via `listDecisionRecordsForRefs`, null when there is none or the
+    chain cannot be read), `decisionsAnalysisSummaryData.ts` fetches it when the analysis
+    modal opens, and `AiNarrative` (`DecisionsAnalysisParts.tsx`) shows the rendered line
+    with matched skills as strengths and missing ones as red flags — in Czech for a Czech
+    reader, from the same record. A legacy Match add with no record still shows the prose
+    it left in `approval_detail`, as before. The Analytics decision-records panel
+    localizes a `match_verdict` row's rationale the same way (its sealed `rationale` is
+    the code string), and
     `npm run kpi:reasons` reads it the same way: each `source_channel = 'match'` entry is
     looked up by `candidate_ref` among `match_verdict` records (`matchFiledRanking` in
     `app/_lib/reasons-coverage.ts`), so an accept that clears the gate slot no longer
