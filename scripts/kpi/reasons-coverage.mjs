@@ -81,10 +81,11 @@ function seededRankings() {
  *  unmeasured, which is a truthful reading of a checkout that has run nothing. */
 async function producedVerdicts() {
   const dbPath = process.env.KP_DB_PATH ?? path.join(REPO_ROOT, "data", "kp.sqlite");
-  if (!existsSync(dbPath)) return { verdicts: [], dbPath: null };
+  if (!existsSync(dbPath)) return { verdicts: [], dbPath: null, completedUnscored: 0 };
   const { default: Database } = await import("better-sqlite3");
   const db = new Database(dbPath, { readonly: true, fileMustExist: true });
   const verdicts = [];
+  let completedUnscored = 0;
   const tableExists = (name) =>
     db.prepare(`SELECT 1 FROM sqlite_master WHERE type='table' AND name = ?`).get(name) !== undefined;
   try {
@@ -147,6 +148,12 @@ async function producedVerdicts() {
         }
         verdicts.push({ kind: "scorecard", id: `interview:${row.id}`, ratings: scorecard?.ratings });
       }
+      // A completed session with NO scorecard (refused at the write path, or never scored)
+      // is invisible to the query above. Counted in its own bucket: not a hit, and not a
+      // reasonless scorecard — there is no scorecard.
+      completedUnscored = db
+        .prepare(`SELECT COUNT(*) AS n FROM interview_sessions WHERE status = 'completed' AND scorecard_json IS NULL`)
+        .get().n;
     }
     // Rejections: the SEALED adverse decisions, read exactly as the candidate-facing
     // and operator-facing surfaces read them (code + the record's inputs as params).
@@ -172,14 +179,14 @@ async function producedVerdicts() {
   } finally {
     db.close();
   }
-  return { verdicts, dbPath };
+  return { verdicts, dbPath, completedUnscored };
 }
 
-const { verdicts: produced, dbPath } = await producedVerdicts();
+const { verdicts: produced, dbPath, completedUnscored } = await producedVerdicts();
 const allVerdicts = [...seededRankings(), ...produced];
 const catalog = englishWaveCatalog();
 const matchCatalog = englishMatchCatalog();
-const coverage = countReasonsCoverage(allVerdicts, catalog, matchCatalog);
+const coverage = countReasonsCoverage(allVerdicts, catalog, matchCatalog, completedUnscored);
 /** The ranking arm per source, so the headline says what it counts. */
 const RANKING_ORIGINS = [
   ["seed", "seed analyses"],
@@ -200,6 +207,12 @@ if (asJson) {
   console.log("Reasons coverage — produced verdicts that can say why");
   console.log(`  source: data/seed_* ${dbPath ? `+ ${path.relative(REPO_ROOT, dbPath)}` : "(no database — seeded corpus only)"}`);
   for (const kind of REASONS_VERDICT_KINDS) console.log(`  ${kind.padEnd(10)} ${pct(coverage.byKind[kind])}`);
+  // The scorecard arm's depth and its blind spot: how much of each rubric was assessed, and the
+  // completed sessions that never produced a scorecard (neither hits nor misses).
+  const axes = coverage.scorecardAxes;
+  console.log(`    scorecard / axes assessed ${axes.axes ? `${axes.assessed} of ${axes.axes} axes with real evidence` : "n/a (no scorecards)"}`);
+  for (const f of coverage.scorecardFractions) console.log(`      ${f.id}: ${f.assessed} of ${f.axes} axes`);
+  console.log(`    scorecard / completed, unscored: ${coverage.completedUnscored} (no scorecard produced — not counted as hit or miss)`);
   for (const [origin, label] of RANKING_ORIGINS) console.log(`    ranking / ${label.padEnd(20)} ${pct(rankingBySource[origin])}`);
   // Match adds filed before the verdict was sealed (ADR 0018): stated, never folded in.
   console.log(`      legacy prose snapshot (not counted)                              ${coverage.legacyMatch.legacy_prose_snapshot}`);

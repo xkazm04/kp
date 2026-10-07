@@ -156,6 +156,18 @@ function isBlank(s: string | null | undefined): boolean {
   return !s || s.trim().length === 0;
 }
 
+/** How many of a scorecard's axes carry real evidence: k of N. A scorecard with one real
+ *  quote among five axes is a hit under the hit rule, and this is what says it is 1 of 5. */
+export function scorecardFraction(ratings: unknown): { assessed: number; axes: number } {
+  if (!Array.isArray(ratings)) return { assessed: 0, axes: 0 };
+  const assessed = ratings.filter((r) => {
+    if (!r || typeof r !== "object") return false;
+    const evidence = (r as Record<string, unknown>).evidence;
+    return !isPlaceholderEvidence(typeof evidence === "string" ? evidence : null);
+  }).length;
+  return { assessed, axes: ratings.length };
+}
+
 /** Does this verdict resolve a non-empty reasons block? One function, three kinds,
  *  each answered the way that kind's own producer defines "why". `matchCatalog` is the
  *  `match`-scoped translator a sealed Match verdict renders through (rejections use
@@ -196,15 +208,11 @@ export function reasonsBlockOf(
       // "Not assessed…" has no reasons block. It looks complete — every axis
       // carries a rating and a string — which is exactly why counting rows rather
       // than reading them would score it as a hit.
-      const assessed = verdict.ratings.filter((r) => {
-        if (!r || typeof r !== "object") return false;
-        const evidence = (r as Record<string, unknown>).evidence;
-        return !isPlaceholderEvidence(typeof evidence === "string" ? evidence : null);
-      });
-      if (assessed.length === 0) {
-        return { ok: false, why: `every one of ${verdict.ratings.length} rating(s) is placeholder evidence` };
+      const { assessed, axes } = scorecardFraction(verdict.ratings);
+      if (assessed === 0) {
+        return { ok: false, why: `every one of ${axes} rating(s) is placeholder evidence` };
       }
-      return { ok: true, via: `${assessed.length}/${verdict.ratings.length} rating(s) with real evidence` };
+      return { ok: true, via: `${assessed}/${axes} rating(s) with real evidence` };
     }
     case "rejection": {
       if (!verdict.reason || isBlank(verdict.reason.reasonCode)) {
@@ -245,6 +253,15 @@ export type ReasonsCoverage = {
   /** Match-filed entries with no sealed verdict, by legacy bucket. OUTSIDE every arm and
    *  the total — neither a hit nor a miss — and stated so a reader sees their size. */
   legacyMatch: Record<LegacyMatchBucket, number>;
+  /** Each counted scorecard's assessed fraction (k of N axes with real evidence), and the
+   *  totals across them — so the arm reads how much of the rubric was assessed, not only
+   *  hit or miss. */
+  scorecardFractions: { id: string; assessed: number; axes: number }[];
+  scorecardAxes: { assessed: number; axes: number };
+  /** Completed interview sessions that produced NO scorecard (a refused or never-scored
+   *  one). Their own bucket: neither a hit nor a miss, because no scorecard exists to
+   *  have no reasons — and never silently dropped. */
+  completedUnscored: number;
 };
 
 function arm(checked: number, withReasons: number): ReasonsArm {
@@ -260,18 +277,22 @@ function arm(checked: number, withReasons: number): ReasonsArm {
 export function countReasonsCoverage(
   verdicts: readonly ReasonsVerdict[],
   catalog: ReasonsCatalog,
-  matchCatalog?: MatchReasonsTranslator
+  matchCatalog?: MatchReasonsTranslator,
+  /** Count of completed sessions with no scorecard (the meter reads it from the database). */
+  completedUnscored = 0
 ): ReasonsCoverage {
   const checked = { ranking: 0, scorecard: 0, rejection: 0 } as Record<ReasonsVerdictKind, number>;
   const hit = { ranking: 0, scorecard: 0, rejection: 0 } as Record<ReasonsVerdictKind, number>;
   const misses: ReasonsMiss[] = [];
   const legacyMatch = { legacy_prose_snapshot: 0, legacy_snapshot_cleared: 0 } as Record<LegacyMatchBucket, number>;
+  const scorecardFractions: { id: string; assessed: number; axes: number }[] = [];
   for (const v of verdicts) {
     if (v.kind === "ranking" && v.legacy) {
       legacyMatch[v.legacy] += 1; // never folded into the headline
       continue;
     }
     checked[v.kind] += 1;
+    if (v.kind === "scorecard") scorecardFractions.push({ id: v.id, ...scorecardFraction(v.ratings) });
     const result = reasonsBlockOf(v, catalog, matchCatalog);
     if (result.ok) hit[v.kind] += 1;
     else misses.push({ kind: v.kind, id: v.id, why: result.why });
@@ -288,6 +309,9 @@ export function countReasonsCoverage(
     misses,
     unmeasuredKinds: REASONS_VERDICT_KINDS.filter((k) => checked[k] === 0),
     legacyMatch,
+    scorecardFractions,
+    scorecardAxes: scorecardFractions.reduce((t, f) => ({ assessed: t.assessed + f.assessed, axes: t.axes + f.axes }), { assessed: 0, axes: 0 }),
+    completedUnscored,
   };
 }
 

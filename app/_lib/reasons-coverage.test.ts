@@ -25,6 +25,7 @@ import {
   matchFiledRanking,
   reasonsBlockOf,
   reasonsCoveragePct,
+  scorecardFraction,
   type ReasonsCatalog,
   type ReasonsVerdict,
 } from "./reasons-coverage.ts";
@@ -293,4 +294,31 @@ test("hasFallbackExplanation reads the coded finding, never the prose", () => {
   assert.equal(hasFallbackExplanation({ trustFindings: [{ code: "score_section_missing" }] }), false);
   assert.equal(hasFallbackExplanation({}), false);
   assert.equal(hasFallbackExplanation(null), false);
+});
+
+test("the scorecard arm carries each card's k of N, and the totals across cards", () => {
+  const corpus = fullyCoveredCorpus();
+  const scorecard = corpus[1] as Extract<ReasonsVerdict, { kind: "scorecard" }>;
+  scorecard.ratings = [
+    { competency: "A", rating: 4, evidence: "Described the cutover she led." },
+    { competency: "B", rating: 3, evidence: "Not assessed." },
+    { competency: "C", rating: 3, evidence: "" },
+  ];
+  const c = countReasonsCoverage(corpus, CATALOG);
+  // The hit rule is unchanged — one real quote is still a hit — but the fraction says 1 of 3.
+  assert.equal(c.byKind.scorecard.withReasons, 1);
+  assert.deepEqual(c.scorecardFractions, [{ id: scorecard.id, assessed: 1, axes: 3 }]);
+  assert.deepEqual(c.scorecardAxes, { assessed: 1, axes: 3 });
+  assert.deepEqual(scorecardFraction(undefined), { assessed: 0, axes: 0 });
+});
+
+test("completed sessions with no scorecard are their own bucket: not a hit, not a miss, not an arm member", () => {
+  const corpus = fullyCoveredCorpus();
+  const before = countReasonsCoverage(corpus, CATALOG);
+  assert.equal(before.completedUnscored, 0);
+  const after = countReasonsCoverage(corpus, CATALOG, undefined, 3);
+  assert.equal(after.completedUnscored, 3);
+  assert.deepEqual(after.byKind, before.byKind, "no arm moves");
+  assert.deepEqual(after.misses, before.misses, "and none is reported as a reasonless scorecard");
+  assert.deepEqual(after.total, before.total);
 });

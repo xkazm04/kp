@@ -550,6 +550,14 @@ producer:
 | `scorecard` | at least one rating with REAL evidence (`isPlaceholderEvidence` is honoured, so an all-"Not assessed" scorecard is a MISS) | `interview_sessions.scorecard_json` |
 | `rejection` | text that `waveReasonText` actually resolves from the sealed code | `decision_records` of kind `auto_rejected`/`rejected` |
 
+The scorecard arm only sees sessions that carry a scorecard, so a completed session
+whose scorecard was refused (`INTERVIEW_SCORECARD_UNGROUNDED`) would be invisible to
+it. The meter therefore prints `completed, unscored: n` beside the arm: sessions with
+`status = 'completed'` and no `scorecard_json`, counted in their own bucket — neither
+a hit nor a miss, because no scorecard was produced. Each scorecard also prints its
+assessed fraction (k of N axes with real evidence) and the arm prints the totals; the
+hit rule itself (one real quote) is unchanged.
+
 Two properties are what make the number worth reading, and both are pinned by
 controls in `app/_lib/reasons-coverage.test.ts`:
 
