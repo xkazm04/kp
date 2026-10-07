@@ -128,6 +128,12 @@ def run_cli(argv: list[str], request: dict | str) -> tuple[int, str, str]:
 
 
 class PinEffortTest(unittest.TestCase):
+    def setUp(self):
+        # cli_args() resolves the binary through shutil.which; a runner has no `claude` on PATH.
+        patcher = mock.patch.object(claude_cli.shutil, "which", return_value="claude")
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def test_effort_reaches_argv_beside_the_model(self):
         with _env():
             provider = resolve_provider("gig_plan", timeout=60, pin=ProviderPin("claude_cli", "claude-opus-5-5", "xhigh"))
