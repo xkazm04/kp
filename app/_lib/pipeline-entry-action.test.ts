@@ -366,3 +366,80 @@ test("seal-first: an accept on a closed-out entry is refused BEFORE anything is 
   assert.equal(res.body.code, "PIPELINE_STAGE_CHANGED");
   assert.equal(recordsFor(entry.id).length, before, "no advance was sealed");
 });
+
+// ---- a RATIFIED rejection carries the machine's reason ---------------------------
+// Council d676869f, line 2. A rejection_review is the policy pass's reject queued for
+// a human (automation-pass.ts). Ratified with no note, it sealed "Recruiter reject from
+// Screened." — the policy's reason was in approval_detail, which the write NULLs.
+const POLICY_REASON = "BAU score 31 < 40";
+const queuedReject = (extra: Record<string, unknown> = {}) =>
+  JSON.stringify({ recommendation: "reject", confidence: 31, rationale: POLICY_REASON, ...extra });
+
+test("ratified (4): a rejection_review rejected with NO note seals the policy's own rationale, and its inputs carry it", async () => {
+  const entry = entryFixture(WS_SEAL, "Screened");
+  // The exact shape automation-pass.ts queues (pinned in automation-pass.test.ts).
+  setApproval(entry.id, "rejection_review", queuedReject(), WS_SEAL);
+  const res = await runPipelineEntryAction(
+    { id: entry.id, action: "reject", expectedStage: "Screened", origin: ORIGIN, workspaceId: WS_SEAL },
+    spied().deps
+  );
+  assert.equal(res.status, 200);
+  const [record] = recordsFor(entry.id);
+  assert.equal(record.kind, "rejected");
+  assert.equal(record.rationale, POLICY_REASON, "the policy's reason, not the 'Recruiter reject from …' template");
+  assert.equal(record.reasonCode, "reject");
+  const inputs = sealedInputs(record.payloadJson);
+  assert.equal(inputs.aiRationale, POLICY_REASON);
+  assert.ok("aiReasonCode" in inputs, "the machine's reason code is a sealed input");
+  assert.equal(inputs.aiReasonCode, null, "the policy pass emits no structured code today");
+  assert.equal(inputs.aiRecommendation, "reject");
+  assert.equal(inputs.approvalKind, "rejection_review");
+  assert.equal(inputs.detail, null);
+});
+
+test("ratified (5): a rejection_review rejected WITH a note seals the note, and the inputs still carry the policy's reason", async () => {
+  const entry = entryFixture(WS_SEAL, "Screened");
+  setApproval(entry.id, "rejection_review", queuedReject({ reasonCode: "belowFloor", reasonParams: { score: 31, floor: 40, junk: { nested: true } } }), WS_SEAL);
+  const note = "Agree: no Kubernetes experience, which the role needs from day one.";
+  const res = await runPipelineEntryAction(
+    { id: entry.id, action: "reject", expectedStage: "Screened", detail: note, origin: ORIGIN, workspaceId: WS_SEAL },
+    spied().deps
+  );
+  assert.equal(res.status, 200);
+  const [record] = recordsFor(entry.id);
+  assert.equal(record.rationale, note, "the recruiter's own words are the decision's rationale");
+  const inputs = sealedInputs(record.payloadJson);
+  assert.equal(inputs.detail, note);
+  assert.equal(inputs.aiRationale, POLICY_REASON, "…and the machine's reason is sealed beside them");
+  assert.equal(inputs.aiReasonCode, "belowFloor");
+  assert.deepEqual(inputs.aiReasonParams, { score: 31, floor: 40 }, "params keep the string|number shape; a nested blob is dropped");
+});
+
+test("ratified: the machine's reject reason never becomes the rationale of an ACCEPT that overrides it", async () => {
+  const entry = entryFixture(WS_SEAL, "Screened");
+  setApproval(entry.id, "rejection_review", queuedReject(), WS_SEAL);
+  const res = await runPipelineEntryAction(
+    { id: entry.id, action: "accept", expectedStage: "Screened", origin: ORIGIN, workspaceId: WS_SEAL },
+    spied().deps
+  );
+  assert.equal(res.status, 200);
+  const [record] = recordsFor(entry.id);
+  assert.equal(record.kind, "advanced");
+  assert.equal(record.rationale, "Recruiter accept from Screened.");
+  assert.equal(sealedInputs(record.payloadJson).aiRationale, POLICY_REASON, "the overridden reason is still sealed as an input");
+});
+
+test("a plain reject with no note and no machine verdict still seals the template (the open question this branch leaves)", async () => {
+  const entry = entryFixture(WS_SEAL, "Screened");
+  const res = await runPipelineEntryAction(
+    { id: entry.id, action: "reject", expectedStage: "Screened", origin: ORIGIN, workspaceId: WS_SEAL },
+    spied().deps
+  );
+  assert.equal(res.status, 200);
+  const [record] = recordsFor(entry.id);
+  assert.equal(record.rationale, "Recruiter reject from Screened.");
+  const inputs = sealedInputs(record.payloadJson);
+  assert.equal(inputs.aiRationale, null);
+  assert.equal(inputs.aiReasonCode, null);
+  assert.equal(inputs.aiReasonParams, null);
+});

@@ -17,10 +17,12 @@ import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { applyPassDecisions, entriesForPass, markQueuedForApproval, recordDecisionAlerts } from "./automation-pass.ts";
-import { createPipelineEntry, listActiveEntriesForAutomation } from "./db/pipeline.ts";
+import { createPipelineEntry, getPipelineEntry, listActiveEntriesForAutomation } from "./db/pipeline.ts";
 import { ensureDb } from "./db/core.ts";
 import type { AutomationDecision, AutomationSummary } from "./automation-pass.ts";
 import { deriveDecisionOutcome } from "./decision-attribution.ts";
+import { listDecisionRecords } from "./decision-record-store.ts";
+import { runPipelineEntryAction } from "./pipeline-entry-action.ts";
 
 const emptySummary = (): AutomationSummary => ({
   advanced: 0,
@@ -291,4 +293,67 @@ test("an unticked would-be reject is not queued for approval", () => {
   const approval = ensureDb().prepare(`SELECT approval_kind FROM pipeline_entries WHERE id = ?`).get(id) as { approval_kind: string | null };
   assert.notEqual(approval.approval_kind, "rejection_review");
   assert.notEqual(d.outcome, "queued");
+});
+
+// --- a ratified rejection carries the policy's reason (council d676869f, line 2) ----
+// The queued rejection_review is the only place the policy's reason survives until a
+// human decides: markQueuedForApproval rewrites `d.reason` into its wrapper, and the
+// human's write NULLs approval_detail. pipeline-entry-action.ts reads `rationale` off
+// it into the seal, so the queued payload must hold the policy's OWN words.
+
+test("a queued rejection_review holds the policy's own reason, read before the queue wrapper rewrites it", () => {
+  const { entry } = createPipelineEntry({
+    candidateId: "c-ratify-shape",
+    candidateLabel: "Ratify Shape",
+    jobId: "job-ratify",
+    jobTitle: "Ratify Role",
+    stage: "Screened",
+    archetype: "bau",
+    matchScore: 20,
+    workspaceId: "ws-ratify",
+  });
+  const policyReason = "BAU score 20 < 40";
+  const reject: AutomationDecision = { entryId: entry.id, action: "reject", toStage: null, alerts: [], reason: policyReason };
+  const [d] = applyPassDecisions([reject], snapsOf(entry.id), emptySummary());
+  assert.equal(d.outcome, "queued");
+  assert.match(d.reason, /^Queued for approval: /, "the run log carries the wrapper…");
+  const queued = getPipelineEntry(entry.id, "ws-ratify")!;
+  assert.equal(queued.approvalKind, "rejection_review");
+  const detail = JSON.parse(queued.approvalDetail ?? "{}") as Record<string, unknown>;
+  assert.equal(detail.rationale, policyReason, "…the queued review carries the policy's own words");
+  assert.equal(detail.recommendation, "reject");
+  assert.equal(detail.confidence, 20);
+  // evaluate_entry emits prose only; no structured code is invented for it here.
+  assert.equal("reasonCode" in detail, false);
+});
+
+test("a recruiter ratifying the queued reject with no note seals the policy's reason, end to end", async () => {
+  const ws = "ws-ratify";
+  const { entry } = createPipelineEntry({
+    candidateId: "c-ratify-e2e",
+    candidateLabel: "Ratify End To End",
+    jobId: "job-ratify-e2e",
+    jobTitle: "Ratify Role",
+    stage: "Screened",
+    archetype: "bau",
+    matchScore: 25,
+    workspaceId: ws,
+  });
+  const policyReason = "BAU score 25 < 40";
+  applyPassDecisions([{ entryId: entry.id, action: "reject", toStage: null, alerts: [], reason: policyReason }], snapsOf(entry.id), emptySummary());
+  const res = await runPipelineEntryAction(
+    { id: entry.id, action: "reject", expectedStage: "Screened", origin: "http://localhost", workspaceId: ws },
+    {
+      dispatchRejection: async (e) => ({ claim: "queued", status: "queued", outboxId: `spy-${e.id}`, detail: null }),
+      dispatchAtsEvent: async () => {},
+    }
+  );
+  assert.equal(res.status, 200);
+  const [record] = listDecisionRecords({ candidateRef: entry.id, workspaceId: ws });
+  assert.equal(record.kind, "rejected");
+  assert.equal(record.rationale, policyReason, "the policy's reason, never the 'Recruiter reject from …' template");
+  const inputs = (JSON.parse(record.payloadJson) as { inputs: Record<string, unknown> }).inputs;
+  assert.equal(inputs.aiRationale, policyReason);
+  assert.equal(inputs.aiReasonCode, null);
+  assert.equal(inputs.approvalKind, "rejection_review");
 });

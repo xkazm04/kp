@@ -2138,7 +2138,7 @@ the Python half and **nothing else** — no TS pass, no approval queue.
 | A screening verdict is narrowed to a **route** in `SCREEN_ROUTES` = {`advance`, `hold`} — a `reject` recommendation never becomes a reject route | `screen_candidate` (`automation.py`) | yes |
 | Early-career (`registry.early_career_archetypes()`) is never auto-advanced or auto-rejected; a model's `reject` is rewritten to `hold` **after** the call | `screen_candidate` + `evaluate_entry` | yes |
 | `evaluate_entry` emits `action:"reject"` on **one** path only: stage `Screened`, non-early archetype, no pending approval, no recent screening decision, and a *genuine* score (absent/0 = unscored) below `POLICY["bau_reject_score"]` | `evaluate_entry` | yes |
-| **No adverse action runs unattended** — AUTO1 retired (UAT M6 / GDPR Art. 22); every fairness-cleared reject is queued as a human `rejection_review` approval, so a committed pass rejects nobody | `app/_lib/automation-pass.ts` | **no** |
+| **No adverse action runs unattended** — AUTO1 retired (UAT M6 / GDPR Art. 22); every fairness-cleared reject is queued as a human `rejection_review` approval, so a committed pass rejects nobody. The queued payload keeps the policy's own reason (`rationale`), which the recruiter's ratifying reject seals | `app/_lib/automation-pass.ts` | **no** |
 | Fail-closed re-check at the apply boundary: `isFairnessProtected` treats an **unknown/renamed** archetype as protected and downgrades the reject to `hold` + `fairness_gate_blocked_reject` | `app/_lib/automation-fairness.ts` | **no** |
 
 One asymmetry is deliberate and now pinned rather than fixed: Python's
@@ -2296,6 +2296,29 @@ keyed chain whose key is unset, through all three doors).
 Seals that stay best-effort after their write, as follow-ups: the offer-terms seal in
 `extendDraftedOffer`, the human-round handoff seal, `reinstate` in
 `app/api/pipeline/[id]/route.ts`, and the command-bar undo (`command/reverse.ts`).
+
+### A ratified rejection carries the policy's reason
+
+The same council round's second defect, on the same door. A `rejection_review` is the
+policy pass's fairness-cleared reject, queued for a human (`automation-pass.ts`). Its payload's
+`rationale` is the policy's own reason, for example `BAU score 31 < 40`. The recruiter's
+reject NULLs `approval_detail`, so a ratification with no note used to seal
+`"Recruiter reject from Screened."`, which carries no reason from either actor. Now
+`aiVerdict` lifts `rationale`, and `reasonCode` + `reasonParams` when a producer wrote
+them, off the pre-write row:
+
+- the sealed `rationale` of a reject that resolves a `rejection_review` is the
+  recruiter's note when one was typed, otherwise the policy's rationale, never the
+  template. An accept that *overrides* the machine keeps the template, because the
+  machine's reject reason is never an advance's reason;
+- every accept/reject seal's `inputs` carry `aiRationale`, `aiReasonCode` and
+  `aiReasonParams` beside the recruiter's `detail`, null when the card carried none.
+
+`reasonCode` stays `reject` / `accept`, the vocabulary the candidate's status page reads.
+`evaluate_entry` returns prose only, so `aiReasonCode` is null on every row the pass
+queues today. Still open: a plain human reject with no note and no machine verdict (the
+Decisions bulk reject sends none) seals the template. The fix is a closed reason-code
+picker on the reject doors.
 
 ### A reject or advance issued from the group-eval comparison carries its reason
 

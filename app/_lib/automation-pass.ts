@@ -504,6 +504,16 @@ export function applyPassDecisions(
         // re-decided on the next tick. The recruiter's Reject resolves it through
         // the human route — which sends the rejection email AND seals the
         // tamper-evident record, so nothing is lost by not applying it here.
+        //
+        // `rationale` is the POLICY'S OWN REASON, and it is what that seal carries
+        // when the recruiter ratifies the reject without a note (pipeline-entry-
+        // action.ts `aiVerdict` lifts it into the record's rationale and its
+        // `aiRationale` input). So it is read HERE, before markQueuedForApproval
+        // below rewrites `d.reason` into the "Queued for approval: …" wrapper and
+        // `reasonCode` into the wrapper's code. evaluate_entry returns prose only —
+        // no structured reason code of its own — so the rationale is the whole of
+        // the machine's reason; a `reasonCode` + `reasonParams` pair would ride
+        // beside it here if the policy ever emitted one.
         setApproval(
           d.entryId,
           "rejection_review",

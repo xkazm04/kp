@@ -57,16 +57,61 @@ const SIM_SEAL_ACTOR = "auto:sim"; // decision-chain vocabulary: "auto:*" | "hum
 // act of deciding, and the override rate can never be computed after the fact.
 // Absent/unparseable detail yields nulls: a decision with no AI verdict behind
 // it (a plain board move) is the normal case, not an error.
-function aiVerdict(entry: PipelineEntry): { aiRecommendation: string | null; aiConfidence: number | null } {
-  if (!entry.approvalDetail) return { aiRecommendation: null, aiConfidence: null };
+//
+// …and the machine's REASON beside the verdict, destroyed by the same write. A
+// `rejection_review` is the policy pass's fairness-cleared reject queued for a human
+// (automation-pass.ts), and its `rationale` is the policy's own words; a screening
+// review carries the screener's. Without these the seal held only the recruiter's
+// side, so a recruiter ratifying the machine's reject with no note sealed the
+// "Recruiter reject from <stage>." template — no reason from either actor.
+// `reasonCode` / `reasonParams` are lifted only when the producer wrote them: the
+// policy pass emits prose only (pipeline/jobfit/automation.py `evaluate_entry`), so
+// they are null on every row it queues today.
+type AiVerdict = {
+  aiRecommendation: string | null;
+  aiConfidence: number | null;
+  aiRationale: string | null;
+  aiReasonCode: string | null;
+  aiReasonParams: Record<string, string | number> | null;
+};
+
+const NO_AI_VERDICT: AiVerdict = {
+  aiRecommendation: null,
+  aiConfidence: null,
+  aiRationale: null,
+  aiReasonCode: null,
+  aiReasonParams: null,
+};
+
+/** The reasonCode's params, kept to the `Record<string, string | number>` shape every
+ *  other sealed reasonParams has (screen-wave.ts, automation-pass.ts); anything else
+ *  is dropped rather than sealed as an arbitrary blob. */
+function reasonParamsOf(raw: unknown): Record<string, string | number> | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const out: Record<string, string | number> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (typeof value === "string" || (typeof value === "number" && Number.isFinite(value))) out[key] = value;
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
+
+function aiVerdict(entry: PipelineEntry): AiVerdict {
+  if (!entry.approvalDetail) return NO_AI_VERDICT;
   try {
-    const parsed = JSON.parse(entry.approvalDetail) as { recommendation?: unknown; confidence?: unknown };
+    const parsed = JSON.parse(entry.approvalDetail) as unknown;
+    if (!parsed || typeof parsed !== "object") return NO_AI_VERDICT;
+    const o = parsed as { recommendation?: unknown; confidence?: unknown; rationale?: unknown; reasonCode?: unknown; reasonParams?: unknown };
+    const rationale = typeof o.rationale === "string" ? o.rationale.trim() : "";
+    const reasonCode = typeof o.reasonCode === "string" ? o.reasonCode.trim() : "";
     return {
-      aiRecommendation: typeof parsed.recommendation === "string" ? parsed.recommendation : null,
-      aiConfidence: typeof parsed.confidence === "number" ? parsed.confidence : null,
+      aiRecommendation: typeof o.recommendation === "string" ? o.recommendation : null,
+      aiConfidence: typeof o.confidence === "number" ? o.confidence : null,
+      aiRationale: rationale || null,
+      aiReasonCode: reasonCode || null,
+      aiReasonParams: reasonCode ? reasonParamsOf(o.reasonParams) : null,
     };
   } catch {
-    return { aiRecommendation: null, aiConfidence: null };
+    return NO_AI_VERDICT;
   }
 }
 
@@ -520,8 +565,12 @@ export async function runPipelineEntryAction(
     const trimmedDetail = detail?.trim() ?? "";
     // Read from the pre-write row, never from the write's result — the write clears
     // the approval columns the AI verdict lives in.
-    const { aiRecommendation, aiConfidence } = aiVerdict(live);
+    const verdict = aiVerdict(live);
     const viaCommandBar = input.via === "command_bar";
+    // A reject that RESOLVES a queued rejection_review ratifies the machine's own
+    // reject, so the machine's reason is the decision's reason when the recruiter
+    // typed none — never the template, which says only who clicked and from where.
+    const ratifiedRationale = action === "reject" && live.approvalKind === "rejection_review" ? verdict.aiRationale : null;
     // A declared programmatic caller is recorded as the engine ("auto:sim"), never a
     // recruiter — the audit chain must tell the truth about machine actions even
     // inside a demo.
@@ -530,7 +579,7 @@ export async function runPipelineEntryAction(
       actor: sealActor,
       policyVersion: viaCommandBar ? "command-bar" : "manual",
       candidateRef: id,
-      rationale: trimmedDetail || `${simActor ? "Guided simulation" : "Recruiter"} ${action} from ${live.stage}.`,
+      rationale: trimmedDetail || ratifiedRationale || `${simActor ? "Guided simulation" : "Recruiter"} ${action} from ${live.stage}.`,
       reasonCode: action,
       inputs: {
         fromStage: live.stage,
@@ -538,8 +587,13 @@ export async function runPipelineEntryAction(
         // The pair that makes the override rate computable: what the machine
         // proposed (null when the human acted without an AI verdict on the card),
         // which gate raised it, and how sure it was.
-        aiRecommendation,
-        aiConfidence,
+        aiRecommendation: verdict.aiRecommendation,
+        aiConfidence: verdict.aiConfidence,
+        // …and WHY the machine proposed it, beside the recruiter's `detail`, so both
+        // actors' reasons are sealed (null when the card carried none).
+        aiRationale: verdict.aiRationale,
+        aiReasonCode: verdict.aiReasonCode,
+        aiReasonParams: verdict.aiReasonParams,
         approvalKind: live.approvalKind ?? null,
         // The rule the recruiter typed is a decisive input: "below 40%" and "below
         // 60%" reject different people, and only the seal can say which was run.
