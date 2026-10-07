@@ -24,6 +24,15 @@ const PREVIEW_CAP = 50;
 // for minutes, and the sibling POST /api/automation/run is unaffected.
 const RUN_POLICY_RATE_LIMIT = { limit: 6, windowMs: 10 * 60_000 };
 
+// A CONFIRMED `reject below N%` / `advance top N` (idea d6f86aa9). Neither spawns a
+// process, but one call fans out over every matching entry in the workspace and each
+// target can queue candidate email — a rejection letter, or the AI-interview invite or
+// work-sample assignment an advance sets off. The batch door that does the same
+// one-action-many-candidates work is throttled; this one was not, so in open mode a
+// loop could re-run waves without bound. 20/10min per IP is far above a recruiter
+// typing, previewing and confirming commands by hand. The preview stays free.
+const EXECUTE_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
+
 type PreviewRow = { id: string; label: string; score: number | null; jobTitle: string | null; stage: string };
 
 const toRow = (e: PipelineEntry): PreviewRow => ({
@@ -143,6 +152,10 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Separate bucket from run_policy's: a sweep and a typed wave are different budgets.
+    if (!rateLimit(`pipeline-command-exec:${clientIpFrom(request.headers)}`, EXECUTE_RATE_LIMIT)) {
+      return jsonRefusal("TOO_MANY_REQUESTS", 429);
+    }
     // The live still-matching set at execute time — same workspace scope as the preview.
     const matching = affected(cmd, listPipeline(ws), axis);
     // bug-ui pipeline #3 — a reject_below confirm binds to the PREVIEWED id set

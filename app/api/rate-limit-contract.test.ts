@@ -1362,9 +1362,9 @@ const ROUTES: RouteSpec[] = [
     // that dispatches candidate outreach — and it was the one entry point to it with
     // no throttle at all. Operator-gated, but open mode makes that gate a no-op for
     // the whole API, so the limiter is the real bound. 6/10min per IP: a sweep runs
-    // for minutes, so six is far above any human pace, and the per-candidate commands
-    // on the same route (reject_below / advance_top) are deliberately NOT throttled —
-    // they are bounded by the previewed cohort and spawn nothing.
+    // for minutes, so six is far above any human pace. The per-candidate commands on
+    // the same route (reject_below / advance_top) spend their OWN window — the row
+    // below — since idea d6f86aa9.
     rel: "./pipeline/command/route.ts",
     key: "`pipeline-command-policy:${clientIpFrom(request.headers)}`",
     limit: 6,
@@ -1377,6 +1377,23 @@ const ROUTES: RouteSpec[] = [
     // The operator gate keeps serving (refusing) freely ahead of the budget: a
     // non-operator must never be able to spend another caller's window.
     servedBefore: "const denied = await requireOperator();",
+  },
+  {
+    // ADDED 2026-10-07 (idea d6f86aa9), with the limiter itself. A CONFIRMED
+    // `reject below N%` / `advance top N` fans out over every matching entry and each
+    // target can queue candidate email (the rejection letter; the invite or assignment
+    // an advance sets off). They used to be "bounded by the previewed cohort", which
+    // bounds one wave, never how many waves a loop runs. 20/10min per IP, its own
+    // bucket beside run_policy's; the preview writes nothing and stays free.
+    rel: "./pipeline/command/route.ts",
+    key: "`pipeline-command-exec:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    optsSrc: "EXECUTE_RATE_LIMIT",
+    optsDef: "const EXECUTE_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "await executeCommandTargets({",
+    // The preview branch returns before the budget is spent.
+    servedBefore: "if (!body.confirm) {",
   },
   {
     // ADDED 2026-10-07 (pipeline write-doors scan), with the limiter itself. The add
