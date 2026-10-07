@@ -17,7 +17,7 @@ import type { MatchScoreProvenance } from "../match-score";
 // resolvers there from ever disagreeing about what a synthetic candidate id looks
 // like. That module is deliberately pure, so this is not a cycle.
 import { LEGACY_SUBMISSION_CANDIDATE_PREFIX } from "../devcase-identity";
-import { PIPELINE_OUTCOME_REF_PREFIX, recordPipelineOutcome } from "../dev-outcomes";
+import { PIPELINE_OUTCOME_REF_PREFIX, hireOutcomeRef, recordPipelineOutcome } from "../dev-outcomes";
 import { recordAudit } from "../dev-control";
 import { coerceSlatePopulation, ensureDb, notAgentSql, recordEvent, type PipelineEntry, type SlatePopulation } from "./core";
 import { getPipelineAxis } from "../pipeline-axis-server";
@@ -2424,7 +2424,13 @@ export const ERASURE_DELEGATED_SCRUBS: ReadonlyMap<string, string> = new Map([
  *  adverse-action defensibility (the GDPR Art.17(3)(b)/(e) legal-claims / compliance
  *  exemption). Editing a row would BREAK the very chain it exists to prove, so we retain
  *  it and disclose the retention on /data rather than over-promising its deletion. */
-function scrubEntryLinkedPii(db: Database.Database, entryId: string, candidateId: string | null, masked: string): void {
+function scrubEntryLinkedPii(
+  db: Database.Database,
+  entryId: string,
+  candidateId: string | null,
+  masked: string,
+  label: string | null
+): void {
   const tables = new Set(
     (db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all() as { name: string }[]).map((r) => r.name)
   );
@@ -2577,6 +2583,30 @@ function scrubEntryLinkedPii(db: Database.Database, entryId: string, candidateId
     const refSlots = outcomeRefs.map(() => "?").join(", ");
     db.prepare(`UPDATE dev_outcomes SET candidate_ref = ?, note = NULL WHERE ref IN (${refSlots})`).run(masked, ...outcomeRefs);
   }
+  // The control room's audit trail. DE-IDENTIFIED, never deleted: who decided what and
+  // when, and the outcome/performance/prediction in `reason`, are the decision record; a
+  // name is not part of it. Two shapes carry the label: a row keyed by one of the outcome
+  // refs above (what the writers produce now), and a LEGACY row with no ref whose reason
+  // opens `<label>: …`. The legacy match is NOT workspace-scoped: the unattributed writers
+  // (pipeline store, offer-finalize) stamp the default workspace whatever tenant the hire
+  // was in, so a tenant filter would miss them; masking a same-named candidate's reason
+  // as well is the safe direction.
+  if (tables.has("dev_audit")) {
+    const auditRefs = [...submissionIds, `${PIPELINE_OUTCOME_REF_PREFIX}${entryId}`];
+    const auditSlots = auditRefs.map(() => "?").join(", ");
+    const name = (label ?? "").trim();
+    if (name) {
+      db.prepare(`UPDATE dev_audit SET reason = REPLACE(reason, ?, ?) WHERE reason IS NOT NULL AND ref IN (${auditSlots})`).run(
+        name,
+        masked,
+        ...auditRefs
+      );
+      db.prepare(
+        `UPDATE dev_audit SET reason = ? || substr(reason, length(?) + 1)
+          WHERE ref IS NULL AND reason IS NOT NULL AND substr(reason, 1, length(?) + 1) = ? || ':'`
+      ).run(masked, name, name, name);
+    }
+  }
   // Rediscovery alerts are keyed by candidate_id (a rejected candidate resurfaced for a
   // new role), not entry_id — mask BOTH the candidate_label and the prior-decision label
   // snapshot (prior_label also carries the full name).
@@ -2692,7 +2722,7 @@ export function anonymizeEntry(entryId: string, reason: "expiry" | "erasure" = "
     // Erase the candidate's PII from every OTHER entry-linked table (interview
     // transcript/scorecard, comms outbox, offer/prep/schedule/onboarding/rediscovery),
     // in this same transaction — the class of PII surfaces the block above never reached.
-    scrubEntryLinkedPii(db, entryId, row.candidate_id, masked);
+    scrubEntryLinkedPii(db, entryId, row.candidate_id, masked, row.candidate_label);
     logConsentEvent(db, entryId, reason === "erasure" ? "erased" : "anonymized", `reason: ${reason}`, workspaceId);
     const updated = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(entryId, workspaceId) as PipelineRow;
     return rowToEntry(updated);
@@ -3443,7 +3473,10 @@ export function actOnPipelineEntry(
         recordAudit({
           actor: "system",
           action: "outcome_auto_recorded",
-          reason: `${result.candidateLabel}: rejected (predicted ${result.matchScore ?? "—"})`,
+          // No candidate label: the audit trail is not an erasure target's home. The
+          // outcome key (dev_outcomes' own) is what lets erasure find this row.
+          reason: `rejected (predicted ${result.matchScore ?? "—"})`,
+          ref: hireOutcomeRef(result),
         });
       }
     } catch (error) {

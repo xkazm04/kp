@@ -102,11 +102,13 @@ export async function POST(request: NextRequest) {
     const outcome = parsed.data;
     const ws = await currentWorkspace();
     recordOutcome(outcome, ws);
-    // The reason carries the CANDIDATE REF - the row the workspace stamp exists for.
+    // The reason carries NO candidate label: the audit row is de-identified at the source
+    // and keyed by the outcome's own ref, so an erasure can reach it (anonymizeEntry).
     recordAudit({
       actor: "human",
       action: "outcome_recorded",
-      reason: `${outcome.candidateRef ?? "candidate"}: ${outcome.outcome}${outcome.performance ? ` (perf ${outcome.performance})` : ""}`,
+      reason: `${outcome.outcome}${outcome.performance ? ` (perf ${outcome.performance})` : ""}`,
+      ref: outcome.ref,
       workspaceId: ws,
     });
     return NextResponse.json({ ok: true, calibration: calibrate(activeFloor(), ws) });

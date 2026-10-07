@@ -6,7 +6,7 @@ import { stageHasRole } from "./pipeline-stages";
 import { dispatchAtsEvent } from "./ats-egress";
 import { recordAudit } from "./dev-control";
 import { recordMeterUsage } from "./billing";
-import { recordPipelineOutcome } from "./dev-outcomes";
+import { hireOutcomeRef, recordPipelineOutcome } from "./dev-outcomes";
 import { expireOfferIfDue, getOfferByToken, markEntryStatus, markOfferResponded, type OfferRow } from "./offers-store";
 import { offerHoursRemaining, offerMinutesRemaining } from "./offer-policy";
 import { INTERVIEW_TZ } from "./schedule-slots";
@@ -147,7 +147,9 @@ export async function respondToOffer(token: string, response: "accept" | "declin
             recordAudit({
               actor: "system",
               action: "outcome_auto_recorded",
-              reason: `${hired.candidateLabel}: hired (predicted ${hired.matchScore ?? "—"})`,
+              // No candidate label (see actOnPipelineEntry): the outcome key rides in `ref`.
+              reason: `hired (predicted ${hired.matchScore ?? "—"})`,
+              ref: hireOutcomeRef(hired),
             });
           }
         } catch (err) {

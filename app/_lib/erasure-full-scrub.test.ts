@@ -419,3 +419,42 @@ test("a draft that lands after the erasure cannot write the text back", async ()
   );
   assertScrubbed(JSON.stringify(interviewLetterById(letter.id, "workspace")), "interview_letters (late draft)");
 });
+
+// Council lite r1, robustness: the audit trail named the candidate (`<label>: rejected …`)
+// and no erasure path reached dev_audit, so a name survived an Art. 17 erasure in the one
+// table the control room prints. De-identified, not deleted: the decision trail stays.
+test("erasure de-identifies dev_audit: rows keyed by the outcome ref AND legacy rows led by the label", async () => {
+  const { recordAudit } = await import("./dev-control.ts");
+  const Database = (await import("better-sqlite3")).default;
+
+  const { entry } = createPipelineEntry({
+    candidateId: "c-audit-" + process.pid,
+    candidateLabel: NAME,
+    jobId: "job-audit-" + process.pid,
+    jobTitle: "Data Engineer",
+    stage: "Interview",
+  });
+  const NEIGHBOUR = "Karel Dvořák";
+  // Keyed row: the shape the writers produce now (ref carries the outcome key); the reason
+  // is seeded WITH the name to prove the ref path masks a reason that still holds one.
+  recordAudit({ actor: "human", action: "outcome_recorded", reason: `${NAME}: hired (perf 4)`, ref: "pe:" + entry.id });
+  // Legacy row: written before the fix — no ref, the label is the reason's first words.
+  recordAudit({ actor: "system", action: "outcome_auto_recorded", reason: `${NAME}: rejected (predicted 70)` });
+  // Someone else's row must be left exactly as it was.
+  recordAudit({ actor: "system", action: "outcome_auto_recorded", reason: `${NEIGHBOUR}: rejected (predicted 55)` });
+
+  assert.ok(anonymizeEntry(entry.id, "erasure"), "anonymizeEntry returns the entry");
+
+  const raw = new Database(TMP);
+  const rows = raw.prepare("SELECT action, reason, ref FROM dev_audit").all() as { action: string; reason: string | null; ref: string | null }[];
+  raw.close();
+  assertScrubbed(JSON.stringify(rows.filter((r) => !(r.reason ?? "").includes("Karel"))), "dev_audit");
+  const keyed = rows.find((r) => r.ref === "pe:" + entry.id)!;
+  assert.match(keyed.reason ?? "", /hired \(perf 4\)/, "the decision trail (outcome, performance) is RETAINED on the keyed row");
+  const legacy = rows.find((r) => /rejected \(predicted 70\)/.test(r.reason ?? ""))!;
+  assert.ok(legacy, "the legacy row survives, de-identified, not deleted");
+  assert.ok(
+    rows.some((r) => r.reason === `${NEIGHBOUR}: rejected (predicted 55)`),
+    "another candidate's audit row is untouched"
+  );
+});
