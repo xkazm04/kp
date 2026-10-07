@@ -64,7 +64,7 @@ const { getOrCreateStatusLink } = await import("../../../_lib/application-status
 const { getJob } = await import("../../../_lib/db/jobs.ts");
 const { applyKoSteps } = await import("../../../_lib/apply.ts");
 const { insertJob } = await import("../../../_lib/job-ingest.ts");
-const { createPipelineEntry, listEntriesForJob, listPipelineEventsForEntry, listConsentEvents, ensureLeadEnrichToken } =
+const { createPipelineEntry, listEntriesForJob, listPipelineEventsForEntry, listConsentEvents, ensureLeadEnrichToken, recordEntryConsent } =
   await import("../../../_lib/db/pipeline.ts");
 const { DEFAULT_WORKSPACE_ID } = await import("../../../_lib/db/workspaces.ts");
 
@@ -259,10 +259,45 @@ test("the quick-apply door answers a known address the same way: no tokens, one 
   assert.equal(rows[0].recipient, onFile);
   assert.ok((rows[0].body ?? "").includes(`/status/${getOrCreateStatusLink(entryId)}`));
   assert.ok(!raw.includes(getOrCreateStatusLink(entryId)));
-  // The lead core's own `re_applied` line predates this (the quick door's channel
-  // proof, lead-intake.ts); the recovery adds nothing beside it.
+  // The recovery writes no event of its own, and an unproven repeat writes none either.
   const added = listPipelineEventsForEntry(entryId).slice(eventsBefore).map((e) => e.kind);
-  assert.deepEqual(added.filter((k) => k !== "re_applied"), [], "no pipeline event for a recovery email");
+  assert.deepEqual(added, [], "no pipeline event for a recovery email");
+});
+
+test("quick-apply: a repeat on a KNOWN address renews neither consent nor retention and writes no renewal", async () => {
+  // The quick form is public, so a typed address that happens to be on file proves
+  // nothing: anyone can POST someone else's address. A repeat that re-consented would
+  // let a stranger keep that person's record (and its GDPR retention clock) alive.
+  const name = "Karel Znamy";
+  const onFile = "karel.znamy@example.invalid";
+  const entryId = seedVictim(name, onFile, "quick-apply");
+  recordEntryConsent(entryId, "quick-apply", undefined, DEFAULT_WORKSPACE_ID);
+  const before = listEntriesForJob(JOB_ID).find((e) => e.id === entryId);
+  assert.ok(before?.consentGivenAt && before.consentExpiresAt, "the fixture starts with a consent window");
+  const eventsBefore = listPipelineEventsForEntry(entryId).length;
+  const consentBefore = listConsentEvents(entryId).length;
+  const job = getJob(JOB_ID);
+  assert.ok(job);
+  const ko = Object.fromEntries(applyKoSteps(job, ((k: string) => k) as never).map((s) => [s.id, true]));
+
+  const res = await QUICK_POST(
+    new Request(`http://localhost/api/apply/${JOB_ID}/quick`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-forwarded-for": "10.9.9.6" },
+      body: JSON.stringify({ answers: { name: "Someone Else", email: onFile, ...ko } }),
+    }) as unknown as NextRequest,
+    params
+  );
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as Record<string, unknown>;
+  assert.equal(body.duplicate, true, "the candidate is still told they already applied");
+
+  const after = listEntriesForJob(JOB_ID).find((e) => e.id === entryId);
+  assert.equal(after?.consentGivenAt, before.consentGivenAt, "consent_given_at must not move");
+  assert.equal(after?.consentExpiresAt, before.consentExpiresAt, "consent_expires_at must not move");
+  assert.equal(listConsentEvents(entryId).length, consentBefore, "no consent event");
+  assert.equal(listPipelineEventsForEntry(entryId).length, eventsBefore, "no re_applied renewal event");
+  await settle();
 });
 
 // This case used to pin the opposite: a contactless entry matched by name became

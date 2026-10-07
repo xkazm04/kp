@@ -181,8 +181,8 @@ export async function intakeLead(input: LeadIntakeInput): Promise<LeadIntakeOutc
   //   - proof "channel": the lead arrived through a form or webhook we issued, so a
   //     repeat (identity = the email, findApplicationByApplicant) backfills the
   //     original entry's contact and re-acks if it just became reachable — never a
-  //     profile rebuild. The quick form narrows this to "none" when the address it
-  //     was given is not already on file (input.proof): its match is then a NAME;
+  //     profile rebuild. The quick form passes "none" always: a typed address, even one on
+  //     file, is not proof (input.proof);
   //   - a profile-less STUB: a passing lead files intake-degraded (an UNCLASSIFIED
   //     archetype, the stub reason above), carrying contact, locale and E5 attribution;
   //   - the entry's opaque lead token, minted (fill-only) on every entry the filing

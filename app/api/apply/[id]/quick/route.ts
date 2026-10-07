@@ -147,13 +147,18 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       // E4 speed-to-lead is about the LEAD landing fast, not about the applicant
       // watching an SMTP round-trip: the ack dispatch runs after this response.
       defer: (task) => afterResponse("quick-apply-ack", task),
-      // PROOF for a repeat. This form is public, so its typed email proves nothing
-      // it did not already match: with the address on file the match IS that
-      // address (nothing to backfill), and without it the only possible match is a
-      // contactless entry found by NAME — the unproven repeat the conversational
-      // door refuses (reapply-capability-gate.test.ts). Backfilling there made the
-      // caller the applicant's contact of record and mailed them its status link.
-      proof: addressOnFile ? "channel" : "none",
+      // PROOF for a repeat: NONE, always. This form is public, so its typed email
+      // proves nothing — not even when the address is already on file, because an
+      // address is not a secret and anyone can POST someone else's. A repeat under
+      // "channel" would renew that person's consent and retention window and write a
+      // re_applied event on the strength of a stranger's request. The candidate still
+      // gets the "already applied" answer, and the address ON FILE (never the typed
+      // string) gets its links back through apply-link-recovery below — the same
+      // treatment the conversational door gives an unproven repeat
+      // (reapply-capability-gate.test.ts). A contactless entry matched by NAME
+      // likewise moves nothing: backfilling there made the caller the applicant's
+      // contact of record and mailed them its status link.
+      proof: "none",
       // STRICT verdict: every expected KO answer must be present AND true.
       failedKoIds: failedKoStepIds(expectedKoIds, answers),
       // …so an ACCEPT means every gate was explicitly answered true: record them
