@@ -3,6 +3,7 @@ import { Workspace } from "@/app/features/shell/Workspace";
 import SparkHome from "@/app/landing/spark/SparkHome";
 import { hasEnteredWorkspace } from "@/app/_lib/auth/home-gate-server";
 import { callerCapabilities, currentSession } from "@/app/_lib/auth/current-user";
+import { isOperator } from "@/app/_lib/auth/require-operator";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import type { ShellPrincipal } from "@/app/features/shell/shellPrincipal";
 import { needsOnboarding } from "@/app/_lib/auth/onboarding-gate";
@@ -69,14 +70,14 @@ export default async function Home({
   // is the every-load one). Demo sessions are excluded inside the gate — after
   // the entered check, so the anonymous landing stays DB-free.
   const firstRunOnboarding = !demoMode && (sp?.onboarding === "1" || (await needsOnboarding()));
-  const [session, principal] = await Promise.all([currentSession(), resolveShellPrincipal()]);
+  const [session, principal, operator] = await Promise.all([currentSession(), resolveShellPrincipal(), isOperator()]);
   // The job-seeker module is off unless the install sets KP_JOBSEEKER=1; the first-run
   // wizard offers its "looking for a job" arm (and the hand-off to /me) only when it is on
   // (app/features/shell/setup/setupSeekOffer.ts). Pure env read, like signupEnabled().
   return (
     <Suspense fallback={<div className="min-h-screen bg-paper" />}>
       <SetupSeekOfferProvider offered={jobseekerEnabled()}>
-        <Workspace firstRunOnboarding={firstRunOnboarding} hasSession={Boolean(session)} principal={principal} />
+        <Workspace firstRunOnboarding={firstRunOnboarding} hasSession={Boolean(session)} principal={principal} operator={operator} />
       </SetupSeekOfferProvider>
     </Suspense>
   );

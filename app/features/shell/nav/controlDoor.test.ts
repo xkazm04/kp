@@ -30,3 +30,9 @@ test("the page keeps its own notFound() gate on the same predicate the door uses
   const page = read("../../../control/page.tsx");
   assert.match(page, /if \(!\(await isOperator\(\)\)\) notFound\(\);/);
 });
+
+test("the SPA mount at '/' hands <Workspace> the operator flag, resolved by isOperator()", () => {
+  const page = read("../../../page.tsx");
+  assert.match(page, /<Workspace[^>]*operator=\{operator\}/, "the <Workspace mount passes operator=");
+  assert.match(page, /operator\] = await Promise\.all\([^;]*isOperator\(\)/, "and the value comes from isOperator()");
+});
