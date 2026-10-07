@@ -117,9 +117,25 @@ async function unseededRole(tag, payloadExtra = {}) {
   return { jobId, entryId: entry.id, profileId: profile.id, label };
 }
 
-const fakeLlms = (situation, instrument) => ({ interviewer: fakeInterviewer(instrument.agenda), candidate: fakeCandidate(situation) });
-const llmScorer = (recommendation) => async () => ({
-  scorecard: { recommendation, ratings: [] },
+// The agenda of the call being played, captured when the provider is built — the scorer is
+// handed only (session, transcript), and a real scorer rates the agenda's competencies.
+let playedAgenda = null;
+const fakeLlms = (situation, instrument) => {
+  playedAgenda = instrument.agenda;
+  return { interviewer: fakeInterviewer(instrument.agenda), candidate: fakeCandidate(situation) };
+};
+/** A scorer that rates the way a grounded one does: one rating per agenda competency, its
+ *  evidence a line the candidate actually said in THIS transcript (so it is neither empty nor
+ *  a "Not assessed" placeholder, and the write path's refusal has nothing to refuse). */
+const groundedRatings = (transcript) => {
+  const said = transcript.filter((t) => t.role === "candidate" && t.text.trim()).map((t) => t.text.trim());
+  assert.ok(said.length > 0, "the fake candidate said something to quote");
+  const competencies = (playedAgenda?.blocks ?? []).map((b) => b.competency).filter(Boolean);
+  const axes = competencies.length > 0 ? competencies : ["overall"];
+  return axes.map((competency, i) => ({ competency, rating: 4, evidence: said[i % said.length] }));
+};
+const llmScorer = (recommendation) => async (_session, transcript) => ({
+  scorecard: { recommendation, ratings: groundedRatings(transcript) },
   provenance: { verdictSource: "llm", verdictProvider: "test-double" },
 });
 const noMint = { mint: async () => ({ credited: [] }) };
@@ -256,8 +272,8 @@ test("the real default provider also refuses under KP_OFFLINE, before anything i
 
 test("a template-sourced scorecard is never accepted: nothing attached, the card stays unrated", async () => {
   const { jobId, entries } = await seedRole("template", 1);
-  const template = async () => ({
-    scorecard: { recommendation: "advance", ratings: [] },
+  const template = async (_session, transcript) => ({
+    scorecard: { recommendation: "advance", ratings: groundedRatings(transcript) },
     provenance: { verdictSource: "template", verdictProvider: null },
   });
   const record = await runDemoOnCopy({ jobId, standInMode: "policy", simDeps: { llms: fakeLlms, score: template, finalize: noMint } });
@@ -275,6 +291,20 @@ test("a template-sourced scorecard is never accepted: nothing attached, the card
   assert.equal(offerOf(record, entries[0]).action, "decline");
   assert.equal(simulatedOfferCount(record.standInDecisions, record.simulatedInterviews), 0);
   assert.notEqual(record.goalOne.verdict, "met");
+});
+
+test("a scorecard with no ratings is not rated by the demo and seals nothing", async () => {
+  const { jobId, entries } = await seedRole("no-ratings", 1);
+  const empty = async () => ({ scorecard: { recommendation: "advance", ratings: [] }, provenance: { verdictSource: "llm", verdictProvider: "test-double" } });
+  const record = await runDemoOnCopy({ jobId, standInMode: "policy", simDeps: { llms: fakeLlms, score: empty, finalize: noMint } });
+  const [row] = record.simulatedInterviews;
+  assert.equal(row.recommendation, null, "the row does not count as rated");
+  assert.equal(row.skipped, "not rated: the scorecard could not be attached");
+  const session = getInterviewSessionById(row.sessionId);
+  assert.equal(session.status, "completed");
+  assert.equal(session.scorecard, null, "no scorecard is attached or sealed");
+  assert.equal(cardOf(record, entries[0]).recommendation, "unrated");
+  assert.equal(simulatedOfferCount(record.standInDecisions, record.simulatedInterviews), 0);
 });
 
 test("the cap holds: branches over it are recorded 'not simulated: cap' and stay unrated", async () => {
@@ -303,11 +333,11 @@ test("the reading carries counts and the recommendation, never transcript or sco
   const { jobId, entries } = await seedRole("pii", 1);
   const MARK = "ZEBRA-SENTINEL-4417";
   const talkative = (situation, instrument) => ({
-    interviewer: fakeInterviewer(instrument.agenda),
+    interviewer: (playedAgenda = instrument.agenda, fakeInterviewer(instrument.agenda)),
     candidate: { id: "marked-candidate", complete: async () => `${MARK} I led the payments service at the previous company.` },
   });
-  const scorer = async () => ({
-    scorecard: { recommendation: "advance", ratings: [], summary: `${MARK} evidence quote` },
+  const scorer = async (_session, transcript) => ({
+    scorecard: { recommendation: "advance", ratings: groundedRatings(transcript), summary: `${MARK} evidence quote` },
     provenance: { verdictSource: "llm", verdictProvider: "test-double" },
   });
   const record = await runDemoOnCopy({ jobId, standInMode: "policy", simDeps: { llms: talkative, score: scorer, finalize: noMint } });
