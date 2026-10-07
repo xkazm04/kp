@@ -240,6 +240,12 @@ career-switcher) that other features key off. Downstream ranking is
   and the Extraction tab shows a marker under "Why this score". Only named technologies
   are judged; generic nouns and skills the taxonomy does not model are not. The codes are
   pinned to the TS constants by `test_unverified_skill_prose.py`.
+- **Engine stderr never reaches the recruiter (council craft-1)** — `analyze-run.ts` carries
+  the engine's code (`invalid_input` / `not_found` / `engine_error` / `timeout`) on each failed
+  variant and answers with an `errors.<CODE>` key (`ENGINE_TIMEOUT`, else `ENGINE_FAILED`): the
+  task row's error and every `partialFailures` note hold a code and empty text, and the raw
+  stderr (paths, tracebacks, `KP_*` names) goes only to the server log. The analyze tab resolves
+  the code through the errors catalog (`partialFailureLine`).
 - **Public skill credential** — `app/skill/[token]/page.tsx`. Token-gated, no
   session; `verifySkillProfileToken` re-checks signature + revocation on every
   render, and `skillProfileFreshnessNow` re-checks age, so a revoked or aged-out

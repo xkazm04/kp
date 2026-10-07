@@ -89,6 +89,18 @@ export function resolveAnalyzeErrorText(info: AnalyzeErrorInfo, r: AnalyzeMessag
   return (info.code ? r.analyzeCode(info.code) : null) ?? r.generic;
 }
 
+/** The line for one variant that did not make a partial result. The server sends a CODE
+ *  (`errors.<CODE>`, or the generic analyze code) and no engine text; the engine's own
+ *  sentence is never shown, and an older stored row that still carries one gets the
+ *  generic line too. Pure, so the choice is pinned without rendering. */
+export function partialFailureLine(
+  failure: { label: string; code?: string | null },
+  r: { appCode: (code: string) => string | null; item: (label: string, text: string) => string; generic: (label: string) => string }
+): string {
+  const known = failure.code ? r.appCode(failure.code) : null;
+  return known ? r.item(failure.label, known) : r.generic(failure.label);
+}
+
 /** Seconds from a `Retry-After` header — the delta-seconds form or an HTTP date.
  *  Anything unparseable answers undefined, so the caller simply shows the plain
  *  throttle line. */

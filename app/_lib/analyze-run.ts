@@ -108,15 +108,18 @@ type ProgressFn = (done: number, total: number, msg?: string) => void;
 // variant can't reject the whole batch (Direction 2 — "one bad CV never kills the
 // batch"): with settled semantics, N−1 good variants still produce a result.
 export type VariantOk = { label: string; ok: true; analysis: Analysis; cached: boolean };
-// `error` is engine/server text (Python stderr etc.) kept for logs + verbatim
-// display. `code` is set ONLY when the reason is our own generic fallback (no
-// engine text) — it tells the client to localize instead of showing an English
-// literal. Engine failures carry `error` and NO code.
+// `error` is engine/server text (Python stderr etc.) kept for the SERVER LOG only: it
+// can hold absolute paths, whole tracebacks and KP_* names, so it never reaches the
+// client (settleVariants strips it). `code` is set when the reason is our own generic
+// fallback (no engine text) — it tells the client to localize. An engine failure
+// carries `engineCode` (the engine's own: invalid_input / not_found / engine_error /
+// timeout) and settleVariants answers it with an `errors.<CODE>` key instead.
 export type VariantFail = {
   label: string;
   ok: false;
   error: string;
   code?: string;
+  engineCode?: string;
   status: number;
   // A REFUSAL_ERRORS code when this variant failed for a reason we DECIDED (the
   // deadline), as opposed to an engine fault. Distinct from `code` above, which is a
@@ -133,6 +136,21 @@ export const ANALYZE_GENERIC_FAIL_CODE = "analyzeVariantFailed";
 // on the return payload so the UI can say WHICH variant failed and why, not just
 // the logs. Declared on the analyze schema (nullish) so it survives the client parse.
 export type VariantFailureNote = { label: string; error: string; code?: string };
+
+/** The `errors.<CODE>` key (api-response.ts REFUSAL_ERRORS, all four catalogs) an engine
+ *  failure is answered with. Only the deadline has a code of its own; every other engine
+ *  code (a rejected input, a missing job, a fault) is "the engine stopped", because the
+ *  engine's sentence, which says why, is the thing that must not reach the recruiter. */
+export function engineClientCode(engineCode: string | undefined): "ENGINE_FAILED" | "ENGINE_TIMEOUT" {
+  return engineCode === "timeout" ? "ENGINE_TIMEOUT" : "ENGINE_FAILED";
+}
+
+/** The engine code a thrown error carries (a PipelineError/SpawnFailure has one), read
+ *  structurally so this module needs nothing more from the runner. */
+function thrownEngineCode(caught: unknown): string {
+  const code = (caught as { code?: unknown } | null)?.code;
+  return typeof code === "string" && code.trim() ? code.trim() : "engine_error";
+}
 
 // The settled delivery decision over a batch of variant outcomes (Direction 2).
 // Pure + exported so the winner-picking + failure-naming is unit-tested without
@@ -156,7 +174,8 @@ export function settleVariants(results: VariantResult[]): SettleDecision {
   // the client localizes; engine text passes through verbatim.
   if (successes.length === 0) {
     const first = failures[0];
-    const engineText = first && !first.code ? first.error : "";
+    // Engine text never goes to the client: an engine failure answers with its code.
+    const engineText = first && !first.code ? engineClientCode(first.engineCode) : "";
     return {
       kind: "throw",
       // A NAMED refusal answers with its own canonical sentence rather than the engine's
@@ -171,7 +190,13 @@ export function settleVariants(results: VariantResult[]): SettleDecision {
   return {
     kind: "deliver",
     successes,
-    partialFailures: failures.map((f) => ({ label: f.label, error: f.error, ...(f.code ? { code: f.code } : {}) })),
+    partialFailures: failures.map((f): VariantFailureNote =>
+      // A coded generic keeps its own (non-engine) literal; anything else is an engine
+      // failure and carries only its `errors.<CODE>` key, with empty text.
+      f.code
+        ? { label: f.label, error: f.error, code: f.code }
+        : { label: f.label, error: "", code: engineClientCode(f.refusal === ANALYZE_TIMEOUT_CODE ? "timeout" : f.engineCode) }
+    ),
     // Cache-hit accounting over the DELIVERED successes only: bill one unit unless
     // every success was cached (no new work). A failed variant adds no second debit.
     allCached: successes.every((r) => r.cached),
@@ -393,7 +418,7 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
           if (exitCode !== 0) {
             const err = parseStderrError(stderr, exitCode);
             onProgress?.(++done, total, ANALYZE_PHASE.analyzing);
-            return { label, ok: false, error: err.message, status: err.status };
+            return { label, ok: false, error: err.message, engineCode: err.code ?? "engine_error", status: err.status };
           }
           let payload: unknown;
           try {
@@ -412,7 +437,7 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
               label,
               ok: false,
               error: engineMsg ?? `Pipeline returned non-JSON output for "${label}".`,
-              ...(engineMsg ? {} : { code: ANALYZE_GENERIC_FAIL_CODE }),
+              ...(engineMsg ? { engineCode: "engine_error" } : { code: ANALYZE_GENERIC_FAIL_CODE }),
               status: 502,
             };
           }
@@ -457,7 +482,7 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
             label,
             ok: false,
             error: engineMsg ?? `Analysis failed for "${label}".`,
-            ...(engineMsg ? {} : { code: ANALYZE_GENERIC_FAIL_CODE }),
+            ...(engineMsg ? { engineCode: thrownEngineCode(caught) } : { code: ANALYZE_GENERIC_FAIL_CODE }),
             status: 500,
           };
         }
@@ -488,6 +513,10 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
     }
 
     const { successes, partialFailures, allCached } = settled;
+    // The detail the client no longer gets stays here, with the variant it belongs to.
+    for (const r of results) {
+      if (!r.ok) console.error(`[analyze-run] variant "${r.label}" failed (${r.engineCode ?? r.code ?? "uncoded"}): ${r.error}`);
+    }
     const analyses = successes.map((r) => ({ label: r.label, analysis: r.analysis }));
 
     // Every variant is done — the remaining work is persisting the report. Emit the

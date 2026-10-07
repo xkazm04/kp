@@ -19,6 +19,7 @@ import assert from "node:assert/strict";
 import {
   AnalyzeClientError,
   nextPollDelay,
+  partialFailureLine,
   resolveAnalyzeErrorText,
   githubViewFromDeepDive,
   submitAnalysis,
@@ -65,6 +66,25 @@ test("a route's machine code wins over the server's English", () => {
     resolvers()
   );
   assert.equal(text, "app:UPLOAD_TOO_LARGE");
+});
+
+test("an engine failure code the task row carries resolves through the errors catalog", () => {
+  const r = resolvers({ appCode: (code) => (code === "ENGINE_FAILED" ? `app:${code}` : null) });
+  assert.equal(
+    resolveAnalyzeErrorText({ code: "errIncomplete", apiCode: "ENGINE_FAILED", serverText: "ENGINE_FAILED" }, r),
+    "app:ENGINE_FAILED"
+  );
+});
+
+test("a partial-failure line shows the localized code, never the stored engine text", () => {
+  const r = {
+    appCode: (code: string) => (code === "ENGINE_FAILED" ? "engine stopped" : null),
+    item: (label: string, text: string) => `${label}: ${text}`,
+    generic: (label: string) => `${label}: generic`,
+  };
+  assert.equal(partialFailureLine({ label: "b.pdf", code: "ENGINE_FAILED" }, r), "b.pdf: engine stopped");
+  assert.equal(partialFailureLine({ label: "b.pdf", code: "analyzeVariantFailed" }, r), "b.pdf: generic");
+  assert.equal(partialFailureLine({ label: "b.pdf" }, r), "b.pdf: generic", "an old row with no code gets the generic line");
 });
 
 test("a GitHub-namespace code resolves when the app-wide catalog does not know it", () => {

@@ -22,7 +22,7 @@ import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
 import { readFileSync, writeFileSync, mkdtempSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import os from "node:os";
 import path from "node:path";
 
@@ -34,7 +34,11 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 // knob is what the next spawn does. The deadline's message SHAPE is not invented here —
 // it is asserted against python-runner's real source below, which is what keeps this
 // from being a test of its own fake.
-type SpawnScript = { kind: "ok"; payload: unknown } | { kind: "timeout" } | { kind: "fault"; message: string };
+type SpawnScript =
+  | { kind: "ok"; payload: unknown }
+  | { kind: "timeout" }
+  | { kind: "fault"; message: string }
+  | { kind: "exit"; stderr: string; exitCode: number };
 let nextSpawn: SpawnScript = { kind: "fault", message: "no spawn scripted" };
 let spawnCalls: { args: string[]; timeoutMs?: number }[] = [];
 (globalThis as Record<string, unknown>).__kpAnalyzeSpawn = () => nextSpawn;
@@ -44,6 +48,8 @@ let spawnCalls: { args: string[]; timeoutMs?: number }[] = [];
 const VIRTUAL_RUNNER = "kp-test:python-runner";
 registerHooks({
   resolve(specifier, context, nextResolve) {
+    // The twin below re-exports the REAL parseStderrError, so its own import passes through.
+    if (context.parentURL === VIRTUAL_RUNNER) return nextResolve(specifier, context);
     if (/(^|\/)python-runner(\.ts)?$/.test(specifier)) return { url: VIRTUAL_RUNNER, shortCircuit: true };
     return nextResolve(specifier, context);
   },
@@ -74,14 +80,14 @@ registerHooks({
           "      'timeout', 'Python process timed out after ' + Math.round((opts.timeoutMs ?? 0) / 1000) + 's'",
           "    )) };",
           "  }",
+          "  if (script.kind === 'exit') return { result: Promise.resolve({ stdout: '', stderr: script.stderr, exitCode: script.exitCode }) };",
           "  if (script.kind === 'fault') return { result: Promise.reject(new Error(script.message)) };",
           "  return { result: Promise.resolve({ stdout: JSON.stringify(script.payload), stderr: '', exitCode: 0 }) };",
           "}",
           "export function parsePythonJson(stdout) { return JSON.parse(stdout); }",
           "export function flagArg(flag, value) { return flag + '=' + value; }",
-          "export function parseStderrError(stderr, exitCode) {",
-          "  return { message: stderr || 'fake failure', status: exitCode === 2 ? 400 : 500, code: 'engine_error' };",
-          "}",
+          // The REAL envelope parser: the leak under test is what it returns.
+          "export { parseStderrError } from " + JSON.stringify(pathToFileURL(path.join(HERE, "python-runner.ts")).href) + ";",
           "export async function cleanupWorkdir() {}",
           // The real confinement is pinned in python-runner-workdir-guard.test.ts; these
           // cases use kp-analyze-run-test-* temp dirs, not jobfit workdirs.
@@ -197,7 +203,7 @@ test("a hung engine is refused BY NAME (504 + ANALYZE_TIMEOUT), never as the chi
   );
 });
 
-test("a NON-timeout engine fault still escapes verbatim - only the deadline is relabelled", async () => {
+test("a NON-timeout engine fault answers with a code, never the engine's text", async () => {
   const { baseDir, cvPath } = tempCv("broken.pdf");
   nextSpawn = { kind: "fault", message: "spawn python3 ENOENT" };
   const err = await runAnalyze(params("broken.pdf", baseDir, cvPath)).then(
@@ -206,7 +212,93 @@ test("a NON-timeout engine fault still escapes verbatim - only the deadline is r
   );
   assert.ok(err instanceof AnalyzeError);
   assert.equal(err.code, undefined, "a fault is not a decision and carries no refusal code");
-  assert.equal(err.message, "spawn python3 ENOENT");
+  assert.equal(err.message, "ENGINE_FAILED", "the code the client resolves through errors.<CODE>");
+  assert.doesNotMatch(err.message, /ENOENT|python3/);
+});
+
+// ---- 3. engine stderr never reaches the recruiter (craft-1) -----------------
+
+const LEAK = /[A-Za-z]:[\\/]|\/home\/|Traceback|KP_[A-Z_]+/;
+const ENVELOPE_PATH = "C:\\Users\\ops\\kp\\data\\cv.pdf could not be read (KP_DB_PATH=/srv/kp.sqlite)";
+const TRACEBACK = [
+  "Traceback (most recent call last):",
+  '  File "C:\\Users\\ops\\kp\\pipeline\\jobfit\\pipeline.py", line 12, in analyze_cv',
+  "KeyError: 'KP_LLM_CONFIG'",
+].join("\n");
+
+async function failedRun(marker: string, script: SpawnScript) {
+  const { baseDir, cvPath } = tempCv(marker);
+  nextSpawn = script;
+  const original = console.error;
+  console.error = () => {};
+  try {
+    return await runAnalyze(params(marker, baseDir, cvPath)).then(
+      () => null,
+      (e: unknown) => e
+    );
+  } finally {
+    console.error = original;
+  }
+}
+
+test("a JSON error envelope with an absolute path ends in a code, not the path", async () => {
+  const envelope = JSON.stringify({ error: ENVELOPE_PATH, status: 400, code: "invalid_input" });
+  const err = await failedRun("envelope.pdf", { kind: "exit", stderr: envelope, exitCode: 1 });
+  assert.ok(err instanceof AnalyzeError);
+  assert.equal(err.message, "ENGINE_FAILED");
+  assert.doesNotMatch(err.message, LEAK);
+});
+
+test("a raw Python traceback ends in a code too, with no path, traceback or KP_ name", async () => {
+  const err = await failedRun("traceback.pdf", { kind: "exit", stderr: TRACEBACK, exitCode: 1 });
+  assert.ok(err instanceof AnalyzeError);
+  assert.equal(err.message, "ENGINE_FAILED");
+  assert.doesNotMatch(err.message, LEAK);
+});
+
+test("the partial-failure note holds a code and no engine text", () => {
+  for (const [engineCode, error] of [["invalid_input", ENVELOPE_PATH], ["engine_error", TRACEBACK], ["timeout", "x"]] as const) {
+    const d = settleVariants([
+      { label: "a", ok: true, cached: false, analysis: {} as never },
+      { label: "b", ok: false, error, engineCode, status: 500 },
+    ]);
+    assert.equal(d.kind, "deliver");
+    if (d.kind !== "deliver") return;
+    const note = d.partialFailures[0];
+    assert.equal(note.code, engineCode === "timeout" ? "ENGINE_TIMEOUT" : "ENGINE_FAILED");
+    assert.equal(note.error, "");
+    assert.doesNotMatch(JSON.stringify(d.partialFailures), LEAK);
+  }
+});
+
+test("a partial run logs the engine detail server-side and delivers only the code", async () => {
+  const a = tempCv("partial-ok.pdf");
+  const b = tempCv("partial-bad.pdf");
+  let n = 0;
+  (globalThis as Record<string, unknown>).__kpAnalyzeSpawn = () =>
+    n++ === 0 ? { kind: "ok", payload: PAYLOAD } : { kind: "exit", stderr: TRACEBACK, exitCode: 1 };
+  const logged: string[] = [];
+  const original = console.error;
+  console.error = (...x: unknown[]) => void logged.push(x.map(String).join(" "));
+  try {
+    const out = await runAnalyze({
+      baseDir: a.baseDir,
+      grounding: false,
+      variants: [
+        { label: "ok.pdf", cvPath: a.cvPath },
+        { label: "bad.pdf", cvPath: b.cvPath },
+      ],
+      requestId: "req-partial",
+    });
+    const notes = (out as { partialFailures?: { label: string; error: string; code?: string }[] }).partialFailures ?? [];
+    assert.equal(notes.length, 1);
+    assert.equal(notes[0].code, "ENGINE_FAILED");
+    assert.doesNotMatch(JSON.stringify(notes), LEAK);
+    assert.match(logged.join("\n"), /Traceback/, "the detail stays in the server log");
+  } finally {
+    console.error = original;
+    (globalThis as Record<string, unknown>).__kpAnalyzeSpawn = () => nextSpawn;
+  }
 });
 
 test("settleVariants surfaces the deadline's code from the first failure", () => {

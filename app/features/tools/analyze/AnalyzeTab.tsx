@@ -10,7 +10,12 @@ import { AnalyzeFormCollapsed } from "./AnalyzeFormCollapsed";
 import { deriveCollapseDecision } from "./analyzeCollapse";
 import { deriveAnalyzePipelineAffordance } from "./analyzePipelineRef";
 import { shouldWarnUnsaved } from "./analyzeUnsavedWarning";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { partialFailureLine } from "./AnalyzeApi";
 import { useAnalyzeForm } from "./useAnalyzeForm";
+
+const UNKNOWN_CODE = "__kp_unknown_code__";
+const nullIfUnknown = (text: string): string | null => (text === UNKNOWN_CODE ? null : text);
 
 // Tier 3 (docs/design/loading-choreography.md): the result renderers are heavy and
 // only ever needed once a run has produced something to show — they must not
@@ -27,6 +32,7 @@ const GithubAnalysisPanel = dynamic(
 
 export function AnalyzeTab() {
   const t = useTranslations("analyze");
+  const apiErrMsg = useErrorMessage();
   const state = useAnalyzeForm();
   const { inputs, flags, result, handlers, library } = state;
   // Direction 1 — offer the SAME Add-to-pipeline the saved report does, right on
@@ -134,13 +140,14 @@ export function AnalyzeTab() {
           </p>
           <ul className="mt-1 space-y-0.5 text-sm">
             {result.analysis.partialFailures.map((f) => (
-              // A coded failure had no engine text — show a localized generic line;
-              // an uncoded one carries engine/server English (Python stderr), shown
-              // verbatim in the localized frame (the honest "shown in English" case).
+              // The server sends a code, never engine text (it can hold paths and
+              // tracebacks): resolve it through the errors catalog, else the generic line.
               <li key={f.label}>
-                {f.code
-                  ? t("partialFailureGeneric", { label: f.label })
-                  : t("partialFailureItem", { label: f.label, error: f.error })}
+                {partialFailureLine(f, {
+                  appCode: (code) => nullIfUnknown(apiErrMsg({ code }, UNKNOWN_CODE)),
+                  item: (label, text) => t("partialFailureItem", { label, error: text }),
+                  generic: (label) => t("partialFailureGeneric", { label }),
+                })}
               </li>
             ))}
           </ul>
