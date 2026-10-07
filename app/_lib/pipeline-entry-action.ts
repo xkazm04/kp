@@ -316,6 +316,8 @@ export async function extendDraftedOffer(
     });
   }
 
+  // A freshly opened offer always carries its token; a null one has no link to send.
+  if (!offer.token) return err(502, "OFFER_NOT_DISPATCHED");
   const link = `${publicBaseUrl(origin)}/offer/${offer.token}`;
   // The letter did not go out when the dispatch THREW (the send gate refused) OR when
   // it RESOLVED with a dead letter / a refusal (challenge-r06 comms-dispatch-relay/A):

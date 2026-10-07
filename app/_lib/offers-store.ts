@@ -81,7 +81,8 @@ function db(): Database.Database {
 
 export type OfferRow = {
   id: string;
-  token: string;
+  /** NULL once the candidate was erased: there is no link to build or answer. */
+  token: string | null;
   entryId: string | null;
   candidateLabel: string | null;
   jobId: string | null;
@@ -113,7 +114,7 @@ function rowToOffer(r: Record<string, unknown>): OfferRow {
   }
   return {
     id: r.id as string,
-    token: r.token as string,
+    token: (r.token as string) ?? null,
     entryId: (r.entry_id as string) ?? null,
     candidateLabel: (r.candidate_label as string) ?? null,
     jobId: (r.job_id as string) ?? null,

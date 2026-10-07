@@ -64,7 +64,7 @@ test("GET with an unknown token → 404 with the error envelope, leaking nothing
 
 test("GET renders the candidate view for a live offer", async () => {
   const { offer } = offerFixture();
-  const res = await GET(new NextRequest(`http://localhost/api/offer/${offer.token}`), params(offer.token));
+  const res = await GET(new NextRequest(`http://localhost/api/offer/${offer.token}`), params(offer.token!));
   assert.equal(res.status, 200);
   const body = await res.json();
   assert.equal(body.offer.status, "extended");
@@ -74,32 +74,32 @@ test("GET renders the candidate view for a live offer", async () => {
 
 test("POST with a malformed response → 400 and no store mutation", async () => {
   const { entry, offer } = offerFixture();
-  const res = await post(offer.token, { response: "maybe" });
+  const res = await post(offer.token!, { response: "maybe" });
   assert.equal(res.status, 400);
   assert.match((await res.json()).error, /accept.*decline/i);
-  assert.equal(getOfferByToken(offer.token)!.status, "extended", "a rejected payload must not touch the offer");
+  assert.equal(getOfferByToken(offer.token!)!.status, "extended", "a rejected payload must not touch the offer");
   assert.equal(getPipelineEntry(entry.id)!.stage, "Offer");
 });
 
 test("POST accept happy path: offer accepted, entry Hired", async () => {
   const { entry, offer } = offerFixture();
-  const res = await post(offer.token, { response: "accept" });
+  const res = await post(offer.token!, { response: "accept" });
   assert.equal(res.status, 200);
   const body = await res.json();
   assert.equal(body.ok, true);
   assert.equal(body.status, "accepted");
   assert.equal(body.alreadyResponded, false);
-  assert.equal(getOfferByToken(offer.token)!.status, "accepted");
+  assert.equal(getOfferByToken(offer.token!)!.status, "accepted");
   assert.equal(getPipelineEntry(entry.id)!.stage, "Hired");
 
   // The retry is idempotent — reported, not re-applied.
-  const retry = await post(offer.token, { response: "accept" });
+  const retry = await post(offer.token!, { response: "accept" });
   assert.equal((await retry.json()).alreadyResponded, true);
 });
 
 test("POST decline → terminal declined entry; unknown token → 404", async () => {
   const { entry, offer } = offerFixture();
-  const res = await post(offer.token, { response: "decline" });
+  const res = await post(offer.token!, { response: "decline" });
   assert.equal(res.status, 200);
   assert.equal((await res.json()).status, "declined");
   assert.equal(getPipelineEntry(entry.id)!.status, "declined");
@@ -122,7 +122,7 @@ test("POST on a lapsed offer → 410 Gone with the expired flag", async () => {
   } finally {
     d.close();
   }
-  const res = await post(offer.token, { response: "accept" });
+  const res = await post(offer.token!, { response: "accept" });
   assert.equal(res.status, 410);
   assert.match((await res.json()).error, /expired/i);
   assert.equal(getPipelineEntry(entry.id)!.stage, "Offer", "an expired link must not move the entry");
@@ -132,7 +132,7 @@ test("POST on a lapsed offer → 410 Gone with the expired flag", async () => {
 
 test("GET pins the EXACT field set that reaches the candidate — no silent leak", async () => {
   const { offer } = offerFixture();
-  const res = await GET(new NextRequest(`http://localhost/api/offer/${offer.token}`), params(offer.token));
+  const res = await GET(new NextRequest(`http://localhost/api/offer/${offer.token}`), params(offer.token!));
   assert.equal(res.status, 200);
   const body = await res.json();
   // A public token door carries a PROJECTION, not the row (.claude/CLAUDE.md).
@@ -168,7 +168,7 @@ test("GET pins the EXACT field set that reaches the candidate — no silent leak
 
 test("POST pins the EXACT success field set", async () => {
   const { offer } = offerFixture();
-  const res = await post(offer.token, { response: "accept" });
+  const res = await post(offer.token!, { response: "accept" });
   assert.equal(res.status, 200);
   const body = await res.json();
   assert.deepEqual(Object.keys(body).sort(), ["alreadyResponded", "candidateLabel", "jobTitle", "ok", "status"]);

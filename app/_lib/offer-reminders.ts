@@ -23,6 +23,8 @@ export async function sendDueOfferReminders(): Promise<number> {
     // No entry → no deliverable recipient; nothing to remind. (Won't re-claim it next
     // tick — but with no entry it could never be delivered anyway.)
     if (!offer.entryId) continue;
+    // No token (erased candidate) → no link to send.
+    if (!offer.token) continue;
     // Claim first: only the writer that flips reminded_at proceeds to dispatch.
     if (!markOfferReminded(offer.token)) continue;
     // Tenant: the OFFER ROW is the only authority here — the heartbeat has no session,
@@ -45,7 +47,7 @@ export async function sendDueOfferReminders(): Promise<number> {
       // The miss is also a pipeline event so Overview/Outbox/Decisions can show it —
       // reuse offer_comms_failed (the live comms-failed kind) rather than a new kind.
       console.error(
-        `[offer-reminder] claimed but dispatch failed for token ${offer.token} (entry ${offer.entryId}): ${
+        `[offer-reminder] claimed but dispatch failed for offer ${offer.id} (entry ${offer.entryId}): ${
           err instanceof Error ? err.message : String(err)
         }`
       );

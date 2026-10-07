@@ -2487,8 +2487,22 @@ function scrubEntryLinkedPii(
   }
   // Offer: the label + the offer-letter payload (may embed name/free-text terms). The
   // salary/currency columns are non-identifying numbers and stay as the retained record.
+  // The capability TOKEN goes too: it is a live door onto the erased person's offer, and
+  // a POST accept through it would move the entry to Hired, debit the hire meter and
+  // send candidate.hired to the ATS for someone who asked to be forgotten. NULL makes the
+  // old link answer not-found. A still-open row ('extended') closes to 'expired' — the
+  // terminal state the deadline sweep reaches anyway, so no reminder, resend, nudge or
+  // open-offer reader picks it up again — and its deadline is pulled back to the erasure
+  // moment so nothing shows a future-dated expiry. Accepted/declined rows keep their
+  // status as the retained record; they only lose the token.
   if (tables.has("offers")) {
-    db.prepare(`UPDATE offers SET candidate_label = ?, payload_json = NULL WHERE entry_id = ?`).run(masked, entryId);
+    const erasedAt = new Date().toISOString();
+    db.prepare(
+      `UPDATE offers SET candidate_label = ?, payload_json = NULL, token = NULL,
+         status = CASE WHEN status = 'extended' THEN 'expired' ELSE status END,
+         expires_at = CASE WHEN status = 'extended' AND (expires_at IS NULL OR expires_at > ?) THEN ? ELSE expires_at END
+       WHERE entry_id = ?`
+    ).run(masked, erasedAt, erasedAt, entryId);
   }
   // Interview-prep dossier: the label + the free-text prep payload that quotes the CV.
   if (tables.has("interview_preps")) {

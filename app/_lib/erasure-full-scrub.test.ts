@@ -207,6 +207,7 @@ test("erasure scrubs the candidate's PII from EVERY entry-linked table (transcri
   assertScrubbed(JSON.stringify(ob), "dev_outbox");
 
   assertScrubbed(JSON.stringify(listOffersForEntry(entry.id)), "offers");
+  assert.ok(listOffersForEntry(entry.id).every((o) => o.token === null), "the offer capability token is revoked");
   assertScrubbed(JSON.stringify(getInterviewPrep(entry.id)), "interview_preps");
   assertScrubbed(JSON.stringify(getScheduleInviteByToken(invite.token)), "schedule_invites");
   assertScrubbed(JSON.stringify(listRediscoveryAlerts()), "rediscovery_alerts");

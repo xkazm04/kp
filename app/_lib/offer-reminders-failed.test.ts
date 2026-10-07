@@ -77,7 +77,10 @@ test("a throwing dispatch still has reminded_at set and one offer_comms_failed e
   });
 
   const realError = console.error;
-  console.error = () => {};
+  const logged: string[] = [];
+  console.error = (...a: unknown[]) => {
+    logged.push(a.join(" "));
+  };
   let sent: number;
   try {
     sent = await sendDueOfferReminders();
@@ -86,7 +89,9 @@ test("a throwing dispatch still has reminded_at set and one offer_comms_failed e
   }
 
   assert.equal(sent, 0, "a throw is not a send");
-  assert.ok(remindedAt(offer.token), "the CAS claim must stay set — do not re-arm");
+  assert.ok(logged.some((l) => l.includes("[offer-reminder]")), "the failure is logged");
+  assert.ok(logged.every((l) => !l.includes(offer.token!)), "the capability token never reaches the log");
+  assert.ok(remindedAt(offer.token!), "the CAS claim must stay set — do not re-arm");
   const failed = listPipelineEventsForEntry(entry.id).filter((e) => e.kind === "offer_comms_failed");
   assert.equal(failed.length, 1, "the miss must be one auditable pipeline event");
   assert.equal(

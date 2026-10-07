@@ -109,7 +109,7 @@ export async function resendNextAction(
   let claim: ActionResendClaim;
   try {
     const { action, offer, invite, interview } = pending;
-    if (action.kind === "answer_offer" && offer) {
+    if (action.kind === "answer_offer" && offer?.token) {
       claim = (await dispatchOfferReminder(entry, `${base}/offer/${offer.token}`, offer.expiresAt)).claim;
     } else if (action.kind === "book_interview" && invite) {
       const link = pinLinkLocale(`${base}/schedule/${invite.token}`, lang);

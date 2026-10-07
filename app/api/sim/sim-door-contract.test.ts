@@ -120,7 +120,7 @@ function openOffer(id: string): string {
     salary: 140000,
     payload: null,
   });
-  return offer.token;
+  return offer.token!;
 }
 
 test("offer-link for a REAL entry with an open offer is a 404 with no token in the body", async () => {

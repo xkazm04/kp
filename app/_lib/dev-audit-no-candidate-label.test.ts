@@ -84,7 +84,7 @@ test("an accepted offer audits the hire, keyed by the outcome ref, with no name"
     salary: 100000,
     payload: null,
   });
-  const res = await respondToOffer(offer.token, "accept");
+  const res = await respondToOffer(offer.token!, "accept");
   assert.equal(res.ok, true);
   const rows = auditFor("outcome_auto_recorded").filter((a) => a.ref === hireOutcomeRef(entry));
   assert.equal(rows.length, 1);

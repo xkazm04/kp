@@ -68,19 +68,19 @@ test("accept claims once: offer accepted, entry → Hired; a retry is a no-op ec
   const entry = entryAtOffer();
   const offer = mintOffer(entry.id);
 
-  const first = await respondToOffer(offer.token, "accept");
+  const first = await respondToOffer(offer.token!, "accept");
   assert.deepEqual(
     { ok: first.ok, status: first.ok ? first.status : null, already: first.ok ? first.alreadyResponded : null },
     { ok: true, status: "accepted", already: false }
   );
-  assert.equal(getOfferByToken(offer.token)!.status, "accepted");
+  assert.equal(getOfferByToken(offer.token!)!.status, "accepted");
   const hired = getPipelineEntry(entry.id)!;
   assert.equal(hired.stage, "Hired");
   assert.equal(hired.status, "active", "Hired keeps status active by contract");
   assert.ok(hasEvent(entry.id, "offer_accepted"));
 
   // Idempotent second response (refresh / double-click): reports, mutates nothing.
-  const retry = await respondToOffer(offer.token, "accept");
+  const retry = await respondToOffer(offer.token!, "accept");
   assert.ok(retry.ok && retry.alreadyResponded);
   assert.equal(retry.ok ? retry.status : null, "accepted");
 });
@@ -89,9 +89,9 @@ test("decline is terminal for the entry and audited", async () => {
   const entry = entryAtOffer();
   const offer = mintOffer(entry.id);
 
-  const result = await respondToOffer(offer.token, "decline");
+  const result = await respondToOffer(offer.token!, "decline");
   assert.ok(result.ok && result.status === "declined" && !result.alreadyResponded);
-  assert.equal(getOfferByToken(offer.token)!.status, "declined");
+  assert.equal(getOfferByToken(offer.token!)!.status, "declined");
   const closed = getPipelineEntry(entry.id)!;
   assert.equal(closed.status, "declined", "candidate declines get their own terminal status, not 'rejected'");
   assert.ok(hasEvent(entry.id, "offer_declined"));
@@ -100,12 +100,12 @@ test("decline is terminal for the entry and audited", async () => {
 test("a stale decline on a duplicate link cannot demote a candidate who has since been Hired", async () => {
   const entry = entryAtOffer();
   const firstOffer = mintOffer(entry.id);
-  await respondToOffer(firstOffer.token, "accept"); // → Hired
+  await respondToOffer(firstOffer.token!, "accept"); // → Hired
 
   // A second link can exist (re-extend after the first closed); declining it must
   // not overwrite the hire.
   const staleLink = mintOffer(entry.id);
-  const result = await respondToOffer(staleLink.token, "decline");
+  const result = await respondToOffer(staleLink.token!, "decline");
   assert.ok(result.ok, "the offer row itself records the decline");
   const still = getPipelineEntry(entry.id)!;
   assert.equal(still.stage, "Hired");
@@ -116,16 +116,16 @@ test("a stale decline on a duplicate link cannot demote a candidate who has sinc
 test("a lapsed deadline makes the link dead: respond reports expired, the row flips, the lapse is audited", async () => {
   const entry = entryAtOffer();
   const offer = mintOffer(entry.id);
-  forceExpiry(offer.token);
+  forceExpiry(offer.token!);
 
-  const result = await respondToOffer(offer.token, "accept");
+  const result = await respondToOffer(offer.token!, "accept");
   // The refusal carries a CODE the candidate page localizes, not an English
   // sentence; `expired` is what the route reads to answer 410 rather than 404.
   assert.deepEqual(result, { ok: false, code: "OFFER_EXPIRED", expired: true });
-  assert.equal(getOfferByToken(offer.token)!.status, "expired");
+  assert.equal(getOfferByToken(offer.token!)!.status, "expired");
   assert.ok(hasEvent(entry.id, "offer_expired"));
   assert.equal(getPipelineEntry(entry.id)!.stage, "Offer", "an expired link must not move the entry");
-  assert.equal(offerView(offer.token)!.status, "expired", "the candidate page sees the lapse immediately");
+  assert.equal(offerView(offer.token!)!.status, "expired", "the candidate page sees the lapse immediately");
 
   // Unknown token stays a plain not-found.
   const missing = await respondToOffer("tk-does-not-exist", "accept");
@@ -135,9 +135,9 @@ test("a lapsed deadline makes the link dead: respond reports expired, the row fl
 test("lapseExpiredOffers sweeps every due open offer exactly once", () => {
   const entry = entryAtOffer();
   const offer = mintOffer(entry.id);
-  forceExpiry(offer.token);
+  forceExpiry(offer.token!);
   assert.equal(lapseExpiredOffers(), 1);
-  assert.equal(getOfferByToken(offer.token)!.status, "expired");
+  assert.equal(getOfferByToken(offer.token!)!.status, "expired");
   assert.equal(lapseExpiredOffers(), 0, "a second sweep finds nothing to lapse");
 });
 
@@ -152,8 +152,8 @@ test("reminder eligibility: only open offers inside the T-48h window, and the CA
   assert.ok(!dueTokens.has(far.token), "an offer far from its deadline is not due");
 
   // CAS: exactly one claimer wins; a claimed offer leaves the due set.
-  assert.equal(markOfferReminded(soon.token), true);
-  assert.equal(markOfferReminded(soon.token), false);
+  assert.equal(markOfferReminded(soon.token!), true);
+  assert.equal(markOfferReminded(soon.token!), false);
   assert.ok(!new Set(dueOfferReminders().map((o) => o.token)).has(soon.token));
 });
 
@@ -181,7 +181,7 @@ test("offerView projects notes and startDate from the payload and never the rest
       startDate: "2026-10-01",
     },
   });
-  const view = offerView(offer.token)!;
+  const view = offerView(offer.token!)!;
   assert.equal(view.notes, "Signing bonus after probation.");
   assert.equal(view.startDate, "2026-10-01");
   assert.equal("payload" in view, false);
@@ -192,7 +192,7 @@ test("offerView projects notes and startDate from the payload and never the rest
 test("offerView omits empty notes and startDate", () => {
   const entry = entryAtOffer();
   const offer = mintOffer(entry.id);
-  const view = offerView(offer.token)!;
+  const view = offerView(offer.token!)!;
   assert.equal(view.notes, null);
   assert.equal(view.startDate, null);
 });
@@ -202,7 +202,7 @@ test("offerView ships a SERVER-computed hoursRemaining so the countdown can't dr
   // hours-left from the server's clock, not Date.now() on an untrusted device.
   const entry = entryAtOffer();
   const offer = mintOffer(entry.id, 1); // 1-day TTL → ~24h out
-  const view = offerView(offer.token)!;
+  const view = offerView(offer.token!)!;
   assert.equal(typeof view.hoursRemaining, "number", "the view must carry a server-side hours-left figure");
   assert.ok(view.hoursRemaining! >= 23 && view.hoursRemaining! <= 24, `expected ~24h, got ${view.hoursRemaining}`);
   assert.ok(view.minutesRemaining! >= 23 * 60 && view.minutesRemaining! <= 24 * 60, "minutes use the same server deadline");
@@ -333,7 +333,7 @@ test("an accept that only advances onto a post-offer column is not a hire — no
   const offer = offerFor(entry.id, entry.candidateLabel);
   const before = hiresUsed(WS);
 
-  const res = await respondToOffer(offer.token, "accept");
+  const res = await respondToOffer(offer.token!, "accept");
   assert.ok(res.ok, "the candidate's acceptance is still recorded");
   assert.equal(
     getPipelineEntry(entry.id, WS)!.stage,
@@ -353,12 +353,12 @@ test("a stale decline cannot demote a hire whose board calls the terminal column
   const entry = entryIn(WS, "Offer");
 
   const accepted = offerFor(entry.id, entry.candidateLabel);
-  await respondToOffer(accepted.token, "accept");
+  await respondToOffer(accepted.token!, "accept");
   assert.equal(getPipelineEntry(entry.id, WS)!.stage, "Onboarded", "the hire lands on THIS board's terminal column");
 
   // A duplicate / re-extended link on the same entry; declining it must not undo the hire.
   const stale = offerFor(entry.id, entry.candidateLabel);
-  const res = await respondToOffer(stale.token, "decline");
+  const res = await respondToOffer(stale.token!, "decline");
   assert.ok(res.ok, "the offer row itself records the decline");
   const still = getPipelineEntry(entry.id, WS)!;
   // Pre-fix: markEntryStatus guarded `stage != 'Hired'` (the shipped axis's last
@@ -381,11 +381,11 @@ test("re-extending an offer whose deadline lapsed before the sweep ran refreshes
     ttlDays: 7,
   };
   const first = getOrCreateOpenOffer(input);
-  forceExpiry(first.offer.token); // past its deadline, but the heartbeat hasn't swept it yet
+  forceExpiry(first.offer.token!); // past its deadline, but the heartbeat hasn't swept it yet
 
   const again = getOrCreateOpenOffer(input); // identical terms AND identical window
   assert.equal(again.offer.token, first.offer.token, "the re-extend still re-uses the one link");
   assert.equal(again.updated, true, "a lapsed deadline must be re-based");
   assert.ok(Date.parse(again.offer.expiresAt!) > Date.now(), "the link the candidate receives is live");
-  assert.equal(getOfferByToken(first.offer.token)!.status, "extended");
+  assert.equal(getOfferByToken(first.offer.token!)!.status, "extended");
 });

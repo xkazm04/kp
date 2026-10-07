@@ -86,7 +86,7 @@ test("a candidate ACCEPT dispatches offer.accepted alongside candidate.hired", a
     payload: { recommended: 90_000 },
   });
 
-  const result = await respondToOffer(offer.token, "accept");
+  const result = await respondToOffer(offer.token!, "accept");
   assert.equal(result.ok, true);
   const events = eventsFor(entry.id).sort();
   // The hire is the pre-existing behaviour and the control; the offer response is a
@@ -107,7 +107,7 @@ test("a candidate DECLINE dispatches offer.declined", async () => {
     payload: { recommended: 90_000 },
   });
 
-  const result = await respondToOffer(offer.token, "decline");
+  const result = await respondToOffer(offer.token!, "decline");
   assert.equal(result.ok, true);
   assert.deepEqual(eventsFor(entry.id), ["offer.declined"]);
 });
@@ -134,7 +134,7 @@ test("a decline on a STALE link that changes nothing mirrors nothing", async () 
     payload: {},
   });
 
-  await respondToOffer(offer.token, "decline");
+  await respondToOffer(offer.token!, "decline");
   assert.deepEqual(eventsFor(entry.id), [], "no ledger row: nothing transitioned, so nothing is mirrored");
 });
 
