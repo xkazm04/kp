@@ -360,9 +360,23 @@ def analyze_cv(
             strengths = _string_list(payload.get("strengths"))
             gaps = _string_list(payload.get("gaps"))
             recommendations = _string_list(payload.get("recommendations"))
-            explanation = str(payload.get("explanation") or "").strip() or _explanation_fallback(
-                profile, score, salary, strengths, gaps, recommendations
-            )
+            explanation = str(payload.get("explanation") or "").strip()
+            if not explanation:
+                # The model wrote no explanation: the template below is NOT a reasons
+                # block. Mark it where it is made so the write path and the reasons
+                # meter can tell it from prose the model wrote.
+                explanation = _explanation_fallback(
+                    profile,
+                    score,
+                    salary,
+                    strengths,
+                    gaps,
+                    recommendations,
+                    score_computed=not any(
+                        getattr(r, "code", None) == "score_section_missing" for r in repairs
+                    ),
+                )
+                repairs.append(explanation_fallback_finding())
 
             extraction_quality = compare_extraction_quality(pypdf_text, raw_text, len(profile.skills))
             extraction_comparison = ExtractionComparison(
@@ -1238,14 +1252,28 @@ def _explanation_fallback(
     strengths: list[str],
     gaps: list[str],
     recommendations: list[str],
+    *,
+    score_computed: bool = True,
 ) -> str:
     candidate = profile.name or "Candidate"
+    # A score the engine never computed is a defaulted 0: say so, quote no number.
+    score_line = f"Score {score.total}/100" if score_computed else "Score not computed"
     return (
         f"{candidate} was assessed as {profile.current_seniority} in {profile.role_family}. "
-        f"Score {score.total}/100; salary estimate {salary.minimum:,}-{salary.maximum:,} {salary.currency}/{salary.period} "
+        f"{score_line}; salary estimate {salary.minimum:,}-{salary.maximum:,} {salary.currency}/{salary.period} "
         f"({salary.confidence} confidence). Strengths: {'; '.join(strengths) or 'n/a'}. "
         f"Gaps: {'; '.join(gaps) or 'no critical gaps detected'}. "
         f"Next steps: {'; '.join(recommendations) or 'tighten the CV against the target role'}."
+    )
+
+
+def explanation_fallback_finding() -> Finding:
+    """The coded marker for a template explanation (not model-written)."""
+    return Finding(
+        "Explanation missing from the model response — a template summary was substituted (not a written rationale)",
+        code="explanation_fallback",
+        severity="warn",
+        scope="insight",
     )
 
 
