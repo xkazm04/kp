@@ -84,6 +84,9 @@ export type AtsDecisionInput =
       kind: string;
       actor: string;
       reasonCode: string;
+      /** The sealed human-readable reason. OPTIONAL: the inbound projection and older
+       *  fixtures have none. Whether it LEAVES is decided by {@link atsDecisionRationale}. */
+      rationale?: string;
       /** The tamper-evident content hash — the reference a record can be audited by. */
       contentHash: string;
       policyVersion: string;
@@ -134,6 +137,13 @@ export type AtsCandidateRecord = {
   decision: {
     kind: string;
     reasonCode: string;
+    /** WHY, in the sealed record's own words (English by convention) — or null when the
+     *  reason is not releasable; `rationaleWithheld` then says so. Additive to kp.ats.v1.
+     *  A receiver gets the reason, not just a code and a hash it cannot read. */
+    rationale: string | null;
+    /** True when a sealed rationale exists but was not sent (consent-withheld record, or a
+     *  decision kind whose prose can name someone else). Never true for "no rationale". */
+    rationaleWithheld: boolean;
     actor: string;
     /** Derived: a "human:"-prefixed actor is a human decision; anything else automated. */
     automated: boolean;
@@ -153,6 +163,43 @@ export type AtsCandidateRecord = {
  *  here we only call it human when it SAYS human; everything else is automated. */
 function isAutomatedActor(actor: string): boolean {
   return !actor.toLowerCase().startsWith("human");
+}
+
+/** The decision reason codes whose sealed `rationale` is built by the server from the
+ *  candidate's OWN facts or from aggregates (a rank, a cohort size, a threshold, a score),
+ *  never from free text. Audited against every writer of a sealed rationale:
+ *    reject / holdout     screen-wave.ts        rank, cohort size, score, threshold, approver
+ *    autoRatifiedScreening automation-run.ts    fixed sentence
+ *    match_fit            match-verdict.ts      code string, skill names stay in `inputs`
+ *    scorecard            interview-scorecard-commit.ts, api/interview-prep/scorecard — recommendation
+ *    offer                pipeline-entry-action.ts  salary, currency, job title (offer comp is already on the wire)
+ *  Deliberately NOT here: `lead` / `advisory` (group-eval-run.ts names the lead AND the
+ *  runner-up — another candidate's label), `accept` (the recruiter's free-text `detail`),
+ *  and the schedule / reinstate / reversal codes. An unknown code is withheld: a new
+ *  writer has to be added here after the same audit, not inherit release by default. */
+const RELEASABLE_RATIONALE_CODES: ReadonlySet<string> = new Set([
+  "reject",
+  "holdout",
+  "autoRatifiedScreening",
+  "match_fit",
+  "scorecard",
+  "offer",
+]);
+
+/** The rationale to put on the wire, and whether one was held back. When the consent gate
+ *  withholds identifying fields (`piiWithheld`) the rationale is WITHHELD WHOLE (null +
+ *  `rationaleWithheld`), not masked: masking free text for a name is a guess, and the
+ *  reason code + sealed hash still say what was decided. */
+function atsDecisionRationale(
+  decision: NonNullable<AtsDecisionInput>,
+  piiWithheld: boolean
+): { rationale: string | null; rationaleWithheld: boolean } {
+  const text = decision.rationale?.trim();
+  if (!text) return { rationale: null, rationaleWithheld: false };
+  if (piiWithheld || !RELEASABLE_RATIONALE_CODES.has(decision.reasonCode)) {
+    return { rationale: null, rationaleWithheld: true };
+  }
+  return { rationale: text, rationaleWithheld: false };
 }
 
 /** The entry's consent snapshot in the shape the shared predicates read. */
@@ -232,6 +279,7 @@ export function buildAtsRecord(input: {
       ? {
           kind: decision.kind,
           reasonCode: decision.reasonCode,
+          ...atsDecisionRationale(decision, piiWithheld),
           actor: decision.actor,
           automated: isAutomatedActor(decision.actor),
           sealedRecordHash: decision.contentHash,

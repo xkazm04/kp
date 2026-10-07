@@ -36,7 +36,7 @@ test("the audit is filed against the exported entry under the ats_export kind", 
 test("the detail reflects the schema version and whether a decision/offer egressed", () => {
   const withBoth = buildAtsExportAudit("entry-1", record({
     decision: {
-      kind: "hired", reasonCode: "accept", actor: "human:rec", automated: false,
+      kind: "hired", reasonCode: "accept", rationale: null, rationaleWithheld: false, actor: "human:rec", automated: false,
       sealedRecordHash: "abc", policyVersion: "v1", decidedAt: "2026-07-09T00:00:00.000Z",
     },
     offer: { currency: "USD", amount: 100000, status: "accepted" },
@@ -68,10 +68,22 @@ test("consent redaction masks the label and drops the contact, exactly as anonym
   assert.equal(gated.candidate.contact, null, "an expired consent must not export a deliverable address");
 });
 
+test("consent redaction withholds a sealed rationale along with the identity", () => {
+  const gated = redactAtsRecordForConsent(record({
+    decision: {
+      kind: "auto_rejected", reasonCode: "reject", rationale: "Auto-rejected · rank 3 of 9", rationaleWithheld: false,
+      actor: "auto:screen-wave", automated: true,
+      sealedRecordHash: "abc", policyVersion: "v1", decidedAt: "2026-07-09T00:00:00.000Z",
+    },
+  }));
+  assert.equal(gated.decision?.rationale, null);
+  assert.equal(gated.decision?.rationaleWithheld, true);
+});
+
 test("consent redaction KEEPS the non-identifying retained record so a stage sync survives", () => {
   const source = record({
     decision: {
-      kind: "hired", reasonCode: "accept", actor: "human:rec", automated: false,
+      kind: "hired", reasonCode: "accept", rationale: null, rationaleWithheld: false, actor: "human:rec", automated: false,
       sealedRecordHash: "abc", policyVersion: "v1", decidedAt: "2026-07-09T00:00:00.000Z",
     },
     offer: { currency: "USD", amount: 100000, status: "accepted" },

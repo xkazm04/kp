@@ -143,6 +143,12 @@ stays put — freezing both would push every late retry outside the 300-second v
 window. `sentAt` is therefore not a signature input there and the two fields are equal only
 on the first attempt.
 
+The record's `decision` block (additive; still `kp.ats.v1`) is `kind`, `reasonCode`,
+`rationale`, `rationaleWithheld`, `actor`, `automated`, `sealedRecordHash`, `policyVersion`,
+`decidedAt`. `rationale` is the sealed reason text for the server-built reason codes only;
+otherwise it is `null` with `rationaleWithheld: true` (also on any `piiWithheld` record) — see
+the integrations README for the list.
+
 ## 2. Pull — bulk candidate sync
 
 `GET /api/pipeline` returns `{ entries: PipelineEntryView[] }` — the same

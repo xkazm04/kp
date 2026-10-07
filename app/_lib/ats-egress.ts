@@ -88,6 +88,7 @@ export function getAtsRecordResult(
             kind: latest.kind,
             actor: latest.actor,
             reasonCode: latest.reasonCode,
+            rationale: latest.rationale,
             contentHash: latest.contentHash,
             policyVersion: latest.policyVersion,
             createdAt: latest.createdAt,
@@ -215,7 +216,7 @@ async function deliverUnderCap(...args: Parameters<typeof deliver>): Promise<Del
  *  (the SSRF re-vet resolves DNS; the signing secret is decrypted). It may only REFUSE:
  *  the body and the idempotency key are already promised to the receiver, so a check that
  *  swapped the content would make attempt N+1 a different delivery under the same key. */
-export type FreshnessCheck = () => { ok: true } | { ok: false; reason: string; terminal?: boolean };
+export type FreshnessCheck = (vetted: { webhookUrl: string }) => { ok: true } | { ok: false; reason: string; terminal?: boolean };
 
 /** POST one envelope to the configured webhook, signed when a secret is set.
  *  5s timeout. Returns a structured result (never throws) so the test-ping route
@@ -295,7 +296,7 @@ export async function deliver(
   // of it, so an erasure committed in between would otherwise be mirrored to a third party
   // with the gate's stale blessing. No await may be added between here and the fetch.
   if (freshness) {
-    const verdict = freshness();
+    const verdict = freshness({ webhookUrl: cfg.webhookUrl });
     if (!verdict.ok) {
       return { delivered: false, reason: verdict.reason, ...(verdict.terminal ? { terminal: true } : {}) };
     }
@@ -387,7 +388,27 @@ function deliveryStillJustified(
   workspaceId: string | undefined,
   exportedAt: string
 ): FreshnessCheck {
-  return () => {
+  return (vetted) => {
+    // THE DESTINATION AT THE POST (council-lite r1, robustness). `dispatchAtsEvent` and the
+    // retry sweep check the owner org BEFORE the slot wait, and `deliver` reads the config
+    // again AFTER it and then awaits a DNS resolve — so an operator re-pointing the
+    // integration in either window sent this entry's candidate to the new owner's
+    // endpoint with the old owner's blessing. Re-read the config here, synchronously, in
+    // the last statement before the fetch, and assert the two things the vet certified:
+    //   • the config still belongs to the entry's organization — TERMINAL, in
+    //     crossOrgRefusal's vocabulary (org ids + entry id, no candidate data);
+    //   • its URL is still the one that was vetted and resolved — RETRYABLE: the next attempt
+    //     re-reads, re-vets and re-resolves whatever the operator saved. The reason carries
+    //     no URL (it can embed a path token).
+    const current = getAtsConfig();
+    const crossOrg = crossOrgRefusal(current.ownerOrgId, entryId, workspaceId);
+    if (crossOrg) return { ok: false, reason: crossOrg, terminal: true };
+    if (current.webhookUrl !== vetted.webhookUrl) {
+      return {
+        ok: false,
+        reason: `the ATS webhook URL changed while delivery ${entryId} was being prepared — the vetted address is no longer the configured one; the next attempt re-vets it`,
+      };
+    }
     const { record, refusal } = getAtsRecordResult(entryId, workspaceId, exportedAt);
     if (refusal) return { ok: false, reason: refusal.message, terminal: true };
     if (!record) return { ok: false, reason: `pipeline entry ${entryId} no longer exists — nothing to mirror` };

@@ -254,6 +254,22 @@ ping (`POST /api/ats/test`).
   contact and sets `candidate.piiWithheld: true` so a receiver can tell a redacted record
   from a sparse one. Both read the shared predicates in `consent.ts`, so the push door
   cannot drift from the pull door and every future egress path inherits the gate.
+- **The record says why, not just that.** `decision` carries `rationale` (the sealed
+  decision's own reason text) and `rationaleWithheld`, additive to `kp.ats.v1` (the version
+  does not move). The text is released only for the reason codes whose rationale the server
+  builds from the candidate's own facts or from aggregates — `reject` / `holdout` (rank,
+  cohort size, score, threshold, approver), `autoRatifiedScreening`, `match_fit`, `scorecard`,
+  `offer` (`RELEASABLE_RATIONALE_CODES` in `ats-record.ts`). Anything else — group-eval
+  `lead`/`advisory` prose names the runner-up, `accept` carries a recruiter's free text — is
+  `rationale: null, rationaleWithheld: true`, as is every decision on a `piiWithheld` record
+  (withheld whole, not masked). A decision sealed with no rationale is `null` / `false`.
+  Pinned by `app/_lib/ats-egress-reasons.test.ts`.
+- **The destination is re-asserted at the POST.** The owner-org check runs before the slot
+  wait and the DNS resolve; `deliveryStillJustified` repeats it, plus "the URL is still the
+  one that was vetted", in the last synchronous statement before the fetch. A different
+  owner org dead-letters with the cross-org reason (org ids + entry id); a changed URL under
+  the same owner is a retryable refusal (the next attempt re-vets). The operator test ping
+  has no record and keeps its behaviour. Pinned in `app/_lib/ats-egress-org-scope.test.ts`.
 - **A retry is the same request, not a new one.** Every attempt carries the ledger row id as
   `Idempotency-Key` and re-sends a byte-identical body (see the receiver contract below),
   and the retry sweep CLAIMS each due row with a compare-and-swap on `(status, attempts)`

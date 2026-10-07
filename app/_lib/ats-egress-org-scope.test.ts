@@ -186,3 +186,96 @@ test("setAtsConfig records the writer's org, and a re-save adopts the new writer
   assert.equal(second.ownerOrgId, org2.id, "a re-save adopts the saver's org");
   assert.equal(getAtsConfig().webhookUrl, "https://example.com/hook", "and the partial-update contract still keeps the omitted fields");
 });
+
+// (f) — council-lite r1 (robustness): the org check ran BEFORE the slot wait and the DNS
+// resolve, the POST after both. A config re-pointed to another org's endpoint inside that
+// window was dialled on the old owner's blessing. The check is now re-asserted in the last
+// synchronous statement before the fetch.
+test("a config re-pointed to another org while the delivery waits for its slot is not dialled", async () => {
+  const orgE = createOrganization("Org E");
+  const teamE = createWorkspace("Team E", orgE.id);
+  const orgF = createOrganization("Org F");
+  setAtsConfig({ webhookUrl: "https://example.com/hook", events: ["candidate.rejected"], ownerOrgId: orgE.id });
+  const { entry } = createPipelineEntry({
+    candidateId: "c-repoint-slot",
+    candidateLabel: "Slot Repoint",
+    jobId: "job-repoint-slot",
+    jobTitle: "Role",
+    workspaceId: teamE.id,
+  });
+  const urls: string[] = [];
+  const recording = (async (u: unknown) => {
+    urls.push(String(u));
+    return { ok: true, status: 202 };
+  }) as unknown as typeof fetch;
+  await withCountedFetch(recording, async (calls) => {
+    // Synchronous prefix: the row is open and the OLD owner's check has passed; the promise
+    // is parked on the slot wait, before `deliver` has read the config.
+    const inFlight = dispatchAtsEvent("candidate.rejected", entry.id, teamE.id);
+    setAtsConfig({
+      webhookUrl: "https://example.org/other-orgs-endpoint",
+      ownerOrgId: orgF.id,
+      expectedVersion: getAtsConfig().version,
+    });
+    assert.equal(getAtsConfig().ownerOrgId, orgF.id, "NON-VACUITY: the config really moved to another org");
+    await inFlight;
+    assert.equal(calls.n, 0, "nothing is posted to the new org's endpoint");
+  });
+  assert.deepEqual(urls, []);
+  const row = latestRowFor(entry.id);
+  assert.equal(row?.status, "failed");
+  assert.equal(row?.nextAttemptAt, null, "dead-lettered: terminal, no ladder");
+  assert.match(row?.lastError ?? "", new RegExp(orgE.id), "the cross-org reason names the entry's org");
+  assert.match(row?.lastError ?? "", new RegExp(orgF.id), "and the new owner");
+  assert.doesNotMatch(row?.lastError ?? "", /Slot Repoint/, "no candidate data in the reason");
+});
+
+test("a config re-pointed to another org during the DNS resolve is not dialled", async () => {
+  const orgG = createOrganization("Org G");
+  const teamG = createWorkspace("Team G", orgG.id);
+  const orgH = createOrganization("Org H");
+  setAtsConfig({ webhookUrl: "https://example.com/hook", events: ["candidate.rejected"], ownerOrgId: orgG.id });
+  const { entry } = createPipelineEntry({
+    candidateId: "c-repoint-dns",
+    candidateLabel: "Dns Repoint",
+    jobId: "job-repoint-dns",
+    jobTitle: "Role",
+    workspaceId: teamG.id,
+  });
+  await withCountedFetch(ACCEPTS, async (calls) => {
+    const inFlight = dispatchAtsEvent("candidate.rejected", entry.id, teamG.id);
+    // A macrotask: `deliver` has taken its slot, read the config and is inside the resolve.
+    await new Promise((r) => setImmediate(r));
+    setAtsConfig({ ownerOrgId: orgH.id, expectedVersion: getAtsConfig().version });
+    await inFlight;
+    assert.equal(calls.n, 0, "the endpoint vetted for org G is not dialled for org G's candidate once it is org H's");
+  });
+  const row = latestRowFor(entry.id);
+  assert.equal(row?.status, "failed");
+  assert.equal(row?.nextAttemptAt, null, "terminal");
+  assert.match(row?.lastError ?? "", new RegExp(orgH.id));
+});
+
+test("a URL changed under the SAME owner is a retryable refusal, not a dead letter", async () => {
+  const orgI = createOrganization("Org I");
+  const teamI = createWorkspace("Team I", orgI.id);
+  setAtsConfig({ webhookUrl: "https://example.com/hook", events: ["candidate.rejected"], ownerOrgId: orgI.id });
+  const { entry } = createPipelineEntry({
+    candidateId: "c-url-change",
+    candidateLabel: "Url Change",
+    jobId: "job-url-change",
+    jobTitle: "Role",
+    workspaceId: teamI.id,
+  });
+  await withCountedFetch(ACCEPTS, async (calls) => {
+    const inFlight = dispatchAtsEvent("candidate.rejected", entry.id, teamI.id);
+    await new Promise((r) => setImmediate(r));
+    setAtsConfig({ webhookUrl: "https://example.org/moved", expectedVersion: getAtsConfig().version, ownerOrgId: orgI.id });
+    await inFlight;
+    assert.equal(calls.n, 0, "the un-vetted address is never dialled");
+  });
+  const row = latestRowFor(entry.id);
+  assert.equal(row?.status, "failed");
+  assert.notEqual(row?.nextAttemptAt, null, "retryable: the next attempt re-reads and re-vets");
+  assert.match(row?.lastError ?? "", /URL changed/);
+});
