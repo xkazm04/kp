@@ -546,7 +546,7 @@ producer:
 
 | Arm | A reasons block is | Read from |
 | --- | --- | --- |
-| `ranking` | a non-blank `explanation` or `jobFit.summary` | `data/seed_analyses/`, and the `analyses` table when a DB exists |
+| `ranking` | a non-blank `explanation` or `jobFit.summary`; for a Match-filed entry, the `summary` of its `approval_detail` | `data/seed_analyses/`, the `analyses` table, and `pipeline_entries` with `source_channel = 'match'` when a DB exists |
 | `scorecard` | at least one rating with REAL evidence (`isPlaceholderEvidence` is honoured, so an all-"Not assessed" scorecard is a MISS) | `interview_sessions.scorecard_json` |
 | `rejection` | text that `waveReasonText` actually resolves from the sealed code | `decision_records` of kind `auto_rejected`/`rejected` |
 
@@ -562,6 +562,13 @@ controls in `app/_lib/reasons-coverage.test.ts`:
   caller cannot report the headline as if it covered the whole goal. This is the
   ADR-0008 failure mode applied to a metric: a counter that reads 100% because it
   found nothing to check.
+
+The ranking arm is printed per source (seed analyses, stored analyses, match-filed
+entries) so the headline says what it counts. `createPipelineEntry`
+(`app/_lib/db/pipeline.ts`) takes one optional `approvalDetail`, written to
+`approval_detail` on INSERT only, which is how a Match add carries its reasons line
+(`POST /api/pipeline`, Match source only); a match-filed entry with no parsable
+summary is a counted miss with a named why, and an empty source stays *not measured*.
 
 On a clean checkout the seeded corpus holds **66 rankings (100%)** and no
 interviews or screening runs, so the scorecard and rejection arms read *not

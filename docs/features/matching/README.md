@@ -30,6 +30,21 @@ than silently dropping a reason.
     The role comparison table separates matched, claimed-but-unproven, and
     missing skills for each role, so a claim is never presented as proof.
     The ranking CSV exports those same three buckets as separate columns.
+    **Every exit of the ranking carries a reasons line** — one or two plain
+    sentences composed by `focus/matchReasons.ts` from the result's own fit tier,
+    strongest/weakest score dimension and up to three matched / unproven / missing
+    skill names (no LLM, no network; words from `match.reasons.*` in all four
+    catalogs; `null` when there is neither a breakdown nor a skill list, and a
+    non-finite percent is never quoted). It shows on every card by default
+    (`focus/MatchReasonsLine.tsx`; "Explain fit" stays the optional deeper,
+    model-written layer), fills a `Why this ranking` CSV column (`focus/matchCsv.ts`),
+    and rides "Add to pipeline" as `reasons` / `reasonsStrengths` / `reasonsRedFlags`
+    on `POST /api/pipeline` (Match source only; a malformed value is refused
+    `PIPELINE_ADD_REASONS_INVALID`). The route stores it as `approval_detail` JSON
+    (`summary`, `strengths` = matched, `redFlags` = missing) on INSERT only — a
+    re-add never overwrites it — so the Decisions cohort's `AiNarrative` shows it.
+    `npm run kpi:reasons` counts those entries as ranking verdicts (see the
+    compliance doc); entries filed before this line existed read as named misses.
     When a newer CV analysis makes the profile stale, the rebuild banner formats
     that analysis date in the reader's locale (`useFormatter`).
     This was the standalone **Match tab** until it was folded in; `?tab=match`
