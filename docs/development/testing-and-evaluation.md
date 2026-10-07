@@ -279,6 +279,15 @@ to be true before the runner boots and neither can be fixed from inside it:
   that never settles pins the gate until a CI job timeout kills it — and the output at
   that point names a dead job, not a test. With the ceiling, a hang is an ordinary red
   with the offending test named, and the rest of the suite still reports.
+- **A run that ran nothing is red.** `node --test` exits **0** when a pattern matches no
+  file, and it reads argv as a glob — so `app/api/jobs/[id]/route.test.ts` is a character
+  class that matches nothing: 0 tests, exit 0. The launcher (a) runs an argument that
+  names an existing file as exactly that file, **escaping** its glob characters (`[` →
+  `[[]`; node's glob has no backslash escape) rather than resolving it, (b) fails an
+  argument that is not a file and matches no file, naming the pattern, and (c) fails a
+  run whose machine reporter (`scripts/test/flake-reporter.mjs`, which writes a
+  `{"summary":{"tests":N}}` record) counted 0 tests — or exited 0 and left no count.
+  Node's own per-file record for a file that registers no test is not counted as a test.
 
 `npm run test:bench-driver` runs through the same launcher for the first reason: the bench
 driver is *the* documented source of an inherited `NODE_TEST_CONTEXT`, so a bare
@@ -287,7 +296,8 @@ driver is *the* documented source of an inherited `NODE_TEST_CONTEXT`, so a bare
 `app/_lib/testing/gate-exit-code.test.ts` pins all of it from the outside — it drives the
 real launcher from a deliberately polluted environment and asserts that a failing suite
 exits non-zero, a passing one exits zero, ambient backend env never reaches a test file, a
-hanging file fails instead of blocking, and `test:bench-driver` still goes through the
+hanging file fails instead of blocking, a test under a bracketed directory really runs, a
+pattern that matches nothing or a file with no tests is red, and `test:bench-driver` still goes through the
 launcher.
 
 ## `schemas:gen`: the Python step in front of typecheck and build

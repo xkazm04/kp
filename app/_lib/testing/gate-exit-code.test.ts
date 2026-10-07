@@ -17,7 +17,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import os from "node:os";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 
 // The pollution every case runs under: the exact vars the launcher must scrub.
 const POLLUTED_ENV = {
@@ -150,4 +150,60 @@ test("the launcher scrubs the pollution for .mjs files as well as .ts ones", () 
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+// ---------------------------------------------------------------------------
+// A RUN THAT RAN NOTHING. `node --test` exits 0 for a pattern that matches no
+// file, and reads argv as a glob — so a path through a bracketed Next.js route
+// directory (`[id]`) is a character class that matches nothing: 0 tests, green.
+// The launcher escapes an existing file's path, fails a pattern that matches
+// nothing, and fails a run whose reporter counted 0 tests.
+
+const PASSING = 'import { test } from "node:test";\ntest("passes", () => {});\n';
+const FAILING =
+  'import { test } from "node:test";\n' +
+  'import assert from "node:assert";\n' +
+  'test("fails", () => { assert.strictEqual(1, 2); });\n';
+
+/** Run the launcher over argv built from a fixture dir holding `bracket/[id]/probe.test.ts`. */
+function runInBracketDir(source: string, args: (dir: string, file: string) => string[]) {
+  const dir = mkdtempSync(path.join(os.tmpdir(), "kp-gate-bracket-"));
+  try {
+    const sub = path.join(dir, "[id]");
+    mkdirSync(sub);
+    const file = path.join(sub, "probe.test.ts");
+    writeFileSync(file, source);
+    const res = spawnSync(process.execPath, ["scripts/run-unit-tests.mjs", ...args(dir, file)], {
+      cwd: process.cwd(),
+      encoding: "utf8",
+      env: POLLUTED_ENV,
+    });
+    return { status: res.status, out: `${res.stdout}\n${res.stderr}` };
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+test("a failing test under a bracketed directory exits non-zero", () => {
+  const { status } = runInBracketDir(FAILING, (_d, file) => [file]);
+  assert.notEqual(status, null);
+  assert.notEqual(status, 0, "the [id] path must run the file, not match nothing");
+});
+
+test("a passing test under a bracketed directory exits zero and ran a test", () => {
+  const { status, out } = runInBracketDir(PASSING, (_d, file) => [file]);
+  assert.equal(status, 0, out);
+  assert.match(out, /(?:tests|# tests) 1\b/, "the run must report the test it executed");
+});
+
+test("a pattern that matches nothing exits non-zero and names the pattern", () => {
+  const { status, out } = runInBracketDir(PASSING, (dir) => [path.join(dir, "no-such-dir", "*.test.ts")]);
+  assert.notEqual(status, 0);
+  assert.match(out, /no-such-dir/, "the message must name the pattern");
+});
+
+test("a file that holds no tests exits non-zero", () => {
+  const { status, out } = runInBracketDir("export const x = 1;\n", (_d, file) => [file]);
+  assert.notEqual(status, 0, "a run that executed 0 tests is not a pass");
+  assert.match(out, /0 tests/);
 });

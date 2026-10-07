@@ -68,7 +68,26 @@
 // KP_FLAKE_RERUN=0 turns step 2 off (the run then reports `FAILED … not re-run`
 // rather than guessing) for a caller that only wants the first verdict.
 //
-// Args: none → the full suite (the two default globs). Any argv → run exactly
+// ─────────────────────────────────────────────────────────────────────────────
+// A RUN THAT RAN NOTHING IS RED (measured 2026-10-07, node v24.14.0)
+//
+// `node --test <pattern>` exits 0 when the pattern matches no file, and its
+// argv is read as a glob — so `app/api/jobs/[id]/route.test.ts` is a character
+// class that matches nothing: 0 tests, exit 0, a green gate that checked
+// nothing (51 tracked test files sit under bracketed directories). Three rules:
+//
+//   a. An argument that names an existing file runs exactly that file. CHOSEN:
+//      escape, not resolve — each glob metacharacter becomes a one-character
+//      class (`[` → `[[]`, `*` → `[*]`, …; node's glob has no backslash
+//      escape), and the path is handed to node as a literal pattern.
+//   b. An argument that is not a file is a glob; one matching no file is red and
+//      the message names it (checked here with fs.globSync, the engine
+//      `--test` uses).
+//   c. A run whose machine reporter counted 0 tests in total is red, whatever
+//      node's exit code was — so is a run that exited 0 and left no count.
+//      Counted through scripts/test/flake-reporter.mjs, never from console text.
+//
+// Args: none → the full suite (the default globs). Any argv → run exactly
 // those files/patterns instead: `npm run test:unit -- app/_lib/offline.test.ts`.
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -101,7 +120,50 @@ const DEFAULT_PATTERNS = [
   "edge/**/*.test.ts",
   "i18n/**/*.test.ts",
 ];
-const patterns = process.argv.length > 2 ? process.argv.slice(2) : DEFAULT_PATTERNS;
+
+/** One-character classes: node's `--test` glob has no backslash escape. */
+function escapeGlob(p) {
+  return p.replaceAll("\\", "/").replace(/[[*?{}()!]/g, "[$&]");
+}
+
+/** Rule (a) and (b): turn argv into patterns node will read as intended, or say why not. */
+function resolvePatterns(args) {
+  const out = [];
+  const unmatched = [];
+  for (const arg of args) {
+    let isFile = false;
+    try {
+      isFile = fs.statSync(arg).isFile();
+    } catch {
+      /* not a path on disk — it is a glob, judged below */
+    }
+    if (isFile) {
+      out.push(escapeGlob(arg));
+      continue;
+    }
+    let hits = 0;
+    try {
+      hits = fs.globSync(arg.replaceAll("\\", "/")).length;
+    } catch {
+      /* a pattern the glob engine rejects matches nothing */
+    }
+    if (hits === 0) unmatched.push(arg);
+    else out.push(arg);
+  }
+  return { out, unmatched };
+}
+
+let patterns = DEFAULT_PATTERNS;
+if (process.argv.length > 2) {
+  const resolved = resolvePatterns(process.argv.slice(2));
+  if (resolved.unmatched.length) {
+    for (const p of resolved.unmatched) {
+      console.error(`test:unit — the pattern ${JSON.stringify(p)} matches no file, so it would have run 0 tests. Failing instead of passing.`);
+    }
+    process.exit(1);
+  }
+  patterns = resolved.out;
+}
 
 // A tree this broken is not a flake question. Re-running fifty files to learn
 // that fifty files are broken doubles the slowest gate in CI to say nothing.
@@ -156,7 +218,8 @@ function readFailures(file) {
     // record, and losing every failure because the last one was cut short is
     // exactly the misreading the whole classification exists to avoid.
     try {
-      out.push(JSON.parse(line));
+      const rec = JSON.parse(line);
+      if (rec.file) out.push(rec);
     } catch {
       /* a partial record proves nothing about the ones that parsed */
     }
@@ -189,6 +252,25 @@ function runSuite(files, destination) {
   );
 }
 
+/** The test total the machine reporter recorded; null when it left none (a killed runner). */
+function readTestCount(file) {
+  let text;
+  try {
+    text = fs.readFileSync(file, "utf8");
+  } catch {
+    return null;
+  }
+  for (const line of text.split("\n")) {
+    try {
+      const rec = JSON.parse(line);
+      if (rec.summary && Number.isFinite(rec.summary.tests)) return rec.summary.tests;
+    } catch {
+      /* partial record */
+    }
+  }
+  return null;
+}
+
 /** The whole run, as a code. Kept a function so the temp dir is cleaned by the
  *  caller — `process.exit()` abandons the stack, so a `finally` around it never
  *  runs and the directory would leak once per red build. */
@@ -201,7 +283,19 @@ function run(workdir) {
   }
   // A signal death is a failure, not a pass — never let it map to 0.
   const firstCode = first.status ?? (first.signal ? 1 : 0);
-  if (firstCode === 0) return 0;
+  if (firstCode === 0) {
+    // Rule (c): node exits 0 for a run that ran nothing.
+    const count = readTestCount(firstDest);
+    if (count === null || count === 0) {
+      console.error(
+        count === 0
+          ? "test:unit — the run executed 0 tests. A run that checked nothing is not a pass."
+          : "test:unit — node exited 0 but the reporter recorded no test count. A run that cannot prove it checked something is not a pass."
+      );
+      return 1;
+    }
+    return 0;
+  }
 
   const failures = readFailures(firstDest);
   const files = [...new Set(failures.map((f) => f.file))];
