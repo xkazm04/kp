@@ -24,7 +24,8 @@ const DEFAULT_BENCH_ROOT = path.join(REPO_ROOT, "bench", "app-master");
 /** Markdown-safe cell: pipes and newlines would silently break the table. */
 function cell(value) {
   if (value === null || value === undefined) return GLYPH_NA;
-  return String(value).replace(/\|/g, "\\|").replace(/\s*\n\s*/g, " ");
+  // Backslash first: a value ending in one would otherwise swallow the pipe's escape.
+  return String(value).replace(/\\/g, "\\\\").replace(/\|/g, "\\|").replace(/\s*\n\s*/g, " ");
 }
 
 function num(value, digits = 2) {
