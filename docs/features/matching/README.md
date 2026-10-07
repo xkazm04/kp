@@ -31,11 +31,16 @@ than silently dropping a reason.
     missing skills for each role, so a claim is never presented as proof.
     The ranking CSV exports those same three buckets as separate columns.
     **Every exit of the ranking carries a reasons line** — one or two plain
-    sentences composed by `focus/matchReasons.ts` from the result's own fit tier,
-    strongest/weakest score dimension and up to three matched / unproven / missing
-    skill names (no LLM, no network; words from `match.reasons.*` in all four
-    catalogs; `null` when there is neither a breakdown nor a skill list, and a
-    non-finite percent is never quoted). It shows on every card by default
+    sentences built in two pure halves in `focus/matchReasons.ts`:
+    `matchReasonFacts(m)` reads the result's own fit tier, strongest/weakest score
+    dimension (as a slug + rounded percent), up to three matched / unproven / missing
+    skill names, the total and `MATCH_SCORER_VERSION` into locale-free facts
+    (`MatchReasonFacts`, whose closed vocabularies — `FIT_TIERS`,
+    `DIMENSION_LABEL_CODES` — and validator live in `app/_lib/match-verdict.ts`,
+    pinned to `matching.py` and to the catalogs by `matchReasons.test.ts`), and
+    `renderMatchReasons(facts, t)` turns them into the line (no LLM, no network; words
+    from `match.reasons.*` in all four catalogs; `null` when there is neither a
+    dimension nor a skill name, and a non-finite percent is never quoted). It shows on every card by default
     (`focus/MatchReasonsLine.tsx`; "Explain fit" stays the optional deeper,
     model-written layer), fills a `Why this ranking` CSV column (`focus/matchCsv.ts`),
     and rides "Add to pipeline" as `reasons` / `reasonsStrengths` / `reasonsRedFlags`

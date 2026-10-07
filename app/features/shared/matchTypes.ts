@@ -1,4 +1,5 @@
 import type { EligibilityFlag } from "@/app/_lib/jobseeker/types";
+import type { FitTier } from "@/app/_lib/match-verdict";
 import { APP_CURRENCY, formatGrouped } from "@/app/_lib/format";
 
 export type AnalysisRow = {
@@ -59,7 +60,9 @@ export type MatchResult = {
   roleFamily?: string;
   salaryBand?: number[];
   total: number;
-  fitTier?: "strong" | "promising" | "partial";
+  // A closed vocabulary (FIT_TIERS in app/_lib/match-verdict.ts): a sealed Match
+  // verdict stores it as a code, so the list lives beside the validator.
+  fitTier?: FitTier;
   skillsScore: number;
   careerScore: number;
   personalScore: number;
