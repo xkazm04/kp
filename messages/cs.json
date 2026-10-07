@@ -457,6 +457,7 @@
       "educationEvidence": "Důkazy o vzdělání",
       "educationEvidenceHint": "Doplňte tituly, programy nebo certifikace, aby se vyplnily důkazy o vzdělání.",
       "llmExplanation": "Proč toto skóre",
+      "llmExplanationUnverified": "V životopisu nenalezeno, před zopakováním ověřte: {skills}",
       "salaryEstimate": "Odhad mzdy",
       "perMonth": "měsíčně",
       "credentialsWork": "Kvalifikace a práce",

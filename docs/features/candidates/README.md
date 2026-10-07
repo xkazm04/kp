@@ -231,6 +231,15 @@ career-switcher) that other features key off. Downstream ranking is
   `npm run kpi:reasons` (`hasFallbackExplanation` in `reasons-coverage.ts`) counts a
   fallback-marked explanation as a named miss unless a `jobFit.summary` stands behind
   it, per source arm.
+- **Model prose is checked against the CV (council value-1)** — `pipeline.py` runs the
+  taxonomy over the top-level strengths and the explanation. A strengths line naming a
+  specific technology the CV does not evidence is withheld with a coded
+  `strengths_withheld` finding; the explanation keeps its text and carries
+  `explanation_unverified_skill` (listing the skills, minus any the model itself named as
+  a gap). `reasons-coverage.ts` counts that explanation as a named miss like a fallback,
+  and the Extraction tab shows a marker under "Why this score". Only named technologies
+  are judged; generic nouns and skills the taxonomy does not model are not. The codes are
+  pinned to the TS constants by `test_unverified_skill_prose.py`.
 - **Public skill credential** — `app/skill/[token]/page.tsx`. Token-gated, no
   session; `verifySkillProfileToken` re-checks signature + revocation on every
   render, and `skillProfileFreshnessNow` re-checks age, so a revoked or aged-out

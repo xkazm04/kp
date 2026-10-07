@@ -457,6 +457,7 @@
       "educationEvidence": "Education Evidence",
       "educationEvidenceHint": "Add degrees, programs, or certifications to populate education evidence.",
       "llmExplanation": "Why this score",
+      "llmExplanationUnverified": "Not found in the CV, check before repeating: {skills}",
       "salaryEstimate": "Salary Estimate",
       "perMonth": "per month",
       "credentialsWork": "Credentials & work",

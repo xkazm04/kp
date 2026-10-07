@@ -56,6 +56,9 @@ export type RankingVerdict = {
    *  analysis carries an `explanation_fallback` trust finding): text the model did
    *  not write, so it is not a reasons block. */
   fallbackExplanation?: boolean;
+  /** True when the stored analysis carries an `explanation_unverified_skill` finding:
+   *  the prose names a skill the CV does not evidence, so it is a named miss. */
+  unverifiedSkillExplanation?: boolean;
   /** A "match" ranking's sealed `match_verdict` record (ADR 0018), resolved through
    *  matchVerdictReasons — the same resolver the product surfaces render with. */
   sealedMatch?: SealedRecordLike | null;
@@ -97,11 +100,21 @@ function isLegacyMatchSnapshot(detail: string | null | undefined): boolean {
 export const EXPLANATION_FALLBACK_CODE = "explanation_fallback";
 
 export function hasFallbackExplanation(payload: unknown): boolean {
+  return hasTrustFinding(payload, EXPLANATION_FALLBACK_CODE);
+}
+
+/** The pipeline's marker for an explanation that names a skill the CV does not
+ *  evidence. The prose is kept as the model wrote it; the meter counts it as a miss,
+ *  exactly like a fallback. Pinned to pipeline.py by test_unverified_skill_prose.py. */
+export const EXPLANATION_UNVERIFIED_SKILL_CODE = "explanation_unverified_skill";
+
+export function hasUnverifiedSkillExplanation(payload: unknown): boolean {
+  return hasTrustFinding(payload, EXPLANATION_UNVERIFIED_SKILL_CODE);
+}
+
+function hasTrustFinding(payload: unknown, code: string): boolean {
   const findings = (payload as { trustFindings?: unknown } | null | undefined)?.trustFindings;
-  return (
-    Array.isArray(findings) &&
-    findings.some((f) => (f as { code?: unknown } | null)?.code === EXPLANATION_FALLBACK_CODE)
-  );
+  return Array.isArray(findings) && findings.some((f) => (f as { code?: unknown } | null)?.code === code);
 }
 
 /** A Match-filed pipeline entry as a ranking verdict. `record` is the entry's newest
@@ -193,10 +206,15 @@ export function reasonsBlockOf(
         }
         return { ok: true, via: "sealed match_verdict" };
       }
-      if (!isBlank(verdict.explanation) && !verdict.fallbackExplanation) return { ok: true, via: "explanation" };
+      if (!isBlank(verdict.explanation) && !verdict.fallbackExplanation && !verdict.unverifiedSkillExplanation) {
+        return { ok: true, via: "explanation" };
+      }
       if (!isBlank(verdict.jobFitSummary)) return { ok: true, via: "jobFit.summary" };
       if (verdict.fallbackExplanation) {
         return { ok: false, why: "has a template fallback explanation only — no model-written reasons and no jobFit summary" };
+      }
+      if (verdict.unverifiedSkillExplanation) {
+        return { ok: false, why: "its explanation names a skill the CV does not evidence — unverified prose is not a reasons block, and there is no jobFit summary" };
       }
       return { ok: false, why: "no explanation and no jobFit summary — a score with no prose behind it" };
     }

@@ -7,7 +7,12 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, TypeVar
 
-from .ats import evaluate_keyword_coverage, verify_gaps_against_cv, verify_skills_in_cv
+from .ats import (
+    evaluate_keyword_coverage,
+    untraced_skills_in_text,
+    verify_gaps_against_cv,
+    verify_skills_in_cv,
+)
 from .authenticity import authenticity_checks, prompt_injection_checks
 from .credentials import credential_checks
 from .education import CANDIDATE_LEVELS
@@ -55,6 +60,7 @@ from .taxonomy import (
     has_seniority_lead_signal,
     has_seniority_medior_signal,
     has_seniority_senior_signal,
+    resolve_term,
     role_band,
 )
 
@@ -361,6 +367,49 @@ def analyze_cv(
             gaps = _string_list(payload.get("gaps"))
             recommendations = _string_list(payload.get("recommendations"))
             explanation = str(payload.get("explanation") or "").strip()
+            # Trust gate (council value-1): strengths and the explanation are model
+            # prose, and the reasons block a recruiter repeats to a candidate must not
+            # carry a skill the CV never evidences. A strengths line naming one is
+            # withheld; the explanation keeps its text and carries a coded finding.
+            kept_strengths: list[str] = []
+            withheld_strengths: list[str] = []
+            for line in strengths:
+                (withheld_strengths if untraced_skills_in_text(line, raw_text) else kept_strengths).append(line)
+            if withheld_strengths:
+                strengths = kept_strengths
+                repairs.append(
+                    Finding(
+                        f"Withheld {len(withheld_strengths)} AI-written strength(s) naming a skill "
+                        f"not found in the CV: {'; '.join(withheld_strengths)}.",
+                        code=STRENGTHS_WITHHELD_CODE,
+                        severity="ok",
+                        scope="insight",
+                        value="; ".join(withheld_strengths),
+                    )
+                )
+            if explanation:
+                # A skill the model itself lists as a gap is named on purpose as absent.
+                gap_text = " ".join(
+                    [*gaps, *(job_fit.missing_skills if job_fit is not None else [])]
+                )
+                stated_gaps = {resolve_term(s) for s in detected_skills(gap_text, limit=1000)}
+                unverified = [
+                    s
+                    for s in untraced_skills_in_text(explanation, raw_text)
+                    if resolve_term(s) not in stated_gaps
+                ]
+                if unverified:
+                    unverified_list = ", ".join(unverified)
+                    repairs.append(
+                        Finding(
+                            "The explanation names skill(s) not found in the CV "
+                            f"(text kept as the model wrote it): {unverified_list}.",
+                            code=EXPLANATION_UNVERIFIED_SKILL_CODE,
+                            severity="warn",
+                            scope="insight",
+                            value=unverified_list,
+                        )
+                    )
             if not explanation:
                 # The model wrote no explanation: the template below is NOT a reasons
                 # block. Mark it where it is made so the write path and the reasons
@@ -1267,11 +1316,16 @@ def _explanation_fallback(
     )
 
 
+EXPLANATION_FALLBACK_CODE = "explanation_fallback"
+EXPLANATION_UNVERIFIED_SKILL_CODE = "explanation_unverified_skill"
+STRENGTHS_WITHHELD_CODE = "strengths_withheld"
+
+
 def explanation_fallback_finding() -> Finding:
     """The coded marker for a template explanation (not model-written)."""
     return Finding(
         "Explanation missing from the model response — a template summary was substituted (not a written rationale)",
-        code="explanation_fallback",
+        code=EXPLANATION_FALLBACK_CODE,
         severity="warn",
         scope="insight",
     )

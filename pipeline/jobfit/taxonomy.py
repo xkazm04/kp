@@ -1047,6 +1047,23 @@ def resolve_term(surface: str) -> str | None:
     return _SURFACE_TO_TERM.get(_compact(literal))
 
 
+def is_named_technology(surface: str) -> bool:
+    """True for a skill the taxonomy marks as a specific named technology.
+
+    A term qualifies when it carries a category beyond plain ``skill`` (language,
+    framework, cloud, devops, ...) or is a bilingual-exempt proper noun. Generic
+    nouns ("delivery", "backend") do not: prose uses them without claiming a skill,
+    so judging them would flag honest sentences.
+    """
+    term_id = resolve_term(surface)
+    if term_id is None:
+        return False
+    term = _TERM_BY_ID.get(term_id)
+    if term is None:
+        return False
+    return len(term.get("categories", [])) > 1 or bool(term.get("bilingual_exempt"))
+
+
 def ancestors(term_id: str) -> frozenset[str]:
     """Transitive broader/superset terms of ``term_id`` (swiftui -> {swift})."""
     return _ANCESTORS.get(term_id, frozenset())

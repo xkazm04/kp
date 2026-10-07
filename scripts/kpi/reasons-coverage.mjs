@@ -19,7 +19,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { countReasonsCoverage, reasonsCoveragePct, matchFiledRanking, hasFallbackExplanation, REASONS_VERDICT_KINDS } from "@/app/_lib/reasons-coverage";
+import { countReasonsCoverage, reasonsCoveragePct, matchFiledRanking, hasFallbackExplanation, hasUnverifiedSkillExplanation, REASONS_VERDICT_KINDS } from "@/app/_lib/reasons-coverage";
 import { MATCH_VERDICT_KIND } from "@/app/_lib/match-verdict";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -73,6 +73,7 @@ function seededRankings() {
     explanation: row?.payload?.explanation ?? null,
     jobFitSummary: row?.payload?.jobFit?.summary ?? null,
     fallbackExplanation: hasFallbackExplanation(row?.payload),
+    unverifiedSkillExplanation: hasUnverifiedSkillExplanation(row?.payload),
   }));
 }
 
@@ -105,6 +106,7 @@ async function producedVerdicts() {
           explanation: payload?.explanation ?? null,
           jobFitSummary: payload?.jobFit?.summary ?? null,
           fallbackExplanation: hasFallbackExplanation(payload),
+          unverifiedSkillExplanation: hasUnverifiedSkillExplanation(payload),
         });
       }
     }

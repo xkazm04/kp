@@ -10,6 +10,7 @@ import type { Analysis } from "@/app/_lib/schemas";
 import { dedupe, dedupeBy } from "@/app/_lib/dedupe";
 import { safeHttpLinks } from "@/app/_lib/safe-url";
 import { CHIP, CHIP_QUIET, PANEL } from "@/app/_components/ui/recipes";
+import { unverifiedExplanationSkills } from "./unverifiedSkills";
 import { EnginePanel, InlineList, LazyDetails, ListBlock, Metric } from "../shared";
 
 export function ExtractionTab({ analysis }: { analysis: Analysis }) {
@@ -32,6 +33,9 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
   const educationLevel = (candidate.educationLevel ?? "").trim();
   const hasProfileFacts = skills.length > 0 || languages.length > 0 || educationLevel.length > 0;
   const recommendations = analysis.recommendations ?? [];
+  // The engine keeps the model's explanation as written but codes any skill it names
+  // that the CV does not evidence; name them so the recruiter checks before repeating.
+  const unverifiedSkills = unverifiedExplanationSkills(analysis.trustFindings);
   const v2 = analysis.v2Profile;
   const potentialScore = typeof v2?.potentialScore === "number" && Number.isFinite(v2.potentialScore)
     ? Math.max(0, Math.min(1, v2.potentialScore))
@@ -267,6 +271,11 @@ export function ExtractionTab({ analysis }: { analysis: Analysis }) {
         <div className={`${PANEL} p-5`}>
           <h3 className="font-serif text-h3 text-ink">{t("panel.llmExplanation")}</h3>
           <p className="mt-3 text-base leading-6 text-ink">{analysis.explanation}</p>
+          {unverifiedSkills ? (
+            <p className="mt-2 text-meta text-coral" role="note">
+              {t("panel.llmExplanationUnverified", { skills: unverifiedSkills })}
+            </p>
+          ) : null}
         </div>
       </div>
     </div>

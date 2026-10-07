@@ -457,6 +457,7 @@
       "educationEvidence": "Ausbildungsnachweise",
       "educationEvidenceHint": "Fügen Sie Abschlüsse, Programme oder Zertifizierungen hinzu, um Ausbildungsnachweise zu ergänzen.",
       "llmExplanation": "Warum dieser Score",
+      "llmExplanationUnverified": "Im Lebenslauf nicht gefunden, vor dem Weitergeben prüfen: {skills}",
       "salaryEstimate": "Gehaltsschätzung",
       "perMonth": "pro Monat",
       "credentialsWork": "Qualifikationen & Werdegang",

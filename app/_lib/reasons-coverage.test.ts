@@ -21,6 +21,7 @@ import {
   REASONS_VERDICT_KINDS,
   countReasonsCoverage,
   hasFallbackExplanation,
+  hasUnverifiedSkillExplanation,
   isReasonsVerdictKind,
   matchFiledRanking,
   reasonsBlockOf,
@@ -287,6 +288,23 @@ test("a fallback-marked ranking with no jobFit summary is a named miss; a real e
     cat
   );
   assert.deepEqual(viaSummary, { ok: true, via: "jobFit.summary" });
+});
+
+test("an explanation naming a skill the CV does not evidence is a named miss, like a fallback", () => {
+  const unverified = reasonsBlockOf(
+    { kind: "ranking", id: "u1", origin: "analysis", explanation: "Deep Terraform experience.", unverifiedSkillExplanation: true },
+    CATALOG
+  );
+  assert.equal(unverified.ok, false);
+  assert.match(unverified.ok ? "" : unverified.why, /names a skill the CV does not evidence/);
+  const clean = reasonsBlockOf(
+    { kind: "ranking", id: "u2", origin: "analysis", explanation: "Deep Go experience.", unverifiedSkillExplanation: false },
+    CATALOG
+  );
+  assert.equal(clean.ok, true);
+  assert.equal(hasUnverifiedSkillExplanation({ trustFindings: [{ code: "explanation_unverified_skill" }] }), true);
+  assert.equal(hasUnverifiedSkillExplanation({ trustFindings: [{ code: "explanation_fallback" }] }), false);
+  assert.equal(hasUnverifiedSkillExplanation(null), false);
 });
 
 test("hasFallbackExplanation reads the coded finding, never the prose", () => {

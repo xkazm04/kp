@@ -457,6 +457,7 @@
       "educationEvidence": "Preuves de formation",
       "educationEvidenceHint": "Ajoutez diplômes, programmes ou certifications pour renseigner les preuves de formation.",
       "llmExplanation": "Pourquoi ce score",
+      "llmExplanationUnverified": "Introuvable dans le CV, à vérifier avant de le répéter : {skills}",
       "salaryEstimate": "Estimation salariale",
       "perMonth": "par mois",
       "credentialsWork": "Titres et parcours",
