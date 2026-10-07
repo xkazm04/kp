@@ -426,6 +426,11 @@ export async function POST(request: NextRequest) {
         const finalized = await finalizeCandidateInterviewScoring(session, transcript);
         if (finalized.attached && finalized.session) {
           updated = finalized.session;
+        } else if (finalized.refusal) {
+          console.error(
+            `[interview:complete] scorecard refused (${finalized.refusal}) for session ${sessionId}; ` +
+              `the transcript is saved, the session stays unscored.`
+          );
         }
       } catch (scoringErr) {
         console.error(

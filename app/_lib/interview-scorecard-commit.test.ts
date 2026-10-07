@@ -73,7 +73,7 @@ function stubScore(during?: () => void) {
     calls += 1;
     during?.();
     return {
-      scorecard: { recommendation: "advance", summary: "stubbed", ratings: [], coverage: COVERAGE, telemetry: TELEMETRY },
+      scorecard: { recommendation: "advance", summary: "stubbed", ratings: [{ key: "technical", rating: 4, evidence: "By risk and by how often the path changes." }], coverage: COVERAGE, telemetry: TELEMETRY },
       provenance: { verdictSource: "llm" as const, verdictProvider: "claude_cli" },
       actor: "auto:automation-llm",
       recommendation: "advance",
@@ -117,6 +117,46 @@ test("an attached scorecard opens the gate once, records one event, seals once �
   assert.deepEqual(detail.coverage, sc.coverage, "the ratified payload carries the coverage the session stores");
   assert.deepEqual(detail.telemetry, sc.telemetry, "…and the telemetry");
   assert.equal(detail.verdictSource, "llm", "provenance still rides the approval");
+});
+
+// ---- degraded scorecards are refused at the write path ---------------------------------
+
+const PLACEHOLDER = "Not assessed — the transcript does not cover this competency.";
+
+for (const [label, scorecard, source] of [
+  ["a deterministic (keyless) scorecard", { recommendation: "hold", summary: "d", ratings: [{ key: "technical", rating: 3, evidence: PLACEHOLDER }] }, "deterministic"],
+  ["an all-ungrounded llm scorecard", { recommendation: "hold", summary: "u", ratings: [{ key: "a", rating: 2, evidence: PLACEHOLDER }, { key: "b", rating: 4, evidence: "" }] }, "llm"],
+  ["a scorecard with no ratings", { recommendation: "advance", summary: "n", ratings: [] }, "llm"],
+] as const) {
+  test(`${label} is refused: no attach, no approval, no event, no seal, no mint`, async () => {
+    const { entry, session } = interviewedEntry();
+    const mint = stubMint(["sql"]);
+    const res = await finalizeCandidateInterviewScoring(session, TRANSCRIPT, {
+      score: async () => ({ scorecard: { ...scorecard }, provenance: { verdictSource: source, verdictProvider: null } as never, version: AUTOMATION_VERSION.scorecard }),
+      mint: mint.fn,
+    });
+    assert.equal(res.attached, false);
+    assert.equal(res.refusal, "INTERVIEW_SCORECARD_UNGROUNDED");
+    assert.equal(getInterviewSessionById(session.id)!.scorecard ?? null, null, "nothing attached");
+    assert.equal(getPipelineEntry(entry.id, WS)?.approvalKind ?? null, null, "no approval");
+    assert.equal(aiEvents(entry.id).length, 0);
+    assert.equal(aiSeals(entry.id).length, 0);
+    assert.equal(mint.seen.length, 0);
+  });
+}
+
+test("one real quote among placeholders still commits and seals", async () => {
+  const { entry, session } = interviewedEntry();
+  const res = await finalizeCandidateInterviewScoring(session, TRANSCRIPT, {
+    score: async () => ({
+      scorecard: { recommendation: "advance", summary: "m", ratings: [{ key: "a", rating: 3, evidence: PLACEHOLDER }, { key: "b", rating: 4, evidence: "By risk." }] },
+      provenance: { verdictSource: "llm" as const, verdictProvider: "claude_cli" },
+      version: AUTOMATION_VERSION.scorecard,
+    }),
+    mint: stubMint().fn,
+  });
+  assert.equal(res.attached, true);
+  assert.equal(aiSeals(entry.id).length, 1);
 });
 
 // ---- case 2 -------------------------------------------------------------------------

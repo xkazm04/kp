@@ -80,7 +80,7 @@ function stubScore(during?: () => void) {
     calls += 1;
     during?.();
     return {
-      scorecard: { recommendation: "advance", summary: "rescore stub", ratings: [], coverage: { keptTurns: 2, totalTurns: 2, droppedTurns: 0 } },
+      scorecard: { recommendation: "advance", summary: "rescore stub", ratings: [{ key: "technical", rating: 4, evidence: "I built a test harness." }], coverage: { keptTurns: 2, totalTurns: 2, droppedTurns: 0 } },
       provenance: { verdictSource: "llm" as const, verdictProvider: "claude_cli" },
       actor: "auto:automation-llm",
       recommendation: "advance",
@@ -94,6 +94,20 @@ const req = (id: string) =>
   new NextRequest(`http://localhost/api/interview/sessions/${id}/rescore`, {
     method: "POST",
   });
+
+test("a degraded rescore answers INTERVIEW_SCORECARD_UNGROUNDED and leaves the session unscored", async () => {
+  const { entry, session } = makeUnscoredSession();
+  const degraded = async () => ({
+    scorecard: { recommendation: "hold", summary: "d", ratings: [{ key: "technical", rating: 3, evidence: "Not assessed — no evidence." }] },
+    provenance: { verdictSource: "deterministic" as const, verdictProvider: null },
+    version: AUTOMATION_VERSION.scorecard,
+  });
+  const res = await POST(req(session.id), { params: Promise.resolve({ id: session.id }) }, { scoringDeps: { score: degraded as never } });
+  assert.equal(res.status, 409);
+  assert.equal(((await res.json()) as { code: string }).code, "INTERVIEW_SCORECARD_UNGROUNDED");
+  assert.equal(getInterviewSessionById(session.id)!.scorecard ?? null, null);
+  assert.equal(getPipelineEntry(entry.id, WS)!.approvalKind ?? null, null);
+});
 
 test("acceptance 114: rescore route on unscored session -> 200, scorecard attached, approval set, sealed", async () => {
   const { entry, session } = makeUnscoredSession();

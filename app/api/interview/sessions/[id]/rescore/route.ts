@@ -68,6 +68,9 @@ export async function POST(
     };
 
     const finalized = await finalizeCandidateInterviewScoring(session, session.transcript ?? [], scoringDeps);
+    if (finalized.refusal) {
+      return jsonRefusal(finalized.refusal, 409);
+    }
     if (!finalized.attached) {
       return jsonRefusal("INTERVIEW_NOT_RESCORABLE", 409);
     }

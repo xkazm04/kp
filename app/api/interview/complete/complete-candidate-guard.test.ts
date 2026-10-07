@@ -59,7 +59,10 @@ const TRANSCRIPT = [
   { role: "interviewer", text: "How do you decide what to automate first?" },
   { role: "candidate", text: "By risk and by how often the path changes." },
 ];
-const VERDICT = { recommendation: "advance", summary: "Seeded verdict — the model hop is skipped." };
+const VERDICT = { recommendation: "advance", summary: "Seeded verdict — the model hop is skipped.",
+  // A verdict with no grounded quote is refused at the write path (INTERVIEW_SCORECARD_UNGROUNDED).
+  ratings: [{ key: "technical", rating: 4, evidence: "By risk and by how often the path changes." }],
+};
 
 let seq = 0;
 /** A pipeline entry the scorecard path CAN score: a real profile, and the scorecard

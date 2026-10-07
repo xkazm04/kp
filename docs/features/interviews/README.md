@@ -181,6 +181,20 @@ voice service — see [Self-hosted voice](#self-hosted-voice)).
    The transcript language-lock verdict uses clear grammatical markers; isolated
    tech loanwords such as “role”, “project”, and “experience” leave the language
    indeterminate so a Czech answer is not misreported as an English switch.
+   **A scorecard with no reasons is refused at the write path.** When the scorer
+   has no key, the model is down, or every quote fails grounding,
+   `automation.py` returns ratings whose evidence is all "Not assessed…"
+   placeholders. `finalizeCandidateInterviewScoring`
+   (`app/_lib/interview-scorecard-commit.ts`, the one door for `/complete`,
+   rescore and the role demo) refuses a scorecard with no ratings, or whose
+   every rating's evidence is empty or a placeholder (`isPlaceholderEvidence`),
+   *before* `commitCandidateScorecard`: nothing is attached, no approval opens,
+   no `interview_scorecard` event is recorded, nothing is sealed or minted. The
+   result carries `refusal: "INTERVIEW_SCORECARD_UNGROUNDED"`; the session stays
+   `unscored` (Schedule shows "Not scored yet" and Re-score). The rescore route
+   answers 409 `INTERVIEW_SCORECARD_UNGROUNDED` (distinct from
+   `INTERVIEW_NOT_RESCORABLE`); `/complete` keeps its reply and logs one line with
+   the code, no scorecard content. One real quote among placeholders still commits.
 5. **Brief composition.** `app/_lib/student-interview.ts` holds the shared
    persona constants (`PERSONA_LANGUAGE_DETECT`, `PERSONA_CRAFT_RULES`,
    `PERSONA_ONE_QUESTION`, `PERSONA_GENDER_GRAMMAR`) and brief builders

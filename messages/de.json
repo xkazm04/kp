@@ -1450,6 +1450,7 @@
     "INTERVIEW_LINK_EXPIRED": "Dieser Interview-Link ist abgelaufen. Bitten Sie das Recruiting um einen neuen.",
     "INTERVIEW_ALREADY_COMPLETED": "Dieses Interview wurde bereits abgeschlossen.",
     "INTERVIEW_NOT_RESCORABLE": "Dieses Interview kann nicht erneut bewertet werden.",
+    "INTERVIEW_SCORECARD_UNGROUNDED": "Die Bewertung konnte kein Urteil im Transkript begründen, daher wurde nichts gespeichert. Versuchen Sie die Neubewertung später erneut.",
     "INTERVIEW_CONSENT_REQUIRED": "Vor dem Start des Interviews ist die Einwilligung zur Aufzeichnung erforderlich.",
     "INTERVIEW_PROVIDER_INVALID": "Diesen Sprachanbieter kennt der Server nicht.",
     "INTERVIEW_PROVIDER_UNCONFIGURED": "Der Sprachanbieter ist auf diesem Server nicht konfiguriert, deshalb kann der Anruf nicht starten.",

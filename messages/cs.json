@@ -1450,6 +1450,7 @@
     "INTERVIEW_LINK_EXPIRED": "Platnost tohoto odkazu na pohovor vypršela. Požádejte náboráře o nový.",
     "INTERVIEW_ALREADY_COMPLETED": "Tento pohovor už byl dokončen.",
     "INTERVIEW_NOT_RESCORABLE": "Tento pohovor nelze znovu vyhodnotit.",
+    "INTERVIEW_SCORECARD_UNGROUNDED": "Hodnoticí systém nedokázal opřít verdikt o přepis, proto se nic neuložilo. Zkuste nové vyhodnocení později.",
     "INTERVIEW_CONSENT_REQUIRED": "Před zahájením pohovoru je potřeba souhlas s nahráváním.",
     "INTERVIEW_PROVIDER_INVALID": "Tohoto hlasového poskytovatele server nezná.",
     "INTERVIEW_PROVIDER_UNCONFIGURED": "Hlasový poskytovatel není na tomto serveru nastaven, hovor proto nelze spustit.",

@@ -1450,6 +1450,7 @@
     "INTERVIEW_LINK_EXPIRED": "This interview link has expired. Ask the recruiter for a fresh one.",
     "INTERVIEW_ALREADY_COMPLETED": "This interview has already been completed.",
     "INTERVIEW_NOT_RESCORABLE": "This interview is not eligible for re-scoring.",
+    "INTERVIEW_SCORECARD_UNGROUNDED": "The scorer could not ground a verdict in the transcript, so nothing was saved. Try the re-score again later.",
     "INTERVIEW_CONSENT_REQUIRED": "Recording consent is required before the interview can start.",
     "INTERVIEW_PROVIDER_INVALID": "That voice provider isn't one this server knows.",
     "INTERVIEW_PROVIDER_UNCONFIGURED": "The voice provider isn't configured on this server, so the call can't start.",

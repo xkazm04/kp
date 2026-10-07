@@ -2,7 +2,7 @@ import { ensureDb } from "./db/core";
 import { getEntryWorkspace, getPipelineEntry, recordAutomationEvent, setApproval } from "./db/pipeline";
 import { attachInterviewScorecard, type InterviewSession, type VoiceTurn } from "./db/interviews";
 import { sealDecisionSafe } from "./decision-record-store";
-import { sealableRubricDimensions } from "./interview-scorecard";
+import { isPlaceholderEvidence, sealableRubricDimensions } from "./interview-scorecard";
 import { stageHasRole, type StageDef } from "./pipeline-stages";
 import { scorecardGateOpen } from "./interview-scorecard-gate";
 import { getPipelineAxis } from "./pipeline-axis-server";
@@ -79,6 +79,31 @@ export function commitCandidateScorecard(
   return tx.immediate();
 }
 
+/** The code a refused (reasons-less) scorecard answers with. */
+export const SCORECARD_UNGROUNDED = "INTERVIEW_SCORECARD_UNGROUNDED" as const;
+
+/**
+ * True when a scorecard carries no reasons: no ratings, or every rating's evidence is
+ * empty or a "Not assessed…" placeholder (the keyless / model-down / all-ungrounded
+ * output of the scorer). Such a verdict must not be attached, approved, sealed or minted.
+ */
+export function scorecardHasNoReasons(scorecard: Record<string, unknown>): boolean {
+  const ratings = scorecard.ratings;
+  if (!Array.isArray(ratings) || ratings.length === 0) return true;
+  return ratings.every((r) => {
+    const evidence = r && typeof r === "object" ? (r as { evidence?: unknown }).evidence : undefined;
+    return isPlaceholderEvidence(typeof evidence === "string" ? evidence : null);
+  });
+}
+
+export type FinalizeResult = {
+  attached: boolean;
+  gate: "opened" | "held" | "closed";
+  session: InterviewSession | null;
+  /** Set when the scorecard was refused before any write. */
+  refusal?: typeof SCORECARD_UNGROUNDED;
+};
+
 export type FinalizeScoringDeps = {
   score?: (session: InterviewSession, transcript: VoiceTurn[]) => Promise<{
     scorecard: Record<string, unknown>;
@@ -100,7 +125,7 @@ export async function finalizeCandidateInterviewScoring(
   session: InterviewSession,
   transcript: VoiceTurn[],
   deps?: FinalizeScoringDeps
-): Promise<{ attached: boolean; gate: "opened" | "held" | "closed"; session: InterviewSession | null }> {
+): Promise<FinalizeResult> {
   if (!session.entryId) {
     return { attached: false, gate: "closed", session: null };
   }
@@ -121,6 +146,10 @@ export async function finalizeCandidateInterviewScoring(
     const synthesized = await synthesizeCandidateScorecard(session, transcript);
     if (!synthesized) return { attached: false, gate: "closed", session: null };
     scored = synthesized;
+  }
+
+  if (scorecardHasNoReasons(scored.scorecard)) {
+    return { attached: false, gate: "closed", session: null, refusal: SCORECARD_UNGROUNDED };
   }
 
   const committed = commitCandidateScorecard(sessionWithEntry, scored.scorecard, scored.provenance, {

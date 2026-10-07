@@ -745,6 +745,9 @@ export const REFUSAL_ERRORS = {
    *  status CAS in markInterviewStarted, so a retake mints no credentials. */
   INTERVIEW_ALREADY_COMPLETED: "This interview has already been completed.",
   INTERVIEW_NOT_RESCORABLE: "This interview is not eligible for re-scoring.",
+  /** A re-score whose scorecard carries no reasons (409): no key, the model was down,
+   *  or every quote failed grounding. Nothing was attached; the session stays unscored. */
+  INTERVIEW_SCORECARD_UNGROUNDED: "The scorer could not ground a verdict in the transcript, so nothing was saved. Try the re-score again later.",
   /** A second /connect on a link whose call is already LIVE (409). The token IS
    *  the session, so two tabs (or a forwarded link) both minted provider
    *  credentials and both ran a real conversation — and the loser's transcript was
