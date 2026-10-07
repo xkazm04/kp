@@ -240,6 +240,9 @@ export const RECORD_ONLY_KINDS = [
   "interview_no_show",
   "interview_proposal_declined",
   "screening_threshold_adjusted",
+  // The verdict a Match add seals (ADR 0018) — operator-facing only; /status/[token]
+  // does not list it until the owner rules on candidate visibility.
+  "match_verdict",
 ] as const;
 
 export type RecordOnlyKind = (typeof RECORD_ONLY_KINDS)[number];

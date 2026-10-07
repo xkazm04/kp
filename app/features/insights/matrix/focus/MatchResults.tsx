@@ -88,7 +88,7 @@ export function MatchResults({
     toggleSelect,
     shortlistTop,
     addSelected,
-  } = useMatchResultsPipeline({ t, tMatch, candidateId, candidate, archetype, matches, onFiled });
+  } = useMatchResultsPipeline({ t, candidateId, candidate, archetype, matches, onFiled });
 
   // Export the ranking as CSV (Theme C) — a hiring decision happens in a meeting
   // or email thread outside the app, so the ranking has to be able to leave it.

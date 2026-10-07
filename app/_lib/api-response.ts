@@ -959,8 +959,16 @@ export const REFUSAL_ERRORS = {
   PIPELINE_ACTION_UNKNOWN: "That is not an action this board supports.",
   /** A GitHub evidence payload that did not clamp to the shared coercer (400). */
   PIPELINE_GITHUB_EVIDENCE_INVALID: "That GitHub evidence is not in the expected shape.",
-  /** The reasons carried by a Match add are malformed, over-long, or not from Match (400). */
+  /** A Match add's verdict facts are missing, outside the closed vocabularies or the
+   *  bounds (app/_lib/match-verdict.ts), disagree with the score being filed, or ride
+   *  a non-Match add — or the add carried the retired prose `reasons` fields (400).
+   *  Nothing was sealed and nothing was filed. */
   PIPELINE_ADD_REASONS_INVALID: "The reasons attached to this add are not in the expected shape.",
+  /** A Match add whose verdict could not be sealed into the decision chain (503). The
+   *  seal is the PRECONDITION of the insert (ADR 0018, the ADR 0017 rule: no record, no
+   *  write), so the candidate was not filed. A server condition — retry once the chain
+   *  is writable. */
+  PIPELINE_ADD_NOT_SEALED: "This candidate couldn't be added because the match verdict couldn't be recorded. Nothing was filed. Try again shortly.",
   /** A board add cannot identify both its candidate and role (400). */
   PIPELINE_ADD_IDS_REQUIRED: "Choose a candidate and role before adding to the board.",
   /** The requested destination is not on this workspace's pipeline axis (400). */

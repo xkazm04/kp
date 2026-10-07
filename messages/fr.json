@@ -1376,6 +1376,7 @@
     "PIPELINE_ACTION_UNKNOWN": "Ce tableau ne prend pas en charge cette action.",
     "PIPELINE_GITHUB_EVIDENCE_INVALID": "Ces éléments GitHub ne sont pas au format attendu.",
     "PIPELINE_ADD_REASONS_INVALID": "Les raisons jointes à cet ajout n'ont pas le format attendu.",
+    "PIPELINE_ADD_NOT_SEALED": "Impossible d’ajouter ce candidat : le verdict de correspondance n’a pas pu être enregistré. Rien n’a été ajouté. Réessayez dans un instant.",
     "PIPELINE_ADD_IDS_REQUIRED": "Choisissez une candidature et un poste avant de les ajouter au suivi.",
     "PIPELINE_ADD_STAGE_UNKNOWN": "Cette étape du recrutement n’est pas disponible dans cet espace de travail.",
     "PIPELINE_ADD_APPROVAL_KIND_UNKNOWN": "Ce type d’approbation ne peut pas être demandé lors de l’ajout d’une candidature.",
@@ -8176,7 +8177,8 @@
         "interview_cancelled": "Entretien annulé",
         "interview_no_show": "Absence à l'entretien",
         "interview_proposal_declined": "Créneau proposé refusé",
-        "screening_threshold_adjusted": "Seuil de présélection ajusté"
+        "screening_threshold_adjusted": "Seuil de présélection ajusté",
+        "match_verdict": "Verdict de correspondance"
       },
       "traceTitle": "Traçabilité de l'IA (art. 12)",
       "tracePrompt": "Prompt de justification",

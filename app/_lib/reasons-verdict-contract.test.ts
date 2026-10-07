@@ -122,6 +122,14 @@ const PRODUCER_CLASSIFICATION: Record<string, Classification> = {
   "sealed:auto_rejected": { counts: "rejection" },
   "sealed:rejected": { counts: "rejection" },
 
+  // RANKING, sealed — the verdict a Match add carries (MATCH_VERDICT_KIND, ADR 0018). The
+  // meter counts it in the ranking arm's match-filed source, resolved through
+  // matchVerdictReasons. INTERNAL until the owner rules on candidate visibility: it is not
+  // in status-decisions.ts's CANDIDATE_VISIBLE / AI_VERDICT allowlists, so /status/[token]
+  // does not show it — a ranking against a role the candidate may never have applied for
+  // is a different disclosure from a rejection.
+  "sealed:match_verdict": { counts: "ranking" },
+
   // EXEMPT — sealed or stored, but not an automated verdict whose reasons the KPI measures.
   "sealed:screen_wave_holdout": { exempt: "a would-be rejection the wave SPARED to form the calibration clean arm — no adverse outcome reaches the candidate" },
   "sealed:auto_advanced": { exempt: "a positive routing decision; the goal's measure is scorecard / ranking / rejection" },

@@ -207,11 +207,14 @@ function sealedKinds(): Set<string> {
   const files = readdirSync(APP_ROOT, { recursive: true, encoding: "utf8" })
     .filter((f) => (f.endsWith(".ts") || f.endsWith(".tsx")) && !f.includes(".test."))
     .map((f) => path.join(APP_ROOT, f));
+  // A seal may name its kind through a constant declared beside the store
+  // (AUTO_REJECTED_KIND) or beside its own contract (MATCH_VERDICT_KIND in
+  // _lib/match-verdict.ts), so the constants are read from every scanned file.
   const constants = new Map<string, string>();
-  for (const [, name, value] of readFileSync(path.join(APP_ROOT, "_lib/decision-record-store.ts"), "utf8").matchAll(
-    /export const (\w*KIND\w*) = "([a-z_]+)"/g
-  )) {
-    constants.set(name, value);
+  for (const file of files) {
+    for (const [, name, value] of readFileSync(file, "utf8").matchAll(/export const (\w*KIND\w*) = "([a-z_]+)"/g)) {
+      constants.set(name, value);
+    }
   }
   for (const file of files) {
     const src = readFileSync(file, "utf8");

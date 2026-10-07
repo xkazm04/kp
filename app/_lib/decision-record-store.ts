@@ -388,6 +388,9 @@ export function sealDecisionRecord(input: DecisionRecordInput, workspaceOverride
  *  It is NOT the rule at the recruiter's accept/reject commit door: that door seals
  *  BEFORE it writes and refuses (503 PIPELINE_DECISION_NOT_SEALED) when this returns
  *  null. See docs/architecture/decisions/0017-a-human-adverse-decision-is-sealed-before-it-commits.md.
+ *  Nor at the Match add door (POST /api/pipeline): the `match_verdict` record is sealed
+ *  before the entry is inserted, and a null here refuses the add (503
+ *  PIPELINE_ADD_NOT_SEALED) — docs/architecture/decisions/0018-a-match-verdict-is-sealed-in-the-decision-chain.md.
  *  Use this at every decision call site instead of a hand-rolled try/catch. */
 export function sealDecisionSafe(input: DecisionRecordInput, workspaceOverride?: string): DecisionRecord | null {
   try {

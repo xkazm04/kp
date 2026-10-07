@@ -1376,6 +1376,7 @@
     "PIPELINE_ACTION_UNKNOWN": "That is not an action this board supports.",
     "PIPELINE_GITHUB_EVIDENCE_INVALID": "That GitHub evidence is not in the expected shape.",
     "PIPELINE_ADD_REASONS_INVALID": "The reasons attached to this add are not in the expected shape.",
+    "PIPELINE_ADD_NOT_SEALED": "This candidate couldn't be added because the match verdict couldn't be recorded. Nothing was filed. Try again shortly.",
     "PIPELINE_ADD_IDS_REQUIRED": "Choose a candidate and role before adding to the board.",
     "PIPELINE_ADD_STAGE_UNKNOWN": "That pipeline stage is not available in this workspace.",
     "PIPELINE_ADD_APPROVAL_KIND_UNKNOWN": "That approval kind cannot be requested when adding a candidate.",
@@ -8176,7 +8177,8 @@
         "interview_cancelled": "Interview cancelled",
         "interview_no_show": "Interview no-show",
         "interview_proposal_declined": "Proposed slot declined",
-        "screening_threshold_adjusted": "Screening threshold adjusted"
+        "screening_threshold_adjusted": "Screening threshold adjusted",
+        "match_verdict": "Match verdict"
       },
       "traceTitle": "AI traceability (Art. 12)",
       "tracePrompt": "Reasoning prompt",

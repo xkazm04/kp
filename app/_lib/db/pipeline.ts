@@ -1488,11 +1488,9 @@ export type CreatePipelineInput = {
   // after the fact, never at creation. Omitted (the default) leaves the entry
   // ungated — every non-Match add path is byte-identical to before.
   approvalKind?: "decision" | null;
-  // The reasons snapshot a Match add carries (JSON in the AiNarrative shape:
-  // summary / strengths / redFlags), written to approval_detail on INSERT ONLY. An
-  // idempotent re-add never overwrites what is already there, and no other writer
-  // passes it.
-  approvalDetail?: string | null;
+  // (No approval_detail input: an add files no gate payload. A Match add's reasons used
+  // to ride here as prose and were cleared by the first transition; the route now seals
+  // them as a `match_verdict` decision record before this insert — ADR 0018.)
   // Applicant's locale from inbound apply (SIM3); drives downstream comm
   // language. Omitted by recruiter/Match adds ⇒ NULL ⇒ "en" at dispatch.
   locale?: string | null;
@@ -1551,6 +1549,21 @@ function readdReopenDecision(
   return null;
 }
 
+/** The entry id `createPipelineEntry` gives an UNKEYED (candidate, job) add: a GLOBAL PK
+ *  (a non-default team prefixes its workspace), so a re-add regenerates the same id and
+ *  lands on the same row. Exported for the door that must name the entry BEFORE the
+ *  insert — a Match add seals its verdict against this id first (ADR 0018). A keyed
+ *  filing (`applicantKey`) gets a random surrogate instead and has no id to predict. */
+export function pipelineEntryIdFor(input: { candidateId: string; jobId: string; workspaceId?: string }): string {
+  const workspaceId = input.workspaceId ?? DEFAULT_WORKSPACE_ID;
+  return entryIdFrom(input.candidateId, input.jobId, workspaceId);
+}
+
+function entryIdFrom(keySource: string, jobId: string, workspaceId: string): string {
+  const idPrefix = workspaceId === DEFAULT_WORKSPACE_ID ? "" : `${workspaceId}-`;
+  return `m-${idPrefix}${keySource}-${jobId}`.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 90);
+}
+
 // Idempotent: a (candidate, job) pair maps to one entry, so re-adding from Match
 // or the recruiter view returns the existing row rather than duplicating it; a filing
 // (`applicantKey`) dedups on its key instead. Returns created:false when an
@@ -1561,14 +1574,13 @@ export function createPipelineEntry(input: CreatePipelineInput): CreatePipelineR
   const db = ensureDb();
   // Tenant scope (P1): stamp + scope every by-id lookup to the owning team.
   const workspaceId = input.workspaceId ?? DEFAULT_WORKSPACE_ID;
-  // The entry id is a GLOBAL PK (a non-default team prefixes its workspace). A re-add
-  // regenerates `m-<candidateId>-<job>`; a filing gets a SURROGATE: the id is the ATS
-  // ref, the chain's candidateRef and every log line's name, and survives erasure.
-  const idPrefix = workspaceId === DEFAULT_WORKSPACE_ID ? "" : `${workspaceId}-`;
+  // The entry id is a GLOBAL PK. A re-add regenerates `m-<candidateId>-<job>`
+  // (pipelineEntryIdFor); a filing gets a SURROGATE: the id is the ATS ref, the chain's
+  // candidateRef and every log line's name, and survives erasure.
   const keyed = input.applicantKey != null;
   const applicantKey = input.applicantKey || null;
   const keySource = keyed ? randomId("appl") : input.candidateId;
-  const id = `m-${idPrefix}${keySource}-${input.jobId}`.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 90);
+  const id = entryIdFrom(keySource, input.jobId, workspaceId);
   // The row this add lands on ("" never matches: an anonymous applicant is always new).
   const findExisting = (): PipelineRow | undefined =>
     keyed
@@ -1677,12 +1689,12 @@ export function createPipelineEntry(input: CreatePipelineInput): CreatePipelineR
       db.prepare(
         `INSERT INTO pipeline_entries
            (id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
-            stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at, updated_at,
+            stage, match_score, status, approval_kind, created_at, stage_changed_at, updated_at,
             intake_degraded, intake_degraded_reason, contact, locale, github_json, github_handle, source_channel,
             source_campaign, source_variant, dev_case_id, dev_submission_id, workspace_id, applicant_key,
             population, rubric_version)
          VALUES (@id, @candidate_id, @candidate_label, @archetype, @role_family, @job_id, @job_title,
-            @stage, @match_score, 'active', @approval_kind, @approval_detail, @now, @now, @now,
+            @stage, @match_score, 'active', @approval_kind, @now, @now, @now,
             @intake_degraded, @intake_degraded_reason, @contact, @locale, @github_json, @github_handle, @source_channel,
             @source_campaign, @source_variant, @dev_case_id, @dev_submission_id, @workspace_id, @applicant_key,
             @population, @rubric_version)`
@@ -1697,7 +1709,6 @@ export function createPipelineEntry(input: CreatePipelineInput): CreatePipelineR
         stage,
         match_score: input.matchScore ?? null,
         approval_kind: input.approvalKind ?? null,
-        approval_detail: input.approvalDetail ?? null,
         now,
         intake_degraded: intakeDegraded,
         intake_degraded_reason: intakeDegradedReason,

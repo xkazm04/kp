@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { boardEntryView, countRejectedByLane, createPipelineEntry, listPipeline } from "@/app/_lib/db/pipeline";
+import { boardEntryView, countRejectedByLane, createPipelineEntry, listPipeline, pipelineEntryIdFor } from "@/app/_lib/db/pipeline";
 import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
 import { getInterviewPlan } from "@/app/_lib/interview-plan";
 import { knownStageIds } from "@/app/_lib/pipeline-axis";
@@ -12,6 +12,14 @@ import { linkTerminalPriorsToTarget } from "@/app/_lib/rediscovery-prior-link";
 import { withheldCandidateIds } from "@/app/_lib/rediscovery-eligibility";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { humanActor } from "@/app/_lib/auth/operator-approver";
+import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
+import {
+  coerceMatchReasonFacts,
+  MATCH_VERDICT_KIND,
+  MATCH_VERDICT_REASON_CODE,
+  matchVerdictRationale,
+  type MatchReasonFacts,
+} from "@/app/_lib/match-verdict";
 
 
 export async function GET() {
@@ -55,34 +63,6 @@ export async function GET() {
   }
 }
 
-const REASONS_MAX_CHARS = 600;
-const REASONS_MAX_ITEMS = 3;
-const REASONS_ITEM_MAX_CHARS = 60;
-
-function coerceNameList(v: unknown): string[] | null {
-  if (v === undefined || v === null) return [];
-  if (!Array.isArray(v) || v.length > REASONS_MAX_ITEMS) return null;
-  const out: string[] = [];
-  for (const item of v) {
-    if (typeof item !== "string") return null;
-    const s = item.trim();
-    if (!s || s.length > REASONS_ITEM_MAX_CHARS) return null;
-    out.push(s);
-  }
-  return out;
-}
-
-/** Trimmed, non-blank, bounded line + bounded skill-name lists, or null. */
-function coerceMatchReasons(body: { reasons?: unknown; reasonsStrengths?: unknown; reasonsRedFlags?: unknown }) {
-  if (typeof body.reasons !== "string") return null;
-  const summary = body.reasons.trim();
-  if (!summary || summary.length > REASONS_MAX_CHARS) return null;
-  const strengths = coerceNameList(body.reasonsStrengths);
-  const redFlags = coerceNameList(body.reasonsRedFlags);
-  if (!strengths || !redFlags) return null;
-  return { summary, strengths, redFlags };
-}
-
 /** The provenance markers that mean "re-surfaced from the pool for a role this person
  *  never applied to" — the rediscovery feed ("rediscovery") and the recruiter/rediscover
  *  panels ("sourcing"). Read twice below: the eligibility gate and the prior link. */
@@ -105,6 +85,7 @@ export async function POST(request: NextRequest) {
       reasons?: unknown;
       reasonsStrengths?: unknown;
       reasonsRedFlags?: unknown;
+      matchFacts?: unknown;
     };
     if (!body.candidateId || !body.jobId) {
       return jsonRefusal("PIPELINE_ADD_IDS_REQUIRED", 400);
@@ -121,18 +102,25 @@ export async function POST(request: NextRequest) {
       }
       githubJson = JSON.stringify(summary);
     }
-    // A Match add's reasons snapshot: the composed plain-language line plus the
-    // matched / missing skill names. Only the Match surface sends it, so any other
-    // source carrying one is drift. Like the GH2 block, a present-but-malformed value
-    // is refused loudly rather than dropped; unlike `source`, it is stored.
-    let approvalDetail: string | null = null;
-    const hasReasons = [body.reasons, body.reasonsStrengths, body.reasonsRedFlags].some((v) => v !== undefined && v !== null);
-    if (hasReasons) {
-      const reasons = coerceMatchReasons(body);
-      if (!reasons || body.source !== "match") {
+    // A Match add's VERDICT (ADR 0018): the facts its reasons line is rendered from —
+    // fit tier, strongest/weakest dimension slug + percent, bounded skill names, the
+    // filed score, the scorer version — checked against the closed vocabularies in
+    // app/_lib/match-verdict.ts and sealed into the decision chain BEFORE the insert
+    // (below). Every Match add must carry them, nothing else may, and they must name the
+    // score being filed. The retired prose fields (`reasons` / `reasonsStrengths` /
+    // `reasonsRedFlags`) are refused rather than stored: a locale-bound sentence in the
+    // gate slot is exactly what this replaced. Like the GH2 block, a present-but-
+    // malformed value is refused loudly, before anything is sealed or written.
+    if ([body.reasons, body.reasonsStrengths, body.reasonsRedFlags].some((v) => v !== undefined && v !== null)) {
+      return jsonRefusal("PIPELINE_ADD_REASONS_INVALID", 400);
+    }
+    const isMatchAdd = body.source === "match";
+    let matchFacts: MatchReasonFacts | null = null;
+    if (isMatchAdd || (body.matchFacts !== undefined && body.matchFacts !== null)) {
+      matchFacts = coerceMatchReasonFacts(body.matchFacts);
+      if (!matchFacts || !isMatchAdd || matchFacts.matchScore !== (body.matchScore ?? null)) {
         return jsonRefusal("PIPELINE_ADD_REASONS_INVALID", 400);
       }
-      approvalDetail = JSON.stringify({ summary: reasons.summary, strengths: reasons.strengths, redFlags: reasons.redFlags });
     }
     // Reject an unknown stage at the boundary: createPipelineEntry inserts any
     // string, but the board only renders columns the workspace's axis declares, so
@@ -185,6 +173,30 @@ export async function POST(request: NextRequest) {
     }
     const ws = await currentWorkspace();
     const humanRef = await humanActor();
+    // SEAL FIRST (ADR 0018, ADR 0017's rule): the Match verdict is recorded before the
+    // entry exists, and a seal that fails files nothing. One record per add — a re-add
+    // lands on the same id (pipelineEntryIdFor) and seals its own. The actor is the
+    // recruiter who filed: the facts come from their browser, so the record attests
+    // what they were shown, not what the server recomputed. The workspace is passed
+    // explicitly because the store resolves an entry it cannot find yet to the default
+    // workspace. No await from here to the insert, so nothing in this process can
+    // interleave; a failed insert after the seal leaves a record of a verdict that was
+    // shown but not filed (the residue ADR 0017 also accepts).
+    if (matchFacts) {
+      const sealed = sealDecisionSafe(
+        {
+          kind: MATCH_VERDICT_KIND,
+          actor: humanRef,
+          policyVersion: matchFacts.scorerVersion,
+          candidateRef: pipelineEntryIdFor({ candidateId: body.candidateId, jobId: body.jobId, workspaceId: ws }),
+          rationale: matchVerdictRationale(matchFacts),
+          reasonCode: MATCH_VERDICT_REASON_CODE,
+          inputs: matchFacts,
+        },
+        ws
+      );
+      if (!sealed) return jsonRefusal("PIPELINE_ADD_NOT_SEALED", 503);
+    }
     const result = createPipelineEntry({
       candidateId: body.candidateId,
       candidateLabel: body.candidateLabel || body.candidateId,
@@ -197,7 +209,6 @@ export async function POST(request: NextRequest) {
       githubJson,
       sourceChannel: source,
       approvalKind,
-      approvalDetail,
       // Recruiter/Match adds carry no explicit language choice — infer it from the
       // candidate's CV languages (already on the saved profile) so downstream comms
       // speak their language; no signal stays NULL and resolves to the workspace

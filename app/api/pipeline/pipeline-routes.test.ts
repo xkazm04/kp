@@ -1,7 +1,7 @@
 // Handler-level coverage for the pipeline board routes (+ the comms read that
 // audits their side effects) against an ISOLATED throwaway DB — testing/unit-db.ts
 // must stay the first project import.
-//   POST /api/pipeline        — add-to-board with boundary validation
+//   POST /api/pipeline        — add-to-board with boundary validation; a Match add seals its verdict first
 //   GET  /api/pipeline        — the active board contract
 //   POST /api/pipeline/[id]   — actions: accept CAS, set_stage guardrails, set_notes bounds, reject
 //   GET  /api/comms           — the reject's queued rejection is visible per entry
@@ -13,6 +13,9 @@ import { GET as boardGet, POST as boardPost } from "./route.ts";
 import { POST as actionPost } from "./[id]/route.ts";
 import { GET as commsGet } from "../comms/route.ts";
 import { getPipelineEntry, PIPELINE_STAGES } from "../../_lib/db/pipeline.ts";
+import { listDecisionRecords, verifyDecisionChain } from "../../_lib/decision-record-store.ts";
+import { DEFAULT_WORKSPACE_ID } from "../../_lib/db/workspaces.ts";
+import { MATCH_VERDICT_KIND, MATCH_VERDICT_REASON_CODE } from "../../_lib/match-verdict.ts";
 
 after(() => cleanupUnitDb());
 
@@ -191,51 +194,90 @@ test("reject closes the entry and its queued rejection is auditable via GET /api
   assert.equal(body.relayConfigured, false, "no relay in tests — the Comms Center must be told");
 });
 
-// ---- Match reasons snapshot (key goal 4) -----------------------------------------------
-const matchAdd = (extra: Record<string, unknown>) => {
+// ---- Match verdict: sealed before the insert, never prose (ADR 0018, key goal 4) --------
+const FACTS = {
+  fitTier: "strong",
+  best: { labelCode: "skills", percent: 82 },
+  worst: { labelCode: "career", percent: 40 },
+  matched: ["Java", "Kafka"],
+  unproven: ["Go"],
+  missing: ["Rust"],
+  matchScore: 71,
+  scorerVersion: "match-scorer.v1",
+};
+const matchAdd = (extra: Record<string, unknown> = {}) => {
   seq += 1;
   const body = {
-    candidateId: `prt-m${seq}`, candidateLabel: "Match Reasons", jobId: `prt-mjob-${seq}`, jobTitle: "Role",
-    source: "match", approvalKind: "decision", ...extra,
+    candidateId: `prt-m${seq}`, candidateLabel: "Match Verdict", jobId: `prt-mjob-${seq}`, jobTitle: "Role",
+    source: "match", approvalKind: "decision", matchScore: 71, matchFacts: FACTS, ...extra,
   };
-  return { body, send: () => boardPost(jsonRequest("http://localhost/api/pipeline", body)) };
+  return { body, entryId: `m-${body.candidateId}-${body.jobId}`, send: () => boardPost(jsonRequest("http://localhost/api/pipeline", body)) };
 };
+const verdictsFor = (entryId: string) => listDecisionRecords({ candidateRef: entryId }).filter((r) => r.kind === MATCH_VERDICT_KIND);
 
-test("a Match add with reasons stores approval_detail in the shape AiNarrative reads", async () => {
-  const { send } = matchAdd({ reasons: "  Strong fit: strongest on Skills (82).  ", reasonsStrengths: ["Java"], reasonsRedFlags: ["Rust"] });
-  const res = await send();
+test("a Match add seals ONE match_verdict record of codes and params — no prose — and leaves approval_detail null", async () => {
+  const add = matchAdd();
+  const res = await add.send();
   assert.equal(res.status, 200);
-  const { entry } = (await res.json()) as { entry: { id: string } };
-  const stored = getPipelineEntry(entry.id);
-  assert.deepEqual(JSON.parse(stored!.approvalDetail!), {
-    summary: "Strong fit: strongest on Skills (82).",
-    strengths: ["Java"],
-    redFlags: ["Rust"],
-  });
+  const { entry } = (await res.json()) as { entry: { id: string; approvalKind: string | null } };
+  assert.equal(entry.id, add.entryId, "the record was sealed against the id the insert then used");
+  assert.equal(entry.approvalKind, "decision", "the add still files the pending key decision");
+  assert.equal(getPipelineEntry(entry.id)!.approvalDetail, null, "nothing in the gate slot");
+
+  const records = verdictsFor(entry.id);
+  assert.equal(records.length, 1);
+  const [rec] = records;
+  assert.equal(rec.reasonCode, MATCH_VERDICT_REASON_CODE);
+  assert.equal(rec.actor, "human:recruiter", "the filing recruiter (no session in a unit test → the role token), never auto:match");
+  assert.equal(rec.policyVersion, "match-scorer.v1", "the scorer version is the policy version");
+  assert.equal(rec.rationale, "match_fit tier=strong best=skills:82 worst=career:40 skills=2/1/1 score=71 scorer=match-scorer.v1");
+  assert.deepEqual(JSON.parse(rec.payloadJson).inputs, FACTS, "the facts ARE the inputs");
+  assert.doesNotMatch(rec.payloadJson, /Strong fit|strongest|weakest|matches|lacks/, "no rendered words anywhere in the record");
+  // Sealed BEFORE the insert: the record's instant is not after the entry's.
+  assert.ok(Date.parse(rec.createdAt) <= Date.parse(getPipelineEntry(entry.id)!.createdAt ?? ""));
 });
 
-test("a malformed or off-source reasons value is refused with a code, and nothing is filed", async () => {
+test("invalid facts get a coded 400, and nothing is sealed or inserted", async () => {
   for (const extra of [
-    { reasons: 42 },
-    { reasons: "   " },
-    { reasons: "x".repeat(601) },
-    { reasons: "ok", reasonsStrengths: "Java" },
-    { reasons: "ok", reasonsRedFlags: ["a", "b", "c", "d"] },
-    { reasonsStrengths: ["Java"] },
-    { reasons: "ok", source: "outreach" },
+    { matchFacts: undefined },
+    { matchFacts: "Strong fit: strongest on Skills (82)." },
+    { matchFacts: { ...FACTS, fitTier: "excellent" } },
+    { matchFacts: { ...FACTS, best: { labelCode: "charisma", percent: 90 } } },
+    { matchFacts: { ...FACTS, matched: ["a", "b", "c", "d"] } },
+    { matchFacts: { ...FACTS, missing: ["x".repeat(41)] } },
+    { matchFacts: { ...FACTS, line: "Strong fit." } },
+    { matchScore: 70 }, // the facts must name the score being filed
+    { source: "outreach" }, // facts on a non-Match add are drift
+    { reasons: "Strong fit.", reasonsStrengths: ["Java"] }, // the retired prose fields
   ]) {
-    const { body, send } = matchAdd(extra);
-    const res = await send();
+    const add = matchAdd(extra);
+    const res = await add.send();
     assert.equal(res.status, 400, JSON.stringify(extra));
-    assert.equal((await res.json()).code, "PIPELINE_ADD_REASONS_INVALID");
-    assert.equal(getPipelineEntry(`m-${body.candidateId}-${body.jobId}`), null);
+    assert.equal((await res.json()).code, "PIPELINE_ADD_REASONS_INVALID", JSON.stringify(extra));
+    assert.equal(getPipelineEntry(add.entryId), null, `nothing filed: ${JSON.stringify(extra)}`);
+    assert.equal(listDecisionRecords({ candidateRef: add.entryId }).length, 0, `nothing sealed: ${JSON.stringify(extra)}`);
   }
 });
 
-test("a re-add never overwrites the stored approval_detail", async () => {
-  const first = matchAdd({ reasons: "First line." });
+test("a re-add lands on the same entry and seals its own record; the gate slot stays empty", async () => {
+  const first = matchAdd();
   const { entry } = (await (await first.send()).json()) as { entry: { id: string } };
-  const again = await boardPost(jsonRequest("http://localhost/api/pipeline", { ...first.body, reasons: "Second line." }));
+  const again = await boardPost(
+    jsonRequest("http://localhost/api/pipeline", { ...first.body, matchFacts: { ...FACTS, fitTier: "promising" } })
+  );
+  assert.equal(again.status, 200);
   assert.equal((await again.json()).created, false);
-  assert.equal(JSON.parse(getPipelineEntry(entry.id)!.approvalDetail!).summary, "First line.");
+  const records = verdictsFor(entry.id);
+  assert.equal(records.length, 2, "each add seals its own record");
+  assert.deepEqual(records.map((r) => JSON.parse(r.payloadJson).inputs.fitTier), ["promising", "strong"], "newest first");
+  assert.equal(getPipelineEntry(entry.id)!.approvalDetail, null);
+});
+
+test("the decision chain still verifies after Match adds", async () => {
+  await matchAdd().send();
+  await matchAdd({ matchFacts: { ...FACTS, best: null, worst: null, matched: [], unproven: [], missing: [] } }).send();
+  const verdict = verifyDecisionChain(DEFAULT_WORKSPACE_ID, { full: true });
+  assert.equal(verdict.ok, true);
+  assert.equal(verdict.brokenAtSeq, null);
+  assert.ok(verdict.count >= 2);
 });

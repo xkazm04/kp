@@ -1376,6 +1376,7 @@
     "PIPELINE_ACTION_UNKNOWN": "Diese Aktion unterstützt dieses Board nicht.",
     "PIPELINE_GITHUB_EVIDENCE_INVALID": "Diese GitHub-Belege haben nicht die erwartete Form.",
     "PIPELINE_ADD_REASONS_INVALID": "Die dieser Aufnahme beigefügte Begründung hat nicht das erwartete Format.",
+    "PIPELINE_ADD_NOT_SEALED": "Die Person konnte nicht hinzugefügt werden, weil das Match-Urteil nicht aufgezeichnet werden konnte. Nichts wurde angelegt. Versuchen Sie es in Kürze erneut.",
     "PIPELINE_ADD_IDS_REQUIRED": "Wählen Sie eine Person und eine Stelle, bevor Sie sie zur Pipeline hinzufügen.",
     "PIPELINE_ADD_STAGE_UNKNOWN": "Diese Pipeline-Phase ist in diesem Arbeitsbereich nicht verfügbar.",
     "PIPELINE_ADD_APPROVAL_KIND_UNKNOWN": "Diese Freigabeart kann beim Hinzufügen einer Person nicht angefordert werden.",
@@ -8176,7 +8177,8 @@
         "interview_cancelled": "Interview abgesagt",
         "interview_no_show": "Interview nicht wahrgenommen",
         "interview_proposal_declined": "Vorgeschlagener Termin abgelehnt",
-        "screening_threshold_adjusted": "Screening-Schwelle angepasst"
+        "screening_threshold_adjusted": "Screening-Schwelle angepasst",
+        "match_verdict": "Match-Urteil"
       },
       "traceTitle": "KI-Nachvollziehbarkeit (Art. 12)",
       "tracePrompt": "Begründungs-Prompt",

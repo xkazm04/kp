@@ -52,8 +52,12 @@ test("the reasons meter reads a real install schema: analyses by slug, match ent
     jobId: "job-1",
     jobTitle: "Engineer",
     sourceChannel: "match",
-    approvalDetail: JSON.stringify({ summary: "Strong fit.", strengths: [], redFlags: [] }),
   });
+  // A Match add from before ADR 0018 kept its prose in the gate slot; no writer files one
+  // any more, so the legacy row is written the way it was stored.
+  ensureDb()
+    .prepare(`UPDATE pipeline_entries SET approval_detail = ? WHERE id = ?`)
+    .run(JSON.stringify({ summary: "Strong fit.", strengths: [], redFlags: [] }), filed.entry.id);
   sealDecisionRecord({
     kind: "rejected",
     actor: "human:recruiter",

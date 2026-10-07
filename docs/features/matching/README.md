@@ -42,14 +42,27 @@ than silently dropping a reason.
     from `match.reasons.*` in all four catalogs; `null` when there is neither a
     dimension nor a skill name, and a non-finite percent is never quoted). It shows on every card by default
     (`focus/MatchReasonsLine.tsx`; "Explain fit" stays the optional deeper,
-    model-written layer), fills a `Why this ranking` CSV column (`focus/matchCsv.ts`),
-    and rides "Add to pipeline" as `reasons` / `reasonsStrengths` / `reasonsRedFlags`
-    on `POST /api/pipeline` (Match source only; a malformed value is refused
-    `PIPELINE_ADD_REASONS_INVALID`). The route stores it as `approval_detail` JSON
-    (`summary`, `strengths` = matched, `redFlags` = missing) on INSERT only — a
-    re-add never overwrites it — so the Decisions cohort's `AiNarrative` shows it.
-    `npm run kpi:reasons` counts those entries as ranking verdicts (see the
-    compliance doc); entries filed before this line existed read as named misses.
+    model-written layer) and fills a `Why this ranking` CSV column (`focus/matchCsv.ts`).
+    **"Add to pipeline" seals the verdict, it does not store a sentence**
+    ([ADR 0018](../../architecture/decisions/0018-a-match-verdict-is-sealed-in-the-decision-chain.md)):
+    `useMatchResultsPipeline.ts` sends the facts as `matchFacts` on `POST /api/pipeline`,
+    and the route checks them with `coerceMatchReasonFacts` (closed tier and slug
+    vocabularies, integer percents, at most three trimmed names of ≤ 40 characters per
+    list, no unknown key, and `matchScore` equal to the score being filed). Every
+    `source: "match"` add must carry them and no other add may; the retired prose fields
+    (`reasons` / `reasonsStrengths` / `reasonsRedFlags`) are refused. Any of those is a
+    400 `PIPELINE_ADD_REASONS_INVALID` with nothing sealed and nothing filed. Then,
+    **before the insert**, it seals one `match_verdict` decision record against the entry
+    id the insert will use (`pipelineEntryIdFor`, so a re-add seals its own record on the
+    same id): actor = the filing recruiter (`humanActor()`, not `auto:match` — the facts
+    come from their browser, so the record attests what they were shown),
+    `policyVersion` = the scorer version, `reasonCode` `match_fit`, `inputs` = the facts,
+    `rationale` = a byte-stable code string (`matchVerdictRationale`, e.g.
+    `match_fit tier=strong best=skills:82 worst=career:40 skills=3/1/1 score=71 scorer=match-scorer.v1`),
+    the workspace passed explicitly. A seal that fails refuses the add with 503
+    `PIPELINE_ADD_NOT_SEALED` and files nothing. `approval_detail` is no longer written
+    by any add. The kind is internal: `/status/[token]` does not list it (an open owner
+    question, see Known gaps).
     When a newer CV analysis makes the profile stale, the rebuild banner formats
     that analysis date in the reader's locale (`useFormatter`).
     This was the standalone **Match tab** until it was folded in; `?tab=match`
@@ -1356,6 +1369,17 @@ side either; it was removed, and a test asserts it does not come back.
 - The UI renders both `university` slugs with the same label
   (`enums.education.university`), so the profile editor, the profile summary and a
   job's markdown do not yet say "degree not stated" for the candidate side.
+- **The sealed Match verdict is operator-facing only.** Whether a candidate may see a
+  `match_verdict` on `/status/[token]` — a ranking against a role they may never have
+  applied for, a different disclosure from a rejection — is an owner call;
+  `status-decisions.ts`'s allowlists are untouched until it is made.
+- **`MATCH_SCORER_VERSION` is a client constant** (`focus/matchReasons.ts`), because the
+  Python scorer emits no version on `/api/match`. The record's `policyVersion` therefore
+  names the facts contract, not a scorer build; making the scorer stamp its own version
+  is the generated-seam work (architecture review 2026-10-07, finding #6).
+- **The facts come from the browser** (as `match_score` always has), so a sealed verdict
+  attests what the recruiter was shown, not a server recomputation; recomputing would
+  cost a Python spawn per add.
 - Student/switcher end-to-end mechanics (observed-evidence minting from a
   live case or case-grounded interview, the dev-case module itself) are only
   summarized here; the devcase/interview build is owned by other feature docs

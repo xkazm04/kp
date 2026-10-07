@@ -1376,6 +1376,7 @@
     "PIPELINE_ACTION_UNKNOWN": "Tuto akci tato nástěnka nepodporuje.",
     "PIPELINE_GITHUB_EVIDENCE_INVALID": "Tato data z GitHubu nemají očekávaný tvar.",
     "PIPELINE_ADD_REASONS_INVALID": "Důvody přiložené k tomuto přidání nemají očekávaný tvar.",
+    "PIPELINE_ADD_NOT_SEALED": "Kandidáta se nepodařilo přidat, protože verdikt shody nešlo zaznamenat. Nic nebylo založeno. Zkuste to za chvíli znovu.",
     "PIPELINE_ADD_IDS_REQUIRED": "Před přidáním na nástěnku vyberte kandidáta a pozici.",
     "PIPELINE_ADD_STAGE_UNKNOWN": "Tato fáze náboru není v tomto pracovním prostoru dostupná.",
     "PIPELINE_ADD_APPROVAL_KIND_UNKNOWN": "Tento typ schválení nelze při přidávání kandidáta požadovat.",
@@ -8176,7 +8177,8 @@
         "interview_cancelled": "Pohovor zrušen",
         "interview_no_show": "Nedostavil se k pohovoru",
         "interview_proposal_declined": "Navržený termín odmítnut",
-        "screening_threshold_adjusted": "Upraven práh screeningu"
+        "screening_threshold_adjusted": "Upraven práh screeningu",
+        "match_verdict": "Verdikt shody"
       },
       "traceTitle": "Sledovatelnost AI (čl. 12)",
       "tracePrompt": "Prompt pro odůvodnění",
