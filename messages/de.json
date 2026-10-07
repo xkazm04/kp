@@ -2722,6 +2722,8 @@
     "skipToContent": "Zum Inhalt springen",
     "openMenu": "Navigationsmenü öffnen",
     "closeMenu": "Navigationsmenü schließen",
+    "controlRoom": "Kontrollraum: Freigaben nach Art. 22, Audit-Protokoll und Notausschalter",
+    "controlRoomRail": "Kontrolle",
     "ariaLabel": "Arbeitsbereich",
     "sectionRailLabel": "Arbeitsbereiche",
     "attentionBadge": "{count, plural, one {# benötigt Aufmerksamkeit} other {# benötigen Aufmerksamkeit}}",

@@ -14,6 +14,8 @@ import { BrandHeader } from "@/app/_components/BrandHeader";
 import { SignOutButton } from "@/app/_components/auth/SignOutButton";
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
 import { CommandPalette } from "./WorkspaceCommandPalette";
+import { controlRoomDoor } from "./nav/controlDoor";
+import { NavControlLink } from "./nav/NavControlLink";
 import { NavFeedbackButton } from "./nav/NavFeedbackButton";
 import { RailBrandMark } from "./nav/NavRailBrandMark";
 import { RailPreferences } from "./nav/NavRailPreferences";
@@ -40,6 +42,7 @@ function MobileDrawerA11y({
 
 export function WorkspaceNavDrawer({
   hasSession,
+  operator = false,
   t,
   drawerRef,
   isMobile,
@@ -56,6 +59,8 @@ export function WorkspaceNavDrawer({
   onPrefetchTab,
 }: {
   hasSession: boolean;
+  /** isOperator() as the server resolved it; the control-room door is drawn only when true. */
+  operator?: boolean;
   t: ReturnType<typeof useTranslations>;
   drawerRef: RefObject<HTMLElement | null>;
   isMobile: boolean;
@@ -73,6 +78,7 @@ export function WorkspaceNavDrawer({
   /** Warm a tab's code-split chunk on nav hover/focus (shell/tabChunks.ts). */
   onPrefetchTab: (id: WorkspaceTabId) => void;
 }) {
+  const controlDoor = controlRoomDoor(operator);
   return (
     <>
       {/* Mobile top bar (brand + hamburger) — hidden at md+ where the rail is permanent. */}
@@ -147,8 +153,11 @@ export function WorkspaceNavDrawer({
               {/* SHELL1: global search — opens the top-centre palette (also anywhere
                   via Ctrl/Cmd+K). */}
               <CommandPalette />
-              {/* The recruiter feedback door — in-product, lands on /control. */}
+              {/* The recruiter feedback door — opens the in-product feedback dialog. */}
               <NavFeedbackButton active={navActive} />
+              {/* The control room (Art. 22 gates, audit trail, kill switch): a link for an
+                  operator only; /control answers everyone else a 404 and so must the nav. */}
+              {controlDoor ? <NavControlLink href={controlDoor.href} /> : null}
               <RailPreferences />
               {/* Drop the dev session and return to the landing. */}
               <SignOutButton hasSession={hasSession} />

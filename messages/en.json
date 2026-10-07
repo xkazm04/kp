@@ -2722,6 +2722,8 @@
     "skipToContent": "Skip to content",
     "openMenu": "Open navigation menu",
     "closeMenu": "Close navigation menu",
+    "controlRoom": "Control room: Art. 22 gates, audit trail and the kill switch",
+    "controlRoomRail": "Control",
     "ariaLabel": "Workspace",
     "sectionRailLabel": "Workspace sections",
     "attentionBadge": "{count, plural, one {# needs attention} other {# need attention}}",

@@ -133,6 +133,19 @@ while keeping the predicted-score / outcome / rating pairing — a de-identifica
 deletion. `dev_submissions.eval_json` and `transfer_score` likewise stay as the retained,
 de-identified assessment record.
 
+**The audit trail names no candidate, and erasure reaches it.** `dev_audit` is the control
+room's decision log, and three writers (`POST /api/devcase/outcomes`, the reject
+auto-record in `actOnPipelineEntry`, the accept auto-record in `offer-finalize.ts`) used to
+put the candidate's label first in `reason`, in a table no erasure touched. They now record
+only the outcome, performance and prediction in `reason` and the `dev_outcomes` key
+(submission id or `pe:<entryId>`, `dev-outcomes.hireOutcomeRef`) in `ref`. `anonymizeEntry`
+masks the label in the `reason` of every row whose `ref` is one of the erased outcome refs,
+and in every legacy row (no `ref`) whose `reason` begins `<label>:`. De-identified, not
+deleted: the decision trail stays. The legacy match is not workspace-scoped, because the
+unattributed writers stamp the default workspace whatever tenant the hire was in; masking a
+same-named candidate's reason as well is the safe direction. Pinned by
+`erasure-full-scrub.test.ts` and `dev-audit-no-candidate-label.test.ts`.
+
 **An erasure happens exactly once, under concurrency.** Two doors reach
 `anonymizeEntry` — the consent-expiry sweep and the candidate's own
 `/data/[token]` request — and the "already scrubbed" check used to be a bare read

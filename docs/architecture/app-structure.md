@@ -217,6 +217,10 @@ the nav is the thing that knows what its own chrome costs. Two things hang off i
   Sign out — which offered a candidate who never had a session a button that POSTs
   `/api/auth/logout` and hard-navigates them off the job ad. Appearance and language
   (`RailPreferences`) are viewer chrome and stay for everyone.
+  The **Control** link to `/control` (Art. 22 gates, audit trail, kill switch) is also
+  operator-only, drawn through `nav/controlDoor.ts`: `/control` answers a non-operator 404,
+  so the nav must not show the door either. `WorkspaceNav` reads `isOperator()` itself;
+  the interactive shell receives it as `Workspace`'s `operator` prop.
   When a signed session exists, Sign out opens the shared confirmation dialog;
   the open-mode entry marker with no session still leaves in one click.
 

@@ -2722,6 +2722,8 @@
     "skipToContent": "Přejít na obsah",
     "openMenu": "Otevřít navigační nabídku",
     "closeMenu": "Zavřít navigační nabídku",
+    "controlRoom": "Řídicí místnost: schvalování podle čl. 22, auditní stopa a nouzový vypínač",
+    "controlRoomRail": "Řízení",
     "ariaLabel": "Pracovní plocha",
     "sectionRailLabel": "Sekce pracovní plochy",
     "attentionBadge": "{count, plural, one {# vyžaduje pozornost} few {# vyžadují pozornost} other {# vyžaduje pozornost}}",

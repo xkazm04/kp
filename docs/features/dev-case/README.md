@@ -1781,7 +1781,12 @@ token) and `app/_lib/db/devcase-ledger.test.ts`.
 `/control` (`app/control/`) is the oversight surface for the autonomous lifecycle: the
 autonomy kill switch, the Art. 22 gate queue, the audit trail and the promote-floor
 calibration. Until 2026-09-03 its four doors carried **no** check at all; the operator
-gate (identity presence) landed first, and the capability half with it:
+gate (identity presence) landed first, and the capability half with it. The room is
+reachable from the app: the rail carries a **Control** link (`nav/NavControlLink.tsx`,
+drawn through `nav/controlDoor.ts`) for a caller `isOperator()` admits and for nobody
+else, so a non-operator sees no trace of it; the page's own `notFound()` gate is unchanged.
+The server-rendered rail (`WorkspaceNav`) resolves the flag itself; the interactive shell
+takes it as `Workspace`'s `operator` prop.
 
 | Door | Capability | Why that one |
 | --- | --- | --- |
@@ -1810,7 +1815,9 @@ truncated sweep is visible instead of reading as a complete one.
 
 **The audit listing is workspace-scoped.** `dev_audit` is a declared deployment-level
 table, but its rows are not deployment-level data: `outcome_recorded` writes the candidate
-ref straight into `reason`, and the panel rendered every row to every operator — one
+ref straight into `reason` (it no longer does: since 2026-10-07 the writers record the outcome in
+`reason` and the outcome key in `ref`, and erasure de-identifies older rows, see
+`docs/features/compliance/README.md`), and the panel rendered every row to every operator — one
 studio's audit panel listed another studio's candidates. `recordAudit` now takes a
 `workspaceId` and `listAudit(limit, workspaceId)` filters on it
 (`app/_lib/dev-control.ts`, pinned by `dev-control.test.ts`). The **kill-switch rows stay

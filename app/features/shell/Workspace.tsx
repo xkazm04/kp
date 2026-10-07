@@ -37,10 +37,13 @@ export type { WorkspaceTabId } from "./tabs";
 export function Workspace({
   firstRunOnboarding = false,
   hasSession = false,
+  operator = false,
   principal = null,
 }: {
   firstRunOnboarding?: boolean;
   hasSession?: boolean;
+  /** isOperator() as resolved by the server render of '/'; gates the /control door in the rail. */
+  operator?: boolean;
   /** Who is looking — the tenant + capabilities '/' resolved server-side
    *  (shellPrincipal.ts). null = unknown: every consumer falls back to its fetch. */
   principal?: ShellPrincipal | null;
@@ -234,6 +237,7 @@ export function Workspace({
 
       <WorkspaceNavDrawer
         hasSession={hasSession}
+        operator={operator}
         t={t}
         drawerRef={drawerRef}
         isMobile={isMobile}
