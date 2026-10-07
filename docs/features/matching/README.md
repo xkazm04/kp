@@ -63,6 +63,17 @@ than silently dropping a reason.
     `PIPELINE_ADD_NOT_SEALED` and files nothing. `approval_detail` is no longer written
     by any add. The kind is internal: `/status/[token]` does not list it (an open owner
     question, see Known gaps).
+    A sealed verdict is turned back into words by `matchVerdictReasons` /
+    `sealedMatchVerdictOf` in `app/_lib/decision-attribution.ts` (re-validating the facts,
+    then `renderMatchReasons` in the reader's `match` catalog), and
+    `npm run kpi:reasons` reads it the same way: each `source_channel = 'match'` entry is
+    looked up by `candidate_ref` among `match_verdict` records (`matchFiledRanking` in
+    `app/_lib/reasons-coverage.ts`), so an accept that clears the gate slot no longer
+    turns an explained ranking into a miss. Entries filed before the seal are **not
+    backfilled** and **not counted**: they are reported in two buckets beside the arm —
+    *legacy prose snapshot* (the old `{summary, strengths, redFlags}` is still in the
+    slot) and *legacy, snapshot cleared before the record existed* — which can only
+    shrink.
     When a newer CV analysis makes the profile stale, the rebuild banner formats
     that analysis date in the reader's locale (`useFormatter`).
     This was the standalone **Match tab** until it was folded in; `?tab=match`

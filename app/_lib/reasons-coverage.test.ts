@@ -204,16 +204,68 @@ test("the demo corpus's ranking arm is a real number with a real denominator", (
   assert.equal(reasonsCoveragePct(c.byKind.ranking), 100, `rankings without a reasons block: ${JSON.stringify(c.misses.slice(0, 5))}`);
 });
 
-test("MATCH-FILED — an entry carrying a reasons summary is a hit; one without is a NAMED miss", () => {
-  const hit = matchFiledRanking({ id: "m1", approvalDetail: JSON.stringify({ summary: "Strong fit: strongest on Skills (82).", strengths: [], redFlags: [] }) });
-  const noDetail = matchFiledRanking({ id: "m2", approvalDetail: null });
-  const garbled = matchFiledRanking({ id: "m3", approvalDetail: "{not json" });
-  const noSummary = matchFiledRanking({ id: "m4", approvalDetail: JSON.stringify({ summary: "   " }) });
-  const c = countReasonsCoverage([hit, noDetail, garbled, noSummary], CATALOG);
+// The `match` slice of the real English catalog, as the meter builds it.
+const MATCH_EN = JSON.parse(readFileSync(path.join(REPO_ROOT, "messages", "en.json"), "utf8")).match;
+const matchLookup = (key: string): string | undefined =>
+  key.split(".").reduce<unknown>((o, k) => (o && typeof o === "object" ? (o as Record<string, unknown>)[k] : undefined), MATCH_EN) as string | undefined;
+const MATCH_CATALOG = Object.assign(
+  (key: string, values?: Record<string, string | number>) =>
+    (matchLookup(key) ?? "").replace(/\{(\w+)\}/g, (_, n: string) => String(values?.[n] ?? "")),
+  { has: (key: string) => matchLookup(key) !== undefined }
+);
+const sealedVerdict = (facts: Record<string, unknown>) => ({
+  kind: "match_verdict",
+  reasonCode: "match_fit",
+  createdAt: "2026-10-07T10:00:00.000Z",
+  payloadJson: JSON.stringify({ inputs: facts }),
+});
+const FACTS = {
+  fitTier: "strong",
+  best: { labelCode: "skills", percent: 82 },
+  worst: { labelCode: "career", percent: 40 },
+  matched: ["Java"],
+  unproven: [],
+  missing: ["Rust"],
+  matchScore: 71,
+  scorerVersion: "match-scorer.v1",
+};
+
+test("MATCH-FILED — a sealed verdict that renders is a hit; one that says nothing or is garbled is a NAMED miss", () => {
+  const hit = matchFiledRanking({ id: "m1", record: sealedVerdict(FACTS), approvalDetail: null });
+  const silent = matchFiledRanking({ id: "m2", record: sealedVerdict({ ...FACTS, best: null, worst: null, matched: [], missing: [] }) });
+  const garbled = matchFiledRanking({ id: "m3", record: { ...sealedVerdict(FACTS), payloadJson: "{not json" } });
+  const offVocab = matchFiledRanking({ id: "m4", record: sealedVerdict({ ...FACTS, fitTier: "excellent" }) });
+  const c = countReasonsCoverage([hit, silent, garbled, offVocab], CATALOG, MATCH_CATALOG);
   assert.equal(c.byKind.ranking.checked, 4, "none is skipped");
   assert.equal(c.byKind.ranking.withReasons, 1);
   assert.deepEqual(c.misses.map((m) => m.id), ["m2", "m3", "m4"]);
-  assert.match(c.misses[0].why, /match-filed entry with no parsable reasons summary/);
+  assert.match(c.misses[0].why, /neither a dimension nor a skill name/);
+  assert.match(c.misses[1].why, /no valid facts/);
+  // A cleared gate slot does not matter: the record is the reasons block.
+  assert.deepEqual(reasonsBlockOf(hit, CATALOG, MATCH_CATALOG), { ok: true, via: "sealed match_verdict" });
+});
+
+test("MATCH-FILED — POSITIVE CONTROL: the sealed verdict only counts when it RESOLVES through the match catalog", () => {
+  const hit = matchFiledRanking({ id: "m1", record: sealedVerdict(FACTS) });
+  assert.equal(reasonsBlockOf(hit, CATALOG).ok, false, "no match catalog → cannot resolve → not a hit");
+  const empty = Object.assign(() => "", { has: () => false });
+  assert.equal(reasonsBlockOf(hit, CATALOG, empty).ok, false, "a catalog that renders nothing is no reasons block");
+});
+
+test("MATCH-FILED — an entry with no sealed record is LEGACY: bucketed by its gate slot, never counted", () => {
+  const prose = matchFiledRanking({ id: "l1", approvalDetail: JSON.stringify({ summary: "Strong fit.", strengths: ["Java"], redFlags: [] }) });
+  const cleared = matchFiledRanking({ id: "l2", approvalDetail: null });
+  const overwritten = matchFiledRanking({ id: "l3", approvalDetail: JSON.stringify({ recommendation: "advance", rationale: "x" }) });
+  const scorecard = matchFiledRanking({ id: "l4", approvalDetail: JSON.stringify({ summary: "Solid interview.", ratings: [] }) });
+  const garbled = matchFiledRanking({ id: "l5", approvalDetail: "{not json" });
+  const sealed = matchFiledRanking({ id: "s1", record: sealedVerdict(FACTS) });
+  assert.equal(prose.legacy, "legacy_prose_snapshot");
+  for (const v of [cleared, overwritten, scorecard, garbled]) assert.equal(v.legacy, "legacy_snapshot_cleared", v.id);
+  const c = countReasonsCoverage([prose, cleared, overwritten, scorecard, garbled, sealed], CATALOG, MATCH_CATALOG);
+  assert.deepEqual(c.legacyMatch, { legacy_prose_snapshot: 1, legacy_snapshot_cleared: 4 });
+  assert.equal(c.byKind.ranking.checked, 1, "only the sealed entry is in the arm");
+  assert.equal(c.total.checked, 1, "and the legacy rows are not in the headline either");
+  assert.deepEqual(c.misses, [], "a legacy row is not a miss — it is not counted at all");
 });
 
 test("a fallback-marked ranking with no jobFit summary is a named miss; a real explanation is a hit", () => {

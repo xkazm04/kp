@@ -16,8 +16,11 @@
 //  1. IT RESOLVES, IT DOES NOT PATTERN-MATCH. A rejection's reasons block is
 //     whatever `waveReasonText` — the SAME resolver the reconsider queue, the
 //     decision-records panel and the decision log render through — actually returns
-//     for the sealed code. A re-implementation here would measure this file's idea
-//     of resolution and pass while the real surfaces rendered nothing.
+//     for the sealed code. A Match-filed ranking's is whatever `matchVerdictReasons`
+//     renders from its sealed `match_verdict` record (ADR 0018) — never the live
+//     `approval_detail` column, which a transition clears. A re-implementation here
+//     would measure this file's idea of resolution and pass while the real surfaces
+//     rendered nothing.
 //
 //  2. AN EMPTY DENOMINATOR IS NOT A PASS. A kind with no verdicts to check reports
 //     `ratio: null, measured: false` — never 1. A counter that reads 100% because it
@@ -25,7 +28,8 @@
 //     outcome") was written against, and it is the specific way this metric would
 //     rot: the corpus loses its interviews, the scorecard arm silently reads
 //     perfect, and the number keeps being reported.
-import { waveReasonText, type SealedReason } from "./decision-attribution";
+import { matchVerdictReasons, sealedMatchFacts, waveReasonText, type SealedReason, type SealedRecordLike } from "./decision-attribution";
+import type { MatchReasonsTranslator } from "@/app/features/insights/matrix/focus/matchReasons";
 import { isPlaceholderEvidence } from "./interview-scorecard";
 
 /** The three kinds of produced verdict the goal names. Literal array + derived
@@ -43,7 +47,7 @@ export type RankingVerdict = {
   kind: "ranking";
   id: string;
   /** Where the ranking came from. A "match" ranking is a pipeline entry the Match
-   *  surface filed, whose reasons are the summary it carried (see
+   *  surface filed, whose reasons are its SEALED verdict record (see
    *  `matchFiledRanking`); the meter prints the arm per origin. */
   origin?: "seed" | "analysis" | "match";
   explanation?: string | null;
@@ -52,7 +56,41 @@ export type RankingVerdict = {
    *  analysis carries an `explanation_fallback` trust finding): text the model did
    *  not write, so it is not a reasons block. */
   fallbackExplanation?: boolean;
+  /** A "match" ranking's sealed `match_verdict` record (ADR 0018), resolved through
+   *  matchVerdictReasons — the same resolver the product surfaces render with. */
+  sealedMatch?: SealedRecordLike | null;
+  /** A "match" ranking filed before the verdict was sealed. It is reported in its own
+   *  bucket and NEVER counted: the facts cannot be recovered from a localized sentence,
+   *  and re-running the match today would seal a verdict nobody was shown. */
+  legacy?: LegacyMatchBucket;
 };
+
+/** The two states a Match add filed before ADR 0018 can be in. Literal array + derived
+ *  union, the closed-vocabulary shape. The buckets can only shrink. */
+export const LEGACY_MATCH_BUCKETS = ["legacy_prose_snapshot", "legacy_snapshot_cleared"] as const;
+export type LegacyMatchBucket = (typeof LEGACY_MATCH_BUCKETS)[number];
+
+/** Is this stored `approval_detail` the prose snapshot the pre-ADR-0018 route wrote —
+ *  exactly `{summary, strengths, redFlags}` with a non-blank summary? Any other payload
+ *  (a screening recommendation, a scorecard, a slot string, nothing) means the snapshot
+ *  was overwritten or cleared by a later transition. */
+function isLegacyMatchSnapshot(detail: string | null | undefined): boolean {
+  if (!detail) return false;
+  try {
+    const parsed = JSON.parse(detail) as Record<string, unknown> | null;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return false;
+    const keys = Object.keys(parsed).sort().join(",");
+    return (
+      keys === "redFlags,strengths,summary" &&
+      typeof parsed.summary === "string" &&
+      parsed.summary.trim().length > 0 &&
+      Array.isArray(parsed.strengths) &&
+      Array.isArray(parsed.redFlags)
+    );
+  } catch {
+    return false; // unreadable is not the snapshot shape — it reads as cleared
+  }
+}
 
 /** The one reading of the pipeline's `explanation_fallback` marker, shared by the
  *  write path and the meter so they cannot disagree about what a fallback is. */
@@ -66,19 +104,22 @@ export function hasFallbackExplanation(payload: unknown): boolean {
   );
 }
 
-/** A Match-filed pipeline entry as a ranking verdict. `approvalDetail` is the raw
- *  stored column; the reasons are its `summary`. Unparsable or blank is kept as a
- *  ranking with no explanation, so it counts as a named miss rather than vanishing.
- *  Pure: the caller reads the row. */
-export function matchFiledRanking(row: { id: string; approvalDetail?: string | null }): RankingVerdict {
-  let summary: string | null = null;
-  try {
-    const parsed = row.approvalDetail ? (JSON.parse(row.approvalDetail) as { summary?: unknown }) : null;
-    if (parsed && typeof parsed.summary === "string") summary = parsed.summary;
-  } catch {
-    // an unreadable detail carries no prose; it falls through as a counted miss
-  }
-  return { kind: "ranking", id: row.id, origin: "match", explanation: summary };
+/** A Match-filed pipeline entry as a ranking verdict. `record` is the entry's newest
+ *  sealed `match_verdict` (looked up by candidate_ref), or null; `approvalDetail` is the
+ *  raw stored column, read ONLY to tell the two legacy buckets apart when there is no
+ *  record — the live gate slot is never the reasons block. Pure: the caller reads both. */
+export function matchFiledRanking(row: {
+  id: string;
+  record?: SealedRecordLike | null;
+  approvalDetail?: string | null;
+}): RankingVerdict {
+  if (row.record) return { kind: "ranking", id: row.id, origin: "match", sealedMatch: row.record };
+  return {
+    kind: "ranking",
+    id: row.id,
+    origin: "match",
+    legacy: isLegacyMatchSnapshot(row.approvalDetail) ? "legacy_prose_snapshot" : "legacy_snapshot_cleared",
+  };
 }
 
 /** A scorecard: the per-competency interview verdict. Its reasons block is the
@@ -116,14 +157,29 @@ function isBlank(s: string | null | undefined): boolean {
 }
 
 /** Does this verdict resolve a non-empty reasons block? One function, three kinds,
- *  each answered the way that kind's own producer defines "why". */
-export function reasonsBlockOf(verdict: ReasonsVerdict, catalog: ReasonsCatalog): ReasonsBlockResult {
+ *  each answered the way that kind's own producer defines "why". `matchCatalog` is the
+ *  `match`-scoped translator a sealed Match verdict renders through (rejections use
+ *  `catalog`, the decisions.wave one); the meter builds it over messages/en.json. */
+export function reasonsBlockOf(
+  verdict: ReasonsVerdict,
+  catalog: ReasonsCatalog,
+  matchCatalog?: MatchReasonsTranslator
+): ReasonsBlockResult {
   switch (verdict.kind) {
     case "ranking": {
       if (verdict.origin === "match") {
-        return isBlank(verdict.explanation)
-          ? { ok: false, why: "match-filed entry with no parsable reasons summary in approval_detail" }
-          : { ok: true, via: "match summary" };
+        // Resolution, not existence — rule 1: the sealed facts must render through the
+        // same renderer the Decisions cohort and the records panel use.
+        if (verdict.legacy) return { ok: false, why: `${verdict.legacy}: filed before the verdict was sealed — reported apart, not counted` };
+        const record = verdict.sealedMatch;
+        if (!record) return { ok: false, why: "match-filed entry with no sealed match_verdict record" };
+        if (!sealedMatchFacts(record)) return { ok: false, why: "the sealed match_verdict carries no valid facts" };
+        if (!matchCatalog) return { ok: false, why: "no match catalog to resolve the sealed match_verdict through" };
+        const reasons = matchVerdictReasons(matchCatalog, record);
+        if (!reasons || isBlank(reasons.line)) {
+          return { ok: false, why: "the sealed match_verdict has neither a dimension nor a skill name — a ranking with nothing to say" };
+        }
+        return { ok: true, via: "sealed match_verdict" };
       }
       if (!isBlank(verdict.explanation) && !verdict.fallbackExplanation) return { ok: true, via: "explanation" };
       if (!isBlank(verdict.jobFitSummary)) return { ok: true, via: "jobFit.summary" };
@@ -186,6 +242,9 @@ export type ReasonsCoverage = {
   /** The kinds with an empty denominator. Non-empty means the headline number does
    *  NOT cover the whole goal, and a caller reporting it has to say so. */
   unmeasuredKinds: ReasonsVerdictKind[];
+  /** Match-filed entries with no sealed verdict, by legacy bucket. OUTSIDE every arm and
+   *  the total — neither a hit nor a miss — and stated so a reader sees their size. */
+  legacyMatch: Record<LegacyMatchBucket, number>;
 };
 
 function arm(checked: number, withReasons: number): ReasonsArm {
@@ -200,14 +259,20 @@ function arm(checked: number, withReasons: number): ReasonsArm {
 /** Count the reasons coverage of a set of produced verdicts. */
 export function countReasonsCoverage(
   verdicts: readonly ReasonsVerdict[],
-  catalog: ReasonsCatalog
+  catalog: ReasonsCatalog,
+  matchCatalog?: MatchReasonsTranslator
 ): ReasonsCoverage {
   const checked = { ranking: 0, scorecard: 0, rejection: 0 } as Record<ReasonsVerdictKind, number>;
   const hit = { ranking: 0, scorecard: 0, rejection: 0 } as Record<ReasonsVerdictKind, number>;
   const misses: ReasonsMiss[] = [];
+  const legacyMatch = { legacy_prose_snapshot: 0, legacy_snapshot_cleared: 0 } as Record<LegacyMatchBucket, number>;
   for (const v of verdicts) {
+    if (v.kind === "ranking" && v.legacy) {
+      legacyMatch[v.legacy] += 1; // never folded into the headline
+      continue;
+    }
     checked[v.kind] += 1;
-    const result = reasonsBlockOf(v, catalog);
+    const result = reasonsBlockOf(v, catalog, matchCatalog);
     if (result.ok) hit[v.kind] += 1;
     else misses.push({ kind: v.kind, id: v.id, why: result.why });
   }
@@ -222,6 +287,7 @@ export function countReasonsCoverage(
     },
     misses,
     unmeasuredKinds: REASONS_VERDICT_KINDS.filter((k) => checked[k] === 0),
+    legacyMatch,
   };
 }
 

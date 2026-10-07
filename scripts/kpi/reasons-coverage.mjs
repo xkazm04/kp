@@ -20,6 +20,7 @@ import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { countReasonsCoverage, reasonsCoveragePct, matchFiledRanking, hasFallbackExplanation, REASONS_VERDICT_KINDS } from "@/app/_lib/reasons-coverage";
+import { MATCH_VERDICT_KIND } from "@/app/_lib/match-verdict";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const asJson = process.argv.includes("--json");
@@ -39,6 +40,24 @@ function englishWaveCatalog() {
     return String(template).replace(/\{(\w+)\}/g, (_, name) => String(params?.[name] ?? `{${name}}`));
   };
   t.has = (key) => lookup(key) !== undefined;
+  return t;
+}
+
+/** The `match` slice of the English catalog — what a sealed Match verdict renders
+ *  through (matchVerdictReasons → renderMatchReasons). English for the same reason as
+ *  the wave catalog above: this measures whether the verdict RESOLVES. */
+function englishMatchCatalog() {
+  const messages = JSON.parse(readFileSync(path.join(REPO_ROOT, "messages", "en.json"), "utf8"));
+  const lookup = (key) =>
+    String(key)
+      .split(".")
+      .reduce((o, k) => (o && typeof o === "object" ? o[k] : undefined), messages?.match ?? {});
+  const t = (key, params) => {
+    const template = lookup(key);
+    if (typeof template !== "string") return "";
+    return template.replace(/\{(\w+)\}/g, (_, name) => String(params?.[name] ?? `{${name}}`));
+  };
+  t.has = (key) => typeof lookup(key) === "string";
   return t;
 }
 
@@ -88,15 +107,30 @@ async function producedVerdicts() {
         });
       }
     }
-    // Rankings the Match surface filed: a pipeline entry with source channel 'match'
-    // carries the reasons line it was added with in approval_detail.summary. One with
-    // no parsable summary (every entry filed before the line existed) is a named miss.
+    // Rankings the Match surface filed: a pipeline entry with source channel 'match'.
+    // Its reasons are the newest sealed match_verdict whose candidate_ref is the entry id
+    // (ADR 0018), resolved through the shared renderer — never the live approval_detail
+    // column, which a transition clears. An entry with no record was filed before the
+    // verdict was sealed: it lands in a legacy bucket (prose still in the slot, or
+    // already cleared) and is reported apart, never counted and never backfilled.
     if (tableExists("pipeline_entries")) {
+      const sealedByRef = new Map();
+      if (tableExists("decision_records")) {
+        const records = db
+          .prepare(`SELECT candidate_ref, kind, reason_code, payload_json, created_at FROM decision_records WHERE kind = ? ORDER BY seq DESC`)
+          .all(MATCH_VERDICT_KIND);
+        for (const r of records) {
+          if (sealedByRef.has(r.candidate_ref)) continue; // seq DESC: the first is the newest add
+          sealedByRef.set(r.candidate_ref, { kind: r.kind, reasonCode: r.reason_code, createdAt: r.created_at, payloadJson: r.payload_json });
+        }
+      }
       const rows = db
         .prepare(`SELECT id, approval_detail FROM pipeline_entries WHERE source_channel = 'match'`)
         .all();
       for (const row of rows) {
-        verdicts.push(matchFiledRanking({ id: `match:${row.id}`, approvalDetail: row.approval_detail }));
+        verdicts.push(
+          matchFiledRanking({ id: `match:${row.id}`, record: sealedByRef.get(row.id) ?? null, approvalDetail: row.approval_detail })
+        );
       }
     }
     // Scorecards: the per-competency interview verdict.
@@ -144,7 +178,8 @@ async function producedVerdicts() {
 const { verdicts: produced, dbPath } = await producedVerdicts();
 const allVerdicts = [...seededRankings(), ...produced];
 const catalog = englishWaveCatalog();
-const coverage = countReasonsCoverage(allVerdicts, catalog);
+const matchCatalog = englishMatchCatalog();
+const coverage = countReasonsCoverage(allVerdicts, catalog, matchCatalog);
 /** The ranking arm per source, so the headline says what it counts. */
 const RANKING_ORIGINS = [
   ["seed", "seed analyses"],
@@ -154,7 +189,7 @@ const RANKING_ORIGINS = [
 const rankingBySource = Object.fromEntries(
   RANKING_ORIGINS.map(([origin]) => [
     origin,
-    countReasonsCoverage(allVerdicts.filter((v) => v.kind === "ranking" && v.origin === origin), catalog).byKind.ranking,
+    countReasonsCoverage(allVerdicts.filter((v) => v.kind === "ranking" && v.origin === origin), catalog, matchCatalog).byKind.ranking,
   ])
 );
 
@@ -166,6 +201,9 @@ if (asJson) {
   console.log(`  source: data/seed_* ${dbPath ? `+ ${path.relative(REPO_ROOT, dbPath)}` : "(no database — seeded corpus only)"}`);
   for (const kind of REASONS_VERDICT_KINDS) console.log(`  ${kind.padEnd(10)} ${pct(coverage.byKind[kind])}`);
   for (const [origin, label] of RANKING_ORIGINS) console.log(`    ranking / ${label.padEnd(20)} ${pct(rankingBySource[origin])}`);
+  // Match adds filed before the verdict was sealed (ADR 0018): stated, never folded in.
+  console.log(`      legacy prose snapshot (not counted)                              ${coverage.legacyMatch.legacy_prose_snapshot}`);
+  console.log(`      legacy, snapshot cleared before the record existed (not counted) ${coverage.legacyMatch.legacy_snapshot_cleared}`);
   console.log(`  ${"TOTAL".padEnd(10)} ${pct(coverage.total)}`);
   if (coverage.unmeasuredKinds.length > 0) {
     console.log(`  NOT COVERED by the total above: ${coverage.unmeasuredKinds.join(", ")} — nothing produced to count.`);

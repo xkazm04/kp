@@ -7,6 +7,12 @@
 // rendered an UNKNOWN badge and fell out of any attribution math.
 //
 import { parseRematchDetail } from "@/app/features/shared/pipelineRematchLink";
+import {
+  renderMatchReasons,
+  type MatchReasons,
+  type MatchReasonsTranslator,
+} from "@/app/features/insights/matrix/focus/matchReasons";
+import { coerceMatchReasonFacts, MATCH_VERDICT_KIND, MATCH_VERDICT_REASON_CODE, type MatchReasonFacts } from "./match-verdict";
 
 // Attribution semantics: `auto` = the system initiated the action (policy pass,
 // fan-out, dispatched comm, sentinel); `human` = a person did (a recruiter
@@ -444,7 +450,7 @@ export function parseSealTraceability(payloadJson: string): SealTraceability | n
 
 // The minimal structural shape of a sealed record this module needs — declared
 // locally so this pure module never imports the server-side decision-record-store.
-type SealedRecordLike = { kind: string; reasonCode: string; createdAt: string; payloadJson: string };
+export type SealedRecordLike = { kind: string; reasonCode: string; createdAt: string; payloadJson: string };
 
 /** Nearest group-eval record (by |Δt|) to an event, within `windowMs`, or null. Pure
  *  over (eventCreatedAt, records) so the join is testable without a DB. */
@@ -531,6 +537,48 @@ export function waveReasonText<T extends WaveReasonTranslator>(t: T, reason: Sea
   }
   const key = `reasons.${reason.reasonCode}`;
   return t.has(key as never) ? t(key as never, p as never) : null;
+}
+
+// ---- (e) The sealed Match verdict (ADR 0018) ---------------------------------------
+//
+// A Match add seals a `match_verdict` record whose `inputs` are the verdict's FACTS
+// (app/_lib/match-verdict.ts) — codes and numbers, no language. These are the reads every
+// surface goes through to turn one into words: the Decisions cohort, the decision-records
+// panel and the reasons meter, so a sealed verdict reads identically in all three and in
+// each reader's own locale (the match.* catalog: fitTier.*, dims.*, reasons.*).
+
+/** The facts a sealed Match verdict carries, or null when the record is not one (another
+ *  kind or reason code) or its inputs are not a valid facts object. Re-validated on read
+ *  through the same coercer the route sealed with, so a garbled or hand-edited payload
+ *  renders as nothing rather than as a half-sentence. */
+export function sealedMatchFacts(record: SealedRecordLike): MatchReasonFacts | null {
+  if (record.kind !== MATCH_VERDICT_KIND || record.reasonCode !== MATCH_VERDICT_REASON_CODE) return null;
+  try {
+    return coerceMatchReasonFacts((JSON.parse(record.payloadJson) as { inputs?: unknown }).inputs);
+  } catch {
+    return null; // an unreadable payload carries no facts — the caller shows the absence
+  }
+}
+
+/** A sealed Match verdict as a surface receives it: when it was sealed, and its facts. */
+export type SealedMatchVerdict = { createdAt: string; facts: MatchReasonFacts };
+
+/** The newest sealed Match verdict among one entry's records (records arrive seq-DESC, so
+ *  the first valid one is the latest add), or null. */
+export function sealedMatchVerdictOf(records: readonly SealedRecordLike[]): SealedMatchVerdict | null {
+  for (const r of records) {
+    const facts = sealedMatchFacts(r);
+    if (facts) return { createdAt: r.createdAt, facts };
+  }
+  return null;
+}
+
+/** Localize a sealed Match verdict through the `match` catalog — renderMatchReasons, the
+ *  same renderer the Match card uses, over the record's facts. Null when the record holds
+ *  no valid facts or the facts have nothing to say (no dimension, no skill name). */
+export function matchVerdictReasons(t: MatchReasonsTranslator, record: SealedRecordLike): MatchReasons | null {
+  const facts = sealedMatchFacts(record);
+  return facts ? renderMatchReasons(facts, t) : null;
 }
 
 // ---- (d) Who acted (UAT LUC-ANA-4) ------------------------------------------------
