@@ -11,6 +11,8 @@ data, with whichever AI model you choose — including none at all.
 
 ![The KandiDate workspace: the hiring overview with attention items, getting-started steps and today's queue](docs/assets/readme-workspace.png)
 
+*The hiring overview on first run: attention items, getting-started steps and today's queue — on one board, seeded with demo data.*
+
 ## Two-minute local start
 
 You need **Node 20+** and **Python 3.11+** on your `PATH` (Python is spawned per
