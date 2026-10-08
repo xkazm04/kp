@@ -8,6 +8,7 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "../testing/unit-db.ts";
+import { DEFAULT_STAGE_AXIS } from "../pipeline-stages.ts";
 import {
   actOnPipelineEntry,
   calibrationOutcome,
@@ -72,7 +73,7 @@ test("reached Interview ONLY via a board-edit migration, moved back and rejected
   const e = addEntry(41);
   // The board edit moves every active Screened occupant of WS; the other fixtures
   // in this file are terminal or added later, so only e is moved.
-  assert.ok(migratePipelineStages([{ fromStage: "Screened", toStage: "Interview" }], WS) >= 1);
+  assert.ok(migratePipelineStages([{ fromStage: "Screened", toStage: "Interview" }], DEFAULT_STAGE_AXIS, WS) >= 1);
   assert.ok(setPipelineEntryStage(e.id, "Screened", undefined, WS));
   assert.ok(act(e.id, "reject"));
   assert.equal(outcomeOf(41), 0, "a board-shape move is not evidence the score advanced anyone");

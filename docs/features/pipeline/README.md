@@ -204,7 +204,7 @@ older mapping, or a config edited outside the UI.
 
 ### `stage_migrated`
 
-`migratePipelineStages(migrations, workspaceId)` moves everyone off the removed
+`migratePipelineStages(migrations, toAxis, workspaceId)` moves everyone off the removed
 columns in ONE `IMMEDIATE` transaction and writes a `stage_migrated` event per
 moved candidate, carrying from/to. The moves run BEFORE the axis write and the two
 sit behind separate SQLite connections, so no transaction spans them: a failure
@@ -216,6 +216,40 @@ recruiter reading the trail weeks later needs that distinction. Terminal
 (`rejected` / `declined`) rows are excluded, matching `listPipeline` and
 `countPipelineByStage`: they are not on the board, so removing their column
 strands nobody, and moving them would rewrite closed history.
+
+**The terminal stage is not a migration destination.** `Hired` (the `terminal` role) is
+reached by an accepted offer, never by a move, and every request-driven writer refuses it
+by ROLE. This door used to be the exception: a mapping `{Interview: "Hired"}` answered 200
+and left the candidates on the outcome column with no offer. Now:
+
+- the route 422s `PIPELINE_TERMINAL_NOT_MANUAL` with `{fromStage, toStage}` for a mapping
+  whose destination has the terminal role on the NEW axis (so a renamed terminal column is
+  refused too), beside the other mapping refusals: before the rate limit, before any move,
+  with no axis written;
+- it also 422s with `{stage}` when the new axis hands the terminal role to a column that is
+  not the stored axis's terminal and that column holds active candidates — they would stand
+  on the outcome column with no offer and no stage write at all;
+- the store enforces the same rule: `migratePipelineStages(migrations, toAxis, …)` takes the
+  axis it moves INTO as a REQUIRED argument and throws `TerminalMigrationTargetError`
+  before any write, even when an earlier leg was valid;
+- the step editor's stranded picker (`kit/strandedTargets.ts`) does not offer the terminal
+  column, as the drawer's move menu does not.
+
+**Parity with `setPipelineEntryStage`.** The migration also clears `approval_kind` /
+`approval_detail` (an approval belonged to the stage the candidate left), stamps
+`updated_at`, and after the commit fires the stage-arrival hook once per moved entry.
+`scheduleStageEnteredHook` defers its work with `afterResponse`, so the hook runs after the
+route has written the new axis. It is idempotent per (entry, stage) and honours the contact
+gates, as for a batch move.
+
+**The census.** The guard stays per door; `app/_lib/db/pipeline-stage-writers.test.ts` makes
+every door declare itself. It walks `app/` and `pipeline/` for every SQL write of
+`pipeline_entries.stage` and every caller of a store function that writes it, and compares
+them with a checked-in table (refuses terminal with the guard's file:line · terminal by
+design · boot migration · seed · known gap · not a move). A new, unclassified, recounted or
+vanished writer fails the test and names it. Known gaps it records: the policy/screening
+advance and the schedule `approve_event` can reach the terminal column on an axis that has
+no interview or offer column.
 
 ## Flows
 

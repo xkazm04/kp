@@ -1577,7 +1577,7 @@ const ROUTES: RouteSpec[] = [
     optsSrc: "MIGRATION_RATE_LIMIT",
     optsDef: "const MIGRATION_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
     refusalCode: "TOO_MANY_REQUESTS",
-    expensive: "migratePipelineStages(migrations, ws)",
+    expensive: "migratePipelineStages(migrations, next.stages, ws)",
     servedBefore: 'jsonRefusal("PIPELINE_MIGRATION_REQUIRED", 409',
   },
   {

@@ -166,3 +166,48 @@ test("GET /api/pipeline/stage-impact reports occupancy alongside the axis", asyn
   assert.deepEqual(body.stages.map((s) => s.id), [...SHIPPED.map((s) => s.id)]);
   assert.ok(Array.isArray(body.retiredStages));
 });
+
+// ---- the terminal stage is outcome-bearing: this door refuses it like every other ----
+
+test("migrating a removed column onto the terminal stage is 422 — nobody moved, axis untouched, no limiter budget spent", async () => {
+  entryAt("Interview");
+  const occupants = at("Interview");
+  const hired = at("Hired");
+  assert.ok(occupants > 0, "precondition");
+
+  // The council's probe. More refusals than the limiter's budget (20): if a refusal
+  // spent any, the legitimate call after them would answer 429.
+  for (let i = 0; i < 25; i += 1) {
+    const res = await post({ config: without("Interview"), migrate: { Interview: "Hired" } });
+    assert.equal(res.status, 422);
+    const body = (await res.json()) as { code: string; fromStage: string; toStage: string };
+    assert.equal(body.code, "PIPELINE_TERMINAL_NOT_MANUAL");
+    assert.deepEqual([body.fromStage, body.toStage], ["Interview", "Hired"]);
+  }
+  assert.equal(at("Interview"), occupants, "nobody moved");
+  assert.equal(at("Hired"), hired);
+  const board = (await (await boardGet()).json()) as { stages: { id: string }[] };
+  assert.deepEqual(board.stages.map((s) => s.id), [...SHIPPED.map((s) => s.id)], "the axis was not written");
+
+  const ok = await post({ config: without("Interview"), migrate: { Interview: "Screened" } });
+  assert.equal(ok.status, 200, "no budget was spent by the refusals");
+  assert.equal((await post({ config: restore, migrate: {} })).status, 200);
+});
+
+test("an axis that hands the terminal role to an OCCUPIED column is refused with that stage", async () => {
+  entryAt("Offer");
+  assert.ok(at("Offer") > 0, "precondition");
+  // The validator wants the terminal LAST, so Offer and Hired trade places and roles.
+  const byId = (id: string) => SHIPPED.find((s) => s.id === id)!;
+  const reRoled = {
+    stages: [...SHIPPED.slice(0, 3), { ...byId("Hired"), role: "custom" }, { ...byId("Offer"), role: "terminal" }],
+    retired: [],
+  };
+  const res = await post({ config: reRoled, migrate: {} });
+  assert.equal(res.status, 422);
+  const body = (await res.json()) as { code: string; stage: string };
+  assert.equal(body.code, "PIPELINE_TERMINAL_NOT_MANUAL");
+  assert.equal(body.stage, "Offer");
+  const board = (await (await boardGet()).json()) as { stages: { id: string; role: string }[] };
+  assert.equal(board.stages.find((s) => s.id === "Hired")?.role, "terminal", "the axis was not written");
+});

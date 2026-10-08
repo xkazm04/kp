@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { countPipelineByStage, migratePipelineStages, type StageMigration } from "@/app/_lib/db/pipeline";
+import { countPipelineByStage, migratePipelineStages, TerminalMigrationTargetError, type StageMigration } from "@/app/_lib/db/pipeline";
 import { getDecisionConfigVersion, setDecisionConfig } from "@/app/_lib/decision-config-store";
 import { validateDecisionConfig, type PipelineStagesRule } from "@/app/_lib/decision-config-schema";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
+import { stageHasRole, stageWithRole } from "@/app/_lib/pipeline-stages";
 import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
@@ -103,6 +104,12 @@ export async function POST(request: NextRequest) {
       if (!nextIds.has(toStage)) {
         return jsonRefusal("PIPELINE_MIGRATION_MAPPING_INVALID", 400, { fromStage, toStage, reason: "target_missing" });
       }
+      // The terminal stage is outcome-bearing: it is reached by an accepted offer,
+      // never by a move. Every other writer refuses it by ROLE (set_stage, accept, add,
+      // batch); resolving it against the NEW axis here also refuses a renamed terminal.
+      if (stageHasRole(toStage, "terminal", next.stages)) {
+        return jsonRefusal("PIPELINE_TERMINAL_NOT_MANUAL", 422, { fromStage, toStage });
+      }
       migrations.push({ fromStage, toStage });
     }
 
@@ -110,6 +117,13 @@ export async function POST(request: NextRequest) {
     // recomputes occupancy here. A removal with occupants and no mapping is
     // refused — the client's Save button is a courtesy, this is the guarantee.
     const counts = countPipelineByStage(ws);
+    // RE-ROLE: if the new axis hands the terminal role to a column that is not the stored
+    // axis's terminal, whoever stands on it would be on the outcome column with no offer
+    // and no stage write at all. Refused like a mapping onto it.
+    const nextTerminal = stageWithRole("terminal", next.stages);
+    if (nextTerminal && nextTerminal !== stageWithRole("terminal", current.stages) && (counts[nextTerminal] ?? 0) > 0) {
+      return jsonRefusal("PIPELINE_TERMINAL_NOT_MANUAL", 422, { stage: nextTerminal });
+    }
     const mapped = new Set(migrations.map((m) => m.fromStage));
     const unmapped = removed.filter((id) => (counts[id] ?? 0) > 0 && !mapped.has(id));
     if (unmapped.length > 0) {
@@ -122,7 +136,7 @@ export async function POST(request: NextRequest) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
-    const moved = migratePipelineStages(migrations, ws);
+    const moved = migratePipelineStages(migrations, next.stages, ws);
     // Team-tier override: this workspace's own board, not the org baseline. The token is
     // re-asserted HERE too, under the store's write lock: a concurrent axis save between
     // the check above and this write would otherwise be clobbered. It lands in the catch
@@ -130,6 +144,11 @@ export async function POST(request: NextRequest) {
     setDecisionConfig("pipelineStages", next as unknown as Record<string, unknown>, ws, "team", { expectedUpdatedAt });
     return NextResponse.json({ ok: true, moved, removed });
   } catch (error) {
+    // Belt and braces: the guard above makes this unreachable from here, but the store
+    // owns the invariant and a refusal from it is a decision, not an accident.
+    if (error instanceof TerminalMigrationTargetError) {
+      return jsonRefusal("PIPELINE_TERMINAL_NOT_MANUAL", 422, { fromStage: error.fromStage, toStage: error.toStage });
+    }
     return safeJsonError(error, "api:pipeline/stage-migration", "STAGE_MIGRATION_FAILED");
   }
 }

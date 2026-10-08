@@ -1213,18 +1213,35 @@ export type StageMigration = { fromStage: string; toStage: string };
  */
 export function migratePipelineStages(
   migrations: readonly StageMigration[],
+  toAxis: readonly StageDef[],
   workspaceId: string = DEFAULT_WORKSPACE_ID,
   detail = "pipeline step removed"
 ): number {
   const db = ensureDb();
+  // TERMINAL IS OUTCOME-BEARING. Every request-driven writer refuses the terminal
+  // stage by ROLE (set_stage, accept, add, batch); this one used to be the door that
+  // did not, and moved a removed column's people onto Hired with no offer. `toAxis`
+  // is REQUIRED and is the axis the migration moves INTO (the destination exists on
+  // the new axis, not the stored one), so a future caller cannot skip the check. It
+  // runs over every leg BEFORE the first write: nothing moves, no event is written,
+  // even when an earlier leg was valid.
+  for (const leg of migrations) {
+    if (stageHasRole(leg.toStage, "terminal", toAxis)) {
+      throw new TerminalMigrationTargetError(leg.fromStage, leg.toStage);
+    }
+  }
   const affected = db.prepare(
     `SELECT id, candidate_label, job_title, archetype FROM pipeline_entries
       WHERE workspace_id = ? AND stage = ? AND status NOT IN ${TERMINAL_STATUS_SQL_LIST}`
   );
+  // Parity with setPipelineEntryStage: a pending approval belonged to the stage the
+  // candidate stood on, so it is cleared with the move, and updated_at is stamped.
   const move = db.prepare(
-    `UPDATE pipeline_entries SET stage = ?, stage_changed_at = ?
+    `UPDATE pipeline_entries SET stage = ?, approval_kind = NULL, approval_detail = NULL, stage_changed_at = ?, updated_at = ?
       WHERE workspace_id = ? AND stage = ? AND status NOT IN ${TERMINAL_STATUS_SQL_LIST}`
   );
+  // entry id -> the stage it finally stands on, consumed after the commit.
+  const arrivals = new Map<string, string>();
   // IMMEDIATE so the read→compute→write below cannot interleave with a concurrent
   // stage change (the repo's actOnPipelineEntry convention).
   const run = db.transaction((legs: readonly StageMigration[]) => {
@@ -1239,8 +1256,9 @@ export function migratePipelineStages(
         archetype: string | null;
       }[];
       if (rows.length === 0) continue;
-      move.run(leg.toStage, now, workspaceId, leg.fromStage);
+      move.run(leg.toStage, now, now, workspaceId, leg.fromStage);
       for (const row of rows) {
+        arrivals.set(row.id, leg.toStage);
         recordEvent(db, {
           entryId: row.id,
           candidateLabel: row.candidate_label,
@@ -1260,7 +1278,24 @@ export function migratePipelineStages(
   });
   // IMMEDIATE: the read→compute→write above must not interleave with a concurrent
   // stage change (the repo's actOnPipelineEntry convention).
-  return run.immediate(migrations);
+  const moved = run.immediate(migrations);
+  // POST-COMMIT arrival hook, once per moved entry (the choke point setPipelineEntryStage
+  // also feeds). scheduleStageEnteredHook defers its work with afterResponse, so for the
+  // stage-migration route it runs AFTER the route has written the new axis. The hook is
+  // idempotent per (entry, stage) and honours the contact gates, as for a batch move.
+  for (const [entryId, stage] of arrivals) notifyStageEnteredHook({ entryId, stage, workspaceId, actorRef: null });
+  return moved;
+}
+
+/** A migration leg named the terminal stage as its destination. Nothing was written. */
+export class TerminalMigrationTargetError extends Error {
+  constructor(
+    readonly fromStage: string,
+    readonly toStage: string
+  ) {
+    super(`stage migration refused: ${toStage} is the terminal stage (reached only by an accepted offer)`);
+    this.name = "TerminalMigrationTargetError";
+  }
 }
 
 // --- Human re-review of auto-rejections (idea-e43fa801) ----------------------

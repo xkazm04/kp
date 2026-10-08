@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { Mark, Section, SettingRow } from "@/app/_components/kit";
 import { Select } from "@/app/_components/Select";
+import { strandedTargetStages } from "./strandedTargets";
 import { strandedRows, type Composer } from "./hiringKitModel";
 
 /**
@@ -15,7 +16,7 @@ export function HiringKitStranded({ c }: { c: Composer }) {
   const t = useTranslations("hiringPlan.steps");
   if (!c.axis || c.stranded.length === 0) return null;
   const stages = c.axis.stages;
-  const options = [{ value: "", label: t("mapChoose") }, ...stages.map((s) => ({ value: s.id, label: s.label || s.id }))];
+  const options = [{ value: "", label: t("mapChoose") }, ...strandedTargetStages(stages).map((s) => ({ value: s.id, label: s.label || s.id }))];
 
   return (
     <Section title={t("strandedTitle")} state={t("strandedHint")} tone="caution">
