@@ -259,6 +259,15 @@ async function sweepExpiredConsents(): Promise<void> {
   } catch (e) {
     console.error("[clock] consent anonymization sweep failed:", e);
   }
+  // Part of the same statutory sweep: an anonymized entry's calendar event still lists the
+  // person as an attendee. Delete it (and retry the ones that failed) — ADR 0021 amendment.
+  try {
+    const { sweepErasedInterviewEvents } = await import("./app/_lib/calendar/erasure-events");
+    const swept = await sweepErasedInterviewEvents();
+    if (swept.removed || swept.orphaned) console.log("[clock] erased candidates' calendar events → removed/orphaned:", swept.removed, swept.orphaned);
+  } catch (e) {
+    console.error("[clock] erased calendar event sweep failed:", e);
+  }
   // Statutory like the sweep above (storage limitation): the contact a KO-declined applicant
   // left in the outbox and the decline event's name are blanked after the retention window.
   try {

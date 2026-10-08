@@ -2491,7 +2491,8 @@ function scrubEntryLinkedPii(
   // record (the candidate declined nothing, so no 'declined'; 'expired' is derived, not
   // stored); the reminder sweep skips an anonymized entry instead (dueReminders). The
   // join link is dropped with the token. The interviewer's calendar event is NOT
-  // touched here — erasure stays synchronous, with no outbound call.
+  // touched here — erasure stays synchronous, with no outbound call. It is removed after
+  // the commit by calendar/erasure-events.ts (ADR 0021 amendment).
   if (tables.has("schedule_invites")) {
     db.prepare(
       `UPDATE schedule_invites
