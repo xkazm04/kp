@@ -176,3 +176,7 @@ built against the documented event vocabulary has no reason to re-check.
   a weakening of a published contract; nothing in `docs/features/integrations/`
   documented the unconditional version to a customer, but a real consumer
   depending on it would force a schema-versioned answer instead.
+
+## Amendments
+
+- **2026-10-08 — the freshness closure also re-asserts the destination.** `deliveryStillJustified` now re-reads the ATS config as its first step, directly before the POST: a changed owner organization ends the row terminally, a changed URL is retried. That check is about where the delivery goes, not which transition it names, so it is recorded in [ADR 0020](0020-an-ats-decision-releases-a-reason-only-when-the-server-built-it.md) (with the rule for which decision rationales the record may carry). The body of this record is not rewritten.
