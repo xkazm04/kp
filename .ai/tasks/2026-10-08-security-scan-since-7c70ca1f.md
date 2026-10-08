@@ -26,8 +26,8 @@ records are `2026-10-07-pipeline-write-doors-scan.md` and
 
 | ID | Where | Severity | Status |
 | --- | --- | --- | --- |
-| E1 | `scripts/economics/snapshot.mjs:163-185` (pre-fix), `openReadOnly` | medium | fixed in `c31af2230` |
-| E2 | `scripts/economics/snapshot.mjs:168-173` (pre-fix), db-then-wal copy | medium | fixed in `c31af2230` |
+| E1 | `scripts/economics/snapshot.mjs:163-185` (pre-fix), `openReadOnly` | medium | fixed in `ab598d918` |
+| E2 | `scripts/economics/snapshot.mjs:168-173` (pre-fix), db-then-wal copy | medium | fixed in `ab598d918` |
 | P1 | `app/api/pipeline/stage-migration/route.ts:88-114`, plus `app/_lib/db/pipeline.ts:1225-1229` | low | reported |
 | P2 | `app/api/pipeline/stage-migration/route.ts:119-126` | low | reported |
 | P3 | `app/api/pipeline/stage-migration/route.ts:135` | low | reported (pre-existing) |

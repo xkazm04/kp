@@ -28,6 +28,34 @@ snapshot exists. When none exists the council review says telemetry is absent.
 - When a `-wal` file sits beside it (the server is running), `db`, `-wal` and `-shm` are copied
   to an `os.tmpdir()` folder and the **copy** is opened, then deleted. The source is never
   written; `scripts/economics/__tests__/snapshot.test.mjs` compares its bytes before and after.
+- The three files are copied one after another, so the copy can straddle a checkpoint. A copy
+  is accepted only when the `-wal` header (its first 32 bytes, which hold the salts) is
+  unchanged across the copy, or the db file's size and mtime are. Otherwise it is discarded and
+  taken again.
+- After 3 attempts the script refuses with `the database changed under every one of 3 copies (a
+  checkpoint each time); run again, or stop the server first`. It never reports numbers from a
+  copy it could not vouch for.
+- Any failure after the temp folder is made (a failed copy, a torn copy, a copy that does not
+  open) removes the folder before the error is rethrown, so no copy of the database outlives a
+  failure. On success the folder is removed when the handle is closed.
+- Limit: on a filesystem with coarse timestamps the mtime check can accept a copy torn within
+  one tick. The wal-header check decides first, and the mtime check is only the fallback when
+  the header changed or could not be read.
+
+### Why a copy
+
+The constraint is that the live database belongs to a running server and the snapshot must
+never write it (`snapshot.mjs` header: the copy "leaves the source untouched"). So when a `-wal`
+file shows the server is up, the script reads a copy instead of the live file.
+
+Nothing in the code, the docs or the economics design record
+([../reviews/2026-10-08-economics-evidence.md](../reviews/2026-10-08-economics-evidence.md))
+compares the alternatives, so none has a recorded reason for losing:
+
+- opening the live file read-only: the script does this only when there is no `-wal` file;
+  with one, why it was not used was not evaluated;
+- SQLite's online backup API: not evaluated;
+- `VACUUM INTO`: not evaluated.
 
 ## What it writes
 
