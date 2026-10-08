@@ -136,6 +136,9 @@ test.describe("Journeys — the board opens over the workspace and renders the l
     // content does not exist on a touch screen or to a screen reader.
     await page.goto("/?tab=journeys");
     await expect(board(page)).toBeVisible();
+    // The overlay opens on the cohort layer (the whole process); the per-role
+    // board, where a phase can be absent, is one deliberate step below it.
+    await board(page).getByRole("button", { name: "Open the journey board" }).click();
     await expect
       .poll(async () => await board(page).getByRole("button").filter({ hasText: /\S/ }).count(), {
         timeout: 15_000,
@@ -145,7 +148,7 @@ test.describe("Journeys — the board opens over the workspace and renders the l
     // The seeded corpus runs no work-sample case, so every role's case band is
     // absent WITH a reason — the one absence guaranteed to be on screen.
     const absence = board(page).getByText(/nothing happened here|never recorded|no work-sample case/i);
-    expect(await absence.count()).toBeGreaterThan(0);
+    await expect.poll(async () => await absence.count(), { timeout: 15_000 }).toBeGreaterThan(0);
     await expect(absence.first()).toBeVisible();
   });
 });
