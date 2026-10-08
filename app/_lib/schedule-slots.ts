@@ -17,15 +17,6 @@
 
 import { DEFAULT_INTERVIEW_MINUTES } from "./calendar/constants";
 
-/** The offered interview times per business day, in the interview zone. Defaults to
- *  10:00 + 14:00 but is config-driven via KP_INTERVIEW_TIMES (comma-separated "HH:MM")
- *  so a deployment can lift the per-day interview capacity beyond two — the simplest
- *  throughput lever short of a full per-interviewer availability model (the global,
- *  host-blind slot pool otherwise caps the WHOLE org at two interviews/day). Malformed
- *  entries are dropped; an empty/all-bad config falls back to the default. Deduped +
- *  sorted so the proposal order is stable and a slot's identity is one canonical instant.
- *  NOTE: collision is still global (host-blind) — per-interviewer/per-job availability
- *  and real-calendar conflict avoidance are the deferred Phase 2. */
 // --- Invite link lifecycle: TTL / expiry (Direction 1) -------------------------
 //
 // A self-scheduling link used to be immortal: a pending invite that was never
@@ -46,24 +37,7 @@ export const INVITE_LINK_TTL_DAYS = 7;
 
 const INVITE_LINK_TTL_MS = INVITE_LINK_TTL_DAYS * 86_400_000;
 
-/** True when a self-scheduling invite is a dead capability: still 'pending' (never
- *  booked) and un-booked for more than INVITE_LINK_TTL_DAYS. Derived — a confirmed
- *  booking never expires this way, and the explicit terminal states (declined /
- *  no_show) are already closed. `nowMs` is injectable for tests.
- *
- *  THE ANCHOR IS "when this link last became an un-booked capability", not always
- *  created_at. A cancelled attendance (cancelAttendance — the candidate's "I can't
- *  make it" RSVP, and the recruiter's cancel action, which reuses it) deliberately
- *  returns a CONFIRMED invite to 'pending' so the same link can pick a new time. On
- *  the 21-day booking horizon that cancel routinely lands more than 7 days after the
- *  link was minted, and anchoring on created_at alone made the link expire the instant
- *  it re-opened: the candidate was told "your booking is released — pick a new time",
- *  the next GET answered `closed: "expired"` over an empty grid, and every re-book POST
- *  got 410. It also broke createScheduleInvite's documented re-invite reuse (it stacked
- *  a second token instead). So a cancel-reopened invite restarts the TTL from the cancel
- *  stamp — the re-opened link still ages out, on its own clock. attendance_status is
- *  cleared on every (re-)booking, so the marker lives exactly as long as the re-opened
- *  window does; an old row with no attendance columns falls back to created_at. */
+/** The fields the expiry clock reads: created_at plus the two stamps that restart it. */
 export type ScheduleInviteAnchorInput = {
   createdAt: string;
   attendanceStatus?: string | null;
@@ -95,6 +69,24 @@ export function scheduleInviteExpiryAnchor(invite: ScheduleInviteAnchorInput): n
   return anchor;
 }
 
+/** True when a self-scheduling invite is a dead capability: still 'pending' (never
+ *  booked) and un-booked for more than INVITE_LINK_TTL_DAYS. Derived — a confirmed
+ *  booking never expires this way, and the explicit terminal states (declined /
+ *  no_show) are already closed. `nowMs` is injectable for tests.
+ *
+ *  THE ANCHOR IS "when this link last became an un-booked capability", not always
+ *  created_at. A cancelled attendance (cancelAttendance — the candidate's "I can't
+ *  make it" RSVP, and the recruiter's cancel action, which reuses it) deliberately
+ *  returns a CONFIRMED invite to 'pending' so the same link can pick a new time. On
+ *  the 21-day booking horizon that cancel routinely lands more than 7 days after the
+ *  link was minted, and anchoring on created_at alone made the link expire the instant
+ *  it re-opened: the candidate was told "your booking is released — pick a new time",
+ *  the next GET answered `closed: "expired"` over an empty grid, and every re-book POST
+ *  got 410. It also broke createScheduleInvite's documented re-invite reuse (it stacked
+ *  a second token instead). So a cancel-reopened invite restarts the TTL from the cancel
+ *  stamp — the re-opened link still ages out, on its own clock. attendance_status is
+ *  cleared on every (re-)booking, so the marker lives exactly as long as the re-opened
+ *  window does; an old row with no attendance columns falls back to created_at. */
 export function isScheduleInviteExpired(
   invite: { status: string } & ScheduleInviteAnchorInput,
   nowMs: number = Date.now()
@@ -105,6 +97,15 @@ export function isScheduleInviteExpired(
   return anchor < nowMs - INVITE_LINK_TTL_MS;
 }
 
+/** The offered interview times per business day, in the interview zone. Defaults to
+ *  10:00 + 14:00 but is config-driven via KP_INTERVIEW_TIMES (comma-separated "HH:MM")
+ *  so a deployment can lift the per-day interview capacity beyond two — the simplest
+ *  throughput lever short of a full per-interviewer availability model (the global,
+ *  host-blind slot pool otherwise caps the WHOLE org at two interviews/day). Malformed
+ *  entries are dropped; an empty/all-bad config falls back to the default. Deduped +
+ *  sorted so the proposal order is stable and a slot's identity is one canonical instant.
+ *  NOTE: collision is still global (host-blind) — per-interviewer/per-job availability
+ *  and real-calendar conflict avoidance are the deferred Phase 2. */
 export function parseInterviewTimes(raw: string | undefined): readonly string[] {
   const DEFAULT = ["10:00", "14:00"];
   if (!raw) return DEFAULT;
