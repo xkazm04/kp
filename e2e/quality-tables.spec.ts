@@ -90,10 +90,28 @@ test.beforeAll(async ({ request }) => {
   });
   expect(sealed.ok(), `POST /api/pipeline/[id] responded ${sealed.status()}`).toBe(true);
 
-  const records = await request.get("/api/decisions/records");
-  expect(records.ok(), `GET /api/decisions/records responded ${records.status()}`).toBe(true);
-  const { chain } = (await records.json()) as { chain: { count: number } };
-  expect(chain.count, "the fixture must leave at least one link in the chain").toBeGreaterThan(0);
+  // WAIT ON THE CONDITION, NOT ON THE WRITE. /api/decisions/records serves a
+  // 20 s per-workspace memo with no write-path invalidation (records/route.ts
+  // recordsCache, ttl-cache.ts DEFAULT_TTL_MS). At 8 workers another spec's page
+  // (analytics-sections, journey-one-thread) can read the chain a moment before
+  // the reject above seals, and this read then returns THAT payload — count 0,
+  // although the seal has landed. The product states the lag as accepted, so the
+  // fixture polls for its OWN record (by the entry id it just created) and the
+  // memo's expiry produces it; the count alone could be satisfied by a sibling's.
+  type Sealed = { records: Array<{ candidateRef: string }>; chain: { count: number } };
+  let sealedRead: Sealed | undefined;
+  await expect
+    .poll(
+      async () => {
+        const records = await request.get("/api/decisions/records");
+        expect(records.ok(), `GET /api/decisions/records responded ${records.status()}`).toBe(true);
+        sealedRead = (await records.json()) as Sealed;
+        return sealedRead.records.some((r) => r.candidateRef === entryId);
+      },
+      { message: "the fixture's own sealed record must appear in the chain", timeout: 40_000, intervals: [500, 1_000, 2_000, 5_000] },
+    )
+    .toBe(true);
+  expect(sealedRead?.chain.count, "the fixture must leave at least one link in the chain").toBeGreaterThan(0);
 });
 
 test.describe("Decision log — table, not infinite scroll", () => {
@@ -128,7 +146,18 @@ test.describe("Decision log — table, not infinite scroll", () => {
     await expect(pager).toBeVisible();
 
     const firstRowBefore = await logTable(page).locator("tbody tr").first().innerText();
-    await pager.getByRole("button", { name: /next/i }).click();
+    // WAIT FOR PAGE 2, not for the click. DecisionLogTable arms a 250 ms subject
+    // debounce on MOUNT whose callback is `setPage(0)` (DecisionLogTable.tsx:88-94),
+    // so a Next pressed inside that window of the table's first paint is undone
+    // 250 ms later — measured: GET offset=0, GET offset=20, then GET offset=0 again
+    // ~100 ms after, the pager back on "Page 1 of 6". At 8 workers the first paint
+    // and this click land together. The click is therefore repeated until the pager
+    // itself says page 2; once the debounce has fired it cannot fire again.
+    const pageTwo = pager.getByText(/Page 2 of/);
+    await expect(async () => {
+      if (!(await pageTwo.isVisible())) await pager.getByRole("button", { name: /next/i }).click({ timeout: 2_000 });
+      await expect(pageTwo).toBeVisible({ timeout: 3_000 });
+    }).toPass({ timeout: 30_000 });
     await expect(async () => {
       const after = await logTable(page).locator("tbody tr").first().innerText();
       expect(after).not.toBe(firstRowBefore);
