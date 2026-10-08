@@ -24,16 +24,16 @@ export function RoleTraceCard({ trace }: { trace: RoleTrace }) {
       </p>
       {added.length ? (
         <>
-          <p className="mt-1.5 text-sm text-ink">{t("roleTraceAddedIntro", { count: added.length })}</p>
+          <p className="mt-1.5 text-body text-ink">{t("roleTraceAddedIntro", { count: added.length })}</p>
           {ROLE_TRACE_SECTIONS.map((section) => {
             const items = added.filter((l) => l.section === section);
             if (!items.length) return null;
             return (
               <div key={section} className="mt-2">
-                <p className="text-sm font-semibold text-steel">{sectionLabel[section]}</p>
+                <p className="text-body font-semibold text-steel">{sectionLabel[section]}</p>
                 <ul className="mt-0.5 space-y-0.5">
                   {items.map((l, i) => (
-                    <li key={i} className="text-sm text-ink">• {l.text}</li>
+                    <li key={i} className="text-body text-ink">• {l.text}</li>
                   ))}
                 </ul>
               </div>
@@ -41,7 +41,7 @@ export function RoleTraceCard({ trace }: { trace: RoleTrace }) {
           })}
         </>
       ) : (
-        <p className="mt-1.5 text-sm text-steel">{t("roleTraceNoneAdded")}</p>
+        <p className="mt-1.5 text-body text-steel">{t("roleTraceNoneAdded")}</p>
       )}
     </div>
   );
