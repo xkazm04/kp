@@ -41,6 +41,11 @@ test("a pending booking invite is 'book_interview', open until the 7-day TTL", (
   assert.deepEqual(out, { kind: "book_interview", sentAt: iso(T - DAY), expiresAt: iso(T - DAY + 7 * DAY) });
 });
 
+test("a pending invite whose created_at cannot be parsed returns with no deadline instead of throwing", () => {
+  const out = candidateNextAction(input({ invites: [{ status: "pending", createdAt: "garbage" }] }));
+  assert.deepEqual(out, { kind: "book_interview", sentAt: "garbage", expiresAt: null });
+});
+
 test("a candidate's own proposal moves the stated deadline with proposals_at", () => {
   const invite = { status: "pending", createdAt: iso(T - 10 * DAY), proposalStatus: "pending", proposalsAt: iso(T - 2 * DAY) };
   assert.deepEqual(candidateNextAction(input({ invites: [invite] })), {

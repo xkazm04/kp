@@ -81,7 +81,10 @@ export function candidateNextAction(input: NextActionInput): CandidateNextAction
 
   const live = pickLiveInvite(input.invites, now);
   if (live) {
-    return { kind: "book_interview", sentAt: live.createdAt, expiresAt: new Date(scheduleInviteExpiryAnchor(live) + INVITE_LINK_TTL_DAYS * DAY_MS).toISOString() };
+    // NaN-safe: an unparseable created_at has no anchor, and toISOString() on an
+    // invalid Date throws a RangeError on the public status path - no deadline, not a crash.
+    const anchor = scheduleInviteExpiryAnchor(live);
+    return { kind: "book_interview", sentAt: live.createdAt, expiresAt: Number.isNaN(anchor) ? null : new Date(anchor + INVITE_LINK_TTL_DAYS * DAY_MS).toISOString() };
   }
 
   const iv = input.interview;
