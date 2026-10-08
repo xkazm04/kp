@@ -13,8 +13,9 @@ import { useIngestJob, useJdDetail } from "./jdsHooks";
 import { builderLintFindings, isUnlinked, jdMarketResearchAvailable, jdMustHaveCount, LINT_MIN_BODY_CHARS, type JdRow } from "./jdsLibrary";
 import { JdLintPanel } from "./JdsLintPanel";
 import type { CoachEdit } from "@/app/features/library/jobs/jobsCoachApply";
+import { RoleTraceCard } from "./JdsLedgerRoleTraceCard";
 import { BuildingPanel, CaseCard, FailedPanel, RepoGroundingCard, SalaryCard } from "./JdsLedgerDetailPanels";
-import { hasCaseContent, hasRepoGrounding, parseArtifacts, readBuildIntent, type CaseArtifact } from "./jdsLedgerArtifacts";
+import { hasCaseContent, hasRepoGrounding, parseArtifacts, readBuildIntent, readRoleTrace, type CaseArtifact } from "./jdsLedgerArtifacts";
 import { BuildHeldBand, BuildIntentLine } from "./JdsLedgerBuildProvenance";
 import { JdsLedgerDetailRail } from "./JdsLedgerDetailRail";
 
@@ -95,6 +96,7 @@ export function LedgerDetailModal({
   // Structured artifacts (salary / case) the build stored beside the markdown body.
   // Parsed inline (the modal renders infrequently and the blob is small).
   const artifacts = parseArtifacts(jd?.analysis_json);
+  const roleTrace = readRoleTrace(artifacts);
   // What the build RAN with (template / output language / seniority). null for a
   // draft save or a pre-migration row — the provenance line is simply not drawn.
   const buildIntent = readBuildIntent(jd?.build_input_json);
@@ -217,6 +219,7 @@ export function LedgerDetailModal({
               {held ? <BuildHeldBand onOpenDraft={openHeldDraft} /> : null}
               {buildIntent ? <BuildIntentLine intent={buildIntent} /> : null}
               {artifacts?.salary ? <SalaryCard salary={artifacts.salary} sources={artifacts.salarySources} source={artifacts.salarySource} /> : null}
+              {roleTrace ? <RoleTraceCard trace={roleTrace} /> : null}
               {hasRepoGrounding(artifacts?.snapshot) ? <RepoGroundingCard snapshot={artifacts.snapshot} /> : null}
               {jd.body.trim() ? (
                 <>

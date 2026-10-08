@@ -13,6 +13,7 @@ import {
   parseArtifacts,
   readBuildIntent,
   readIntentPrompt,
+  readRoleTrace,
 } from "./jdsLedgerArtifacts.ts";
 
 test("parseArtifacts returns null for absent / malformed analysis_json", () => {
@@ -122,4 +123,33 @@ test("heldAsRevision reads only the literal true flag off a task result", () => 
   assert.equal(heldAsRevision(null), false);
   assert.equal(heldAsRevision(undefined), false);
   assert.equal(heldAsRevision("bodyHeldAsRevision"), false);
+});
+
+test("readRoleTrace: an old row without a trace reads null and shows nothing", () => {
+  assert.equal(readRoleTrace(null), null);
+  assert.equal(readRoleTrace(parseArtifacts(JSON.stringify({ role: { title: "Dev" } }))), null);
+  assert.equal(readRoleTrace(parseArtifacts(JSON.stringify({ roleTrace: "nope" }))), null);
+  assert.equal(readRoleTrace(parseArtifacts(JSON.stringify({ roleTrace: { designedBy: "??", lines: [] } }))), null);
+});
+
+test("readRoleTrace: a stored trace round-trips and malformed lines are dropped", () => {
+  const trace = readRoleTrace(
+    parseArtifacts(
+      JSON.stringify({
+        roleTrace: {
+          rule: "overlap-v1",
+          designedBy: "fallback",
+          lines: [
+            { section: "mustHaves", text: "Go", origin: "added" },
+            { section: "bogus", text: "x", origin: "added" },
+            { section: "languages", text: "Czech", origin: "brief" },
+            { section: "languages", text: "  ", origin: "brief" },
+            { section: "languages", text: "French", origin: "invented" },
+          ],
+        },
+      }),
+    ),
+  );
+  assert.equal(trace?.designedBy, "fallback");
+  assert.deepEqual(trace?.lines.map((l) => l.text), ["Go", "Czech"]);
 });

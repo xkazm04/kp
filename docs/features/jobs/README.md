@@ -1429,6 +1429,26 @@ detail now draws it beside the salary card (`RepoGroundingCard` in
 when it is a safe http(s) URL and `library.tab.repoGrounding` / `repoLoc` in all four
 locales.
 
+**Stated vs added (lite r1, 2026-10-08).** A built role can no longer carry a requirement the
+author never made without saying so. (1) `role-design-v5` (`pipeline/jobfit/devcase/design.py`)
+extends the grounding rule to responsibilities, nice-to-haves and languages, and the keyless
+fallback returns `languages: []` instead of `["English"]` — that English used to become a
+Languages section and, via `ingest-job.ts` → `apply.ts`, a `ko_lang` knockout question for every
+applicant. (2) `runJdBuild` sets the role's languages with `statedLanguages`
+(`app/_lib/jd-role-trace.ts`): a brief's non-empty `languages` win, otherwise only model
+languages found in the author's own input survive, so a keyless build with no stated language
+prints no Languages section and ingests no `ko_lang` step. (3) `traceRoleLines` tags every line of
+mustHaves / niceToHaves / responsibilities / languages `brief` or `added` (normalised case,
+punctuation, diacritics; ≤3-token lines match as a contiguous run, longer lines on ≥60% content-word
+overlap; doubt means `added`) and `analysis_json.roleTrace` stores it with how the role was
+designed (`model` / `fallback`); `fallbackReason` is kept beside it for diagnosis and never
+rendered. (4) The Ledger detail draws `RoleTraceCard` (`JdsLedgerRoleTraceCard.tsx`, read by
+`readRoleTrace`; an older row without a trace shows nothing). The published JD body carries no
+marks. A build that fails the min-need contract now persists `JD_BUILD_NEED_TOO_SHORT` /
+`JD_BUILD_TITLE_TOO_SHORT` rather than `JD_GENERATE_FAILED`. Known gap: a promoted brief's
+languages reach the role through `statedLanguages` but not the model prompt (`needTextFromBrief`
+does not print them).
+
 ### The JD build has one door, and four throttled entrances
 
 Four callers used to hand-roll the three-step start sequence (placeholder row →
