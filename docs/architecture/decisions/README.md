@@ -31,6 +31,7 @@ to be true for it to change?*
 - store a machine verdict in `approval_detail`, change what a Match add carries, or count Match rankings in the reasons meter → [0018](0018-a-match-verdict-is-sealed-in-the-decision-chain.md)
 - add or change an automatic decline, a knockout question, or a claim that a rejection is a person's → [0019](0019-the-knockout-decline-is-automatic-and-says-so.md)
 - add a decision reason to the ATS record, or change what the ATS POST re-checks before it sends → [0020](0020-an-ats-decision-releases-a-reason-only-when-the-server-built-it.md)
+- add a table keyed by a candidate capability token, or change what an erasure does to an offer or schedule link → [0021](0021-an-erasure-revokes-every-live-capability-link-the-candidate-holds.md)
 
 ## Index
 
@@ -56,6 +57,7 @@ to be true for it to change?*
 | [0018](0018-a-match-verdict-is-sealed-in-the-decision-chain.md) | A Match verdict is sealed in the decision chain as facts, before the add files the entry | accepted | 2026-10-07 |
 | [0019](0019-the-knockout-decline-is-automatic-and-says-so.md) | The apply knockout decline is automatic, names the must-have, and offers a person to review it | accepted | 2026-10-07 |
 | [0020](0020-an-ats-decision-releases-a-reason-only-when-the-server-built-it.md) | An ATS decision block releases a rationale only when the server built it, and the POST re-asserts its destination | accepted | 2026-10-08 |
+| [0021](0021-an-erasure-revokes-every-live-capability-link-the-candidate-holds.md) | An erasure revokes every live capability link the candidate holds | accepted | 2026-10-08 |
 
 ## Writing a new one
 
