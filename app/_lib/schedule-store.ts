@@ -835,7 +835,9 @@ export function dueReminders(windowMs: number = REMINDER_LEAD_MS): ScheduleInvit
   // eligibility rule itself lives in isEntryReminderEligible (pipeline-status.ts) —
   // the single source the rest of the app shares — and is applied here in JS rather
   // than re-encoded as a SQL predicate so the two can't drift; a null entry (orphan
-  // invite, no matching row) stays eligible, as before the join. The partial index
+  // invite, no matching row) stays eligible, as before the join. An ANONYMIZED entry is
+  // excluded in SQL: erasure leaves the invite's status alone (the candidate declined
+  // nothing), so this is where its confirmed row stops being actionable. The partial index
   // still drives the invite-side filter; p is reached by primary key. Same kp.sqlite
   // file, separate connection — the join resolves against db.ts's tables.
   const rows = db()
@@ -844,7 +846,8 @@ export function dueReminders(windowMs: number = REMINDER_LEAD_MS): ScheduleInvit
          FROM schedule_invites s
          LEFT JOIN pipeline_entries p ON p.id = s.entry_id
         WHERE s.status = 'confirmed' AND s.slot_at IS NOT NULL AND s.reminder_sent_at IS NULL
-          AND s.reminder_attempts < ?`
+          AND s.reminder_attempts < ?
+          AND (p.id IS NULL OR p.anonymized_at IS NULL)`
     )
     .all(REMINDER_MAX_ATTEMPTS) as Record<string, unknown>[];
   return rows

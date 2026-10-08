@@ -83,6 +83,14 @@ function publicInviteView(invite: ScheduleInvite) {
 // scraped link from throttling a different candidate behind the same NAT.
 const SCHEDULE_READ_RATE_LIMIT = { limit: 60, windowMs: 60_000 };
 
+// Defence in depth behind the erasure's token revocation (scrubEntryLinkedPii): an invite
+// whose linked entry has been anonymized is a door onto someone who asked to be forgotten,
+// so every verb answers it exactly as it answers a link that never existed.
+function linkedEntryErased(invite: ScheduleInvite): boolean {
+  if (!invite.entryId) return false;
+  return !!getPipelineEntry(invite.entryId, invite.workspaceId)?.anonymizedAt;
+}
+
 // GET → candidate-facing data: the invite + proposed slots.
 export async function GET(request: NextRequest, context: { params: Promise<{ token: string }> }) {
   const { token } = await context.params;
@@ -90,7 +98,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
     return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
   const invite = getScheduleInviteByToken(token);
-  if (!invite) return jsonRefusal("SCHEDULE_LINK_NOT_FOUND", 404);
+  if (!invite || linkedEntryErased(invite)) return jsonRefusal("SCHEDULE_LINK_NOT_FOUND", 404);
   // Dead-capability gate (Direction 1): a link that aged out unbooked ('expired',
   // derived), or one the state machine closed ('declined' / 'no_show'), offers no
   // slots. The candidate page renders a localized terminal card from `closed` — the
@@ -209,7 +217,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     // dropped to null rather than stored, so it can never make Intl throw later.
     const candidateTz = isValidTimeZone(body.tz) ? body.tz : null;
     const invite = getScheduleInviteByToken(token);
-    if (!invite) return jsonRefusal("SCHEDULE_LINK_NOT_FOUND", 404);
+    if (!invite || linkedEntryErased(invite)) return jsonRefusal("SCHEDULE_LINK_NOT_FOUND", 404);
 
     // Dead-capability gate (Direction 1): a stale tab can still POST after the link
     // aged out ('expired') or the state machine closed it ('declined' / 'no_show').

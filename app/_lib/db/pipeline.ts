@@ -2481,9 +2481,24 @@ function scrubEntryLinkedPii(
   if (tables.has("dev_outbox")) {
     db.prepare(`UPDATE dev_outbox SET recipient = NULL, subject = NULL, body = NULL WHERE ref = ?`).run(entryId);
   }
-  // Self-scheduling invite: the label + the timezone captured at confirm.
+  // Self-scheduling invite: the label + the timezone captured at confirm. The capability
+  // TOKEN is revoked too: it is a live door onto the erased person's interview (GET
+  // answered 200, POST could book, withdraw or propose, and a booking would write the
+  // interviewer's calendar and mail a candidate who asked to be forgotten). The column
+  // stays a non-null string because the recruiter Schedule UI and the calendar sync key
+  // on it, so it is overwritten with a random value that is never sent or shown as a
+  // link: the old link resolves to nothing. The row keeps its status as the retained
+  // record (the candidate declined nothing, so no 'declined'; 'expired' is derived, not
+  // stored); the reminder sweep skips an anonymized entry instead (dueReminders). The
+  // join link is dropped with the token. The interviewer's calendar event is NOT
+  // touched here — erasure stays synchronous, with no outbound call.
   if (tables.has("schedule_invites")) {
-    db.prepare(`UPDATE schedule_invites SET candidate_label = ?, candidate_tz = NULL WHERE entry_id = ?`).run(masked, entryId);
+    db.prepare(
+      `UPDATE schedule_invites
+          SET candidate_label = ?, candidate_tz = NULL, meeting_url = NULL,
+              token = 'erased-' || lower(hex(randomblob(16)))
+        WHERE entry_id = ?`
+    ).run(masked, entryId);
   }
   // Offer: the label + the offer-letter payload (may embed name/free-text terms). The
   // salary/currency columns are non-identifying numbers and stay as the retained record.

@@ -58,7 +58,7 @@ const { createPipelineEntry, setEntryNotes, anonymizeEntry, getPipelineEntry, sa
   await import("./db.ts");
 const { appendEntryNoteFromBody, listEntryNotes } = await import("./db/entry-notes.ts");
 const { createOffer, listOffersForEntry } = await import("./offers-store.ts");
-const { createScheduleInvite, getScheduleInviteByToken } = await import("./schedule-store.ts");
+const { createScheduleInvite, getScheduleInviteByToken, listScheduleInvitesForEntry } = await import("./schedule-store.ts");
 const { saveInterviewPrep, getInterviewPrep } = await import("./interview-prep.ts");
 const { recordRediscoveryAlerts, listRediscoveryAlerts } = await import("./rediscovery-alert-store.ts");
 // HOISTED, and it has to stay here. node:test starts the root suite as soon as the
@@ -209,7 +209,9 @@ test("erasure scrubs the candidate's PII from EVERY entry-linked table (transcri
   assertScrubbed(JSON.stringify(listOffersForEntry(entry.id)), "offers");
   assert.ok(listOffersForEntry(entry.id).every((o) => o.token === null), "the offer capability token is revoked");
   assertScrubbed(JSON.stringify(getInterviewPrep(entry.id)), "interview_preps");
-  assertScrubbed(JSON.stringify(getScheduleInviteByToken(invite.token)), "schedule_invites");
+  assert.equal(getScheduleInviteByToken(invite.token), null, "the schedule capability token is revoked");
+  assertScrubbed(JSON.stringify(listScheduleInvitesForEntry(entry.id)), "schedule_invites");
+  assert.ok(listScheduleInvitesForEntry(entry.id).length > 0, "the invite row survives as the retained record");
   assertScrubbed(JSON.stringify(listRediscoveryAlerts()), "rediscovery_alerts");
   assert.equal(heldFacts("workspace", heldRun), null, "the stored Match run (skill names, tier, score) is deleted with the candidate");
   assert.ok(heldFacts("other-team", namesakeRun), "another tenant's run for the same candidate id is not over-scrubbed");
