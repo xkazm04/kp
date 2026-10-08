@@ -554,3 +554,17 @@ test("claimReminderAttempt is a generation CAS: one winner per generation, cappe
   markReminderSent(id);
   assert.equal(claimReminderAttempt(id, 2, aged, 5), false, "a delivered reminder is never re-attempted");
 });
+
+test("two mints for one entry leave one live token (the reuse read and the INSERT share one lock)", () => {
+  const a = createScheduleInvite({ entryId: "e-double-mint", candidateLabel: "Mint", jobTitle: "Role" });
+  const b = createScheduleInvite({ entryId: "e-double-mint", candidateLabel: "Mint", jobTitle: "Role" });
+  assert.equal(b.token, a.token, "the second mint reuses the live link");
+  assert.equal(b.id, a.id);
+  const raw = new Database(TMP, { readonly: true });
+  try {
+    const n = raw.prepare(`SELECT COUNT(*) AS n FROM schedule_invites WHERE entry_id = ? AND status IN ('pending','confirmed')`).get("e-double-mint") as { n: number };
+    assert.equal(n.n, 1);
+  } finally {
+    raw.close();
+  }
+});

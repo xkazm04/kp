@@ -311,32 +311,38 @@ export function createScheduleInvite(input: {
   } catch {
     /* no pipeline_entries on this connection — default workspace */
   }
-  const existing = d
-    .prepare(
-      `SELECT * FROM schedule_invites WHERE entry_id = ? AND workspace_id = ? AND status IN ('pending','confirmed')
-        ORDER BY created_at DESC LIMIT 1`
-    )
-    .get(input.entryId, workspaceId) as Record<string, unknown> | undefined;
-  // Reuse a live invite (idempotent re-invite), but NOT an EXPIRED pending one:
-  // a link aged past the TTL is a dead capability the token route refuses, so
-  // re-inviting must mint a fresh token rather than hand back the stale one
-  // (Direction 1). A confirmed invite (or a still-fresh pending one) is reused.
-  if (existing && !isScheduleInviteExpired(rowTo(existing))) return rowTo(existing);
-  const now = new Date().toISOString();
-  const id = randomId("sch");
-  const token = randomToken("st");
-  // RETURNING * hands the freshly-inserted row back in the same statement, so we
-  // don't issue a second SELECT to read what we just wrote.
-  const row = d
-    .prepare(
-      `INSERT INTO schedule_invites (id, token, entry_id, workspace_id, candidate_label, job_title, status, duration_min, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?) RETURNING *`
-    )
-    .get(id, token, input.entryId, workspaceId, input.candidateLabel ?? null, input.jobTitle ?? null, input.durationMin ?? null, now) as Record<
-    string,
-    unknown
-  >;
-  return rowTo(row);
+  // The reuse read and the INSERT hold ONE write lock: two mints for one entry (a bulk
+  // cohort overlapping a single invite, or two processes on the file) used to both read
+  // "no live invite" and both insert, leaving two live tokens for one candidate.
+  const mint = d.transaction((): ScheduleInvite => {
+    const existing = d
+      .prepare(
+        `SELECT * FROM schedule_invites WHERE entry_id = ? AND workspace_id = ? AND status IN ('pending','confirmed')
+          ORDER BY created_at DESC LIMIT 1`
+      )
+      .get(input.entryId, workspaceId) as Record<string, unknown> | undefined;
+    // Reuse a live invite (idempotent re-invite), but NOT an EXPIRED pending one:
+    // a link aged past the TTL is a dead capability the token route refuses, so
+    // re-inviting must mint a fresh token rather than hand back the stale one
+    // (Direction 1). A confirmed invite (or a still-fresh pending one) is reused.
+    if (existing && !isScheduleInviteExpired(rowTo(existing))) return rowTo(existing);
+    const now = new Date().toISOString();
+    const id = randomId("sch");
+    const token = randomToken("st");
+    // RETURNING * hands the freshly-inserted row back in the same statement, so we
+    // don't issue a second SELECT to read what we just wrote.
+    const row = d
+      .prepare(
+        `INSERT INTO schedule_invites (id, token, entry_id, workspace_id, candidate_label, job_title, status, duration_min, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?) RETURNING *`
+      )
+      .get(id, token, input.entryId, workspaceId, input.candidateLabel ?? null, input.jobTitle ?? null, input.durationMin ?? null, now) as Record<
+      string,
+      unknown
+    >;
+    return rowTo(row);
+  });
+  return mint.immediate();
 }
 
 export function getScheduleInviteByToken(token: string): ScheduleInvite | null {
