@@ -170,7 +170,7 @@ test.describe("Profile builder — archetype routing + completeness", () => {
     // state, so persistence is asserted via the GET below, not the UI.)
 
     // Persisted record reflects the routed archetype + score.
-    const record = await page.request.get(`/api/profile?id=${savedId}`);
+    const record = await page.request.get(`/api/profile?id=${savedId}`, { maxRetries: 3 });
     const { profile } = (await record.json()) as ProfileGet;
     expect(profile.archetype).toBe("bau");
     expect(profile.completeness).toBe(1);
@@ -211,7 +211,7 @@ test.describe("Profile builder — archetype routing + completeness", () => {
     expect(savedId, "save should persist and return an id").toBeTruthy();
 
     // (Editor stays open on the saved state now — persistence asserted via GET.)
-    const record = await page.request.get(`/api/profile?id=${savedId}`);
+    const record = await page.request.get(`/api/profile?id=${savedId}`, { maxRetries: 3 });
     const { profile } = (await record.json()) as ProfileGet;
     expect(profile.archetype).toBe("student");
     expect(profile.completeness).toBe(0.89);

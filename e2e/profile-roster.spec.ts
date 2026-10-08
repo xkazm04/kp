@@ -33,12 +33,20 @@ test.beforeEach(async ({ page }) => {
 
 // Every fixture this file saves is deleted again, so a repeated run cannot inflate
 // the roster it measures (the pager test reads the real total).
+//
+// The idempotent requests below (GET, DELETE by id) carry `maxRetries: 3`: Playwright
+// retries ONLY a connection reset with it. The standalone server closes idle
+// keep-alive sockets after Node's default 5 s (KEEP_ALIVE_TIMEOUT is not set), and
+// the first request after a long UI step can reuse a socket as it closes —
+// measured at 8 workers, "apiRequestContext.get: read ECONNRESET" on a plain
+// GET /api/profile, no server-side error logged. Creates (POST) are NOT retried: a
+// reset after the server acted would save the profile twice.
 test.afterEach(async ({ page }) => {
-  const res = await page.request.get("/api/profile");
+  const res = await page.request.get("/api/profile", { maxRetries: 3 });
   if (!res.ok()) return;
   const { profiles = [] } = (await res.json()) as { profiles?: { id: string; label: string }[] };
   for (const p of profiles.filter((p) => p.label.startsWith("ZZ"))) {
-    await page.request.delete(`/api/profile?id=${encodeURIComponent(p.id)}`);
+    await page.request.delete(`/api/profile?id=${encodeURIComponent(p.id)}`, { maxRetries: 3 });
   }
 });
 
@@ -76,7 +84,7 @@ async function createProfile(page: Page, displayName: string, sourceAnalysisSlug
 }
 
 async function profileCount(page: Page): Promise<number> {
-  const res = await page.request.get("/api/profile");
+  const res = await page.request.get("/api/profile", { maxRetries: 3 });
   expect(res.ok()).toBeTruthy();
   const body = (await res.json()) as { profiles?: unknown[] };
   return (body.profiles ?? []).length;
