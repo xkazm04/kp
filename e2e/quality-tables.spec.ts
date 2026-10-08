@@ -146,22 +146,22 @@ test.describe("Decision log — table, not infinite scroll", () => {
     await expect(pager).toBeVisible();
 
     const firstRowBefore = await logTable(page).locator("tbody tr").first().innerText();
-    // WAIT FOR PAGE 2, not for the click. DecisionLogTable arms a 250 ms subject
-    // debounce on MOUNT whose callback is `setPage(0)` (DecisionLogTable.tsx:88-94),
-    // so a Next pressed inside that window of the table's first paint is undone
-    // 250 ms later — measured: GET offset=0, GET offset=20, then GET offset=0 again
-    // ~100 ms after, the pager back on "Page 1 of 6". At 8 workers the first paint
-    // and this click land together. The click is therefore repeated until the pager
-    // itself says page 2; once the debounce has fired it cannot fire again.
+    // CLICK, SEE PAGE 2, AND READ ITS ROW AS ONE RETRIED UNIT. DecisionLogTable
+    // arms a 250 ms subject debounce on MOUNT whose callback is `setPage(0)`
+    // (DecisionLogTable.tsx:88-94), so a Next pressed inside that window of the
+    // table's first paint is undone ~250 ms later — measured: GET offset=0, GET
+    // offset=20, then GET offset=0 again, the pager back on "Page 1 of 6". At 8
+    // workers the first paint and this click land together, and a check that page 2
+    // was SEEN is not enough (it was, for ~60 ms, then reset). A torn read now fails
+    // the attempt and the next one clicks again, after the debounce has fired — it
+    // cannot fire twice.
     const pageTwo = pager.getByText(/Page 2 of/);
     await expect(async () => {
       if (!(await pageTwo.isVisible())) await pager.getByRole("button", { name: /next/i }).click({ timeout: 2_000 });
       await expect(pageTwo).toBeVisible({ timeout: 3_000 });
-    }).toPass({ timeout: 30_000 });
-    await expect(async () => {
       const after = await logTable(page).locator("tbody tr").first().innerText();
       expect(after).not.toBe(firstRowBefore);
-    }).toPass({ timeout: 15_000 });
+    }).toPass({ timeout: 30_000 });
   });
 });
 
