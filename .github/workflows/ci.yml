@@ -557,9 +557,16 @@ jobs:
       # KP_ALLOW_OPEN=1 is REQUIRED here: a production build FAILS CLOSED
       # without KP_OPERATOR_PASSWORD (proxy.ts), and the boot curl below
       # would read the refusal redirect as ready.
+      #
+      # KEEP_ALIVE_TIMEOUT (ms, read by .next/standalone/server.js) is set because
+      # the server otherwise closes idle sockets after Node's 5 s, and a spec's
+      # API request context reuses its socket across a long UI step: the next
+      # call races the close (ECONNRESET), and a POST is not retried. 130 s
+      # outlasts the longest idle gap a test can leave (the 120 s test timeout).
+      # A socket idle past 130 s can still race.
       - name: Start production server (port 3101)
         run: |
-          (PORT=3101 HOSTNAME=127.0.0.1 KP_ALLOW_OPEN=1 NEXT_TELEMETRY_DISABLED=1 node .next/standalone/server.js > server.log 2>&1 &)
+          (PORT=3101 HOSTNAME=127.0.0.1 KP_ALLOW_OPEN=1 NEXT_TELEMETRY_DISABLED=1 KEEP_ALIVE_TIMEOUT=130000 node .next/standalone/server.js > server.log 2>&1 &)
           for i in $(seq 1 45); do
             curl -sf http://localhost:3101/ > /dev/null && exit 0
             sleep 2
