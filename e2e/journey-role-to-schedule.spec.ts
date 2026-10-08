@@ -259,7 +259,16 @@ test("first-run wizard walks to the hand-off and its Pipeline step saves the boa
     // Re-clicked only while the tile is still there (the dev hydration gap can eat
     // the first click). finish() is re-entrancy guarded, so an extra click during
     // a run in flight is a no-op, never a second write.
-    if (await soloTile.isVisible().catch(() => false)) await soloTile.click().catch(() => undefined);
+    //
+    // BOUNDED. This click had no timeout, and a click inside a retry loop that can
+    // outlast its target hangs the loop, not the click: once finish() has started,
+    // the wizard re-renders and leaves, the tile is still "visible" for one more
+    // check, and Playwright waits for it to become actionable again. Measured at 8
+    // workers: the trace's last `click` on this tile is still OPEN when the test
+    // times out, the poll below made two GETs in 120 s, and the page behind it
+    // already showed the renamed axis. Two seconds is the bound the file's other
+    // retried clicks use (advanceStep, openCandidateModal).
+    if (await soloTile.isVisible().catch(() => false)) await soloTile.click({ timeout: 2_000 }).catch(() => undefined);
     const config = await page.request.get("/api/decisions/config");
     expect(config.ok(), `GET /api/decisions/config responded ${config.status()}`).toBe(true);
     const payload = (await config.json()) as {
