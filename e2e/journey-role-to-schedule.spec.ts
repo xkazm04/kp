@@ -95,7 +95,9 @@ async function advanceStep(source: Locator, button: Locator, target: Locator): P
   await expect(async () => {
     if (!(await target.isVisible())) {
       if (await source.isVisible()) {
-        await button.click().catch(() => undefined);
+        // Bounded under the 2500 ms waits below: a click that cannot land fails one
+        // attempt instead of hanging the loop to its 30 s limit.
+        await button.click({ timeout: 2000 }).catch(() => undefined);
         // A WAIT, not an assertion. This used to read `await expect(source)
         // .toBeHidden().catch(() => undefined)` — an expect whose failure was
         // discarded, i.e. a guard that could not fail and therefore guarded
