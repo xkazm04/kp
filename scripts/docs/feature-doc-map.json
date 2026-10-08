@@ -182,6 +182,7 @@
         "pipeline/jobfit/transferable.py",
         "pipeline/jobfit/embedding_bridge.py",
         "pipeline/jobfit/weight_proposal.py",
+        "pipeline/jobfit/automation.py",
         "pipeline/jobfit/match_reasoning.py",
         "pipeline/jobfit/jobs.py",
         "pipeline/jobfit/live_case.py",
@@ -354,6 +355,29 @@
         "app/features/settings/models/**",
         "app/features/insights/activity/**",
         "app/api/llm/activity/**"
+      ]
+    },
+    {
+      "_comment": "The per-step engine/prompt-version matrix. These globs are the files that OWN a prompt id, a prompt-version constant, the routing sections or a call-site pin - a bump or a re-seat in any of them changes a row of that matrix. Several are also owned by a feature doc (pipeline, dev-case) and that is deliberate, like the candidate-data-flow entry below: a prompt version bump should name BOTH the feature doc and the coordination matrix.",
+      "doc": "docs/architecture/engine-and-prompt-coordination.md",
+      "sourceGlobs": [
+        "app/_lib/cache-key.ts",
+        "app/_lib/automation-cache-key.ts",
+        "app/_lib/reasoning-run.ts",
+        "app/_lib/automation-run.ts",
+        "app/_lib/llm-pins.ts",
+        "app/features/settings/models/modelsRoutingSections.ts",
+        "pipeline/jobfit/match_reasoning.py",
+        "pipeline/jobfit/group_compare.py",
+        "pipeline/jobfit/weight_proposal.py",
+        "pipeline/jobfit/agentfit.py",
+        "pipeline/jobfit/intake.py",
+        "pipeline/jobfit/appmaster.py",
+        "pipeline/jobfit/campaign.py",
+        "pipeline/jobfit/devcase/analyze.py",
+        "pipeline/jobfit/devcase/design.py",
+        "pipeline/jobfit/devcase/evaluate.py",
+        "pipeline/jobfit/devcase/reflect.py"
       ]
     },
     {

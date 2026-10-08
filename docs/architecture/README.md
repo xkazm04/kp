@@ -22,6 +22,7 @@ proposing to reverse one; each ends with what would change our mind.
 | [llm-provider-layer.md](llm-provider-layer.md) | The multi-provider LLM wrapper: adapters, capability matrix, key storage, local model servers, benchmarks harness |
 | [price-book.md](price-book.md) | **Every rate kp declares, and every one it does not** — a dated copy of the code rate tables (tokens, speech, voice minutes), the known zeros with their evidence, and the `unknown` meters; pinned to the code by `app/_lib/price-book.test.ts` and `pipeline/jobfit/tests/test_price_book.py` |
 | [llm-model-matrix.md](llm-model-matrix.md) | Dated judged quality grid — which model for which recruiter task |
+| [engine-and-prompt-coordination.md](engine-and-prompt-coordination.md) | **One matrix per step of the hiring thread** — engine, prompt id + version, degrade path, and what has to move when a prompt version bumps |
 | [engine-setup.md](engine-setup.md) | Setting up the default engines: Claude subscription via the CLI, the ElevenLabs agent, env notes that surprise people |
 | [candidate-data-flow.md](candidate-data-flow.md) | **Where a candidate's CV, contact details and transcript actually go** — every hop, what comes to rest, and which model adapters send it off the machine |
 | [workspace-data.md](workspace-data.md) | The single SQLite workspace file: seeding, dump & restore |
@@ -260,6 +261,10 @@ Three LLM engines are wired by default, each picked for its cost/capability prof
   design/evaluation, match reasoning, and eval sweeps. The local default.
 - **ElevenLabs Conversational AI** (or OpenAI Realtime) — voice agents that run
   first-round screening interviews in Czech or English.
+
+Which engine serves which STEP, the prompt id and version it runs, and how each
+step degrades when that engine is unavailable:
+[engine-and-prompt-coordination.md](engine-and-prompt-coordination.md).
 
 Any of them can be swapped for a provider or a local server of your choosing; none
 is load-bearing. Setup for each: [engine-setup.md](engine-setup.md). Which model is
