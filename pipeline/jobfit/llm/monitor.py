@@ -10,9 +10,11 @@ integration seam. Local development setup, once::
 then set ``LIGHTTRACK_URL`` (plus ``LIGHTTRACK_KEY`` / ``LIGHTTRACK_PROJECT``
 as the deployment needs) in ``.env.local``. Telemetry activates only when BOTH
 the package and ``LIGHTTRACK_URL`` are present; every emit is best-effort and
-exception-swallowing — a LightTrack outage can never break an LLM call. Cost
-is priced server-side from LightTrack's price book; we attach our own
-``cost_usd`` (when the adapter knows it) as metadata for cross-checking.
+exception-swallowing — a LightTrack outage can never break an LLM call.
+LightTrack is an optional cross-check: it prices server-side from its own price
+book, and we attach our own ``cost_usd`` (when the adapter knows it) as metadata
+for comparing against it. The price book kp declares is
+``docs/architecture/price-book.md``.
 """
 
 from __future__ import annotations
