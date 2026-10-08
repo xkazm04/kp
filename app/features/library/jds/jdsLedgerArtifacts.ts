@@ -2,7 +2,7 @@
 // reader for LibrarySavedJdsLedger.tsx — extracted verbatim so that file stays
 // under the 200-line split threshold.
 
-import { ROLE_TRACE_SECTIONS, type RoleTrace, type RoleTraceLine } from "@/app/_lib/jd-role-trace";
+import { DROPPED_LANGUAGE_REASONS, ROLE_TRACE_SECTIONS, type DroppedLanguage, type RoleTrace, type RoleTraceLine } from "@/app/_lib/jd-role-trace";
 
 // The structured artifacts the jd_build handler stores in jds.analysis_json — the
 // same payload runJdBuild returns, minus the markdown body (that's jds.body).
@@ -68,7 +68,15 @@ export function readRoleTrace(artifacts: Artifacts | null | undefined): RoleTrac
     if (r.origin !== "brief" && r.origin !== "added") continue;
     lines.push({ section, text: r.text, origin: r.origin });
   }
-  return { rule: typeof o.rule === "string" ? o.rule : "", designedBy: o.designedBy, lines };
+  // Absent on rows built before the identity rule (overlap-v1): no dropped languages recorded.
+  const droppedLanguages: DroppedLanguage[] = [];
+  for (const d of Array.isArray(o.droppedLanguages) ? o.droppedLanguages : []) {
+    if (!d || typeof d !== "object") continue;
+    const r = d as Record<string, unknown>;
+    const reason = DROPPED_LANGUAGE_REASONS.find((x) => x === r.reason);
+    if (reason && typeof r.text === "string" && r.text.trim()) droppedLanguages.push({ text: r.text, reason });
+  }
+  return { rule: typeof o.rule === "string" ? o.rule : "", designedBy: o.designedBy, lines, droppedLanguages };
 }
 
 export function hasCaseContent(kase: CaseArtifact | null | undefined): kase is CaseArtifact {

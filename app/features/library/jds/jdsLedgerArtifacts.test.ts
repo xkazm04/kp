@@ -153,3 +153,25 @@ test("readRoleTrace: a stored trace round-trips and malformed lines are dropped"
   assert.equal(trace?.designedBy, "fallback");
   assert.deepEqual(trace?.lines.map((l) => l.text), ["Go", "Czech"]);
 });
+
+test("readRoleTrace: a dropped language round-trips; an old row without the field still parses", () => {
+  const stored = (extra: Record<string, unknown>) =>
+    readRoleTrace(parseArtifacts(JSON.stringify({ roleTrace: { rule: "overlap-v1+lang-v1", designedBy: "model", lines: [], ...extra } })));
+  const withField = stored({
+    droppedLanguages: [
+      { text: "English", reason: "negated" },
+      { text: "German", reason: "unstated" },
+      { text: "French", reason: "invented" },
+      { text: " ", reason: "unstated" },
+      "junk",
+    ],
+  });
+  assert.deepEqual(withField?.droppedLanguages, [
+    { text: "English", reason: "negated" },
+    { text: "German", reason: "unstated" },
+  ]);
+  // A row written before the field existed (rule overlap-v1) reads an empty list, not null.
+  const old = readRoleTrace(parseArtifacts(JSON.stringify({ roleTrace: { rule: "overlap-v1", designedBy: "model", lines: [] } })));
+  assert.deepEqual(old?.droppedLanguages, []);
+  assert.deepEqual(stored({ droppedLanguages: "nope" })?.droppedLanguages, []);
+});

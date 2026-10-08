@@ -17,6 +17,12 @@ export function RoleTraceCard({ trace }: { trace: RoleTrace }) {
     languages: t("roleTraceSectionLanguages"),
   } as const;
   const added = trace.lines.filter((l) => l.origin === "added");
+  const dropped = trace.droppedLanguages ?? [];
+  const reasonLabel = {
+    unstated: t("roleTraceDroppedUnstated"),
+    negated: t("roleTraceDroppedNegated"),
+    superseded: t("roleTraceDroppedSuperseded"),
+  } as const;
   return (
     <div className="rounded-lg border border-stone-200 bg-paper/50 p-3">
       <p className="text-meta uppercase tracking-wide text-steel">
@@ -43,6 +49,16 @@ export function RoleTraceCard({ trace }: { trace: RoleTrace }) {
       ) : (
         <p className="mt-1.5 text-body text-steel">{t("roleTraceNoneAdded")}</p>
       )}
+      {dropped.length ? (
+        <div className="mt-2">
+          <p className="text-body text-ink">{t("roleTraceDroppedIntro", { count: dropped.length })}</p>
+          <ul className="mt-0.5 space-y-0.5">
+            {dropped.map((d, i) => (
+              <li key={i} className="text-body text-ink">• {d.text} <span className="text-steel">— {reasonLabel[d.reason]}</span></li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -7,7 +7,7 @@ import { validateJdBuildInput } from "./jd-limits";
 import { marketSalaryLabel, normalizeMarketSalary, type MarketSalary } from "./salary-band";
 import { type RepoSnapshot } from "./repo-snapshot";
 import { parseRoleSpec, type RoleBrief, type RoleSpec } from "./rolespec";
-import { buildRoleTrace, statedLanguages, type AuthorInput } from "./jd-role-trace";
+import { buildRoleTrace, droppedLanguages, statedLanguages, type AuthorInput } from "./jd-role-trace";
 import { briefMustSkills, briefStatedRequirements, needTextFromBrief } from "./intake-brief";
 import { failJdAnalysis, finishJdAnalysis } from "./db/jobs";
 import { ingestStructuredJob } from "@/app/api/jds/save/ingest-job";
@@ -294,7 +294,9 @@ export async function runJdBuild(
   params: Record<string, unknown>,
   progress?: Progress,
   signal?: AbortSignal,
-  workspaceId?: string
+  workspaceId?: string,
+  /** Test seam: stand-ins for the two spawned design steps. Production never passes it. */
+  steps: { analyze?: typeof runNeedAnalysis; role?: typeof runDesignArtifacts } = {}
 ): Promise<Record<string, unknown>> {
   const input = params as unknown as JdBuildInput;
   // JDL5 — the JD output language (validated to en|cs; anything else → en).
@@ -367,9 +369,9 @@ export async function runJdBuild(
       provenance: { source?: string; perStepSources?: Record<string, string>; fallbackReason?: Record<string, string> };
     }> = needRole
       ? (async () => {
-          const { analysis, snapshot } = await runNeedAnalysis(need, signal, lang);
+          const { analysis, snapshot } = await (steps.analyze ?? runNeedAnalysis)(need, signal, lang);
           progress?.(1, 2, options.description ? "Designing the role from the need…" : "Designing the interview case…");
-          const { role, case: kase, source, perStepSources, fallbackReason } = await runDesignArtifacts(need, analysis, signal, undefined, lang, options.caseDesign);
+          const { role, case: kase, source, perStepSources, fallbackReason } = await (steps.role ?? runDesignArtifacts)(need, analysis, signal, undefined, lang, options.caseDesign);
           // Validated at the Python→TS trust boundary (was an unchecked cast).
           return { role: parseRoleSpec(role), kase: options.caseDesign ? kase : null, snapshot, provenance: { source, perStepSources, fallbackReason } };
         })()
@@ -423,7 +425,7 @@ export async function runJdBuild(
       role: spec,
       // Which role lines the author stated and which the build added, and how the role
       // was designed. fallbackReason is raw exception text: kept for diagnosis, never rendered.
-      roleTrace: spec ? buildRoleTrace(spec, authorInput, design.provenance) : null,
+      roleTrace: spec ? buildRoleTrace(spec, authorInput, design.provenance, droppedLanguages(design.role?.languages, authorInput)) : null,
       fallbackReason: design.provenance.fallbackReason ?? {},
       salary: salary?.result ?? null,
       salarySources: salary?.sources ?? [],

@@ -1436,8 +1436,17 @@ fallback returns `languages: []` instead of `["English"]` — that English used 
 Languages section and, via `ingest-job.ts` → `apply.ts`, a `ko_lang` knockout question for every
 applicant. (2) `runJdBuild` sets the role's languages with `statedLanguages`
 (`app/_lib/jd-role-trace.ts`): a brief's non-empty `languages` win, otherwise only model
-languages found in the author's own input survive, so a keyless build with no stated language
-prints no Languages section and ingests no `ko_lang` step. (3) `traceRoleLines` tags every line of
+languages the author's own input STATES survive, so a keyless build with no stated language
+prints no Languages section and ingests no `ko_lang` step. **Languages match by identity
+(`lang-v1`, lite r2):** `app/_lib/jd-languages.ts` maps every form of eleven languages (cs, sk,
+en, de, pl, fr, es, it, ru, uk, hu: en/cs/de/fr names, their own name, the Czech noun in every
+case, the Czech adverb; a Czech adjective only beside "jazyk") to one id, so "Znalost češtiny"
+states `Čeština` and "angličtina nutná" states `English`. A mention in a clause with a negation
+cue (no, not, without, bez, není, nevyžadujeme, nepotřebujeme, nemusí) does not state the
+language ("No English needed", "bez angličtiny"). A language outside the lexicon falls back to
+the overlap rule. Known over-trust: a language name used for something else ("the Czech market")
+states it. Every model language removed is stored as `roleTrace.droppedLanguages`
+(`unstated` / `negated` / `superseded` by a brief) and the Ledger card lists it with the reason. (3) `traceRoleLines` tags every line of
 mustHaves / niceToHaves / responsibilities / languages `brief` or `added` (normalised case,
 punctuation, diacritics; ≤3-token lines match as a contiguous run, longer lines on ≥60% content-word
 overlap; doubt means `added`) and `analysis_json.roleTrace` stores it with how the role was
