@@ -81,7 +81,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // this change rather than outliving it. `title`, `jdSlug` and `options` are
     // the seam's to set — a task pointed at a different row than the one just
     // created is the drift it exists to prevent.
-    const buildInput = { needText, seniority: brief.seniority, roleFamily: brief.roleFamily, lang, options };
+    // `brief` and `company` ride the persisted intent too: the retry's row-fallback
+    // replay (task pruned) rebuilds from it, and without them the role loses its
+    // must-have stack, responsibilities, stated requirements and stated languages.
+    const company = typeof body.company === "string" ? body.company : undefined;
+    const buildInput = { needText, company, seniority: brief.seniority, roleFamily: brief.roleFamily, lang, options, brief };
     const { slug, taskId } = startJdBuild({
       title,
       options,
@@ -89,7 +93,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       workspaceId: ws,
       createdBy: (await currentUser()).userId,
       params: {
-        company: typeof body.company === "string" ? body.company : undefined,
+        company,
         seniority: brief.seniority,
         roleFamily: brief.roleFamily,
         needText,

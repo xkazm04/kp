@@ -6,6 +6,7 @@ import { getPipelineAxis } from "../pipeline-axis-server";
 import { stagesWithRole } from "../pipeline-stages";
 import { registerKpFold } from "../text-fold";
 import type { RoleStatus } from "../status-tone";
+import type { RoleBrief } from "../rolespec";
 
 // Backgrounded AI generation state on a JD (see the core.ts migration). NULL/absent
 // analysis_status = a legacy or manually-saved draft, treated as ready.
@@ -47,6 +48,9 @@ export type JdBuildIntent = {
   lang?: string;
   templateId?: string;
   options?: unknown;
+  // The promoted intake brief (POST /api/intake/[id]/promote only). Absent on every
+  // other door and on JDs promoted before this field existed.
+  brief?: RoleBrief;
 };
 
 // What the list endpoint exposes: identity + a short, server-truncated preview

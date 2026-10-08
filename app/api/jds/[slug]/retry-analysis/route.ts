@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { loadJd, type JdBuildIntent } from "@/app/_lib/db/jobs";
+import { loadJd } from "@/app/_lib/db/jobs";
 import { getTask } from "@/app/_lib/db/tasks";
-import { restartJdBuild } from "@/app/_lib/jd-build-start";
-import { getTemplate } from "@/app/_lib/templates-store";
+import { replayParamsFromIntent, restartJdBuild } from "@/app/_lib/jd-build-start";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
@@ -14,37 +13,6 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 // operator-gated and open mode makes that gate a no-op for the whole API. Metering
 // the re-spend is a BILLING decision and not what this is.
 const RETRY_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
-
-// Reconstruct the jd_build params from the JD row's persisted intent — the
-// row-fallback replay path when the original task record has been pruned. Mirrors
-// the shape POST /api/jds/generate hands the seam, re-resolving templateBody from
-// the stored templateId (which is durable; the resolved body isn't). NULL/blank
-// intent ⇒ null (a legacy row with neither task nor intent → the 400 below).
-function paramsFromIntent(title: string, raw: string | null | undefined, workspaceId: string): Record<string, unknown> | null {
-  if (!raw) return null;
-  let intent: JdBuildIntent;
-  try {
-    intent = JSON.parse(raw) as JdBuildIntent;
-  } catch {
-    return null;
-  }
-  // Resolve the stored template in the JD's OWN workspace (tenancy): getTemplate
-  // has a defaulted workspaceId, so an unscoped call replayed against the DEFAULT
-  // team's templates — dropping a non-default team's format on every retry.
-  const templateBody =
-    typeof intent.templateId === "string" && intent.templateId ? getTemplate(intent.templateId, workspaceId)?.body : undefined;
-  return {
-    title,
-    company: intent.company,
-    seniority: intent.seniority,
-    roleFamily: intent.roleFamily,
-    needText: intent.needText,
-    repoUrl: intent.repoUrl,
-    lang: intent.lang,
-    templateBody,
-    options: intent.options,
-  };
-}
 
 // POST /api/jds/[slug]/retry-analysis — re-run a failed backgrounded build. It
 // replays the build through the shared seam with jdSlug forced to THIS row, and resets
@@ -71,7 +39,7 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
     // Task-first (exact params), then the durable row intent, else nothing to replay.
     const replayParams = oldTask
       ? ((oldTask.params as Record<string, unknown>) ?? {})
-      : paramsFromIntent(jd.title, jd.build_input_json, ws);
+      : replayParamsFromIntent(jd.title, jd.build_input_json, ws);
     if (!replayParams) return NextResponse.json({ error: "No build to retry." }, { status: 400 });
 
     // The budget is spent HERE: after the 404, the not-failed 409 and the

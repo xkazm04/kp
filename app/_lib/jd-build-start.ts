@@ -1,5 +1,6 @@
 import { insertAnalyzingJd, markJdAnalyzing, setJdAnalysisTask, type JdBuildIntent } from "./db/jobs";
 import { startTask } from "./tasks";
+import { getTemplate } from "./templates-store";
 import { type JdBuildOptions } from "./jd-build-run";
 
 // THE ONE DOOR into a backgrounded `jd_build`.
@@ -55,6 +56,46 @@ export function startJdBuild(input: StartJdBuildInput): { slug: string; taskId: 
   );
   setJdAnalysisTask(slug, task.id);
   return { slug, taskId: task.id };
+}
+
+/** Reconstruct the jd_build params from the JD row's persisted intent — the
+ *  row-fallback replay path when the original task record has been pruned. Mirrors
+ *  the shape POST /api/jds/generate hands the seam, re-resolving templateBody from
+ *  the stored templateId (which is durable; the resolved body isn't). The promoted
+ *  intake `brief` rides along when the intent carries one (a plain object only;
+ *  legacy intents have none and replay without the key). NULL/blank intent ⇒ null
+ *  (a legacy row with neither task nor intent → the route's 400). */
+export function replayParamsFromIntent(
+  title: string,
+  raw: string | null | undefined,
+  workspaceId: string
+): Record<string, unknown> | null {
+  if (!raw) return null;
+  let intent: JdBuildIntent;
+  try {
+    intent = JSON.parse(raw) as JdBuildIntent;
+  } catch {
+    return null;
+  }
+  // Resolve the stored template in the JD's OWN workspace (tenancy): getTemplate
+  // has a defaulted workspaceId, so an unscoped call replayed against the DEFAULT
+  // team's templates — dropping a non-default team's format on every retry.
+  const templateBody =
+    typeof intent.templateId === "string" && intent.templateId ? getTemplate(intent.templateId, workspaceId)?.body : undefined;
+  const brief: unknown = intent.brief;
+  const hasBrief = typeof brief === "object" && brief !== null && !Array.isArray(brief);
+  return {
+    title,
+    company: intent.company,
+    seniority: intent.seniority,
+    roleFamily: intent.roleFamily,
+    needText: intent.needText,
+    repoUrl: intent.repoUrl,
+    lang: intent.lang,
+    templateBody,
+    options: intent.options,
+    ...(hasBrief ? { brief } : {}),
+  };
 }
 
 /** Replay a build into an EXISTING row (the Ledger's retry). The row is reset to
