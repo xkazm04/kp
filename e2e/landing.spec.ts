@@ -300,7 +300,9 @@ test("the demo CTA's refusal lands on the landing and is named, not silent", asy
   // And the refusal the operator cannot flip renders as its own sentence —
   // resolved from `errors.DEMO_NOT_PROVISIONED`, never the server's raw string.
   await page.goto("/?demo=unavailable&code=DEMO_NOT_PROVISIONED");
-  const notice = page.getByRole("status");
+  // The landing now carries other live regions (the gate, the unattended log),
+  // so the notice is picked out by its own sentence, not by role alone.
+  const notice = page.getByRole("status").filter({ hasText: "The live demo is unavailable" });
   await expect(notice).toContainText("The live demo is unavailable right now.");
   await expect(notice).toContainText("The live demo is not set up on this deployment yet.");
   await notice.getByRole("button", { name: "Dismiss" }).click();
