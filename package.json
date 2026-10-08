@@ -50,6 +50,7 @@
     "copy:check": "node .claude/skills/native-copy/scripts/copy-check.mjs",
     "kpi:role-run-anchors": "node scripts/kpi/role-run-anchors.mjs",
     "kpi:explainability": "node scripts/kpi/explainability-reason-coverage.mjs",
+    "economics:snapshot": "node scripts/economics/snapshot.mjs",
     "gigs:land-lessons": "node scripts/gigs/land-lessons.mjs",
     "gigs:dry-run": "node scripts/gigs/dry-run.mjs",
     "docs:check": "node scripts/docs/check-adrs.mjs",
