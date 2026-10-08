@@ -54,7 +54,12 @@ async function openBuilder(page: Page): Promise<void> {
   // heading appears; once it does we stop clicking the (now-detached) button.
   await expect(async () => {
     if (!(await heading.isVisible())) {
-      await openBtn.click().catch(() => undefined);
+      // BOUNDED. Unbounded, this click hangs the whole retry once the editor has
+      // opened and replaced the button between the heading check above and the
+      // click (the editor can take longer than the 1.5 s expect below under load):
+      // measured at 8 workers, the third click stays OPEN until the 30 s limit
+      // while the failure snapshot shows the editor open.
+      await openBtn.click({ timeout: 1_000 }).catch(() => undefined);
     }
     await expect(heading).toBeVisible({ timeout: 1500 });
   }).toPass({ timeout: 30_000 });

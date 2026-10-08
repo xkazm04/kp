@@ -104,7 +104,7 @@ async function nameFilterBox(page: Page) {
   // The table is server-rendered, so the header glyph paints before React wires its
   // onClick (the same dev-hydration gap profile-builder.spec.ts works around).
   await expect(async () => {
-    if (!(await box.isVisible())) await trigger.click().catch(() => undefined);
+    if (!(await box.isVisible())) await trigger.click({ timeout: 1_000 }).catch(() => undefined);
     await expect(box).toBeVisible({ timeout: 1500 });
   }).toPass({ timeout: 30_000 });
   return box;
