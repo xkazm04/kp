@@ -43,7 +43,7 @@ function addEntry(matchScore: number) {
   return entry;
 }
 
-const act = (id: string, action: "accept" | "reject") => actOnPipelineEntry(id, action, undefined, undefined, WS);
+const act = (id: string, action: "accept" | "reject") => actOnPipelineEntry(id, action, undefined, { outcome: "offer_accepted" }, WS);
 
 function outcomeOf(score: number, opts?: Parameters<typeof pipelineCalibrationPairs>[1]) {
   const hits = pipelineCalibrationPairs(WS, opts).filter((p) => p.roleFamily === FAMILY && p.score === score);

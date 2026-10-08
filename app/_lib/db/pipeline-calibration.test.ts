@@ -93,7 +93,7 @@ test("pipelineCalibrationPairs pairs the acting match_score with the screen-gate
 test("the hire axis scores ONLY a reached-Hired entry as a success", () => {
   // Reaches Hired: Screened → Interview → Offer → Hired.
   const hired = addEntry(88, HIRED_FAMILY);
-  for (let step = 0; step < 3; step += 1) assert.ok(actOnPipelineEntry(hired.id, "accept"));
+  for (let step = 0; step < 3; step += 1) assert.ok(actOnPipelineEntry(hired.id, "accept", undefined, { outcome: "offer_accepted" }));
 
   // Interviewed and still there: a SUCCESS on the advance axis, and on the hire
   // axis not an outcome at all — they may yet be hired. This single entry is the

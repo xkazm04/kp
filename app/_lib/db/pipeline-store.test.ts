@@ -100,14 +100,15 @@ test("accept advances exactly one stage along the canonical axis and Hired is a 
   const entry = addEntry();
   const ladder: string[] = [entry.stage];
   for (let i = 0; i < 3; i++) {
-    const next = actOnPipelineEntry(entry.id, "accept");
+    // The last hop lands on Hired: a fixture standing in for the accepted offer.
+    const next = actOnPipelineEntry(entry.id, "accept", undefined, { outcome: "offer_accepted" });
     assert.ok(next, "accept on an active entry must succeed");
     ladder.push(next.stage);
   }
   assert.deepEqual(ladder, ["Screened", "Interview", "Offer", "Hired"]);
   // The Hired candidate keeps status 'active' (see pipeline-status.ts) and a
   // further accept must NOT overrun the axis or flip anything.
-  const atCeiling = actOnPipelineEntry(entry.id, "accept");
+  const atCeiling = actOnPipelineEntry(entry.id, "accept", undefined, { outcome: "offer_accepted" });
   assert.equal(atCeiling!.stage, "Hired");
   assert.equal(atCeiling!.status, "active");
   const advanced = listPipelineEventsForEntry(entry.id).filter((e) => e.kind === "advanced");
