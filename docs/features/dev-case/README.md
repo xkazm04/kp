@@ -114,10 +114,12 @@ palette. The full mapping table and the five reading states are in
    weight grading), which `design_role` anchors the RoleSpec's must-haves to
    (see `docs/features/intake/README.md`). JD-only needs behave as before.
 2. **Case + role design.** `pipeline/jobfit/devcase/design.py` (`design_case`,
-   `design_role`, prompts `case-design-v6` / `role-design-v4` — v4 adds
+   `design_role`, prompts `case-design-v6` / `role-design-v5` — v4 added
    grounding rules from the 2026-08-11 bench: every must-have must trace to
    stated input, illustrative tools stay out of requirements, seniority is read
-   off the JD's own signals) produces a `CaseScenario` (brief,
+   off the JD's own signals; v5 extends the rule to responsibilities, nice-to-haves
+   and languages, and the keyless fallback returns `languages: []` instead of
+   inventing English) produces a `CaseScenario` (brief,
    starting materials, covert tooling-probes, rubric) anchored to the ROLE
    being hired, not the codebase's domain — a v2 fix (see
    `docs/_archive/dev-d3-hardening-findings.md`) — plus a mid-session

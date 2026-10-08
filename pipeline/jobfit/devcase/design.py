@@ -27,7 +27,7 @@ from .provenance import generate_with_fallback, str_list as _str_list
 
 _LOG = logging.getLogger(__name__)
 
-ROLE_DESIGN_PROMPT_VERSION = "role-design-v4"  # v4: grounding rules — must-haves trace to stated input, seniority read off JD signals (2026-08-11 bench)
+ROLE_DESIGN_PROMPT_VERSION = "role-design-v5"  # v5: grounding extends to responsibilities/niceToHaves/languages, and the keyless fallback no longer invents languages (lite r1, 2026-10-07). v4: must-haves trace to stated input, seniority read off JD signals (2026-08-11 bench)
 CASE_DESIGN_PROMPT_VERSION = "case-design-v7"  # v7: the role's must-haves reach the designer as TERRAIN (the case is designed so they are unavoidably exercised) — they are what score_transfer later grades against
 
 # The cap on case length (UAT M8) is a POLICY number and now lives on the model
@@ -179,7 +179,10 @@ def design_role(need: DevNeed, analysis: NeedAnalysis, *, provider: Any | None =
         "(≤8) rather than exhaustive. Read the seniority off the JD's own signals (education asked, "
         "experience asked, scope of duties) — do not default to the seniorityTarget when the JD "
         "plainly describes a more junior or senior role; carry the JD's explicitly named candidate "
-        "traits into the spec before adding anything of your own.\n"
+        "traits into the spec before adding anything of your own. The same rule binds the other "
+        "lists: responsibilities restate or narrow what the need or JD says, never add duties it "
+        "does not mention; niceToHaves come from the input or are phrased as 'e.g.'; a language "
+        "appears in languages ONLY when the input names it — otherwise return an empty list.\n"
         f"{json.dumps(ctx, ensure_ascii=False, indent=2)}\n\n"
         'Return JSON: { "title": str, "seniority": "junior|medior|senior|lead", "roleFamily": str, '
         '"mustHaves": [str], "niceToHaves": [str], "responsibilities": [str], "languages": [str] }. JSON only.'
@@ -210,7 +213,9 @@ def design_role(need: DevNeed, analysis: NeedAnalysis, *, provider: Any | None =
             "mustHaves": musts[: max(6, len(stated_musts))] if stated_musts else real[:5],
             "niceToHaves": stated_nices[:5],
             "responsibilities": analysis.core_responsibilities or need.responsibilities or [],
-            "languages": ["English"],
+            # Nothing states a language to this fallback; inventing one became a
+            # ko_lang knockout downstream for every applicant.
+            "languages": [],
         }
 
     def coerce(payload: Any) -> dict:
@@ -227,7 +232,7 @@ def design_role(need: DevNeed, analysis: NeedAnalysis, *, provider: Any | None =
             "mustHaves": _str_list(payload.get("mustHaves")) or det["mustHaves"],
             "niceToHaves": _str_list(payload.get("niceToHaves")),
             "responsibilities": _str_list(payload.get("responsibilities")) or det["responsibilities"],
-            "languages": _str_list(payload.get("languages")) or det["languages"],
+            "languages": _str_list(payload.get("languages")),
         }
 
     result, source = _generate(provider, prompt, deterministic, coerce, expected_keys=_ROLE_KEYS)

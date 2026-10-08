@@ -582,6 +582,9 @@ markdown re-extraction. (c) The graded dealbreakers themselves ride
 `design_role` anchors the RoleSpec's must-haves to them (weight-ordered on
 the deterministic path, instructed on the LLM path), which is what the
 transfer assessment then weighs demonstrated capability against.
+The grounding rule (`role-design-v5`) covers the other lists too: responsibilities
+restate or narrow the input, and a language appears only when the input names it —
+the keyless fallback returns `languages: []`, never an invented English.
 
 ## Voice plane (input mode — transport-only providers, our brain)
 

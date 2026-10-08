@@ -68,3 +68,26 @@ class TestStatedRequirements(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestLanguagesAreNeverInvented(unittest.TestCase):
+    def test_keyless_need_without_a_language_returns_none(self) -> None:
+        need = DevNeed(title="Backend Engineer", stack=["Python"], seniority_target="senior")
+        role, source = design_role(need, NeedAnalysis(real_stack=["Go"]), provider=None)
+        self.assertEqual(source, "deterministic")
+        self.assertEqual(role["languages"], [])
+
+    def test_model_reply_without_languages_stays_empty(self) -> None:
+        reply = TextReply({"title": "Backend Engineer", "mustHaves": ["Go"], "languages": []})
+        role, _ = design_role(DevNeed(title="Backend Engineer", stack=["Go"]), NeedAnalysis(real_stack=["Go"]), provider=reply)
+        self.assertEqual(role["languages"], [])
+
+    def test_prompt_carries_the_extended_grounding_rule(self) -> None:
+        capture = TextReply({})
+        design_role(_need(), NeedAnalysis(real_stack=["Snowflake"]), provider=capture)
+        self.assertIn("responsibilities restate or narrow", capture.last_prompt)
+        self.assertIn("ONLY when the input names it", capture.last_prompt)
+
+    def test_prompt_version_is_v5(self) -> None:
+        role, _ = design_role(_need(), NeedAnalysis(), provider=None)
+        self.assertEqual(role["promptVersion"], "role-design-v5")
