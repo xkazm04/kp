@@ -32,6 +32,7 @@ to be true for it to change?*
 - add or change an automatic decline, a knockout question, or a claim that a rejection is a person's → [0019](0019-the-knockout-decline-is-automatic-and-says-so.md)
 - add a decision reason to the ATS record, or change what the ATS POST re-checks before it sends → [0020](0020-an-ats-decision-releases-a-reason-only-when-the-server-built-it.md)
 - add a table keyed by a candidate capability token, or change what an erasure does to an offer or schedule link → [0021](0021-an-erasure-revokes-every-live-capability-link-the-candidate-holds.md)
+- import a value into a `"use client"` file, or add a helper to `app/_lib/db/` that client code needs → [0022](0022-a-client-module-never-reaches-the-database.md)
 
 ## Index
 
@@ -58,6 +59,7 @@ to be true for it to change?*
 | [0019](0019-the-knockout-decline-is-automatic-and-says-so.md) | The apply knockout decline is automatic, names the must-have, and offers a person to review it | accepted | 2026-10-07 |
 | [0020](0020-an-ats-decision-releases-a-reason-only-when-the-server-built-it.md) | An ATS decision block releases a rationale only when the server built it, and the POST re-asserts its destination | accepted | 2026-10-08 |
 | [0021](0021-an-erasure-revokes-every-live-capability-link-the-candidate-holds.md) | An erasure revokes every live capability link the candidate holds | accepted | 2026-10-08 |
+| [0022](0022-a-client-module-never-reaches-the-database.md) | A client module never reaches the database | accepted | 2026-10-08 |
 
 ## Writing a new one
 
