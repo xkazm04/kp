@@ -21,7 +21,7 @@
 // Pure + dependency-free (structural input types, no DB import) so it loads under
 // `node --test` and can't drag better-sqlite3 into a bundle.
 
-import { isAgentPopulation } from "./db/core.ts";
+import { isAgentPopulation } from "./slate-population.ts";
 import { consentStatus, consentWithholdsPii, maskCandidateName, type ConsentSnapshot } from "./consent.ts";
 
 /** Bump on any breaking change to AtsCandidateRecord so consumers can pin a map. */

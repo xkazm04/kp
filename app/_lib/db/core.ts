@@ -12,6 +12,7 @@ import { seedBenchmarkTeam } from "./seed-benchmark-team";
 import { adoptedExistingSeed, markSeedRan, seedAlreadyRan } from "./seed-marks";
 import { addColumns, parseAddColumn } from "./add-columns";
 import { fixtureSeedEnabled } from "./seed-gate";
+import { notAgentSql, type SlatePopulation } from "../slate-population";
 
 /** The kinds jobseeker_ui_state accepts - its CHECK, written once for the table's DDL and
  *  for the one-time widening in the migrations (db/jobseeker-ui-state.ts UI_STATE_KINDS is
@@ -3507,25 +3508,10 @@ export type PipelineEntry = {
   rubricVersion: number | null;
 };
 
-/** ADR-0012 — the two populations that can appear on one role's slate. */
-export const SLATE_POPULATIONS = ["human", "agent"] as const;
-export type SlatePopulation = (typeof SLATE_POPULATIONS)[number];
-
-/** Narrow the free-form TEXT column at the read boundary. An unrecognized value
- *  reads as 'human' (the column default) rather than throwing. */
-export function coerceSlatePopulation(value: unknown): SlatePopulation {
-  return value === "agent" ? "agent" : "human";
-}
-
-/** True for an AI-agent slate entry. Machines never count one as a hire. */
-export function isAgentPopulation(entry: { population?: string | null }): boolean {
-  return entry.population === "agent";
-}
-
-/** SQL twin of `isAgentPopulation`, negated (column is NOT NULL DEFAULT 'human'). */
-export function notAgentSql(alias = ""): string {
-  return `${alias}population <> 'agent'`;
-}
+// ADR-0012 population helpers live in a dependency-free module so client bundles can
+// reach them without pulling better-sqlite3; re-exported here for existing importers.
+export { SLATE_POPULATIONS, coerceSlatePopulation, isAgentPopulation, notAgentSql } from "../slate-population";
+export type { SlatePopulation } from "../slate-population";
 
 export function recordEvent(
   db: Database.Database,
