@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildRoleTrace, lineOrigin, roleTraceTokens, statedLanguages, traceRoleLines, authorInputTokens } from "./jd-role-trace.ts";
+import { buildRoleTrace, droppedLanguages, ROLE_TRACE_RULE, lineOrigin, roleTraceTokens, statedLanguages, traceRoleLines, authorInputTokens } from "./jd-role-trace.ts";
 
 const spec = (over: Record<string, string[]>) => ({
   title: "Platform Engineer",
@@ -33,7 +33,8 @@ test("Czech input with diacritics matches across accents and case", () => {
   const input = { title: "Vývojář", needText: "Hledáme Řízení projektů a znalost češtiny, Python nutný." };
   assert.deepEqual(roleTraceTokens("Řízení"), ["rizeni"]);
   const lines = traceRoleLines(spec({ mustHaves: ["PYTHON", "řízení projektů"], languages: ["Čeština", "Angličtina"] }), input);
-  assert.deepEqual(lines.map((l) => l.origin), ["brief", "brief", "added", "added"]);
+  // Čeština is the SAME language as "češtiny" (identity, not tokens); Angličtina is never named.
+  assert.deepEqual(lines.map((l) => l.origin), ["brief", "brief", "brief", "added"]);
 });
 
 test("c++ and c# are not 'c'", () => {
@@ -75,4 +76,48 @@ test("buildRoleTrace says whether the model or the keyless fallback designed the
   assert.equal(fallback.designedBy, "fallback");
   const model = buildRoleTrace(spec({}) as never, { title: "x" }, { source: "claude", perStepSources: { role: "claude" } });
   assert.equal(model.designedBy, "model");
+});
+
+const langs = (model: string[], needText: string) => statedLanguages(model, { title: "Engineer", needText });
+
+test("the three council probes keep the language the author stated", () => {
+  assert.deepEqual(langs(["Čeština"], "Znalost češtiny"), ["Čeština"]);
+  assert.deepEqual(langs(["English"], "angličtina nutná"), ["English"]);
+  assert.deepEqual(langs(["Angličtina"], "Fluent English required"), ["Angličtina"]);
+});
+
+test("a negated or unstated language is dropped", () => {
+  assert.deepEqual(langs(["English"], "No English needed"), []);
+  assert.deepEqual(langs(["Angličtina"], "bez angličtiny"), []);
+  assert.deepEqual(langs(["English"], "angličtina není nutná"), []);
+  assert.deepEqual(langs(["English"], "Build services and own the pipeline"), []);
+});
+
+test("'experience with the Czech market' states Czech (documented over-trust)", () => {
+  assert.deepEqual(langs(["Czech"], "experience with the Czech market"), ["Czech"]);
+});
+
+test("a language outside the lexicon falls back to the overlap rule", () => {
+  assert.deepEqual(langs(["Klingon", "Esperanto"], "Klingon speakers preferred"), ["Klingon"]);
+});
+
+test("the brief's languages still win outright", () => {
+  assert.deepEqual(statedLanguages(["English"], { title: "x", needText: "English required", brief: { languages: ["Czech"] } as never }), ["Czech"]);
+});
+
+test("droppedLanguages records each removed language with its reason", () => {
+  const dropped = (model: string[], needText: string, brief?: unknown) => droppedLanguages(model, { title: "x", needText, brief: brief as never });
+  assert.deepEqual(dropped(["English", "German"], "No English needed"), [
+    { text: "English", reason: "negated" },
+    { text: "German", reason: "unstated" },
+  ]);
+  assert.deepEqual(dropped(["Čeština"], "Znalost češtiny"), []);
+  assert.deepEqual(dropped(["English", "Czech"], "x", { languages: ["Čeština"] }), [{ text: "English", reason: "superseded" }]);
+  assert.equal(buildRoleTrace(spec({}) as never, { title: "x", needText: "No English needed" }, {}, dropped(["English"], "No English needed")).droppedLanguages.length, 1);
+  assert.equal(ROLE_TRACE_RULE, "overlap-v1+lang-v1");
+});
+
+test("the languages lines of the trace read 'brief' by identity, 'added' when negated", () => {
+  const lines = traceRoleLines(spec({ languages: ["Čeština", "English"] }), { title: "x", needText: "znalost češtiny, bez angličtiny" });
+  assert.deepEqual(lines.map((l) => l.origin), ["brief", "added"]);
 });
