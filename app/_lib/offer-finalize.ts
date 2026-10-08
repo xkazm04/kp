@@ -85,7 +85,7 @@ export async function respondToOffer(token: string, response: "accept" | "declin
       // actOnPipelineEntry now refuses to advance a TERMINAL entry, so a stale
       // offer link accepted after the candidate was rejected/closed elsewhere
       // returns null instead of resurrecting them to Hired.
-      const advanced = actOnPipelineEntry(offer.entryId, "accept", undefined, { actor: "system" }, offer.workspaceId);
+      const advanced = actOnPipelineEntry(offer.entryId, "accept", undefined, { actor: "system", outcome: "offer_accepted" }, offer.workspaceId);
       // A non-null return means "the entry moved a stage", NOT "this candidate is
       // hired" — two different questions, and the hire-bearing side effects below
       // (the hire meter, the outcome ground truth, the candidate.hired webhook into

@@ -21,7 +21,6 @@
 //   terminal-by-design the writer IS the way onto the outcome stage
 //   migration          a boot/legacy remap, never request-driven
 //   seed               demo or fixture data
-//   known-gap          reaches the terminal column on a degenerate axis; reported, not hidden
 //   not-a-move         files at the entry/landing stage, or closes by status, or re-files
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -31,7 +30,7 @@ import path from "node:path";
 const ROOT = path.resolve(import.meta.dirname, "../../..");
 
 type Guard = { file: string; line: number; needle: string };
-type Class = "refuses-terminal" | "terminal-by-design" | "migration" | "seed" | "known-gap" | "not-a-move";
+type Class = "refuses-terminal" | "terminal-by-design" | "migration" | "seed" | "not-a-move";
 type Row = { cls: Class; count: number; why: string; guard?: Guard };
 
 const ENTRY_ACTION = "app/_lib/pipeline-entry-action.ts";
@@ -40,6 +39,7 @@ const ADD_DOOR = "app/api/pipeline/route.ts";
 const MIGRATION_ROUTE = "app/api/pipeline/stage-migration/route.ts";
 
 const G_STORE_MIGRATE: Guard = { file: STORE, line: 1229, needle: 'stageHasRole(leg.toStage, "terminal", toAxis)' };
+const G_STORE_ACT: Guard = { file: STORE, line: 3544, needle: 'opts?.outcome === "offer_accepted"' };
 const G_SET_STAGE: Guard = { file: ENTRY_ACTION, line: 408, needle: 'if (stageHasRole(to, "terminal", axis))' };
 const G_ACCEPT: Guard = { file: ENTRY_ACTION, line: 467, needle: "acceptWouldReachTerminal(current.stage, axis)" };
 const G_ADD: Guard = { file: ADD_DOOR, line: 175, needle: 'stageHasRole(body.stage, "terminal", axis.stages)' };
@@ -62,8 +62,8 @@ const SQL_WRITERS: Record<string, Row> = {
   [`${STORE}#actOnPipelineEntry`]: {
     cls: "refuses-terminal",
     count: 3,
-    why: "approve_event / screening_review / accept advance one column; the request door refuses an accept that would land on terminal",
-    guard: G_ACCEPT,
+    why: "screening_review / accept advance one column and the store refuses (null, nothing written) one that would land on terminal unless the caller passes outcome: offer_accepted; approve_event keeps the stage when the gate is the terminal column",
+    guard: G_STORE_ACT,
   },
   [`${STORE}#reinstatePipelineEntry`]: {
     cls: "not-a-move",
@@ -131,7 +131,7 @@ const CALLERS: Record<string, Row> = {
   "app/_lib/offer-finalize.ts -> actOnPipelineEntry": {
     cls: "terminal-by-design",
     count: 1,
-    why: "the candidate's accepted offer is the one way onto the terminal column",
+    why: "the candidate's accepted offer is the one way onto the terminal column: it passes outcome: offer_accepted, the store guard's opt-in",
   },
   "app/_lib/screen-wave.ts -> actOnPipelineEntry": {
     cls: "not-a-move",
@@ -139,24 +139,28 @@ const CALLERS: Record<string, Row> = {
     why: "reject: closes the entry by status, writes no stage",
   },
   "app/_lib/automation-pass.ts -> actOnPipelineEntry": {
-    cls: "known-gap",
+    cls: "refuses-terminal",
     count: 1,
-    why: "policy advance goes entry/screening -> next column by role; on an axis with no interview/offer column that next column is the terminal one",
+    why: "STORE GUARD: policy advance goes entry/screening -> next column by role; on an axis with no interview/offer column that next column is the terminal one; the store refuses the landing (accept / ratify) or keeps the stage (approve_event)",
+    guard: G_STORE_ACT,
   },
   "app/_lib/automation-run.ts -> actOnPipelineEntry": {
-    cls: "known-gap",
+    cls: "refuses-terminal",
     count: 2,
-    why: "screening advance / plan-gate ratify: same reach as the policy advance on a degenerate axis",
+    why: "STORE GUARD: screening advance / plan-gate ratify: same reach as the policy advance on a degenerate axis; the store refuses the landing (accept / ratify) or keeps the stage (approve_event)",
+    guard: G_STORE_ACT,
   },
   "app/api/schedule/route.ts -> actOnPipelineEntry": {
-    cls: "known-gap",
+    cls: "refuses-terminal",
     count: 2,
-    why: "approve_event lands on the screening gate (first interview, else offer, else terminal column); terminal only on an axis with neither",
+    why: "STORE GUARD: approve_event lands on the screening gate (first interview, else offer, else terminal column); terminal only on an axis with neither; the store refuses the landing (accept / ratify) or keeps the stage (approve_event)",
+    guard: G_STORE_ACT,
   },
   "app/api/schedule/[token]/route.ts -> actOnPipelineEntry": {
-    cls: "known-gap",
+    cls: "refuses-terminal",
     count: 1,
-    why: "approve_event, as above",
+    why: "STORE GUARD: approve_event, as above; the store refuses the landing (accept / ratify) or keeps the stage (approve_event)",
+    guard: G_STORE_ACT,
   },
   // reinstatePipelineEntry
   "app/api/pipeline/[id]/route.ts -> reinstatePipelineEntry": {

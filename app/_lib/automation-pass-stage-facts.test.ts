@@ -45,9 +45,23 @@ test("advanceTo is exactly where actOnPipelineEntry('accept') lands (nextStageOn
     const entries = axis.map((s, i) => entry(`e${i}`, s.id));
     for (const e of withPolicyStageFacts(entries, () => axis)) {
       const landing = nextStageOnAxis(e.stage, axis);
-      assert.equal(e.advanceTo, landing === e.stage ? null : landing, e.stage);
+      // The one exception: a landing on the terminal column is never proposed (below).
+      const toTerminal = axis.find((s) => s.id === landing)?.role === "terminal";
+      assert.equal(e.advanceTo, landing === e.stage || toTerminal ? null : landing, e.stage);
     }
   }
+});
+
+test("advanceTo is null when the next column has the terminal role (the offer is the only way there)", () => {
+  const BARE: readonly StageDef[] = [
+    { id: "Inbox", label: "Inbox", role: "entry" },
+    { id: "Review", label: "Review", role: "screening" },
+    { id: "Signed", label: "Signed", role: "terminal" },
+  ];
+  const out = withPolicyStageFacts([entry("a", "Inbox"), entry("b", "Review")], () => BARE);
+  assert.deepEqual(out.map((e) => [e.stage, e.advanceTo]), [["Inbox", "Review"], ["Review", null]]);
+  // Resolved by role, not name: the shipped Offer column is held for the same reason.
+  assert.equal(withPolicyStageFacts([entry("o", "Offer")], () => DEFAULT_STAGE_AXIS)[0].advanceTo, null);
 });
 
 test("the shipped board stamps the shipped roles and successors", () => {
@@ -58,7 +72,7 @@ test("the shipped board stamps the shipped roles and successors", () => {
       ["Accepted", "entry", "Screened"],
       ["Screened", "screening", "Interview"],
       ["Interview", "interview", "Offer"],
-      ["Offer", "offer", "Hired"],
+      ["Offer", "offer", null],
       ["Hired", "terminal", null],
     ]
   );

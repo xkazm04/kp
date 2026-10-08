@@ -3452,7 +3452,12 @@ function nextStageOnAxis(stage: string, axis: readonly StageDef[]): string {
  *  Python for seconds, then applies): when the row's stage no longer matches
  *  what the decision was computed from, the action is SKIPPED and null is
  *  returned — a policy verdict about a stage the entry is no longer in must
- *  not be applied to whatever stage it is in now. */
+ *  not be applied to whatever stage it is in now.
+ *
+ *  `opts.outcome` is the only way onto the terminal column: the terminal stage is
+ *  outcome-bearing (an accepted offer), so an accept / screening_review whose one-column
+ *  advance would LAND on the column with the terminal role is refused (null, nothing
+ *  written) unless the caller declares the outcome. approve_event never lands there. */
 export function actOnPipelineEntry(
   id: string,
   action: PipelineAction,
@@ -3468,7 +3473,7 @@ export function actOnPipelineEntry(
   // the log row and the seal emitted beside it name the same actor. Server-derived by the
   // caller (humanActor() in operator-approver.ts); omitted ⇒ NULL ⇒ "not identified",
   // never a defaulted person (guardrail G3).
-  opts?: { expectedStage?: string; expectedApprovalKind?: ApprovalKind | null; actor?: "human" | "system"; actorRef?: string | null },
+  opts?: { expectedStage?: string; expectedApprovalKind?: ApprovalKind | null; actor?: "human" | "system"; actorRef?: string | null; outcome?: "offer_accepted" },
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): PipelineEntry | null {
   const db = ensureDb();
@@ -3535,6 +3540,13 @@ export function actOnPipelineEntry(
   // optional reason rides the event. (approve_event keeps using detail as the slot.)
   const decisionNote = detail && detail.trim() ? detail.trim() : null;
   const auto = opts?.actor === "system";
+  const guardTerminal = (next: string): boolean => {
+    if (next === row.stage || opts?.outcome === "offer_accepted" || !stageHasRole(next, "terminal", axis)) return false;
+    console.warn(
+      `[pipeline:act] refused ${action} for entry ${id}: '${row.stage}' -> '${next}' would land on the terminal stage without an offer outcome.`
+    );
+    return true;
+  };
   if (action === "reject") {
     db.prepare(`UPDATE pipeline_entries SET status='rejected', approval_kind=NULL, updated_at=? WHERE id=? AND workspace_id=?`).run(now, id, workspaceId);
     recordEvent(db, { ...meta, kind: auto ? "auto_rejected" : "rejected", toStage: row.stage, detail: decisionNote });
@@ -3555,7 +3567,11 @@ export function actOnPipelineEntry(
     // park its candidate on a stage the board does not draw.
     const gateIdx = screeningGateIndex(axis);
     const curIdx = stageIndex(row.stage, axis);
-    const toStage = curIdx > gateIdx ? row.stage : axis[gateIdx]?.id ?? row.stage;
+    let toStage = curIdx > gateIdx ? row.stage : axis[gateIdx]?.id ?? row.stage;
+    // On an axis with neither an interview nor an offer column the gate IS the terminal
+    // column; a confirmed slot is not an outcome, so the candidate keeps their stage (the
+    // reschedule path below) and the slot is still recorded.
+    if (toStage !== row.stage && stageHasRole(toStage, "terminal", axis)) toStage = row.stage;
     if (toStage !== row.stage) {
       db.prepare(
         `UPDATE pipeline_entries SET stage=?, approval_kind=NULL, approval_detail=NULL, stage_changed_at=?, updated_at=? WHERE id=? AND workspace_id=?`
@@ -3573,6 +3589,7 @@ export function actOnPipelineEntry(
     // advance a stage AND queue them on the calendar (Schedule tab) with a
     // default proposed slot, so the interviewer can pick a time + open the prep.
     const next = nextStageOnAxis(row.stage, axis);
+    if (guardTerminal(next)) return null;
     db.prepare(
       `UPDATE pipeline_entries SET stage=?, approval_kind='calendar', approval_detail=?, stage_changed_at=?, updated_at=? WHERE id=? AND workspace_id=?`
     ).run(next, "Tue 14:00", now, now, id, workspaceId);
@@ -3580,6 +3597,7 @@ export function actOnPipelineEntry(
   } else {
     // accept: advance one stage, clear any pending approval
     const next = nextStageOnAxis(row.stage, axis);
+    if (guardTerminal(next)) return null;
     if (next !== row.stage) {
       db.prepare(
         `UPDATE pipeline_entries SET stage=?, approval_kind=NULL, approval_detail=NULL, stage_changed_at=?, updated_at=? WHERE id=? AND workspace_id=?`

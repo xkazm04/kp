@@ -246,10 +246,24 @@ gates, as for a batch move.
 every door declare itself. It walks `app/` and `pipeline/` for every SQL write of
 `pipeline_entries.stage` and every caller of a store function that writes it, and compares
 them with a checked-in table (refuses terminal with the guard's file:line · terminal by
-design · boot migration · seed · known gap · not a move). A new, unclassified, recounted or
-vanished writer fails the test and names it. Known gaps it records: the policy/screening
-advance and the schedule `approve_event` can reach the terminal column on an axis that has
-no interview or offer column.
+design · boot migration · seed · not a move). A new, unclassified, recounted or
+vanished writer fails the test and names it. There is no `known-gap` class any more.
+
+**The store guard (`actOnPipelineEntry`).** The terminal stage is reached by an accepted
+offer, so the store itself refuses the landing, inside the IMMEDIATE transaction and before
+any write: an `accept` or `screening_review` advance whose destination has the terminal
+role (by role, never the name `Hired`) returns `null` with a `[pipeline:act] refused …`
+warning and writes no UPDATE, no event and fires no arrival hook. The only way through is
+the explicit opt-in `opts.outcome: "offer_accepted"`, passed by `offer-finalize.ts` alone.
+`approve_event` never lands on terminal: when the screening gate resolves to the terminal
+column (an axis with neither an interview nor an offer column) the candidate keeps their
+stage, the approval is cleared and the `scheduled` event records `toStage` = the current
+stage, exactly the reschedule path; the slot is still confirmed. The policy pass sets
+`advanceTo` to `null` when the next column has the terminal role, so it holds rather than
+proposing the move; a store refusal on the policy / screening / plan-gate paths is counted
+as skipped or held, never advanced. `validatePipelineStages` is unchanged: a board without
+an interview or offer column is a supported shape. Pinned by
+`app/_lib/db/pipeline-act-terminal.test.ts`.
 
 ## Flows
 

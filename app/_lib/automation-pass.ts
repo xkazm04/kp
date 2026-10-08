@@ -11,7 +11,7 @@ import { FAIRNESS_GATE_BLOCKED_REJECT, type DecisionOutcome } from "./decision-a
 import { isAgingAlertKind } from "./aging-policy";
 import { planCommit, type CommitSelection, type CommitVerdict } from "./automation-commit-plan";
 import { getPipelineAxis } from "./pipeline-axis-server";
-import { roleOf, type StageDef, type StageRole } from "./pipeline-stages";
+import { roleOf, stageHasRole, type StageDef, type StageRole } from "./pipeline-stages";
 import { nextStageOnAxis } from "./db/pipeline-core";
 
 // Audit event kind logged when the TS fairness backstop refuses a Python reject
@@ -591,7 +591,10 @@ export function withPolicyStageFacts<E extends { stage: string; workspaceId: str
     }
     const stageRole = roleOf(e.stage, axis);
     const next = stageRole ? nextStageOnAxis(e.stage, axis) : e.stage;
-    return { ...e, stageRole, advanceTo: next === e.stage ? null : next };
+    // The terminal column is outcome-bearing: only an accepted offer lands there (the
+    // store refuses an accept onto it), so the policy never proposes that move.
+    const proposes = next !== e.stage && !stageHasRole(next, "terminal", axis);
+    return { ...e, stageRole, advanceTo: proposes ? next : null };
   });
 }
 
