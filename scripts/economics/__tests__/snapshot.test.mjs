@@ -4,18 +4,20 @@
 //   - NONE of the identifying strings seeded into the fixture (recipients, bodies,
 //     subjects, request ids, task ids, the fixture path) reaches the output;
 //   - the source database is byte-identical after a run, including the WAL case;
-//   - keyless vs keyed is stated.
+//   - keyless vs keyed is stated;
+//   - the temp copy (personal data included) never outlives a failed copy or open, and a
+//     copy torn by a checkpoint is retried, never reported.
 //
 //   node scripts/run-unit-tests.mjs "scripts/economics/**/*.test.mjs"
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { readFileSync, mkdtempSync, rmSync, existsSync } from "node:fs";
+import { readFileSync, mkdtempSync, rmSync, existsSync, writeFileSync, mkdirSync, readdirSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
-import { buildSnapshot, percentile } from "../snapshot.mjs";
+import { buildSnapshot, openReadOnly, percentile } from "../snapshot.mjs";
 
 const SCRIPT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "snapshot.mjs");
 
@@ -213,6 +215,106 @@ test("a database missing optional tables still yields a snapshot", () => {
     assert.equal(s.row_counts.ats_delivery, null);
     assert.deepEqual(s.task_kinds, []);
     assert.deepEqual(s.window, { start: null, end: null });
+  } finally {
+    db.close();
+    cleanup(dir);
+  }
+});
+
+/** Run `fn` with os.tmpdir() pointed at a private folder, so "no kp-economics-* folder
+ *  remains" is about THIS test, not whatever else shares the machine's temp. */
+async function withPrivateTmp(fn) {
+  const root = mkdtempSync(path.join(os.tmpdir(), "kp-econ-tmproot-"));
+  const saved = { TEMP: process.env.TEMP, TMP: process.env.TMP, TMPDIR: process.env.TMPDIR };
+  for (const k of Object.keys(saved)) process.env[k] = root;
+  try {
+    assert.equal(os.tmpdir(), root, "os.tmpdir() must follow the env for this test to mean anything");
+    await fn(() => readdirSync(root).filter((n) => n.startsWith("kp-economics-")));
+  } finally {
+    for (const [k, v] of Object.entries(saved)) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+    cleanup(root);
+  }
+}
+
+test("an open that fails after the copy leaves no copy of the database in temp", async () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), "kp-econ-test-"));
+  const file = path.join(dir, "fixture.sqlite");
+  // Not SQLite, but with a -wal beside it, so the copy path runs before the open fails.
+  writeFileSync(file, "jane.doe@example.org is not a database page ".repeat(100));
+  writeFileSync(`${file}-wal`, "not a wal either");
+  try {
+    await withPrivateTmp(async (leftovers) => {
+      await assert.rejects(openReadOnly(file), (err) => err.code === "SQLITE_NOTADB");
+      assert.deepEqual(leftovers(), [], "the temp copy outlived the failed open");
+    });
+  } finally {
+    cleanup(dir);
+  }
+});
+
+test("a copy that fails after the database file was copied leaves nothing in temp", async () => {
+  const { dir, file, db } = fixture({ keyed: false });
+  db.close();
+  // A -wal that cannot be copied: the db copy is already in temp when it throws.
+  mkdirSync(`${file}-wal`);
+  try {
+    await withPrivateTmp(async (leftovers) => {
+      await assert.rejects(openReadOnly(file));
+      assert.deepEqual(leftovers(), [], "the db copy outlived the failed wal copy");
+    });
+  } finally {
+    cleanup(dir);
+  }
+});
+
+/** Between the db and the wal copy: checkpoint everything into the db, restart the wal,
+ *  and commit one more row: the torn copy a live server can produce. */
+const tearOnce = (db) => () => {
+  db.pragma("wal_checkpoint(TRUNCATE)");
+  db.prepare(
+    `INSERT INTO llm_usage (ts, use_case, provider, model, input_tokens, output_tokens, cached_tokens, cost_usd, source, outcome, request_id)
+     VALUES ('2026-10-07T10:00:00Z', 'jd_ingest', 'deterministic', NULL, 0, 0, NULL, 0, 'deterministic', 'ok', NULL)`,
+  ).run();
+};
+
+test("a copy torn by a checkpoint between the db and the wal is retried, not reported", async () => {
+  const { dir, file, db } = fixture({ keyed: false, wal: true });
+  let calls = 0;
+  const tear = tearOnce(db);
+  try {
+    await withPrivateTmp(async (leftovers) => {
+      const handle = await openReadOnly(file, {
+        afterDbCopy: () => {
+          calls += 1;
+          if (calls === 1) tear();
+        },
+      });
+      try {
+        // Unguarded, the first copy is the pre-checkpoint db (no tables yet) plus the
+        // restarted wal: it opens cleanly and reports n = 0, "keyless".
+        assert.equal(calls, 2, "the torn first copy must be discarded and taken again");
+        assert.equal(buildSnapshot(handle.db, {}).n, 6);
+      } finally {
+        handle.close();
+      }
+      assert.deepEqual(leftovers(), []);
+    });
+  } finally {
+    db.close();
+    cleanup(dir);
+  }
+});
+
+test("a copy torn on every attempt is refused, and leaves nothing in temp", async () => {
+  const { dir, file, db } = fixture({ keyed: false, wal: true });
+  try {
+    await withPrivateTmp(async (leftovers) => {
+      await assert.rejects(openReadOnly(file, { afterDbCopy: tearOnce(db) }), /changed under every one of 3 copies/);
+      assert.deepEqual(leftovers(), []);
+    });
   } finally {
     db.close();
     cleanup(dir);

@@ -8,7 +8,8 @@
 // The OPERATOR runs this. It is not a gate and no CI step calls it. It opens the database
 // read-only (KP_DB_PATH, else data/kp.sqlite — the env var is optional, never required);
 // when a -wal file sits beside it the server is up, so db + wal + shm are copied to a
-// temp folder first and the COPY is opened, which leaves the source untouched.
+// temp folder first and the COPY is opened, which leaves the source untouched. A copy torn
+// by a checkpoint is retried, and the temp folder never outlives a failure (openReadOnly).
 //
 // WHAT IT NEVER EXPORTS: an id, a recipient, a subject, a body, a request id, the path of
 // the database. Only counts, sums and the closed vocabularies (use case, provider, model,
@@ -19,7 +20,18 @@
 // It states whether the database is KEYLESS (no priced, non-deterministic provider row:
 // the shipped default path, at a known $0) or KEYED (real spend). Docs:
 // docs/architecture/economics/README.md.
-import { copyFileSync, existsSync, mkdtempSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
+import {
+  closeSync,
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  openSync,
+  readSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -158,30 +170,103 @@ export function buildSnapshot(db, meta = {}) {
   };
 }
 
-/** Open `dbPath` read-only; copy the WAL set first when a -wal file exists. Returns the
- *  handle and a cleanup. */
-export async function openReadOnly(dbPath) {
-  const { default: Database } = await import("better-sqlite3");
-  let target = dbPath;
-  let tmp = null;
-  let copiedWal = false;
-  if (existsSync(`${dbPath}-wal`)) {
-    tmp = mkdtempSync(path.join(os.tmpdir(), "kp-economics-"));
-    target = path.join(tmp, path.basename(dbPath));
-    copyFileSync(dbPath, target);
-    copyFileSync(`${dbPath}-wal`, `${target}-wal`);
-    if (existsSync(`${dbPath}-shm`)) copyFileSync(`${dbPath}-shm`, `${target}-shm`);
-    copiedWal = true;
+const COPY_ATTEMPTS = 3;
+const WAL_HEADER_BYTES = 32;
+
+/** The first 32 bytes of a -wal file (magic, page size, checkpoint seq, salts), or null. */
+function walHeader(file) {
+  let fd;
+  try {
+    fd = openSync(file, "r");
+    const buf = Buffer.alloc(WAL_HEADER_BYTES);
+    return buf.subarray(0, readSync(fd, buf, 0, WAL_HEADER_BYTES, 0));
+  } catch {
+    /* unreadable: no header, so only the db-unchanged test below can accept the copy */
+    return null;
+  } finally {
+    if (fd !== undefined) closeSync(fd);
   }
-  const db = new Database(target, { readonly: true, fileMustExist: true });
-  return {
-    db,
-    copiedWal,
-    close() {
-      db.close();
-      if (tmp) rmSync(tmp, { recursive: true, force: true });
-    },
-  };
+}
+
+const dbStamp = (file) => {
+  const s = statSync(file, { bigint: true });
+  return `${s.size}:${s.mtimeNs}`;
+};
+
+/** Copy db, then wal, then shm, and say whether the copy is ONE point in time.
+ *
+ *  Two copies are not atomic against a live server. A checkpoint can write pages into
+ *  the db file after its copy, and the wal can then RESTART (new salt, old frames gone)
+ *  before its copy: the copy then holds a stale db and only the new frames, and it opens
+ *  cleanly and silently answers with fewer rows (or none: a stale schema page reads as
+ *  "no llm_usage table"), with integrity_check ok. The copy is sound when either
+ *    - the wal header did not change across the window (no restart, so every page
+ *      the checkpointer wrote into the db is still a frame in the copied wal), or
+ *    - the db file did not change across the window (no checkpoint wrote it). */
+function copyWalSet(dbPath, target, afterDbCopy) {
+  const headBefore = walHeader(`${dbPath}-wal`);
+  const stampBefore = dbStamp(dbPath);
+  copyFileSync(dbPath, target);
+  afterDbCopy?.();
+  copyFileSync(`${dbPath}-wal`, `${target}-wal`);
+  try {
+    copyFileSync(`${dbPath}-shm`, `${target}-shm`);
+  } catch (err) {
+    // The shm is an index SQLite rebuilds from the wal on the copy's first open.
+    if (err?.code !== "ENOENT") throw err;
+  }
+  const headAfter = walHeader(`${target}-wal`);
+  const sameWal =
+    headBefore?.length === WAL_HEADER_BYTES && headAfter?.length === WAL_HEADER_BYTES && headBefore.equals(headAfter);
+  return sameWal || dbStamp(dbPath) === stampBefore;
+}
+
+/** Open `dbPath` read-only; copy the WAL set first when a -wal file exists. Returns the
+ *  handle and a cleanup.
+ *
+ *  The copy holds candidates' personal data, so it never outlives this call unless
+ *  the caller holds the handle: a failed copy, a torn copy or a failed open removes the
+ *  temp folder before anything is rethrown. A torn copy is retried; after
+ *  COPY_ATTEMPTS the call refuses rather than report numbers from a torn copy.
+ *  `afterDbCopy` is a test seam: it runs between the db and the wal copy. */
+export async function openReadOnly(dbPath, { afterDbCopy } = {}) {
+  const { default: Database } = await import("better-sqlite3");
+  for (let attempt = 1; attempt <= COPY_ATTEMPTS; attempt += 1) {
+    if (!existsSync(`${dbPath}-wal`)) {
+      const db = new Database(dbPath, { readonly: true, fileMustExist: true });
+      return { db, copiedWal: false, close: () => db.close() };
+    }
+    const tmp = mkdtempSync(path.join(os.tmpdir(), "kp-economics-"));
+    let db = null;
+    try {
+      const target = path.join(tmp, path.basename(dbPath));
+      if (copyWalSet(dbPath, target, afterDbCopy)) {
+        db = new Database(target, { readonly: true, fileMustExist: true });
+        // better-sqlite3 opens lazily: read the schema now, so a copy that is not a
+        // database fails HERE, inside the cleanup, not in the caller.
+        db.prepare("SELECT COUNT(*) FROM sqlite_master").get();
+        const handle = db;
+        return {
+          db: handle,
+          copiedWal: true,
+          close() {
+            handle.close();
+            rmSync(tmp, { recursive: true, force: true });
+          },
+        };
+      }
+    } catch (err) {
+      db?.close();
+      rmSync(tmp, { recursive: true, force: true });
+      // A server that shut down mid-copy checkpointed and deleted its wal: start over.
+      if (err?.code === "ENOENT" && !existsSync(`${dbPath}-wal`)) continue;
+      throw err;
+    }
+    rmSync(tmp, { recursive: true, force: true });
+  }
+  throw new Error(
+    `the database changed under every one of ${COPY_ATTEMPTS} copies (a checkpoint each time); run again, or stop the server first`,
+  );
 }
 
 function parseArgs(argv) {
