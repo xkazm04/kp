@@ -108,8 +108,17 @@ test.describe("Journeys — the board opens over the workspace and renders the l
 
     // Analytics already sits in the Insights section, so its sibling items are on
     // screen: click Journeys directly rather than re-opening the section first.
-    await navItem(page, /^journeys$/i).click();
-    await expect(board(page)).toBeVisible();
+    //
+    // Retried until the dialog is up, like every other click on server-rendered
+    // markup in this suite: the rail paints (and the radiogroup above is visible)
+    // before React wires its onClick, and the single click this used to be was
+    // dropped — measured at 8 workers, the click lands 0.1 s after the document
+    // loads and the dialog never opens in 30 s. Bounded, and only while the dialog
+    // is absent, so a click can never toggle an open board shut.
+    await expect(async () => {
+      if (!(await board(page).isVisible())) await navItem(page, /^journeys$/i).click({ timeout: 2_000 });
+      await expect(board(page)).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 30_000 });
 
     await page.keyboard.press("Escape");
     await expect(board(page)).toBeHidden();
