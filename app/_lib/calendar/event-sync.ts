@@ -115,10 +115,13 @@ export async function syncInterviewEvent(
  * is still sitting on someone's calendar — and KEEPS the event id so a later attempt can
  * still find it. Returns null when there was nothing to do. Never throws.
  */
-export async function removeInterviewEvent(invite: SyncableInvite): Promise<CalendarEventState | null> {
+export async function removeInterviewEvent(
+  invite: SyncableInvite,
+  opts: { sendUpdates?: "none" } = {}
+): Promise<CalendarEventState | null> {
   if (!invite.calendarEventId) return null;
   try {
-    const result = await deleteInterviewEvent(invite.calendarEventId, invite.workspaceId);
+    const result = await deleteInterviewEvent(invite.calendarEventId, invite.workspaceId, opts);
     return record(invite.token, result.ok ? "removed" : "orphaned");
   } catch (err) {
     console.error(`[calendar] event removal threw for invite "${invite.token}"`, err);

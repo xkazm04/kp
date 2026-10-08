@@ -541,6 +541,43 @@ export function recordCalendarEvent(
     );
 }
 
+/** Invites of ONE entry (in its own team) that still hold a calendar event id. The
+ *  erasure door reads these FRESH after the commit: the scrub replaced every token, so a
+ *  list read before it would key the outcome on tokens that no longer exist. */
+export function invitesWithCalendarEvent(entryId: string, workspaceId: string): ScheduleInvite[] {
+  const rows = db()
+    .prepare(
+      `SELECT * FROM schedule_invites
+        WHERE entry_id = ? AND workspace_id = ? AND calendar_event_id IS NOT NULL
+        ORDER BY created_at ASC`
+    )
+    .all(entryId, workspaceId) as Record<string, unknown>[];
+  return rows.map(rowTo);
+}
+
+/** Invites that still hold a calendar event although their entry has been anonymized
+ *  (erasure or consent expiry): the retry queue for calendar/erasure-events.ts. The state
+ *  is the invite's own kept `calendar_event_id` — no separate queue. Rows whose last
+ *  calendar attempt (`calendar_event_at`) is newer than `retryBefore` are skipped, so a
+ *  Google outage is retried slowly. Oldest attempt first (never-attempted rows lead),
+ *  at most `limit`. Cross-tenant by design, like dueReminders: every call is then made
+ *  with the invite's OWN workspace. */
+export function erasedInvitesWithCalendarEvent(retryBefore: string, limit: number): ScheduleInvite[] {
+  const rows = db()
+    .prepare(
+      `SELECT s.*
+         FROM schedule_invites s
+         LEFT JOIN pipeline_entries p ON p.id = s.entry_id
+        WHERE p.anonymized_at IS NOT NULL
+          AND s.calendar_event_id IS NOT NULL
+          AND (s.calendar_event_at IS NULL OR s.calendar_event_at <= ?)
+        ORDER BY COALESCE(s.calendar_event_at, '') ASC, s.created_at ASC
+        LIMIT ? -- tenancy:global`
+    )
+    .all(retryBefore, limit) as Record<string, unknown>[];
+  return rows.map(rowTo);
+}
+
 /** Cap on candidate self-reschedules of a confirmed booking. Small on purpose:
  *  the "change time" affordance exists to remove recruiter triage, not to let a
  *  candidate churn the calendar — past this the email's "just reply" path takes

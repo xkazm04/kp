@@ -317,16 +317,21 @@ export async function updateInterviewEvent(
  * no-showed). An event that is ALREADY gone (404/410) is a success — deletion is
  * idempotent, so a retry after a partial failure converges instead of reporting a
  * permanent error for a calendar that is already in the desired state.
+ *
+ * `sendUpdates: "none"` asks Google not to mail the attendees a cancellation. The erasure
+ * path passes it (an erased person must not get a mail); omitted, the request is exactly
+ * what the cancel and withdraw callers have always sent.
  */
 export async function deleteInterviewEvent(
   eventId: string,
-  workspaceId: string
+  workspaceId: string,
+  opts: { sendUpdates?: "none" } = {}
 ): Promise<{ ok: true } | { ok: false; reason: "not_connected" | "failed" }> {
   const auth = await accessTokenFor(workspaceId);
   if (!auth) return { ok: false, reason: isCalendarConnected(workspaceId) ? "failed" : "not_connected" };
   const calendarId = getCalendarConnection(workspaceId)?.calendarId ?? "primary";
   const status = await fetchStatus(
-    `${EVENTS_ENDPOINT}/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
+    `${EVENTS_ENDPOINT}/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}${opts.sendUpdates ? `?sendUpdates=${opts.sendUpdates}` : ""}`,
     { method: "DELETE", headers: { authorization: `Bearer ${auth.token}` } }
   );
   if (status === 404 || status === 410 || (status >= 200 && status < 300)) return { ok: true };
