@@ -454,13 +454,16 @@ test("a human seals the decision, and it is in the queue and in the chain", asyn
 
   await page.goto("/?tab=decisions");
   await expect(page.getByText("Your decision queue")).toBeVisible({ timeout: 30_000 });
-  // Scoped to the ONE ledger row (ledger/DecisionsLedger.tsx renders a table row
-  // per recommendation), so the tag is asserted on this candidate's row and not
-  // merely somewhere on a queue that holds other people's. The verdict buttons live
+  // Scoped to the ONE docket entry (the Decisions tab is The Docket now: a list
+  // item per waiting candidate under its role, no longer a table row), so
+  // the tag is asserted on this candidate's row and not merely somewhere on a
+  // queue that holds other people's. The verdict buttons live
   // in the candidate modal the row's Decide opens.
-  const row = page.getByRole("row").filter({ hasText: CANDIDATE });
+  const row = page.getByRole("listitem").filter({ hasText: CANDIDATE });
   await expect(row).toHaveCount(1);
-  await row.getByRole("button", { name: `Decide on ${CANDIDATE}` }).click();
+  // The docket row names the candidate as a button AND ends in a Decide icon
+  // button; both open the same modal, so the name button is the one clicked.
+  await row.getByRole("button", { name: `Decide on ${CANDIDATE}` }).first().click();
   const modal = page.getByRole("dialog", { name: CANDIDATE, exact: true });
   // The KIND of recommendation is named on the modal's decision strip
   // (CandidateDecisionBar's tag), not on the ledger row — the row carries
