@@ -131,7 +131,8 @@ the existing JD build. Conversation design is normed by
    work-sample design; `marketResearch: false` opts out of the (Czech-market)
    comp band for non-Czech roles. The intake row is stamped with
    `jd_slug`/`job_id` so a job can be walked back to the conversation that
-   defined it.
+   defined it. The promote also persists the brief (and `company`) in the JD's
+   build intent, so a retry that replays from the row keeps it.
 
 ## Shape `app_master` — composing a role from the codebase (P3)
 

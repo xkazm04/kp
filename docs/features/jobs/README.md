@@ -795,7 +795,7 @@ kit" and §"The kit in the interview".
 | `app/_lib/job-ingest.ts` | `setJobStatus`, `getJobStatus`, `isJobOpenForApplications`, draft/published/closed lifecycle. |
 | `app/api/jds/route.ts`, `app/api/jds/save/route.ts` | Manual paste / AI-builder save + best-effort ingest. |
 | `app/api/jds/save/ingest-job.ts` | `ingestStructuredJob` — JD → structured `jobs` row. |
-| `app/api/jds/[slug]/**` | Analyses, retry-analysis, revisions, per-slug JD read, `ingest-job` (make a saved JD matchable). |
+| `app/api/jds/[slug]/**` | Analyses, retry-analysis, revisions, per-slug JD read, `ingest-job` (make a saved JD matchable). Retry's row-fallback replay (`replayParamsFromIntent` in `app/_lib/jd-build-start.ts`) carries the intake brief for promoted JDs; JDs promoted before this change replay without it. |
 | `app/api/jobs/route.ts`, `app/api/jobs/[id]/route.ts` | Job listing / read. |
 | `app/api/jobs/[id]/publish/route.ts` | Draft → published + source into Pipeline. |
 | `app/api/jobs/[id]/close/route.ts` | Published/draft → closed + withdraw in-flight entries. |
@@ -1486,7 +1486,7 @@ and the spawn; the budgets and that ordering are pinned in
 | Route | Key | Budget | What one call buys |
 | --- | --- | --- | --- |
 | `POST /api/jds/generate` | `jd-generate:<ip>` | 20 / 10 min | the full 1–2 minute paid build |
-| `POST /api/jds/[slug]/retry-analysis` | `jd-retry:<ip>` | 20 / 10 min | the same build, replayed by one click |
+| `POST /api/jds/[slug]/retry-analysis` | `jd-retry:<ip>` | 20 / 10 min | the same build, replayed by one click; the row-fallback replay (task pruned) carries the intake brief for promoted JDs, while JDs promoted before the brief was persisted replay without it |
 | `POST /api/jds/[slug]/ingest-job` | `jd-ingest-job:<ip>` | 20 / 10 min | one Claude ad-parse of the JD body |
 | `POST /api/jds/save` | `jds-save:<ip>` | 30 / 10 min | a deterministic `jobs_cli normalize` child |
 
