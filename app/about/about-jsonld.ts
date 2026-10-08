@@ -27,19 +27,16 @@ export type AboutJsonLdInput = {
 
 /** Strip next-intl rich tags (`<br></br>`, `<emph>`) so JSON-LD carries plain text. */
 export function plainIcu(value: string): string {
-  // Repeat until nothing changes: removing a tag must not let its neighbours
-  // reassemble into a new one (`<scr<b></b>ipt>`).
-  let text = value;
-  for (let next = stripIcuTags(text); next !== text; next = stripIcuTags(text)) text = next;
-  return text.replace(/\s+/g, " ").trim();
-}
-
-function stripIcuTags(value: string): string {
+  // Removing a tag must not let its neighbours reassemble into a new one
+  // (`<scr<b></b>ipt>`), so every angle bracket left after the tag passes is dropped too.
   return value
     .replace(/<br\s*\/?><\/br>/gi, " ")
     .replace(/<br\s*\/?>/gi, " ")
     .replace(/<\/?emph>/gi, "")
-    .replace(/<[^>]+>/g, "");
+    .replace(/<[^>]+>/g, "")
+    .replace(/[<>]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function absoluteUrl(origin: string, path: string): string {
