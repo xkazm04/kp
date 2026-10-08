@@ -14,6 +14,9 @@ sources:
   - app/api/schedule/[token]/route.ts
   - app/_lib/offer-erasure.test.ts
   - app/_lib/schedule-erasure.test.ts
+  - app/_lib/calendar/erasure-events.ts
+  - app/_lib/calendar/erasure-events.test.ts
+  - instrumentation-node.ts
   - app/_lib/decision-attribution.ts
   - app/_lib/db/analytics.ts
 ---
@@ -110,7 +113,7 @@ row keeps its status. Two further layers:
 - **An erased schedule row stays `confirmed`**, so a recruiter list can still show
   a confirmed interview for an anonymized candidate.
 
-## Open question (the operator's; nothing here decides it)
+## Open question (answered 2026-10-08, see Amendments)
 
 The Google Calendar event of a confirmed invite stays on the interviewer's
 calendar and still names the erased candidate as an attendee, because the erasure
@@ -135,4 +138,8 @@ chosen:
   justify a new status and its migration.
 - A third token door found live after an erasure. The fix then is one list of
   token-keyed tables that the scrub is checked against.
-- The operator's answer on the calendar event, if it needs an outbound call.
+- A calendar provider other than Google, or a delete that must be proven rather than retried: the sweep keys on the invite's kept event id and Google's idempotent 404/410, and would need a receipt.
+
+## Amendments
+
+- **2026-10-08 — the calendar event is removed after the erasure commits.** The operator chose option 3, "queue a delete after the commit", plus an immediate attempt on the candidate's own door. `anonymizeEntry` and the scrub stay synchronous and make no network call. After the commit, `POST /api/data/[token]` awaits `removeErasedEntryEvents` (`app/_lib/calendar/erasure-events.ts`), which reads the entry's invites fresh (the scrub replaced their tokens) and calls `removeInterviewEvent` for each one that holds a `calendar_event_id`. The response stays `{erased: true}` whatever Google answers. The durable state is the invite row itself: an invite of an anonymized entry that still holds `calendar_event_id`. There is no new table and no stored address. `sweepErasedInterviewEvents`, run by `sweepExpiredConsents` in `instrumentation-node.ts` (statutory, so also while autonomy is paused), selects those rows across workspaces, oldest attempt first, at most 25 per tick, and skips a row whose `calendar_event_at` is younger than 15 minutes, so an outage is retried slowly. Each call uses the invite's own workspace connection. The delete passes `sendUpdates=none`: an erased person gets no cancellation mail from Google (cancel and withdraw keep their request unchanged). Because the sweep selects on `anonymized_at`, it also covers the consent-expiry door, an erasure whose attempt failed or never ran, and entries erased before this change; it does not tell those apart. The events of past interviews are removed too. A delete that never lands stays `orphaned` with its id kept, and the recruiter panel already renders that state (`ScheduleCalendarEventChip.tsx`, red); a workspace with no calendar connection also stays `orphaned` and is re-checked every 15 minutes at the cost of a local read. Orphaned events of entries that are NOT anonymized (failed cancels) are not retried by this sweep. The Decision text is not rewritten.

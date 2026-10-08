@@ -1046,3 +1046,5 @@ integration. Scopes are deliberately narrow (`calendar.freebusy`,
   by the 8s fetch abort). It sits *after* the booking commit and the confirmation
   dispatch, so it can only slow the response, never lose a booking — but it does
   add to the candidate's confirm latency. A background queue is the follow-up.
+
+**Erasure removes the interviewer's calendar event.** After an erasure commits, `POST /api/data/[token]` deletes the Google event of each of the entry's invites that still holds a `calendar_event_id`, and the consent-expiry sweep retries any that did not land (`app/_lib/calendar/erasure-events.ts`: 25 per tick, 15 minutes between attempts on one event). The delete sends `sendUpdates=none`, so the erased person gets no cancellation mail. A delete that never lands stays `orphaned` with the id kept (the recruiter chip shows it). Failed cancels of live entries are not retried. See [ADR 0021](../../architecture/decisions/0021-an-erasure-revokes-every-live-capability-link-the-candidate-holds.md).

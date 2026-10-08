@@ -1138,3 +1138,5 @@ Known gaps: a resent schedule or interview invite records its `*_invite_sent` ev
 (the dispatchers write it); the take-interview read uses `latestInterviewByEntry`, which
 prefers a transcript-bearing session, so a re-invite behind an older completed interview
 is not shown.
+
+**Erasure also removes the interviewer's calendar event.** The candidate's email stays an attendee on a Google Calendar event after the scrub, so the event is deleted after `anonymizeEntry` commits (the candidate's door attempts at once; the statutory consent sweep retries and covers consent expiry), silently (`sendUpdates=none`). The erasure never waits on Google and never reports its failure as an error. See [ADR 0021](../../architecture/decisions/0021-an-erasure-revokes-every-live-capability-link-the-candidate-holds.md).
