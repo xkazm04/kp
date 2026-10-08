@@ -193,8 +193,19 @@ test("a build that refuses its own input marks the placeholder failed and rethro
   );
   const row = loadJd(slug);
   assert.equal(row?.analysis_status, "failed", "the Ledger must show a failed chip + retry, not Analyzing forever");
-  assert.equal(row?.analysis_error, "JD_GENERATE_FAILED", "the browser-facing row carries a code, never the thrown detail");
+  assert.equal(row?.analysis_error, "JD_BUILD_NEED_TOO_SHORT", "the browser-facing row carries the specific code, never the thrown detail");
   assert.equal(row?.body, "", "a failed build leaves the body untouched");
+});
+
+test("a too-short title persists its own code", async () => {
+  const { slug } = insertAnalyzingJd({ title: "Short Title Role", options: JD_BUILD_DEFAULT_OPTIONS });
+  await assert.rejects(() => runJdBuild({ title: "x", needText: "a".repeat(200), jdSlug: slug, options: JD_BUILD_DEFAULT_OPTIONS }));
+  assert.equal(loadJd(slug)?.analysis_error, "JD_BUILD_TITLE_TOO_SHORT");
+});
+
+test("a role with no languages prints no Languages section", () => {
+  const md = composeMarkdown({ ...ROLE, languages: [] }, { salary: normalizeMarketSalary(undefined) });
+  assert.doesNotMatch(md, /Languages/);
 });
 
 test("an empty checklist is refused before anything spawns", async () => {
