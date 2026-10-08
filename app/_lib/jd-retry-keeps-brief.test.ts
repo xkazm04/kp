@@ -41,11 +41,12 @@ function promoteIntent(): { buildInput: JdBuildIntent; params: Record<string, un
   };
 }
 
-function replay(buildInput: JdBuildIntent | Record<string, unknown>, ws = "ws-a") {
+function replay(buildInput: JdBuildIntent | Record<string, unknown>) {
+  const ws = "ws-a";
   const { slug } = insertAnalyzingJd({ title: "Platform Engineer", options: {}, buildInput: buildInput as JdBuildIntent }, ws);
   const row = loadJd(slug, ws);
   assert.ok(row, "the analyzing JD loads in its workspace");
-  return replayParamsFromIntent(row!.title, row!.build_input_json, ws);
+  return replayParamsFromIntent(row!.title, row!.build_input_json, () => undefined);
 }
 
 test("a promoted JD replays with its brief, deep-equal, and promote's other params", () => {
@@ -92,6 +93,17 @@ test("a brief that is a string, an array or null is omitted", () => {
 });
 
 test("a blank or unparseable intent still yields null", () => {
-  assert.equal(replayParamsFromIntent("t", null, "ws-a"), null);
-  assert.equal(replayParamsFromIntent("t", "{not json", "ws-a"), null);
+  assert.equal(replayParamsFromIntent("t", null, () => undefined), null);
+  assert.equal(replayParamsFromIntent("t", "{not json", () => undefined), null);
+});
+
+test("the template body comes from the caller's resolver, only for a stored templateId", () => {
+  const seen: string[] = [];
+  const resolve = (id: string) => (seen.push(id), `body-of-${id}`);
+  const withTpl = replay({ needText: "n", templateId: "tpl-1" });
+  assert.equal(withTpl!.templateBody, undefined, "the helper's default resolver yields nothing");
+  const { slug } = insertAnalyzingJd({ title: "T", options: {}, buildInput: { needText: "n", templateId: "tpl-1" } }, "ws-a");
+  const replayed = replayParamsFromIntent("T", loadJd(slug, "ws-a")!.build_input_json, resolve);
+  assert.equal(replayed!.templateBody, "body-of-tpl-1");
+  assert.deepEqual(seen, ["tpl-1"]);
 });

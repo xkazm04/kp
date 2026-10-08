@@ -1,6 +1,5 @@
 import { insertAnalyzingJd, markJdAnalyzing, setJdAnalysisTask, type JdBuildIntent } from "./db/jobs";
 import { startTask } from "./tasks";
-import { getTemplate } from "./templates-store";
 import { type JdBuildOptions } from "./jd-build-run";
 
 // THE ONE DOOR into a backgrounded `jd_build`.
@@ -61,14 +60,15 @@ export function startJdBuild(input: StartJdBuildInput): { slug: string; taskId: 
 /** Reconstruct the jd_build params from the JD row's persisted intent — the
  *  row-fallback replay path when the original task record has been pruned. Mirrors
  *  the shape POST /api/jds/generate hands the seam, re-resolving templateBody from
- *  the stored templateId (which is durable; the resolved body isn't). The promoted
+ *  the stored templateId (which is durable; the resolved body isn't) through the
+ *  caller's workspace-scoped `resolveTemplateBody`. The promoted
  *  intake `brief` rides along when the intent carries one (a plain object only;
  *  legacy intents have none and replay without the key). NULL/blank intent ⇒ null
  *  (a legacy row with neither task nor intent → the route's 400). */
 export function replayParamsFromIntent(
   title: string,
   raw: string | null | undefined,
-  workspaceId: string
+  resolveTemplateBody: (templateId: string) => string | undefined
 ): Record<string, unknown> | null {
   if (!raw) return null;
   let intent: JdBuildIntent;
@@ -77,11 +77,12 @@ export function replayParamsFromIntent(
   } catch {
     return null;
   }
-  // Resolve the stored template in the JD's OWN workspace (tenancy): getTemplate
-  // has a defaulted workspaceId, so an unscoped call replayed against the DEFAULT
-  // team's templates — dropping a non-default team's format on every retry.
+  // The caller supplies the resolver so the template is read in the JD's OWN
+  // workspace (tenancy): getTemplate has a defaulted workspaceId, so an unscoped
+  // call replayed against the DEFAULT team's templates. The route binds it to `ws`
+  // (template-tenancy.test.ts pins that at the route's source).
   const templateBody =
-    typeof intent.templateId === "string" && intent.templateId ? getTemplate(intent.templateId, workspaceId)?.body : undefined;
+    typeof intent.templateId === "string" && intent.templateId ? resolveTemplateBody(intent.templateId) : undefined;
   const brief: unknown = intent.brief;
   const hasBrief = typeof brief === "object" && brief !== null && !Array.isArray(brief);
   return {

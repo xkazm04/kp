@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { loadJd } from "@/app/_lib/db/jobs";
 import { getTask } from "@/app/_lib/db/tasks";
+import { getTemplate } from "@/app/_lib/templates-store";
 import { replayParamsFromIntent, restartJdBuild } from "@/app/_lib/jd-build-start";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
@@ -36,10 +37,12 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
       return NextResponse.json({ error: "This JD isn't in a failed state." }, { status: 409 });
     }
     const oldTask = jd.analysis_task_id ? getTask(jd.analysis_task_id) : null;
+    // The JD's own workspace resolves its stored template (tenancy).
+    const workspaceId = ws;
     // Task-first (exact params), then the durable row intent, else nothing to replay.
     const replayParams = oldTask
       ? ((oldTask.params as Record<string, unknown>) ?? {})
-      : replayParamsFromIntent(jd.title, jd.build_input_json, ws);
+      : replayParamsFromIntent(jd.title, jd.build_input_json, (templateId) => getTemplate(templateId, workspaceId)?.body);
     if (!replayParams) return NextResponse.json({ error: "No build to retry." }, { status: 400 });
 
     // The budget is spent HERE: after the 404, the not-failed 409 and the
