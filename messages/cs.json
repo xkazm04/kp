@@ -17330,6 +17330,162 @@
         "focusNone": "Stiskněte dveře a sledujte jednoho kandidáta tímto patrem.",
         "focusOne": "Sledujete: {name}, {value}"
       }
+    },
+    "console": {
+      "root": "Pult",
+      "deskLabel": "Srovnávací pult: {n, plural, one {# kanál} few {# kanály} other {# kanálů}}, pro každou dimenzi jedna sběrnice",
+      "crumbsLabel": "Kde jste",
+      "back": "Zpět k pultu",
+      "head": {
+        "eyebrow": "Pult kohorty",
+        "channels": "{n, plural, one {# kanál} few {# kanály} other {# kanálů}} z {cap}",
+        "blind": "Naslepo: jména jsou skrytá"
+      },
+      "row": {
+        "channels": "Kanály",
+        "patchedNeutral": "Neutrální zapojení",
+        "patchedFit": "Zapojeno podle shody"
+      },
+      "bus": {
+        "solo": "Sólo",
+        "soloLabel": "Sólo {dim}: otevřít rozbor napříč všemi kanály",
+        "claim": {
+          "lead": "Vede: {name}",
+          "noise": "V rámci šumu",
+          "floor": "Bez srovnání",
+          "unranked": "Nikdy se neřadí"
+        },
+        "claimLong": {
+          "lead": "{name} vede na této sběrnici s odstupem větším než pásma nejistoty.",
+          "noise": "Pořadí existuje, ale špička je v rámci šumu: nikdo není označen za vedoucího.",
+          "floor": "Hodnocení má příliš málo kanálů, než aby se na této sběrnici dalo srovnávat.",
+          "unranked": "Mzda se nikdy neřadí: každé očekávání se posuzuje vůči rozpětí pozice."
+        },
+        "rated": "Hodnoceno {rated} z {total}",
+        "partitions": "{n, plural, one {# měnová skupina} few {# měnové skupiny} other {# měnových skupin}}, navzájem nesrovnatelné: {keys}"
+      },
+      "tier": {
+        "strong": "silné",
+        "solid": "solidní",
+        "thin": "chabé",
+        "weak": "slabé"
+      },
+      "strip": {
+        "membership": {
+          "applicant": "Podaná přihláška",
+          "matched": "Doplněno z databáze kandidátů",
+          "added": "Přidáno ručně"
+        },
+        "run": {
+          "queued": "Ve frontě",
+          "analyzing": "Analyzuje se",
+          "reused": "Převzatá analýza",
+          "done": "Analyzováno",
+          "failed": "Analýza selhala"
+        },
+        "lamps": {
+          "peak": "Varování důvěryhodnosti",
+          "clip": "Blokace důvěryhodnosti",
+          "unread": "Důvěryhodnost nenačtena",
+          "talkback": "Zmíněno ve shrnutí"
+        },
+        "open": "{name}: otevřít celou zprávu",
+        "noReport": "{name}: zpráva zatím není",
+        "channel": "Kanál {n}",
+        "tape": {
+          "applicant": "Přihláška",
+          "matched": "Z databáze",
+          "added": "Ručně"
+        }
+      },
+      "cell": {
+        "rated": "{name}, {dim}: {rating}, {tier}. {label}",
+        "absent": "{name}, {dim}: bez hodnocení. {reason}",
+        "lead": "Vede na této sběrnici",
+        "note": "Poznámka: {comment}",
+        "band": "Pásmo {lo}–{hi}"
+      },
+      "decoy": "Fázově vyrušený: {name} je lepší ve všech srovnávaných dimenzích",
+      "noise": "V pásmu šumu, {lo}–{hi}",
+      "master": {
+        "title": "Master",
+        "overall": {
+          "lead": "{name} vede s odstupem nad šumem",
+          "noise": "Nikdo nevede: špička je v rámci šumu",
+          "floor": "Příliš málo hodnocených pro srovnání"
+        },
+        "overallDetail": {
+          "lead": "Odstup od dalšího kanálu je větší než obě pásma nejistoty.",
+          "noise": "{names} sdílejí pásmo shody od {lo} do {hi}; pořadí mezi nimi není zjištění.",
+          "noiseNone": "Pásmo shody zatím nelze vykreslit.",
+          "floor": "Hodnocení shody mají méně než dva kanály, takže se nic nesrovnává."
+        },
+        "robustness": {
+          "label": "Robustnost",
+          "stable": "Stabilní při každém vážení",
+          "sensitive": "Při některých váženích se mění",
+          "undetermined": "Zatím nelze spočítat"
+        },
+        "progress": "Analyzováno {done} z {total}",
+        "progressDetail": "převzato {reused} · selhalo {failed}",
+        "running": "Probíhá: kanály se rozsvěcují, jak analýzy dobíhají",
+        "patch": {
+          "label": "Pořadí zapojení",
+          "neutral": "Neutrální",
+          "fit": "Podle shody"
+        },
+        "readout": {
+          "label": "Displej",
+          "idle": "Najeďte na kanál, měřák nebo sběrnici a přečtete si je tady.",
+          "openHint": "Stiskem otevřete celou zprávu.",
+          "soloHint": "Stiskem tuto sběrnici přepnete na sólo."
+        },
+        "legend": {
+          "label": "Legenda",
+          "meter": "Rozsvícené segmenty = hodnocení, každý za deset bodů",
+          "capped": "Zaslepený měřák: bez hodnocení, důvod je na displeji",
+          "pending": "Nerozsvícený: analýza ještě nedoběhla",
+          "lamps": "Kontrolky: jantarová varování důvěryhodnosti, korálová blokace",
+          "phase": "Ø fázově vyrušený: všude zaostává za jiným kanálem",
+          "talkback": "TB: zmíněno ve shrnutí",
+          "tape": "Páska: přihláška, z databáze kandidátů, přidáno ručně"
+        }
+      },
+      "talkback": {
+        "title": "Talkback",
+        "covers": "Pokrývá {n} nejsilnějších podle shody · {out, plural, one {# kanál vynechává, jeho měřáky mluví} few {# kanály vynechává, jejich měřáky mluví} other {# kanálů vynechává, jejich měřáky mluví}} samy za sebe",
+        "none": "Shrnutí vznikne, až budou mít hodnocení shody alespoň dva kanály a běh skončí.",
+        "model": "Napsal jazykový model; každé vedení i šum na tomto pultu rozhoduje kód.",
+        "keyless": "Napsáno bez jazykového modelu, jen ze zjištění."
+      },
+      "solo": {
+        "kicker": "Sólo sběrnice · {claim} · {rated}",
+        "busLabel": "{dim} na všech kanálech: vyberte kanál, na který se zaměřit",
+        "prev": "Předchozí sběrnice",
+        "next": "Další sběrnice",
+        "muted": "{dim}, ztlumeno: přepnout na sólo",
+        "claim": {
+          "lead": "vedení je nad šumem",
+          "noise": "v rámci šumu",
+          "floor": "bez srovnání",
+          "unranked": "nikdy se neřadí"
+        }
+      },
+      "keys": {
+        "label": "Klávesy",
+        "names": {
+          "arrows": "Šipky",
+          "enter": "Enter",
+          "esc": "Esc",
+          "brackets": "[ ]"
+        },
+        "acts": {
+          "move": "pohyb po pultu",
+          "solo": "sólo sběrnice, nebo zpráva kanálu",
+          "back": "zpět k pultu",
+          "bus": "předchozí / další sběrnice"
+        }
+      }
     }
   }
 }

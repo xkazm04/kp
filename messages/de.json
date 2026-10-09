@@ -17330,6 +17330,162 @@
         "focusNone": "Drücken Sie auf eine Tür, um einem Kandidaten durch diese Etage zu folgen.",
         "focusOne": "Sie folgen {name}: {value}"
       }
+    },
+    "console": {
+      "root": "Pult",
+      "deskLabel": "Vergleichspult: {n, plural, one {# Kanal} other {# Kanäle}}, ein Bus je Dimension",
+      "crumbsLabel": "Wo Sie sind",
+      "back": "Zurück zum Pult",
+      "head": {
+        "eyebrow": "Kohortenpult",
+        "channels": "{n, plural, one {# Kanal} other {# Kanäle}} von {cap}",
+        "blind": "Blind: Namen ausgeblendet"
+      },
+      "row": {
+        "channels": "Kanäle",
+        "patchedNeutral": "Neutral gesteckt",
+        "patchedFit": "Nach Passung gesteckt"
+      },
+      "bus": {
+        "solo": "Solo",
+        "soloLabel": "{dim} solo: die Aufschlüsselung über alle Kanäle öffnen",
+        "claim": {
+          "lead": "Vorn: {name}",
+          "noise": "Im Rauschen",
+          "floor": "Kein Vergleich",
+          "unranked": "Nie gereiht"
+        },
+        "claimLong": {
+          "lead": "{name} liegt auf diesem Bus vorn, mit mehr Abstand als die Unsicherheitsbänder.",
+          "noise": "Es gibt eine Reihenfolge, aber die Spitze liegt im Rauschen: Niemand wird als vorn benannt.",
+          "floor": "Zu wenige Kanäle haben eine Bewertung, um auf diesem Bus zu vergleichen.",
+          "unranked": "Gehalt wird nie gereiht: Jede Erwartung wird am Band der Stelle gemessen."
+        },
+        "rated": "{rated} von {total} bewertet",
+        "partitions": "{n, plural, one {# Währungsgruppe} other {# Währungsgruppen}}, untereinander nicht vergleichbar: {keys}"
+      },
+      "tier": {
+        "strong": "stark",
+        "solid": "solide",
+        "thin": "dünn",
+        "weak": "schwach"
+      },
+      "strip": {
+        "membership": {
+          "applicant": "Hat sich beworben",
+          "matched": "Aus dem Kandidatenpool ergänzt",
+          "added": "Von Hand hinzugefügt"
+        },
+        "run": {
+          "queued": "In der Warteschlange",
+          "analyzing": "Wird analysiert",
+          "reused": "Übernommene Analyse",
+          "done": "Analysiert",
+          "failed": "Analyse fehlgeschlagen"
+        },
+        "lamps": {
+          "peak": "Vertrauenswarnung",
+          "clip": "Vertrauensblocker",
+          "unread": "Vertrauen nicht gelesen",
+          "talkback": "In der Zusammenfassung besprochen"
+        },
+        "open": "{name}: den vollständigen Bericht öffnen",
+        "noReport": "{name}: noch kein Bericht",
+        "channel": "Kanal {n}",
+        "tape": {
+          "applicant": "Beworben",
+          "matched": "Aus Pool",
+          "added": "Ergänzt"
+        }
+      },
+      "cell": {
+        "rated": "{name}, {dim}: {rating}, {tier}. {label}",
+        "absent": "{name}, {dim}: keine Bewertung. {reason}",
+        "lead": "Liegt auf diesem Bus vorn",
+        "note": "Notiz: {comment}",
+        "band": "Band {lo}–{hi}"
+      },
+      "decoy": "Phasenausgelöscht: liegt in jeder verglichenen Dimension hinter {name}",
+      "noise": "Im Rauschband, {lo}–{hi}",
+      "master": {
+        "title": "Master",
+        "overall": {
+          "lead": "{name} liegt vorn, klar über dem Rauschen",
+          "noise": "Niemand vorn: Die Spitze liegt im Rauschen",
+          "floor": "Zu wenige bewertet für einen Vergleich"
+        },
+        "overallDetail": {
+          "lead": "Der Abstand zum nächsten Kanal ist größer als beide Unsicherheitsbänder.",
+          "noise": "{names} teilen sich das Passungsband von {lo} bis {hi}; die Reihenfolge zwischen ihnen ist kein Befund.",
+          "noiseNone": "Ein Passungsband lässt sich noch nicht zeichnen.",
+          "floor": "Weniger als zwei Kanäle haben eine Passungsbewertung, daher wird nichts verglichen."
+        },
+        "robustness": {
+          "label": "Robustheit",
+          "stable": "Stabil unter jeder Gewichtung",
+          "sensitive": "Ändert sich unter manchen Gewichtungen",
+          "undetermined": "Noch nicht berechenbar"
+        },
+        "progress": "{done} von {total} analysiert",
+        "progressDetail": "{reused} übernommen · {failed} fehlgeschlagen",
+        "running": "Läuft: Kanäle leuchten auf, sobald ihre Analysen eintreffen",
+        "patch": {
+          "label": "Reihenfolge",
+          "neutral": "Neutral",
+          "fit": "Nach Passung"
+        },
+        "readout": {
+          "label": "Anzeige",
+          "idle": "Zeigen Sie auf einen Kanal, eine Anzeige oder einen Bus, um ihn hier zu lesen.",
+          "openHint": "Drücken, um den vollständigen Bericht zu öffnen.",
+          "soloHint": "Drücken, um diesen Bus solo zu schalten."
+        },
+        "legend": {
+          "label": "Legende",
+          "meter": "Leuchtende Segmente = die Bewertung, je zehn Punkte",
+          "capped": "Verschlossene Anzeige: keine Bewertung, der Grund steht in der Anzeige",
+          "pending": "Unbeleuchtet: Die Analyse ist noch nicht eingetroffen",
+          "lamps": "Lampen: bernsteinfarben Vertrauenswarnung, korallenrot Vertrauensblocker",
+          "phase": "Ø phasenausgelöscht: liegt überall hinter einem anderen Kanal",
+          "talkback": "TB: in der Zusammenfassung besprochen",
+          "tape": "Band: beworben, aus dem Pool ergänzt, von Hand hinzugefügt"
+        }
+      },
+      "talkback": {
+        "title": "Talkback",
+        "covers": "Behandelt die {n} Stärksten nach Passung · lässt {out, plural, one {# Kanal aus, dessen Anzeigen} other {# Kanäle aus, deren Anzeigen}} für sich stehen",
+        "none": "Die Zusammenfassung entsteht, sobald mindestens zwei Kanäle eine Passungsbewertung haben und der Lauf fertig ist.",
+        "model": "Vom Sprachmodell geschrieben; jede Aussage über Vorsprung und Rauschen auf diesem Pult entscheidet der Code.",
+        "keyless": "Ohne Sprachmodell geschrieben, nur aus den Befunden."
+      },
+      "solo": {
+        "kicker": "Solo-Bus · {claim} · {rated}",
+        "busLabel": "{dim} auf allen Kanälen: einen Kanal zum Fokussieren wählen",
+        "prev": "Vorheriger Bus",
+        "next": "Nächster Bus",
+        "muted": "{dim}, stumm: stattdessen solo schalten",
+        "claim": {
+          "lead": "Vorsprung über dem Rauschen",
+          "noise": "im Rauschen",
+          "floor": "kein Vergleich",
+          "unranked": "nie gereiht"
+        }
+      },
+      "keys": {
+        "label": "Tasten",
+        "names": {
+          "arrows": "Pfeiltasten",
+          "enter": "Enter",
+          "esc": "Esc",
+          "brackets": "[ ]"
+        },
+        "acts": {
+          "move": "über das Pult bewegen",
+          "solo": "Bus solo schalten oder Bericht eines Kanals öffnen",
+          "back": "zurück zum Pult",
+          "bus": "vorheriger / nächster Bus"
+        }
+      }
     }
   }
 }

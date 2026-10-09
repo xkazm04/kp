@@ -1,0 +1,317 @@
+/* The Console world (spark analyze-v2-cohort WP7): the cohort as a mixing desk, scoped to .cx-console.
+   Every colour is a token: the desk paints through the --cx-* roles below, declared for Studio Light
+   on the root class and re-declared under [data-theme="dark"], so ONE markup renders both registers.
+   Studio Light = a printed schematic of a desk: cream plane, hairline strips, flat lit segments, the
+   readout a pale limewash LCD. Spark Dark = a lit desk at night: drawn 2px outlines, glowing segments,
+   sticker-shadowed keys and knobs, a deep-green LCD, tapes a degree off-axis, the Bricolage face.
+   Motion only on a state change (a solo mutes the other buses top-first and widens its band; a
+   re-patch slides the strips), never ambient; reduced motion drops it (the block at the end). */
+
+.cx-console {
+  position: relative;
+  container: cx / inline-size;
+  --cx-plane: color-mix(in srgb, var(--color-stone-100) 55%, var(--color-paper));
+  --cx-strip: var(--color-white);
+  --cx-strip-line: var(--color-stone-200);
+  --cx-board-line: var(--color-stone-300);
+  --cx-line: 1px;
+  --cx-quiet: color-mix(in srgb, var(--color-ink) 64%, var(--color-paper));
+  --cx-seg-off: color-mix(in srgb, var(--color-stone-200) 85%, var(--color-white));
+  --cx-slot: var(--color-stone-300);
+  --cx-tick: color-mix(in srgb, var(--color-ink) 22%, transparent);
+  --cx-strong: var(--color-moss);
+  --cx-solid: var(--color-steel);
+  --cx-thin: var(--color-dial-amber);
+  --cx-weak: var(--color-coral);
+  --cx-salary: color-mix(in srgb, var(--color-steel) 70%, var(--color-white));
+  --cx-decoy: var(--color-dial-stone);
+  --cx-glow: none;
+  --cx-lcd: color-mix(in srgb, var(--color-limewash) 60%, var(--color-white));
+  --cx-noise: color-mix(in srgb, var(--color-dial-amber) 30%, transparent);
+  --cx-noise-line: color-mix(in srgb, var(--color-dial-amber) 70%, transparent);
+  --cx-band: color-mix(in srgb, var(--color-steel) 26%, transparent);
+  --cx-knob: var(--color-white);
+  --cx-knob-line: color-mix(in srgb, var(--color-ink) 55%, var(--color-paper));
+  --cx-key-shadow: 0 1px 0 var(--color-stone-300);
+  --cx-shadow: var(--panel-shadow);
+  --cx-radius: 8px;
+  --cx-radius-lg: 12px;
+  --cx-tilt: 0deg;
+  --cx-tape-font: var(--font-sans);
+  --cx-tape-a: color-mix(in srgb, var(--color-stone-100) 70%, var(--color-white));
+  --cx-tape-m: var(--color-limewash);
+  --cx-tape-x: var(--color-coralwash);
+  --cx-warn-ink: var(--color-amber-800);
+  --cx-ease: cubic-bezier(.16, 1, .3, 1);
+  --cx-headw: 156px;
+  --cx-gap: 3px;
+  --cx-strip-h: 152px;
+  --cx-meter-h: 46px;
+  --cx-fader-h: 128px;
+}
+[data-theme="dark"] .cx-console {
+  --cx-plane: var(--color-paper);
+  --cx-strip: var(--color-white);
+  --cx-strip-line: var(--color-stone-300);
+  --cx-board-line: var(--color-ink);
+  --cx-line: 2px;
+  --cx-seg-off: var(--color-stone-100);
+  --cx-slot: var(--color-stone-50);
+  --cx-tick: color-mix(in srgb, var(--color-ink) 30%, transparent);
+  --cx-salary: var(--color-steel);
+  --cx-glow: 0 0 6px color-mix(in srgb, var(--cx-tone, var(--color-moss)) 75%, transparent);
+  --cx-lcd: var(--color-limewash);
+  --cx-noise: color-mix(in srgb, var(--color-dial-amber) 24%, transparent);
+  --cx-knob: var(--color-stone-50);
+  --cx-knob-line: var(--color-ink);
+  --cx-key-shadow: var(--sticker-xs-shadow);
+  --cx-radius: 12px;
+  --cx-radius-lg: 16px;
+  --cx-tilt: -1.2deg;
+  --cx-tape-font: var(--font-serif);
+  --cx-tape-a: var(--color-stone-100);
+  --cx-ease: cubic-bezier(.34, 1.56, .64, 1);
+}
+
+/* ---------- levels: only the top is in flow; a soloing / closing bus lies over the desk ---------- */
+.cx-layer { position: relative; isolation: isolate; }
+.cx-layer[data-mode="entering"], .cx-layer[data-mode="leaving"] { position: absolute; inset: 0 0 auto 0; min-height: 100%; z-index: 2; }
+.cx-layer[data-mode="leaving"] { pointer-events: none; }
+
+/* ---------- the desk ---------- */
+.cx-desk { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); grid-template-areas: "top" "master" "board" "foot"; }
+.cx-top { grid-area: top; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 10px 20px; }
+.cx-top__titles { display: grid; gap: 2px; min-width: 0; }
+.cx-eyebrow {
+  margin: 0; display: flex; align-items: center; gap: 6px; font-size: var(--text-meta); letter-spacing: var(--text-meta--letter-spacing);
+  font-weight: 600; text-transform: uppercase; color: var(--cx-quiet);
+}
+
+/* ---------- the master section ---------- */
+.cx-master { grid-area: master; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 12px; }
+.cx-claim, .cx-talk, .cx-legend {
+  display: grid; align-content: start; gap: 8px; min-width: 0; padding: 12px 16px 14px;
+  border: var(--cx-line) solid var(--cx-board-line); border-radius: var(--cx-radius-lg); background: var(--color-white); box-shadow: var(--cx-shadow);
+}
+.cx-claim__head { margin: 0; display: flex; align-items: baseline; gap: 10px; font-family: var(--font-serif); font-size: var(--text-h2); line-height: 1.25; font-weight: 600; }
+[data-theme="dark"] .cx-claim__head { font-weight: 800; }
+.cx-claim__detail { margin: 0; font-size: var(--text-body); color: var(--cx-quiet); }
+.cx-claim__run { margin: 0; font-size: var(--text-micro); color: var(--cx-warn-ink); font-weight: 600; }
+.cx-facts { margin: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px 16px; padding-top: 8px; border-top: 1px solid var(--cx-strip-line); }
+.cx-facts dt { font-size: var(--text-meta); letter-spacing: var(--text-meta--letter-spacing); text-transform: uppercase; font-weight: 600; color: var(--cx-quiet); }
+.cx-facts dd { margin: 2px 0 0; font-size: var(--text-micro); display: grid; gap: 4px; }
+.cx-facts dd[data-robust="sensitive"] { color: var(--cx-warn-ink); font-weight: 600; }
+.cx-run { display: flex; flex-wrap: wrap; gap: 2px; }
+.cx-run i { width: 7px; height: 7px; border-radius: 999px; background: var(--color-moss); }
+.cx-run i[data-run="failed"] { background: var(--color-dial-stone); }
+.cx-run i[data-run="wait"] { background: transparent; box-shadow: inset 0 0 0 1px var(--cx-quiet); }
+
+/* the claim lamp: lit for a lead that clears, hazy for "within the noise", dark for no comparison, a bar for unranked */
+.cx-claimlamp { flex: none; display: inline-block; width: 9px; height: 9px; border-radius: 999px; background: transparent; box-shadow: inset 0 0 0 1.5px var(--cx-quiet); }
+.cx-claimlamp--big { width: 14px; height: 14px; }
+[data-claim="lead"] .cx-claimlamp { background: var(--color-moss); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-moss) 25%, transparent); }
+[data-claim="noise"] .cx-claimlamp { background: var(--cx-noise); box-shadow: inset 0 0 0 1.5px var(--cx-noise-line), 0 0 0 3px var(--cx-noise); }
+[data-claim="unranked"] .cx-claimlamp { width: 12px; height: 4px; border-radius: 2px; background: var(--cx-salary); box-shadow: none; }
+
+/* the readout: an LCD that reads whatever is pointed at or focused */
+.cx-readout {
+  display: grid; align-content: start; gap: 4px; min-width: 0; min-height: 148px; padding: 12px 16px 14px;
+  border: var(--cx-line) solid var(--cx-board-line); border-radius: var(--cx-radius-lg); background: var(--cx-lcd);
+  box-shadow: inset 0 2px 0 color-mix(in srgb, var(--color-ink) 8%, transparent);
+}
+.cx-readout p { margin: 0; overflow-wrap: anywhere; }
+.cx-readout__label { font-size: var(--text-meta); letter-spacing: var(--text-meta--letter-spacing); text-transform: uppercase; font-weight: 600; color: var(--cx-quiet); }
+.cx-readout__title { font-family: var(--font-serif); font-size: var(--text-h3); font-weight: 600; }
+[data-theme="dark"] .cx-readout__title { font-weight: 800; }
+.cx-readout__line { font-size: var(--text-micro); }
+.cx-readout__line[data-tone="quiet"] { color: var(--cx-quiet); }
+.cx-readout__line[data-tone="warn"] { color: var(--cx-warn-ink); font-weight: 600; }
+.cx-readout__line[data-tone="note"] { font-family: var(--font-serif); font-style: italic; font-size: var(--text-body); }
+[data-theme="dark"] .cx-readout__line[data-tone="note"] { font-style: normal; font-weight: 700; color: var(--color-dial-amber); }
+
+/* ---------- the board: strips (beds) behind, buses across ---------- */
+.cx-board {
+  grid-area: board; position: relative; display: grid; min-width: 0;
+  grid-template-columns: var(--cx-headw) repeat(var(--cx-n), minmax(0, 1fr)); column-gap: var(--cx-gap);
+  padding: 10px 12px 12px; border: var(--cx-line) solid var(--cx-board-line); border-radius: var(--cx-radius-lg); background: var(--cx-plane); box-shadow: var(--cx-shadow);
+}
+.cx-beds { position: absolute; inset: 10px 12px 12px; display: grid; grid-template-columns: var(--cx-headw) repeat(var(--cx-n), minmax(0, 1fr)); column-gap: var(--cx-gap); pointer-events: none; z-index: 0; }
+.cx-bed { border: 1px solid var(--cx-strip-line); border-radius: 6px; background: var(--cx-strip); transition: border-color .15s, box-shadow .2s; }
+.cx-bed--head { border: 0; background: none; }
+.cx-bed[data-hot] { border-color: var(--color-ink); }
+.cx-bed[data-decoy] {
+  background-image: repeating-linear-gradient(135deg, color-mix(in srgb, var(--color-dial-stone) 16%, transparent) 0 3px, transparent 3px 8px);
+}
+.cx-desk[data-talkback] .cx-bed[data-covered] { box-shadow: inset 0 0 0 2px var(--color-steel); }
+.cx-row { display: contents; }
+.cx-gridcell { position: relative; z-index: 1; min-width: 0; display: grid; container-type: inline-size; }
+.cx-row[data-hot] .cx-gridcell { background: color-mix(in srgb, var(--color-dial-amber) 9%, transparent); }
+.cx-row[data-hot] .cx-rowhead { background: color-mix(in srgb, var(--color-dial-amber) 12%, transparent); }
+.cx-row + .cx-row .cx-gridcell, .cx-row + .cx-row .cx-rowhead { border-top: 1px dashed var(--cx-strip-line); }
+.cx-rowhead { position: relative; z-index: 1; min-width: 0; display: grid; align-content: center; gap: 2px; padding: 0 8px 0 4px; border-radius: 6px 0 0 6px; }
+.cx-rowhead__name { font-size: var(--text-h3); font-weight: 600; }
+.cx-rowhead__meta { font-size: var(--text-micro); color: var(--cx-quiet); }
+
+/* a focus ring that stays inside its cell (the strips sit 3px apart) */
+.cx-console :is(.cx-cell, .cx-scribble, .cx-chan-mini):focus-visible { outline: 2px solid var(--color-coral); outline-offset: -2px; }
+
+/* ---------- the scribble strip ---------- */
+.cx-scribble { display: grid; grid-template-rows: auto auto minmax(0, 1fr); justify-items: center; gap: 4px; width: 100%; height: var(--cx-strip-h); padding: 6px 2px 4px; border-radius: 6px; }
+.cx-scribble[aria-disabled="true"] { cursor: default; }
+.cx-chan { display: inline-flex; align-items: baseline; gap: 2px; font-size: var(--text-micro); font-weight: 700; line-height: 1.2; }
+.cx-phase { font-weight: 800; color: var(--color-steel); }
+.cx-lamps { display: flex; gap: 3px; }
+.cx-lamp { display: inline-block; width: 7px; height: 7px; border-radius: 999px; background: var(--cx-seg-off); }
+.cx-lamp[data-unread] { background: transparent; border: 1px dashed var(--cx-quiet); }
+.cx-lamp[data-lamp="peak"][data-on] { background: var(--color-dial-amber); box-shadow: var(--cx-glow); }
+.cx-lamp[data-lamp="clip"][data-on] { background: var(--color-coral); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-coral) 30%, transparent); }
+.cx-lamp[data-lamp="talkback"][data-on] { background: var(--color-steel); }
+.cx-tape {
+  display: flex; justify-content: center; align-items: flex-end; gap: 1px; width: calc(100% - 4px); min-height: 0; overflow: hidden; padding: 6px 0;
+  border-radius: 4px; background: var(--cx-tape-a); rotate: 0deg; font-family: var(--cx-tape-font);
+}
+.cx-scribble[data-membership="matched"] .cx-tape { background: var(--cx-tape-m); }
+.cx-scribble[data-membership="added"] .cx-tape { background: var(--cx-tape-x); }
+.cx-scribble[data-state="pending"] .cx-tape, .cx-scribble[data-state="failed"] .cx-tape { background: transparent; outline: 1px dashed var(--cx-quiet); outline-offset: -1px; }
+.cx-tape__name, .cx-tape__line {
+  writing-mode: sideways-lr; max-height: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-micro); line-height: 17px;
+}
+.cx-tape__name { font-weight: 600; }
+.cx-tape__line { color: var(--cx-quiet); }
+@supports not (writing-mode: sideways-lr) {
+  .cx-tape { flex-direction: row-reverse; }
+  .cx-tape__name, .cx-tape__line { writing-mode: vertical-rl; rotate: 180deg; }
+}
+[data-theme="dark"] .cx-tape__name { font-weight: 700; }
+[data-theme="dark"] .cx-gridcell:nth-child(odd) .cx-tape { rotate: var(--cx-tilt); }
+[data-theme="dark"] .cx-gridcell:nth-child(even) .cx-tape { rotate: calc(var(--cx-tilt) * -0.8); }
+
+/* ---------- a bus head and its SOLO key ---------- */
+.cx-bushead { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 6px; row-gap: 2px; min-width: 0; }
+.cx-bushead__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-micro); font-weight: 700; }
+[data-theme="dark"] .cx-bushead__name { font-family: var(--font-serif); font-weight: 800; }
+.cx-bushead__claim { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; min-width: 0; font-size: var(--text-micro); color: var(--cx-quiet); }
+.cx-bushead__claim span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cx-bushead[data-claim="lead"] .cx-bushead__claim { color: var(--color-moss); font-weight: 600; }
+.cx-solo {
+  height: 26px; padding: 0 5px; border: var(--cx-line) solid var(--cx-knob-line); border-radius: 6px; background: var(--color-white);
+  font-size: var(--text-micro); font-weight: 700; letter-spacing: .02em; text-transform: uppercase; line-height: 1; box-shadow: var(--cx-key-shadow);
+  transition: background .2s, color .2s;
+}
+.cx-solo:hover { background: color-mix(in srgb, var(--color-dial-amber) 22%, var(--color-white)); }
+.cx-solo[data-on] { background: var(--color-dial-amber); color: var(--color-ink); border-color: var(--color-ink); }
+[data-theme="dark"] .cx-solo[data-on] { color: var(--color-paper); }
+
+/* ---------- a meter ---------- */
+.cx-cell { position: relative; display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; min-width: 0; height: var(--cx-meter-h); border-radius: 6px; }
+.cx-cell[data-tier="strong"] { --cx-tone: var(--cx-strong); }
+.cx-cell[data-tier="solid"] { --cx-tone: var(--cx-solid); }
+.cx-cell[data-tier="thin"] { --cx-tone: var(--cx-thin); }
+.cx-cell[data-tier="weak"] { --cx-tone: var(--cx-weak); }
+.cx-cell[data-bus="salary"], .cx-chan-mini[data-bus="salary"] { --cx-tone: var(--cx-salary); }
+.cx-cell[data-decoy] { --cx-tone: var(--cx-decoy); }
+.cx-chan-mini[data-tier="strong"] { --cx-tone: var(--cx-strong); }
+.cx-chan-mini[data-tier="solid"] { --cx-tone: var(--cx-solid); }
+.cx-chan-mini[data-tier="thin"] { --cx-tone: var(--cx-thin); }
+.cx-chan-mini[data-tier="weak"] { --cx-tone: var(--cx-weak); }
+.cx-meter { position: relative; flex: none; display: flex; flex-direction: column-reverse; gap: 1px; width: 8px; height: 34px; }
+.cx-seg { flex: 1; border-radius: 1px; background: var(--cx-seg-off); transition: background .22s calc(var(--i, 0) * 16ms), box-shadow .22s calc(var(--i, 0) * 16ms); }
+.cx-seg[data-lit] { background: var(--cx-tone); box-shadow: var(--cx-glow); }
+.cx-band { position: absolute; left: -4px; width: 2px; border-radius: 1px; background: var(--color-steel); }
+.cx-num { min-width: 2.4ch; font-size: var(--text-micro); font-weight: 600; line-height: 1.2; text-align: left; }
+.cx-cell[data-state="absent"] .cx-num, .cx-cell[data-state="pending"] .cx-num { color: var(--cx-quiet); font-weight: 400; }
+.cx-cell[data-lead] .cx-num { padding: 0 4px; border-radius: 999px; background: var(--color-moss); color: var(--color-white); text-align: center; }
+/* absent: a capped meter (dashed, a cap across the top); pending: unlit and uncapped */
+.cx-cell[data-state="absent"] .cx-seg { background: transparent; box-shadow: none; }
+.cx-cell[data-state="absent"] .cx-meter { outline: 1px dashed var(--cx-quiet); outline-offset: 1px; }
+.cx-cell[data-state="absent"] .cx-meter::before { content: ""; position: absolute; left: -3px; right: -3px; top: -5px; height: 3px; border-radius: 2px; background: var(--color-dial-stone); }
+.cx-cell[data-state="pending"] .cx-seg { background: transparent; box-shadow: inset 0 0 0 1px var(--cx-seg-off); }
+.cx-note { position: absolute; top: 2px; right: 2px; width: 0; height: 0; border-top: 8px solid var(--color-steel); border-left: 8px solid transparent; }
+[data-theme="dark"] .cx-note { border-top-color: var(--color-dial-amber); }
+/* a muted bus: its lit segments fall dark top first (and rise again bottom first when the solo ends) */
+.cx-row[data-muted] .cx-seg[data-lit] { background: var(--cx-seg-off); box-shadow: none; transition-delay: calc((9 - var(--i, 0)) * 14ms); }
+.cx-desk[data-solo] .cx-row:not([data-muted]) .cx-gridcell { background: color-mix(in srgb, var(--color-dial-amber) 14%, transparent); }
+
+/* a narrow strip (20 channels in a 1280 frame): a slimmer meter, the number set tight */
+@container (max-width: 42px) {
+  .cx-cell--meter { gap: 2px; }
+  .cx-cell--meter .cx-meter { width: 5px; }
+  .cx-num { min-width: 0; letter-spacing: -.04em; }
+  .cx-cell[data-lead] .cx-num { padding: 0 2px; }
+}
+
+/* ---------- the fader (overall fit) ---------- */
+.cx-cell--fader { height: var(--cx-fader-h); align-items: stretch; padding: 16px 0 12px; }
+.cx-fader { position: relative; width: 100%; height: 100%; }
+.cx-fader::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 16px; translate: -50% 0; background: repeating-linear-gradient(to top, var(--cx-tick) 0 1px, transparent 1px 25%); }
+.cx-slot { position: absolute; left: 50%; top: 0; bottom: 0; width: 4px; translate: -50% 0; border-radius: 2px; background: var(--cx-slot); }
+.cx-band--fader { left: 50%; width: 12px; translate: -50% 0; border-radius: 3px; background: var(--cx-band); }
+.cx-haze { position: absolute; left: calc(var(--cx-gap) / -2 - 1px); right: calc(var(--cx-gap) / -2 - 1px); border-block: 1px dashed var(--cx-noise-line); transition: background .2s, border-color .2s; }
+.cx-haze[data-inside] { background: var(--cx-noise); border-color: transparent; }
+.cx-knob {
+  position: absolute; left: 50%; translate: -50% 50%; display: grid; place-items: center; width: min(32px, 92%); height: 22px;
+  border: var(--cx-line) solid var(--cx-knob-line); border-radius: 4px; background: color-mix(in srgb, var(--cx-tone, var(--cx-slot)) 24%, var(--cx-knob));
+  font-size: var(--text-micro); font-weight: 700; line-height: 1; box-shadow: var(--cx-key-shadow); transition: background .22s, color .22s;
+}
+[data-theme="dark"] .cx-knob { font-family: var(--font-serif); font-weight: 800; }
+.cx-cell[data-state="pending"] .cx-knob { background: transparent; border-style: dashed; box-shadow: none; color: var(--cx-quiet); font-weight: 400; }
+.cx-cell[data-lead] .cx-knob { border: 2px solid var(--color-moss); }
+.cx-crown { position: absolute; top: -9px; left: 50%; width: 7px; height: 7px; translate: -50% 0; border-radius: 999px; background: var(--color-moss); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-moss) 30%, transparent); }
+.cx-knob-none { position: absolute; left: 0; right: 0; bottom: -2px; text-align: center; font-size: var(--text-micro); color: var(--cx-quiet); }
+.cx-cap--fader { position: absolute; left: 50%; top: -6px; width: 16px; height: 3px; translate: -50% 0; border-radius: 2px; background: var(--color-dial-stone); }
+.cx-cell--fader[data-state="absent"] .cx-slot { background: transparent; outline: 1px dashed var(--cx-quiet); }
+.cx-row[data-muted] .cx-knob { background: var(--cx-seg-off); }
+.cx-row[data-muted] .cx-haze { background: transparent; border-color: transparent; }
+
+/* ---------- the foot: talkback + legend ---------- */
+.cx-foot { grid-area: foot; display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+@container cx (max-width: 760px) { .cx-foot, .cx-master { grid-template-columns: minmax(0, 1fr); } }
+.cx-talk__text { margin: 0; max-width: 78ch; font-size: var(--text-body); line-height: 1.55; }
+.cx-talk__text:focus-visible { outline: 2px solid var(--color-coral); outline-offset: 4px; border-radius: 4px; }
+.cx-talk__meta { margin: 0; font-size: var(--text-micro); color: var(--cx-quiet); }
+.cx-legend ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.cx-legend li { display: grid; grid-template-columns: 22px minmax(0, 1fr); align-items: center; gap: 8px; font-size: var(--text-micro); color: var(--cx-quiet); }
+.cx-legend__mark { justify-self: center; display: block; width: 8px; height: 18px; border-radius: 1px; background: linear-gradient(to top, var(--cx-strong) 0 60%, var(--cx-seg-off) 60%); }
+.cx-legend li[data-key="capped"] .cx-legend__mark { background: transparent; outline: 1px dashed var(--cx-quiet); box-shadow: 0 -5px 0 -2px var(--color-dial-stone); }
+.cx-legend li[data-key="pending"] .cx-legend__mark { background: transparent; box-shadow: inset 0 0 0 1px var(--cx-quiet); }
+.cx-legend li[data-key="lamps"] .cx-legend__mark { width: 18px; height: 7px; border-radius: 0; background: radial-gradient(circle at 3.5px 50%, var(--color-dial-amber) 3px, transparent 3.5px), radial-gradient(circle at 14.5px 50%, var(--color-coral) 3px, transparent 3.5px); }
+.cx-legend li[data-key="phase"] .cx-legend__mark { width: auto; height: auto; background: none; color: var(--color-steel); font-weight: 800; }
+.cx-legend li[data-key="phase"] .cx-legend__mark::before { content: "Ø"; }
+.cx-legend li[data-key="talkback"] .cx-legend__mark { width: 7px; height: 7px; border-radius: 999px; background: var(--color-steel); }
+.cx-legend li[data-key="tape"] .cx-legend__mark { width: 20px; height: 10px; border-radius: 2px; background: linear-gradient(to right, var(--cx-tape-a) 0 33%, var(--cx-tape-m) 33% 66%, var(--cx-tape-x) 66%); outline: 1px solid var(--cx-strip-line); }
+
+/* ---------- level 1: one bus soloed ---------- */
+.cx-buskeys { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.cx-buskey {
+  display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border: var(--cx-line) solid var(--cx-strip-line); border-radius: var(--cx-radius);
+  background: var(--cx-plane); font-size: var(--text-micro); font-weight: 600; color: var(--cx-quiet); transition: background .2s, color .2s;
+}
+.cx-buskey:hover { color: var(--color-ink); border-color: var(--cx-knob-line); }
+.cx-buskey__lamp { width: 8px; height: 8px; border-radius: 999px; background: var(--cx-seg-off); }
+.cx-buskey[data-on] { background: color-mix(in srgb, var(--color-dial-amber) 28%, var(--color-white)); color: var(--color-ink); border-color: var(--color-ink); box-shadow: var(--cx-key-shadow); }
+.cx-buskey[data-on] .cx-buskey__lamp { background: var(--color-dial-amber); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-dial-amber) 30%, transparent); }
+.cx-solobus {
+  display: grid; grid-template-columns: repeat(var(--cx-n), minmax(0, 1fr)); gap: var(--cx-gap); padding: 8px;
+  border: var(--cx-line) solid var(--cx-board-line); border-radius: var(--cx-radius-lg); background: var(--cx-plane);
+}
+.cx-chan-mini { display: grid; justify-items: center; gap: 4px; min-width: 0; padding: 6px 0 4px; border-radius: 6px; background: var(--cx-strip); }
+.cx-chan-mini[data-on] { background: color-mix(in srgb, var(--color-dial-amber) 26%, var(--cx-strip)); box-shadow: inset 0 0 0 2px var(--color-ink); }
+.cx-meter--mini { height: 40px; }
+.cx-chan-mini[data-state="absent"] .cx-seg { background: transparent; }
+.cx-chan-mini[data-state="absent"] .cx-meter { outline: 1px dashed var(--cx-quiet); outline-offset: 1px; }
+.cx-chan-mini__n { font-size: var(--text-micro); font-weight: 600; }
+.cx-solobus__focus { margin: 8px 2px 16px; font-size: var(--text-micro); color: var(--cx-quiet); }
+.cx-solo-step { display: inline-flex; gap: 8px; }
+
+/* ---------- the wide desk: the master section stands at the right of the board ---------- */
+@container cx (min-width: 1240px) {
+  .cx-desk { --cx-headw: 176px; grid-template-columns: minmax(0, 1fr) 300px; grid-template-areas: "top top" "board master" "foot master"; align-items: start; }
+  .cx-master { grid-template-columns: minmax(0, 1fr); position: sticky; top: 12px; }
+  .cx-bushead__name { font-size: var(--text-h3); }
+  .cx-facts { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cx-seg, .cx-bed, .cx-solo, .cx-knob, .cx-haze, .cx-buskey { transition: none; }
+  .cx-row[data-muted] .cx-seg[data-lit] { transition: none; }
+}

@@ -17330,6 +17330,162 @@
         "focusNone": "Appuyez sur une porte pour suivre un candidat dans cet étage.",
         "focusOne": "Vous suivez {name} : {value}"
       }
+    },
+    "console": {
+      "root": "Console",
+      "deskLabel": "Console de comparaison : {n, plural, one {# tranche} other {# tranches}}, un bus par dimension",
+      "crumbsLabel": "Où vous êtes",
+      "back": "Retour à la console",
+      "head": {
+        "eyebrow": "Console de la cohorte",
+        "channels": "{n, plural, one {# tranche} other {# tranches}} sur {cap}",
+        "blind": "À l'aveugle : noms masqués"
+      },
+      "row": {
+        "channels": "Tranches",
+        "patchedNeutral": "Ordre neutre",
+        "patchedFit": "Classées par adéquation"
+      },
+      "bus": {
+        "solo": "Solo",
+        "soloLabel": "Solo {dim} : ouvrir le détail sur toutes les tranches",
+        "claim": {
+          "lead": "En tête : {name}",
+          "noise": "Dans le bruit",
+          "floor": "Aucune comparaison",
+          "unranked": "Jamais classé"
+        },
+        "claimLong": {
+          "lead": "{name} est en tête sur ce bus, avec un écart plus large que les marges d'incertitude.",
+          "noise": "Un ordre existe, mais le haut du classement reste dans le bruit : personne n'est désigné en tête.",
+          "floor": "Trop peu de tranches ont une note pour comparer sur ce bus.",
+          "unranked": "Le salaire n'est jamais classé : chaque prétention est lue au regard de la fourchette du poste."
+        },
+        "rated": "{rated} sur {total} notés",
+        "partitions": "{n, plural, one {# groupe de devises} other {# groupes de devises}}, non comparables entre eux : {keys}"
+      },
+      "tier": {
+        "strong": "fort",
+        "solid": "solide",
+        "thin": "mince",
+        "weak": "faible"
+      },
+      "strip": {
+        "membership": {
+          "applicant": "A postulé",
+          "matched": "Ajouté depuis le vivier",
+          "added": "Ajouté à la main"
+        },
+        "run": {
+          "queued": "En file d'attente",
+          "analyzing": "Analyse en cours",
+          "reused": "Analyse réutilisée",
+          "done": "Analysé",
+          "failed": "Échec de l'analyse"
+        },
+        "lamps": {
+          "peak": "Alerte de fiabilité",
+          "clip": "Blocage de fiabilité",
+          "unread": "Fiabilité non lue",
+          "talkback": "Évoqué dans la synthèse"
+        },
+        "open": "{name} : ouvrir le rapport complet",
+        "noReport": "{name} : pas encore de rapport",
+        "channel": "Tranche {n}",
+        "tape": {
+          "applicant": "Postulé",
+          "matched": "Vivier",
+          "added": "Ajouté"
+        }
+      },
+      "cell": {
+        "rated": "{name}, {dim} : {rating}, {tier}. {label}",
+        "absent": "{name}, {dim} : pas de note. {reason}",
+        "lead": "En tête sur ce bus",
+        "note": "Note : {comment}",
+        "band": "Marge {lo}–{hi}"
+      },
+      "decoy": "En opposition de phase : derrière {name} sur chaque dimension comparée",
+      "noise": "Dans la bande de bruit, {lo}–{hi}",
+      "master": {
+        "title": "Master",
+        "overall": {
+          "lead": "{name} est en tête, au-dessus du bruit",
+          "noise": "Personne en tête : le haut du classement reste dans le bruit",
+          "floor": "Trop peu de notes pour comparer"
+        },
+        "overallDetail": {
+          "lead": "L'écart avec la tranche suivante dépasse les deux marges d'incertitude.",
+          "noise": "{names} partagent la marge d'adéquation de {lo} à {hi} ; l'ordre entre eux n'est pas un constat.",
+          "noiseNone": "Aucune marge d'adéquation ne peut encore être tracée.",
+          "floor": "Moins de deux tranches ont une note d'adéquation : rien n'est comparé."
+        },
+        "robustness": {
+          "label": "Robustesse",
+          "stable": "Stable sous toutes les pondérations",
+          "sensitive": "Change sous certaines pondérations",
+          "undetermined": "Pas encore calculable"
+        },
+        "progress": "{done} sur {total} analysés",
+        "progressDetail": "{reused} réutilisés · {failed} en échec",
+        "running": "En cours : les tranches s'allument à mesure que les analyses arrivent",
+        "patch": {
+          "label": "Ordre des tranches",
+          "neutral": "Neutre",
+          "fit": "Par adéquation"
+        },
+        "readout": {
+          "label": "Afficheur",
+          "idle": "Pointez une tranche, un vumètre ou un bus pour le lire ici.",
+          "openHint": "Appuyez pour ouvrir le rapport complet.",
+          "soloHint": "Appuyez pour passer ce bus en solo."
+        },
+        "legend": {
+          "label": "Légende",
+          "meter": "Segments allumés = la note, dix points chacun",
+          "capped": "Vumètre obturé : pas de note, la raison est sur l'afficheur",
+          "pending": "Éteint : l'analyse n'est pas encore arrivée",
+          "lamps": "Voyants : ambre pour une alerte de fiabilité, corail pour un blocage",
+          "phase": "Ø en opposition de phase : derrière une autre tranche partout",
+          "talkback": "TB : évoqué dans la synthèse",
+          "tape": "Bande : a postulé, ajouté depuis le vivier, ajouté à la main"
+        }
+      },
+      "talkback": {
+        "title": "Talkback",
+        "covers": "Couvre les {n} meilleurs par adéquation · laisse de côté {out, plural, one {# tranche, dont les vumètres parlent} other {# tranches, dont les vumètres parlent}} d'eux-mêmes",
+        "none": "La synthèse est rédigée quand au moins deux tranches ont une note d'adéquation et que l'analyse est terminée.",
+        "model": "Rédigé par le modèle de langage ; chaque tête et chaque bruit sur cette console est décidé par le code.",
+        "keyless": "Rédigé sans modèle de langage, à partir des seuls constats."
+      },
+      "solo": {
+        "kicker": "Bus en solo · {claim} · {rated}",
+        "busLabel": "{dim} sur toutes les tranches : choisissez une tranche à mettre en avant",
+        "prev": "Bus précédent",
+        "next": "Bus suivant",
+        "muted": "{dim}, coupé : le passer en solo",
+        "claim": {
+          "lead": "une tête au-dessus du bruit",
+          "noise": "dans le bruit",
+          "floor": "aucune comparaison",
+          "unranked": "jamais classé"
+        }
+      },
+      "keys": {
+        "label": "Touches",
+        "names": {
+          "arrows": "Flèches",
+          "enter": "Entrée",
+          "esc": "Échap",
+          "brackets": "[ ]"
+        },
+        "acts": {
+          "move": "se déplacer sur la console",
+          "solo": "passer le bus en solo, ou ouvrir le rapport d'une tranche",
+          "back": "retour à la console",
+          "bus": "bus précédent / suivant"
+        }
+      }
     }
   }
 }

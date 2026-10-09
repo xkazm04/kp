@@ -17330,6 +17330,162 @@
         "focusNone": "Press a door to follow one candidate along this floor.",
         "focusOne": "Following {name}: {value}"
       }
+    },
+    "console": {
+      "root": "Desk",
+      "deskLabel": "Comparison desk: {n, plural, one {# channel} other {# channels}}, one bus per dimension",
+      "crumbsLabel": "Where you are",
+      "back": "Back to the desk",
+      "head": {
+        "eyebrow": "Cohort desk",
+        "channels": "{n, plural, one {# channel} other {# channels}} of {cap}",
+        "blind": "Blind: names hidden"
+      },
+      "row": {
+        "channels": "Channels",
+        "patchedNeutral": "Neutral patch",
+        "patchedFit": "Patched by fit"
+      },
+      "bus": {
+        "solo": "Solo",
+        "soloLabel": "Solo {dim}: open its breakdown across every channel",
+        "claim": {
+          "lead": "Leads: {name}",
+          "noise": "Within the noise",
+          "floor": "No comparison",
+          "unranked": "Never ranked"
+        },
+        "claimLong": {
+          "lead": "{name} leads this bus, clear of the uncertainty bands.",
+          "noise": "Ordered, but the top is within the noise: no lead is named.",
+          "floor": "Too few channels carry a rating to compare on this bus.",
+          "unranked": "Salary is never ranked: each expectation is read against the role's band."
+        },
+        "rated": "{rated} of {total} rated",
+        "partitions": "{n, plural, one {# currency group} other {# currency groups}}, not comparable with each other: {keys}"
+      },
+      "tier": {
+        "strong": "strong",
+        "solid": "solid",
+        "thin": "thin",
+        "weak": "weak"
+      },
+      "strip": {
+        "membership": {
+          "applicant": "Applied",
+          "matched": "Matched from the pool",
+          "added": "Added by hand"
+        },
+        "run": {
+          "queued": "Queued",
+          "analyzing": "Analyzing",
+          "reused": "Reused analysis",
+          "done": "Analyzed",
+          "failed": "Analysis failed"
+        },
+        "lamps": {
+          "peak": "Trust warning",
+          "clip": "Trust blocker",
+          "unread": "Trust not read",
+          "talkback": "Discussed in the narrative"
+        },
+        "open": "{name}: open the full report",
+        "noReport": "{name}: no report yet",
+        "channel": "Channel {n}",
+        "tape": {
+          "applicant": "Applied",
+          "matched": "Matched",
+          "added": "Added"
+        }
+      },
+      "cell": {
+        "rated": "{name}, {dim}: {rating}, {tier}. {label}",
+        "absent": "{name}, {dim}: no rating. {reason}",
+        "lead": "Leads this bus",
+        "note": "Note: {comment}",
+        "band": "Band {lo}–{hi}"
+      },
+      "decoy": "Phase-cancelled: trails {name} on every compared dimension",
+      "noise": "In the noise band, {lo}–{hi}",
+      "master": {
+        "title": "Master",
+        "overall": {
+          "lead": "{name} leads, clear of the noise",
+          "noise": "No lead: the top is within the noise",
+          "floor": "Too few rated to compare"
+        },
+        "overallDetail": {
+          "lead": "The gap to the next channel is wider than both uncertainty bands.",
+          "noise": "{names} share the fit band from {lo} to {hi}; the order between them is not a finding.",
+          "noiseNone": "No fit band could be drawn yet.",
+          "floor": "Fewer than two channels carry a fit rating, so nothing is compared."
+        },
+        "robustness": {
+          "label": "Robustness",
+          "stable": "Stable under every weighting",
+          "sensitive": "Changes under some weightings",
+          "undetermined": "Not computable yet"
+        },
+        "progress": "{done} of {total} analyzed",
+        "progressDetail": "{reused} reused · {failed} failed",
+        "running": "Running: channels light up as their analyses land",
+        "patch": {
+          "label": "Patch order",
+          "neutral": "Neutral",
+          "fit": "By fit"
+        },
+        "readout": {
+          "label": "Readout",
+          "idle": "Point at a channel, a meter or a bus to read it here.",
+          "openHint": "Press to open the full report.",
+          "soloHint": "Press to solo this bus."
+        },
+        "legend": {
+          "label": "Legend",
+          "meter": "Lit segments = the rating, ten points each",
+          "capped": "Capped meter: no rating, the reason is in the readout",
+          "pending": "Unlit: the analysis has not landed yet",
+          "lamps": "Lamps: amber trust warning, coral trust blocker",
+          "phase": "Ø phase-cancelled: trails another channel everywhere",
+          "talkback": "TB: discussed in the narrative",
+          "tape": "Tape: applied, matched from the pool, added by hand"
+        }
+      },
+      "talkback": {
+        "title": "Talkback",
+        "covers": "Covers the strongest {n} by fit · leaves out {out, plural, one {# channel} other {# channels}}, whose meters stand on their own",
+        "none": "The narrative is written once at least two channels carry a fit rating and the run is done.",
+        "model": "Written by the language model; every lead and noise claim on this desk is decided by code.",
+        "keyless": "Written without a language model, from the claims alone."
+      },
+      "solo": {
+        "kicker": "Solo bus · {claim} · {rated}",
+        "busLabel": "{dim} on every channel: pick a channel to focus it",
+        "prev": "Previous bus",
+        "next": "Next bus",
+        "muted": "{dim}, muted: solo it instead",
+        "claim": {
+          "lead": "a lead clears the noise",
+          "noise": "within the noise",
+          "floor": "no comparison",
+          "unranked": "never ranked"
+        }
+      },
+      "keys": {
+        "label": "Keys",
+        "names": {
+          "arrows": "Arrows",
+          "enter": "Enter",
+          "esc": "Esc",
+          "brackets": "[ ]"
+        },
+        "acts": {
+          "move": "move across the desk",
+          "solo": "solo the bus, or open a channel's report",
+          "back": "back to the desk",
+          "bus": "previous / next bus"
+        }
+      }
     }
   }
 }
