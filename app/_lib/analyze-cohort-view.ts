@@ -22,7 +22,7 @@ import { maskCandidateName, scrubPiiFromPayload } from "./consent";
 import type { CohortComments, CohortStatus, CohortSummary, CohortView, RoleBand } from "../features/tools/analyze/cohort/cohortTypes";
 import { assembleCohortView, projectCohortMember, type ProjectInput, type ProjectedMember } from "../features/tools/analyze/cohort/cohortProject";
 import { neutralOrder } from "../features/tools/analyze/cohort/cohortClaims";
-import type { ProposalContext } from "./analyze-cohort-proposal";
+import { displayMemberLabel, uniqueDisplayLabels, type ProposalContext } from "./analyze-cohort-proposal";
 
 /** The engine seams, injectable so a test can run without the pure engine. */
 export type CohortEngine = {
@@ -102,13 +102,25 @@ export function projectAnalysisCohortMembers(
 ): ProjectedMember[] {
   const order = deps.engine.neutralOrder(rec.id, rec.members.map((m) => m.memberId));
   const roleBand = cohortRoleBand(job);
-  return rec.members.map((m) => {
-    const loaded = m.analysisSlug ? loadCohortMemberAnalysis(m.analysisSlug, rec.workspaceId, deps) : { analysis: null, withheld: false };
+  const loadedAll = rec.members.map((m) =>
+    m.analysisSlug ? loadCohortMemberAnalysis(m.analysisSlug, rec.workspaceId, deps) : { analysis: null, withheld: false }
+  );
+  // The person's name (older rows store "Name → Role"), distinct within the cohort; a
+  // withheld payload's name is scrubbed, so its mask is built from the stored label.
+  const shownAll = uniqueDisplayLabels(
+    rec.members.map((m, i) => ({
+      displayLabel: displayMemberLabel(loadedAll[i].withheld ? null : loadedAll[i].analysis?.candidate?.name, m.label),
+      label: m.label,
+    }))
+  );
+  return rec.members.map((m, i) => {
+    const loaded = loadedAll[i];
+    const shown = shownAll[i];
     const label = rec.blind
       ? blindMemberLabel(order.indexOf(m.memberId))
       : loaded.withheld || deps.withholdsPii(m.label, rec.workspaceId)
-        ? deps.maskName(m.label)
-        : m.label;
+        ? deps.maskName(shown)
+        : shown;
     return deps.engine.projectCohortMember({
       memberId: m.memberId,
       label,

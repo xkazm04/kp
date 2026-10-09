@@ -2709,7 +2709,7 @@ function scrubEntryLinkedPii(
   // name in the stored comments (JSON-escaped form); the numbers stay.
   if (tables.has("analysis_cohorts")) {
     const name = (label ?? "").trim();
-    const ids = candidateId ? [candidateId, `profile:${candidateId}`] : [];
+    const ids = candidateId ? [candidateId, `profile:${candidateId}`] : [], bareName = name.split(/\s+(?:→|->)\s+/)[0].trim();
     const cohorts = db
       .prepare(`SELECT id, members_json, comments_json FROM analysis_cohorts WHERE workspace_id = ?`)
       .all(linkWorkspaceId) as { id: string; members_json: string; comments_json: string | null }[];
@@ -2726,7 +2726,7 @@ function scrubEntryLinkedPii(
       let changed = false;
       for (const m of members) {
         const own = typeof m?.memberId === "string" && ids.includes(m.memberId);
-        const named = Boolean(name) && typeof m?.label === "string" && m.label.trim() === name;
+        const named = Boolean(name) && typeof m?.label === "string" && (m.label.trim() === name || m.label.trim() === bareName);
         if ((own || named) && m.label !== masked) {
           m.label = masked;
           changed = true;

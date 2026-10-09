@@ -271,6 +271,8 @@ export type AnalysisCohortCvFact = {
   createdAt: string;
   /** The payload carries a non-empty candidate.rawText (an erased or legacy row does not). */
   hasCvText: boolean;
+  /** The payload's candidate.name — the person, where the row's label may carry a suffix. */
+  candidateName: string | null;
 };
 
 const SLUG_CHUNK = 400;
@@ -288,7 +290,8 @@ export function listAnalysisCohortCvFacts(slugs: readonly string[], workspaceId:
         `SELECT slug, candidate_label, jd_slug, cv_hash, role_family, seniority, created_at,
                 CASE WHEN json_valid(payload_json)
                      THEN length(COALESCE(json_extract(payload_json, '$.candidate.rawText'), ''))
-                     ELSE 0 END AS raw_len
+                     ELSE 0 END AS raw_len,
+                CASE WHEN json_valid(payload_json) THEN json_extract(payload_json, '$.candidate.name') END AS candidate_name
            FROM analyses WHERE workspace_id = ? AND slug IN (${slots})`
       )
       .all(workspaceId, ...chunk) as Array<{
@@ -300,6 +303,7 @@ export function listAnalysisCohortCvFacts(slugs: readonly string[], workspaceId:
       seniority: string | null;
       created_at: string;
       raw_len: number | null;
+      candidate_name: unknown;
     }>;
     for (const r of rows) {
       out.set(r.slug, {
@@ -311,6 +315,7 @@ export function listAnalysisCohortCvFacts(slugs: readonly string[], workspaceId:
         seniority: r.seniority,
         createdAt: r.created_at,
         hasCvText: (r.raw_len ?? 0) > 0,
+        candidateName: typeof r.candidate_name === "string" && r.candidate_name.trim() ? r.candidate_name.trim() : null,
       });
     }
   }

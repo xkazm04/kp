@@ -16,10 +16,13 @@ Pinned:
 from __future__ import annotations
 
 import unittest
+from unittest import mock
 
 from pipeline.jobfit import cohort_compare_cli
 from pipeline.jobfit.cohort_compare import (
     COMMENT_MAX_CHARS,
+    DROP_REASONS,
+    NARRATIVE_MAX_CHARS,
     comment_cap,
     contradicts_claim,
     deterministic_comparison,
@@ -171,12 +174,113 @@ class CliTest(unittest.TestCase):
         run = run_cli(cohort_compare_cli.main, ["--no-llm", "--input-json", "@c.json"], files={"c.json": _context("a")})
         self.assertEqual(run.code, 0, run.stderr)
         self.assertEqual(run.payload["engine"], "keyless")
-        self.assertEqual(set(run.payload), {"cells", "notes", "narrative", "engine", "promptVersion"})
+        self.assertEqual(set(run.payload), {"cells", "notes", "narrative", "engine", "promptVersion", "dropped", "trimmed"})
 
     def test_a_non_object_payload_is_the_callers_input(self) -> None:
         run = run_cli(cohort_compare_cli.main, ["--no-llm", "--input-json", "@c.json"], files={"c.json": [1, 2]})
         self.assertEqual(run.code, 1)
         self.assertEqual((run.envelope["code"], run.envelope["status"]), ("invalid_input", 400))
+
+
+class LiveCohortRegressionTest(unittest.TestCase):
+    """The 2026-10-09 seam run (cohort coh-mv0taz28-433miu): the model answered in both
+    orders ($0.12 each) and the stored result was the template. Order one's narrative was
+    914 characters (> 900, refused whole); order two's opened "No overall leader
+    emerges." and the word-list guard read "leader" as a crown. Notes saying "No clear
+    leader." went the same way. These are the shapes, kept verbatim where it matters."""
+
+    def _ctx(self) -> dict:
+        ctx = _context(None, "insideNoise")
+        ctx["members"] = [_member("cv-cand-003", "Martin Novotný", 1), _member("cv-cand-005", "Aneta Kovářová", 1), _member("cv-cand-007", "Vít Malý", 3)]
+        ctx["narrativeTop"] = ["cv-cand-003", "cv-cand-005", "cv-cand-007"]
+        ctx["leavesOut"] = 0
+        return ctx
+
+    def test_a_negated_lead_restates_the_claim_and_is_kept(self) -> None:
+        answer = {
+            "cells": [],
+            "notes": {"skills": "Every core skill is matched for all three. Kafka is unproven for everyone. No clear leader."},
+            "narrative": {
+                "covers": ["cv-cand-003", "cv-cand-005", "cv-cand-007"],
+                "text": "No overall leader emerges. The differences between these three candidates sit inside the noise, "
+                "and that holds when the weighting changes. cv-cand-003 matches every core skill.",
+            },
+        }
+        out = generate(self._ctx(), provider=FakeProvider(answer))
+        self.assertEqual(out["engine"], "model")
+        self.assertIn("skills", out["notes"])
+        self.assertEqual(out["dropped"], [])
+        self.assertIn("Martin Novotný matches", out["narrative"]["text"], "a memberId in prose is replaced by its label")
+        self.assertNotIn("cv-cand-003", out["narrative"]["text"])
+
+    def test_an_over_length_narrative_is_cut_to_its_last_sentence_not_thrown_away(self) -> None:
+        sentence = "Martin Novotný has strong fit, experience, trust and salary ratings, and Kafka is unproven. "
+        text = "There is no overall leader. " + sentence * 12  # ~1100 characters
+        self.assertGreater(len(text), NARRATIVE_MAX_CHARS)
+        out = generate(self._ctx(), provider=FakeProvider({"cells": [], "notes": {}, "narrative": {"covers": [], "text": text}}))
+        self.assertEqual(out["engine"], "model")
+        self.assertLessEqual(len(out["narrative"]["text"]), NARRATIVE_MAX_CHARS)
+        self.assertTrue(out["narrative"]["text"].endswith("."))
+        self.assertEqual(out["trimmed"], ["narrative"])
+
+    def test_an_unsplittable_over_length_text_is_dropped_and_counted(self) -> None:
+        out = generate(self._ctx(), provider=FakeProvider({"cells": [], "notes": {"fit": "x" * 400}, "narrative": None}))
+        self.assertIn({"item": "note:fit", "reason": "over-length"}, out["dropped"])
+        self.assertIn({"item": "narrative", "reason": "empty"}, out["dropped"])
+        self.assertEqual(out["engine"], "keyless")
+
+
+class DropTallyTest(unittest.TestCase):
+    def test_every_refused_item_names_its_rule(self) -> None:
+        ctx = _context(None, "insideNoise")
+        cells = [
+            {"memberId": "zz", "dimension": "fit", "comment": "Unknown."},
+            {"memberId": "a", "dimension": "charm", "comment": "Unknown dimension."},
+            {"memberId": "a", "dimension": "fit", "comment": "Kept."},
+            {"memberId": "b", "dimension": "fit", "comment": "Over the cap of one."},
+        ]
+        answer = {"cells": cells, "notes": {"fit": "Alice leads clearly."}, "narrative": {"covers": [], "text": "Bob is the strongest."}}
+        out = generate(ctx, provider=FakeProvider(answer))
+        reasons = {d["item"]: d["reason"] for d in out["dropped"]}
+        self.assertEqual(reasons["cell:zz/fit"], "unknown-member")
+        self.assertEqual(reasons["cell:a/charm"], "unknown-dimension")
+        self.assertEqual(reasons["cell:b/fit"], "over-cap")
+        self.assertEqual(reasons["note:fit"], "contradicts-claim")
+        self.assertEqual(reasons["narrative"], "contradicts-claim")
+        self.assertTrue(set(reasons.values()) <= set(DROP_REASONS))
+
+
+class NegationGuardTest(unittest.TestCase):
+    LABELS = {"a": "Alice Smith", "b": "Bob Jones"}
+
+    def test_a_negation_that_names_someone_is_still_a_crown(self) -> None:
+        self.assertTrue(contradicts_claim("Nobody but Alice Smith leads.", {"leader": None, "separation": "insideNoise"}, self.LABELS))
+
+    def test_a_first_name_alone_is_a_mention(self) -> None:
+        self.assertTrue(contradicts_claim("Bob leads on skills.", {"leader": "a", "separation": "clears"}, self.LABELS))
+        self.assertTrue(contradicts_claim("Alice is the strongest.", {"leader": None, "separation": "insideNoise"}, self.LABELS))
+
+    def test_negated_leads_pass_in_every_report_language(self) -> None:
+        claim = {"leader": None, "separation": "insideNoise"}
+        for text in ("There is no overall leader.", "No clear leader.", "Celkově nevede nikdo, žádný lídr.", "Kein klarer Spitzenreiter, niemand führt.", "Aucun candidat n'est en tête."):
+            self.assertFalse(contradicts_claim(text, claim, self.LABELS), text)
+
+    def test_an_unnegated_crown_without_a_name_is_still_refused(self) -> None:
+        self.assertTrue(contradicts_claim("One candidate clearly leads the field.", {"leader": None, "separation": "insideNoise"}, self.LABELS))
+
+
+class CliLedgerTest(unittest.TestCase):
+    def test_a_refused_model_narrative_is_ledgered_as_unusable_output(self) -> None:
+        provider = FakeProvider({"cells": [], "notes": {}, "narrative": {"covers": [], "text": "Alice leads the field."}})
+        calls: list[tuple] = []
+        with mock.patch.object(cohort_compare_cli, "resolve_provider", return_value=provider), mock.patch.object(
+            cohort_compare_cli, "provider_availability", return_value=(True, None)
+        ), mock.patch.object(cohort_compare_cli, "emit_deterministic", side_effect=lambda uc, reason=None: calls.append((uc, reason))):
+            run = run_cli(cohort_compare_cli.main, ["--input-json", "@c.json"], files={"c.json": _context(None, "insideNoise")})
+        self.assertEqual(run.code, 0, run.stderr)
+        self.assertEqual(run.payload["engine"], "keyless")
+        self.assertEqual(calls, [("group_compare", "unusable_output")])
+        self.assertIn({"item": "narrative", "reason": "contradicts-claim"}, run.payload["dropped"])
 
 
 if __name__ == "__main__":

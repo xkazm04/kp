@@ -11,6 +11,7 @@ app/_lib/analyze-cohort-run.ts ``buildCompareInput`` — one presentation order 
     "narrativeTop": [memberId], "leavesOut": int }
 
 Output: { "cells": [{memberId, dimension, comment}], "notes": {dimension: str},
+          "dropped": [{item, reason}], "trimmed": [item],
           "narrative": {covers, leavesOut, text} | null, "engine": "model"|"keyless",
           "promptVersion": str }
 
@@ -29,6 +30,7 @@ from ._cli import configure_stdio, emit_error, invalid_input
 from .cohort_compare import COHORT_COMPARE_PROMPT_VERSION, generate
 from .i18n import normalize_lang
 from .llm import emit_deterministic, provider_availability, resolve_provider
+from .llm.degradation import UNUSABLE_OUTPUT
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -59,6 +61,11 @@ def main(argv: list[str] | None = None) -> int:
 
         result = generate(context, lang=lang, provider=provider, on_fallback=note_descent)
         if result["engine"] == "keyless":
+            # The template narrative served. With no descent named, the provider ANSWERED
+            # and its narrative was refused: that is "unusable_output", never a blank —
+            # the per-item why travels in `dropped` and is stored with the cohort.
+            if descent is None and provider is not None:
+                descent = UNUSABLE_OUTPUT
             emit_deterministic("group_compare", reason=descent)
     except Exception as exc:  # noqa: BLE001 — the bridge's standard {error, status, code} envelope
         return emit_error(exc)

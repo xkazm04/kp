@@ -117,6 +117,7 @@ function harness(
       memberId: id,
       source: { kind: "analysis", slug: id },
       label: `Label ${id}`,
+      displayLabel: `Label ${id}`,
       roleFamily: null,
       seniority: null,
       cvSlug: id,
@@ -156,7 +157,7 @@ function harness(
       }) as CohortView,
     compare: async (input) => {
       calls.compare += 1;
-      return opts.compare ? opts.compare(input.members[0]?.memberId ?? "") : { cells: [], notes: {}, narrative: null, engine: "keyless" };
+      return opts.compare ? opts.compare(input.members[0]?.memberId ?? "") : { cells: [], notes: {}, narrative: null, engine: "keyless", dropped: [], trimmed: [] };
     },
   };
   return { deps, sheet, calls };
@@ -201,7 +202,7 @@ test("every member failing fails the cohort, and no comparative pass runs", asyn
 
 test("a member that no longer resolves fails with COHORT_MEMBER_NOT_FOUND", async () => {
   const h = harness(record(["a", "b"]));
-  h.deps.resolveSource = (id) => (id === "a" ? null : { memberId: id, source: { kind: "analysis", slug: id }, label: id, roleFamily: null, seniority: null, cvSlug: id, cvHash: null });
+  h.deps.resolveSource = (id) => (id === "a" ? null : { memberId: id, source: { kind: "analysis", slug: id }, label: id, displayLabel: id, roleFamily: null, seniority: null, cvSlug: id, cvHash: null });
   await runCohortCore(h.deps);
   assert.equal(h.sheet.find((m) => m.memberId === "a")?.error, "COHORT_MEMBER_NOT_FOUND");
 });
@@ -238,12 +239,16 @@ test("the two-order intersection keeps only the comments both orders produced", 
     notes: { fit: "Neutral note on fit.", skills: "Only neutral." },
     narrative: { covers: ["a", "zz"], leavesOut: 0, text: "Run one's narrative." },
     engine: "model",
+    dropped: [{ item: "note:trust", reason: "contradicts-claim" }],
+    trimmed: ["narrative"],
   };
   const runB: CompareOutput = {
     cells: [{ memberId: "a", dimension: "skills", comment: "Different words, same cell." }],
     notes: { fit: "Reversed note on fit." },
     narrative: { covers: ["b"], leavesOut: 0, text: "Run two's narrative." },
     engine: "model",
+    dropped: [],
+    trimmed: [],
   };
   const h = harness(record(["a", "b", "c"]), { compare: (first) => (first === "a" ? runA : runB) });
   await runCohortCore(h.deps);
@@ -254,6 +259,32 @@ test("the two-order intersection keeps only the comments both orders produced", 
   assert.equal(comments.narrative?.text, "Run one's narrative.");
   assert.deepEqual(comments.narrative?.covers, ["a"], "covers restricted to the code-decided top");
   assert.equal(comments.narrative?.engine, "model");
+  // Nothing vanishes uncounted: run one's refused note, run one's lone cell and note.
+  assert.deepEqual(comments.dropped.byReason, { "contradicts-claim": 1, "order-disagreement": 2 });
+  assert.equal(comments.dropped.total, 3);
+  assert.equal(comments.dropped.trimmed, 1);
+  assert.deepEqual(
+    comments.dropped.items.filter((d) => d.reason === "order-disagreement").map((d) => `${d.run}:${d.item}`).sort(),
+    ["1:cell:b/trust", "1:note:skills"]
+  );
+});
+
+test("a cell only the REVERSED order commented is counted too", () => {
+  const view = harness(record(["a", "b"])).deps.buildView();
+  view.members.forEach((m) => (m.runState = "done"));
+  const input = buildCompareInput(view, "neutral");
+  const empty: CompareOutput = { cells: [], notes: {}, narrative: null, engine: "model", dropped: [], trimmed: [] };
+  const out = intersectCompareRuns(empty, { ...empty, cells: [{ memberId: "b", dimension: "fit", comment: "x" }], notes: { fit: "n" } }, input);
+  assert.deepEqual(out.dropped.items, [
+    { run: 2, item: "cell:b/fit", reason: "order-disagreement" },
+    { run: 2, item: "note:fit", reason: "order-disagreement" },
+  ]);
+});
+
+test("parseCompareOutput carries the CLI's drop list and trims", () => {
+  const out = parseCompareOutput({ cells: [], notes: {}, narrative: null, engine: "keyless", dropped: [{ item: "narrative", reason: "over-length" }, { bad: 1 }], trimmed: ["note:fit", 3] });
+  assert.deepEqual(out.dropped, [{ item: "narrative", reason: "over-length" }]);
+  assert.deepEqual(out.trimmed, ["note:fit"]);
 });
 
 test("the compare input carries the code's claims, both orders, and no CV text", () => {

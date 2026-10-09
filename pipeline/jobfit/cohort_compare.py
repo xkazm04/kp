@@ -243,20 +243,84 @@ def _sentences(text: str) -> list[str]:
     return [s for s in re.split(r"(?<=[.!?;])\s+", text) if s.strip()]
 
 
+# A sentence that NEGATES a lead ("There is no overall leader", "No clear leader", "nikdo
+# nevede", "kein klarer Spitzenreiter", "aucun candidat n'est en tête") is the claim
+# "insideNoise / belowFloor" restated, not a crown. Measured 2026-10-09 on a live cohort:
+# the word-list guard refused exactly those sentences, so the model's faithful narrative
+# and two of its notes were thrown away after they were paid for.
+_NEGATION = re.compile(
+    r"\b(no|not|none|nobody|neither|nor|without|cannot|can't|isn't|doesn't|"
+    r"nikdo|žádn\w*|není|nejsou|ne|nelze|bez|"
+    r"kein\w*|nicht|niemand|ohne|"
+    r"aucun\w*|personne|pas|ni|sans)\b",
+    re.IGNORECASE,
+)
+
+
+def _name_tokens(labels: dict[str, str]) -> dict[str, list[str]]:
+    """Per member: the strings that NAME it in prose — its id, its whole label, and every
+    word (>= 3 letters) of its label that no other member's label shares. A first name on
+    its own ("Martin leads…") is a mention; "Candidate" in a blind cohort is not."""
+    words: dict[str, set[str]] = {
+        mid: {w.lower() for w in re.findall(r"[^\W\d_]{3,}", label)} for mid, label in labels.items()
+    }
+    out: dict[str, list[str]] = {}
+    for mid, label in labels.items():
+        others = set().union(*(w for m, w in words.items() if m != mid)) if len(words) > 1 else set()
+        out[mid] = [mid.lower(), label.lower(), *sorted(words[mid] - others)]
+    return out
+
+
+def mentioned_members(sentence: str, labels: dict[str, str]) -> set[str]:
+    low = sentence.lower()
+    found: set[str] = set()
+    for mid, names in _name_tokens(labels).items():
+        for name in names:
+            if name and re.search(rf"(?<![\w-]){re.escape(name)}(?![\w-])", low):
+                found.add(mid)
+                break
+    return found
+
+
 def contradicts_claim(text: str, claim: dict[str, Any], labels: dict[str, str]) -> bool:
-    """True when prose crowns someone the claim does not name, or ranks the field."""
+    """True when prose crowns someone the claim does not name, or ranks the field.
+
+    A crowning sentence may name ONLY the claimed leader (a lead that clears the noise).
+    A sentence that negates a lead and names nobody ("no overall leader") restates the
+    claim and passes; a negated sentence that names someone ("nobody but Alice leads")
+    does not."""
     if _RANKING.search(text):
         return True
     leader = _named_leader(claim)
     for sentence in _sentences(text):
         if not _CROWN.search(sentence):
             continue
-        if leader is None:
-            return True
-        mentioned = {mid for mid, label in labels.items() if label and label.lower() in sentence.lower()}
-        if mentioned - {leader}:
+        named = mentioned_members(sentence, labels)
+        if not named and _NEGATION.search(sentence):
+            continue
+        if leader is None or named - {leader}:
             return True
     return False
+
+
+def fit_length(text: str, cap: int) -> tuple[str | None, bool]:
+    """``text`` within ``cap`` characters: as is, or cut back to its last whole sentence
+    when that keeps at least half of the cap (trimmed=True); None when it cannot be."""
+    if len(text) <= cap:
+        return text, False
+    head = text[:cap]
+    ends = [m.end() for m in re.finditer(r"[.!?](?=\s|$)", head)]
+    if ends and ends[-1] >= cap // 2:
+        return head[: ends[-1]].strip(), True
+    return None, False
+
+
+def _with_labels(text: str, labels: dict[str, str]) -> str:
+    """The model was told to write labels, not ids; an id that slipped through is replaced
+    by its label (in a blind cohort the label is the neutral letter, so nothing leaks)."""
+    for mid in sorted(labels, key=len, reverse=True):
+        text = re.sub(rf"(?<![\w-]){re.escape(mid)}(?![\w-])", labels[mid], text)
+    return text
 
 
 # ---- the model path ----------------------------------------------------------------------
@@ -291,14 +355,16 @@ def build_prompt(context: dict[str, Any], lang: str) -> str:
         '  "notes": { "<dimension>": str },\n'
         '  "narrative": { "covers": [memberId], "text": str } }\n'
         "Rules:\n"
+        "- In every text, refer to a candidate by their label exactly as given, never by memberId "
+        "(memberId is only for the JSON keys).\n"
         f"- cells: RARE. At most {comment_cap(len(members))} in total. Comment on a cell ONLY where its "
         f"number on its own would mislead a recruiter (e.g. a high rating resting on thin evidence). "
-        f"Each comment at most {COMMENT_MAX_CHARS} characters. memberId and dimension must be ones given. "
+        f"Each comment at most {COMMENT_MAX_CHARS - 10} characters. memberId and dimension must be ones given. "
         f"Dimensions: {', '.join(DIMENSIONS)}.\n"
-        f"- notes: at most one per dimension, at most {NOTE_MAX_CHARS} characters, describing what the "
+        f"- notes: at most one per dimension, at most {NOTE_MAX_CHARS - 20} characters, describing what the "
         "dimension shows across the field. A note may name a leader ONLY where that dimension's claim "
         "has separation \"clears\", and then only that leader.\n"
-        f"- narrative: at most {NARRATIVE_MAX_CHARS} characters about the candidates in narrativeTop "
+        f"- narrative: at most {NARRATIVE_MAX_CHARS - 200} characters about the candidates in narrativeTop "
         "(covers = those ids, in the order you discuss them), and say how many it leaves out "
         "(leavesOut). Name an overall leader only if claims.overall.separation is \"clears\"; if its "
         "robustness is \"sensitive\", say the lead depends on the weighting.\n"
@@ -308,58 +374,117 @@ def build_prompt(context: dict[str, Any], lang: str) -> str:
     )
 
 
+#: Why a model item did not reach the result — the closed vocabulary the drop tally uses
+#: (stored with the cohort's comments by app/_lib/analyze-cohort-run.ts).
+DROP_REASONS: tuple[str, ...] = (
+    "over-length",
+    "contradicts-claim",
+    "unknown-member",
+    "unknown-dimension",
+    "over-cap",
+    "duplicate",
+    "empty",
+    "malformed",
+)
+
+
 def _coerce(payload: Any, context: dict[str, Any], lang: str) -> tuple[dict[str, Any], bool]:
     """Validate the model answer against the inputs and the claims. Returns (comparison,
-    model_wrote_something). Anything invalid is DROPPED; a missing or claim-contradicting
-    narrative is replaced by the template (and then the narrative is not the model's)."""
+    model_narrative). Nothing is dropped silently: every refused item is listed in
+    ``dropped`` as {item, reason} (reason from :data:`DROP_REASONS`), every item cut back
+    to its last whole sentence in ``trimmed``. A missing or refused narrative is replaced
+    by the template (and then the narrative is not the model's)."""
     labels = _labels(context)
     by_dim = _by_dimension(context)
     overall = _overall(context)
     fallback = deterministic_comparison(context, lang)
+    dropped: list[dict[str, str]] = []
+    trimmed: list[str] = []
     if not isinstance(payload, dict):
-        return fallback, False
+        return {**fallback, "dropped": [{"item": "answer", "reason": "malformed"}], "trimmed": []}, False
+
+    def fit(item: str, text: str, cap: int, claim: dict[str, Any]) -> str | None:
+        text = _with_labels(text.strip(), labels)
+        if not text:
+            dropped.append({"item": item, "reason": "empty"})
+            return None
+        kept, was_trimmed = fit_length(text, cap)
+        if kept is None:
+            dropped.append({"item": item, "reason": "over-length"})
+            return None
+        if contradicts_claim(kept, claim, labels):
+            dropped.append({"item": item, "reason": "contradicts-claim"})
+            return None
+        if was_trimmed:
+            trimmed.append(item)
+        return kept
 
     cells: list[dict[str, str]] = []
     seen: set[tuple[str, str]] = set()
     raw_cells = payload.get("cells") if isinstance(payload.get("cells"), list) else []
     for c in raw_cells:
-        if len(cells) >= comment_cap(len(labels)):
-            break
         if not isinstance(c, dict):
+            dropped.append({"item": "cell", "reason": "malformed"})
             continue
         mid, dim, text = c.get("memberId"), c.get("dimension"), c.get("comment")
-        if not (isinstance(mid, str) and mid in labels and dim in DIMENSIONS and isinstance(text, str) and text.strip()):
+        item = f"cell:{mid}/{dim}"
+        if not (isinstance(mid, str) and mid in labels):
+            dropped.append({"item": item, "reason": "unknown-member"})
             continue
-        text = text.strip()
-        if len(text) > COMMENT_MAX_CHARS or (mid, dim) in seen:
+        if dim not in DIMENSIONS:
+            dropped.append({"item": item, "reason": "unknown-dimension"})
             continue
-        if contradicts_claim(text, by_dim.get(dim, {}), labels):
+        if not isinstance(text, str):
+            dropped.append({"item": item, "reason": "malformed"})
+            continue
+        if (mid, dim) in seen:
+            dropped.append({"item": item, "reason": "duplicate"})
+            continue
+        if len(cells) >= comment_cap(len(labels)):
+            dropped.append({"item": item, "reason": "over-cap"})
+            continue
+        kept = fit(item, text, COMMENT_MAX_CHARS, by_dim.get(dim, {}))
+        if kept is None:
             continue
         seen.add((mid, dim))
-        cells.append({"memberId": mid, "dimension": dim, "comment": text})
+        cells.append({"memberId": mid, "dimension": dim, "comment": kept})
 
     notes: dict[str, str] = {}
     raw_notes = payload.get("notes") if isinstance(payload.get("notes"), dict) else {}
     for dim, text in raw_notes.items():
-        if dim not in DIMENSIONS or not isinstance(text, str) or not text.strip():
+        item = f"note:{dim}"
+        if dim not in DIMENSIONS:
+            dropped.append({"item": item, "reason": "unknown-dimension"})
             continue
-        text = text.strip()
-        if len(text) > NOTE_MAX_CHARS or contradicts_claim(text, by_dim.get(dim, {}), labels):
+        if not isinstance(text, str):
+            dropped.append({"item": item, "reason": "malformed"})
             continue
-        notes[dim] = text
+        kept = fit(item, text, NOTE_MAX_CHARS, by_dim.get(dim, {}))
+        if kept is not None:
+            notes[dim] = kept
 
     narrative = None
     raw = payload.get("narrative")
     top = _narrative_top(context)
-    if isinstance(raw, dict) and isinstance(raw.get("text"), str) and raw["text"].strip():
-        text = raw["text"].strip()
-        if len(text) <= NARRATIVE_MAX_CHARS and not contradicts_claim(text, overall, labels):
+    if isinstance(raw, dict) and isinstance(raw.get("text"), str):
+        kept = fit("narrative", raw["text"], NARRATIVE_MAX_CHARS, overall)
+        if kept is not None:
             covers = [x for x in raw.get("covers", []) if isinstance(x, str) and x in top] if isinstance(raw.get("covers"), list) else []
-            narrative = {"covers": covers or top, "leavesOut": _leaves_out(context), "text": text}
+            narrative = {"covers": covers or top, "leavesOut": _leaves_out(context), "text": kept}
+    elif raw is not None:
+        dropped.append({"item": "narrative", "reason": "malformed"})
+    else:
+        dropped.append({"item": "narrative", "reason": "empty"})
 
     model_narrative = narrative is not None
     return (
-        {"cells": cells, "notes": notes, "narrative": narrative if model_narrative else fallback["narrative"]},
+        {
+            "cells": cells,
+            "notes": notes,
+            "narrative": narrative if model_narrative else fallback["narrative"],
+            "dropped": dropped,
+            "trimmed": trimmed,
+        },
         model_narrative,
     )
 
@@ -371,11 +496,12 @@ def generate(
     provider: Any | None = None,
     on_fallback: Callable[[str], None] | None = None,
 ) -> dict[str, Any]:
-    """The comparative pass. Returns {cells, notes, narrative, engine}: ``engine`` is
-    "model" only when the NARRATIVE on the wire is the model's."""
+    """The comparative pass. Returns {cells, notes, narrative, engine, dropped, trimmed}:
+    ``engine`` is "model" only when the NARRATIVE on the wire is the model's; ``dropped``
+    names every model item that did not make it, and why."""
     lang = normalize_lang(lang)
     if provider is None or len(_members(context)) < 2:
-        return {**deterministic_comparison(context, lang), "engine": "keyless"}
+        return {**deterministic_comparison(context, lang), "engine": "keyless", "dropped": [], "trimmed": []}
     try:
         payload = complete_json_expecting(
             provider, build_prompt(context, lang), _system_prompt(), COHORT_COMPARE_EXPECTED_KEYS
@@ -385,4 +511,4 @@ def generate(
     except Exception as exc:  # noqa: BLE001 — a provider failure is the keyless floor, coded
         if on_fallback is not None:
             on_fallback(describe_fallback(exc))
-        return {**deterministic_comparison(context, lang), "engine": "keyless"}
+        return {**deterministic_comparison(context, lang), "engine": "keyless", "dropped": [], "trimmed": []}

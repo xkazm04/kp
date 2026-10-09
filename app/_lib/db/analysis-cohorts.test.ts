@@ -90,6 +90,7 @@ test("CV facts say whether a CV text exists — never the text — and profiles 
   const facts = store.listAnalysisCohortCvFacts([withText, erased, "missing"], WS);
   assert.equal(facts.get(withText)?.hasCvText, true);
   assert.equal(facts.get(withText)?.cvHash, "h-text");
+  assert.equal(facts.get(withText)?.candidateName, "Has Text", "the payload's candidate.name rides beside the facts");
   assert.equal(facts.get(erased)?.hasCvText, false);
   assert.equal(facts.has("missing"), false);
   assert.ok(!("rawText" in (facts.get(withText) as object)));

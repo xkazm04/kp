@@ -98,7 +98,7 @@ export async function POST(request: Request) {
       // Two ids for the same CV (a profile and its source analysis, or an earlier run of
       // it) would compare a person with themself.
       if (members.some((x) => sameCv(x.resolved, r))) return jsonRefusal("COHORT_REQUEST_INVALID", 400, { min: COHORT_MIN, max: COHORT_CAP });
-      members.push({ memberId: m.memberId, label: r.label, membership: m.membership, source: r.source, resolved: r });
+      members.push({ memberId: m.memberId, label: r.displayLabel, membership: m.membership, source: r.source, resolved: r });
     }
     const reuseRows = listAnalysisCohortReuseRows(body.jdSlug, ws);
     const freshCount = members.filter((m) => findReusableAnalysis(m.resolved, reuseRows) === null).length;

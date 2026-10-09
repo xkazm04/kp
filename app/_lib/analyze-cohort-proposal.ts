@@ -59,12 +59,41 @@ export function sourceForMemberId(memberId: string): MemberSource | null {
   return { kind: "analysis", slug: id };
 }
 
+/** The wire name: candidate.name, else the label without its " → <role>" suffix. The raw
+ *  label stays the MATCHING key (reuse rule, History, erasure). */
+export function displayMemberLabel(candidateName: string | null | undefined, label: string): string {
+  const name = (candidateName ?? "").trim();
+  if (name) return name;
+  const bare = label.split(/\s+(?:→|->)\s+/)[0]?.trim();
+  return bare || label.trim();
+}
+
+/** Distinct names within one set (seeded CVs share names): a collision falls back to the
+ *  bare stored label, then gets " (n)". */
+export function uniqueDisplayLabels(entries: ReadonlyArray<{ displayLabel: string; label: string }>): string[] {
+  const count = (xs: string[]) => xs.reduce((m, x) => m.set(x, (m.get(x) ?? 0) + 1), new Map<string, number>());
+  const first = entries.map((e) => e.displayLabel);
+  const firstCounts = count(first);
+  const second = entries.map((e, i) => ((firstCounts.get(first[i]) ?? 0) > 1 ? displayMemberLabel(null, e.label) : first[i]));
+  const secondCounts = count(second);
+  const seen = new Map<string, number>();
+  return second.map((l) => {
+    if ((secondCounts.get(l) ?? 0) < 2) return l;
+    const n = (seen.get(l) ?? 0) + 1;
+    seen.set(l, n);
+    return n === 1 ? l : `${l} (${n})`;
+  });
+}
+
 /** One member's resolved CV: where it lives and who it is. `cvSlug` is the analysis row
  *  holding the CV text (the source itself, or a profile's source analysis). */
 export type ResolvedCohortSource = {
   memberId: string;
   source: MemberSource;
+  /** The stored candidate label — the MATCHING key (reuse rule, History). */
   label: string;
+  /** What the wire shows (displayMemberLabel). */
+  displayLabel: string;
   roleFamily: string | null;
   seniority: string | null;
   cvSlug: string;
@@ -99,7 +128,16 @@ export function resolveCohortSources(memberIds: readonly string[], workspaceId: 
     if (source.kind === "analysis") {
       const f = facts.get(source.slug);
       if (f?.hasCvText) {
-        resolved = { memberId, source, label: f.label, roleFamily: f.roleFamily, seniority: f.seniority, cvSlug: f.slug, cvHash: f.cvHash };
+        resolved = {
+          memberId,
+          source,
+          label: f.label,
+          displayLabel: displayMemberLabel(f.candidateName, f.label),
+          roleFamily: f.roleFamily,
+          seniority: f.seniority,
+          cvSlug: f.slug,
+          cvHash: f.cvHash,
+        };
       }
     } else {
       const p = profiles.get(source.id);
@@ -109,6 +147,7 @@ export function resolveCohortSources(memberIds: readonly string[], workspaceId: 
           memberId,
           source,
           label: p.label,
+          displayLabel: displayMemberLabel(f.candidateName, p.label),
           roleFamily: p.roleFamily ?? f.roleFamily,
           seniority: f.seniority,
           cvSlug: f.slug,
@@ -252,6 +291,7 @@ export async function buildCohortProposal(jdSlug: string, workspaceId: string, d
   const reuse = deps.reuseRows(jdSlug, workspaceId);
 
   const members: ProposalMember[] = [];
+  const rawLabelById = new Map<string, string>();
   const seen: ResolvedCohortSource[] = [];
   const leftOut = { applicants: 0, matched: 0 };
   let skipped = 0;
@@ -268,9 +308,10 @@ export async function buildCohortProposal(jdSlug: string, workspaceId: string, d
       else leftOut.matched += 1;
       return;
     }
+    rawLabelById.set(memberId, r.label);
     members.push({
       memberId,
-      label: r.label,
+      label: r.displayLabel,
       source: r.source,
       membership,
       roleFamily: r.roleFamily,
@@ -281,6 +322,8 @@ export async function buildCohortProposal(jdSlug: string, workspaceId: string, d
   };
   applicantIds.forEach((cid, i) => take(applicantMembers[i], cid, "applicant"));
   eligibleIds.forEach((cid, i) => take(matchedMembers[i], cid, "matched"));
+  const shown = uniqueDisplayLabels(members.map((m) => ({ displayLabel: m.label, label: rawLabelById.get(m.memberId) ?? m.label })));
+  members.forEach((m, i) => (m.label = shown[i]));
   if (skipped > 0) console.info(`[analyze-cohort] proposal for "${jdSlug}" skipped ${skipped} candidate(s) with no readable CV`);
 
   return {

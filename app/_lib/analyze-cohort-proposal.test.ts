@@ -9,6 +9,8 @@ import assert from "node:assert/strict";
 import {
   buildCohortProposal,
   composeCompanyText,
+  displayMemberLabel,
+  uniqueDisplayLabels,
   findReusableAnalysis,
   memberIdForSource,
   parseCohortRunRequest,
@@ -23,7 +25,7 @@ const WS = "workspace";
 
 after(() => cleanupUnitDb());
 
-type Person = { id: string; label: string; cvHash?: string | null; text?: boolean; profileOf?: string; jdSlug?: string | null };
+type Person = { id: string; label: string; cvHash?: string | null; text?: boolean; profileOf?: string; jdSlug?: string | null; name?: string | null };
 
 function deps(people: Person[], opts: { applicants?: string[]; ranked?: Array<{ id: string; total: number; ko?: boolean }>; job?: JobRecord | null; withheld?: string[] } = {}): ProposalDeps {
   const analyses = new Map<string, AnalysisCohortCvFact>();
@@ -41,6 +43,7 @@ function deps(people: Person[], opts: { applicants?: string[]; ranked?: Array<{ 
         seniority: "senior",
         createdAt: "2026-10-01T00:00:00Z",
         hasCvText: p.text !== false,
+        candidateName: p.name ?? null,
       });
     }
   }
@@ -187,4 +190,36 @@ test("the POST body: shape, membership vocabulary, no repeated member", () => {
   assert.equal(parseCohortRunRequest({ jdSlug: "", members: [] }), null);
   assert.equal(parseCohortRunRequest({ jdSlug: "role", members: [], blind: "yes" }), null);
   assert.equal(parseCohortRunRequest(null), null);
+});
+
+test("a member is shown by the CV's own name, never the stored \"Name → Role\" label", async () => {
+  assert.equal(displayMemberLabel("Martin Novotný", "Martin Novotný → Senior Java Backend Engineer"), "Martin Novotný");
+  assert.equal(displayMemberLabel(null, "Vít Malý → Senior Java Backend Engineer"), "Vít Malý");
+  assert.equal(displayMemberLabel("  ", "Aneta -> Lead"), "Aneta");
+  assert.equal(displayMemberLabel(null, "Plain Label"), "Plain Label");
+  const people: Person[] = [
+    { id: "cv-1", label: "Martin Novotný → Senior Java Backend Engineer", name: "Martin Novotný" },
+    { id: "cv-2", label: "Vít Malý → Senior Java Backend Engineer" },
+  ];
+  const p = await buildCohortProposal("role", WS, deps(people, { ranked: [{ id: "cv-1", total: 80 }, { id: "cv-2", total: 70 }] }));
+  assert.deepEqual(p?.members.map((m) => m.label), ["Martin Novotný", "Vít Malý"]);
+});
+
+test("two different CVs carrying the same name stay distinguishable", async () => {
+  assert.deepEqual(
+    uniqueDisplayLabels([
+      { displayLabel: "Vojtěch Hruška", label: "Aneta Kovářová → Senior Java" },
+      { displayLabel: "Vojtěch Hruška", label: "David Kříž → Senior Java" },
+      { displayLabel: "Tomáš Vavřík", label: "Vít Malý → Senior Java" },
+      { displayLabel: "Same", label: "Same" },
+      { displayLabel: "Same", label: "Same" },
+    ]),
+    ["Aneta Kovářová", "David Kříž", "Tomáš Vavřík", "Same", "Same (2)"]
+  );
+  const people: Person[] = [
+    { id: "cv-5", label: "Aneta Kovářová → Senior Java", name: "Vojtěch Hruška" },
+    { id: "cv-40", label: "David Kříž → Senior Java", name: "Vojtěch Hruška" },
+  ];
+  const p = await buildCohortProposal("role", WS, deps(people, { ranked: [{ id: "cv-5", total: 80 }, { id: "cv-40", total: 70 }] }));
+  assert.deepEqual(p?.members.map((m) => m.label), ["Aneta Kovářová", "David Kříž"]);
 });

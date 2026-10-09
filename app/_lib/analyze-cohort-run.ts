@@ -82,6 +82,10 @@ export type CompareOutput = {
   notes: Record<string, string>;
   narrative: { covers: string[]; leavesOut: number; text: string } | null;
   engine: "model" | "keyless";
+  /** Items the CLI refused, each with its rule (cohort_compare.DROP_REASONS). */
+  dropped: Array<{ item: string; reason: string }>;
+  /** Items the CLI cut back to their last whole sentence (kept, but shortened). */
+  trimmed: string[];
 };
 
 const short = (v: unknown, n: number): string | null => (typeof v === "string" && v.trim() ? v.trim().slice(0, n) : null);
@@ -135,26 +139,63 @@ export function buildCompareInput(view: CohortView, order: "neutral" | "reversed
   };
 }
 
+/** One model item that did not reach the stored comparison, and the rule that refused
+ *  it. `run` is the presentation order (1 neutral, 2 reversed); `reason` is a
+ *  cohort_compare.DROP_REASONS code, or "order-disagreement" for an item only one of the
+ *  two orders produced. */
+export type CohortCommentDrop = { run: 1 | 2; item: string; reason: string };
+
+/** The drop tally stored beside the comments (comments_json), so a paid-for answer that
+ *  never reached the screen is counted and named — never a silent discard. Not on the
+ *  wire contract (cohortTypes.ts) today: the engine reads only cells/notes/narrative. */
+export type CohortCommentDrops = { total: number; byReason: Record<string, number>; trimmed: number; items: CohortCommentDrop[] };
+
+export type StoredCohortComments = CohortComments & { dropped: CohortCommentDrops };
+
+/** How many drop items are kept verbatim on the row (the counts are always complete). */
+const DROP_ITEMS_KEPT = 60;
+
 /** Keep only what BOTH presentation orders produced: a cell comment for the same
  *  (memberId, dimension) — run one's text; a note for the same dimension — run one's;
- *  the narrative is run one's, its `covers` restricted to the code-decided top. */
-export function intersectCompareRuns(a: CompareOutput, b: CompareOutput, input: CompareInput): CohortComments {
+ *  the narrative is run one's, its `covers` restricted to the code-decided top. Every
+ *  item that does not survive — refused inside a run, or produced by one order only —
+ *  is counted in `dropped`. */
+export function intersectCompareRuns(a: CompareOutput, b: CompareOutput, input: CompareInput): StoredCohortComments {
+  const drops: CohortCommentDrop[] = [
+    ...a.dropped.map((d) => ({ run: 1 as const, ...d })),
+    ...b.dropped.map((d) => ({ run: 2 as const, ...d })),
+  ];
   const memberIds = new Set(input.members.map((m) => m.memberId));
-  const inB = new Set(b.cells.map((c) => `${c.memberId}\u0000${c.dimension}`));
+  const keyOf = (c: { memberId: string; dimension: string }) => `${c.memberId}\u0000${c.dimension}`;
+  const inA = new Set(a.cells.map(keyOf));
+  const inB = new Set(b.cells.map(keyOf));
   const seen = new Set<string>();
   const cells: CohortComments["cells"] = [];
   for (const c of a.cells) {
-    const key = `${c.memberId}\u0000${c.dimension}`;
-    if (!inB.has(key) || seen.has(key) || !memberIds.has(c.memberId) || !isCohortDimension(c.dimension)) continue;
-    const comment = c.comment.trim().slice(0, 90);
-    if (!comment) continue;
-    seen.add(key);
-    cells.push({ memberId: c.memberId, dimension: c.dimension, comment });
+    const key = keyOf(c);
+    const item = `cell:${c.memberId}/${c.dimension}`;
+    if (!memberIds.has(c.memberId)) drops.push({ run: 1, item, reason: "unknown-member" });
+    else if (!isCohortDimension(c.dimension)) drops.push({ run: 1, item, reason: "unknown-dimension" });
+    else if (seen.has(key)) drops.push({ run: 1, item, reason: "duplicate" });
+    else if (!inB.has(key)) drops.push({ run: 1, item, reason: "order-disagreement" });
+    else {
+      const comment = c.comment.trim().slice(0, 90);
+      if (!comment) {
+        drops.push({ run: 1, item, reason: "empty" });
+        continue;
+      }
+      seen.add(key);
+      cells.push({ memberId: c.memberId, dimension: c.dimension, comment });
+    }
   }
+  for (const c of b.cells) if (!inA.has(keyOf(c))) drops.push({ run: 2, item: `cell:${c.memberId}/${c.dimension}`, reason: "order-disagreement" });
   const notes: CohortComments["notes"] = {};
   for (const dim of COHORT_DIMENSIONS) {
     const na = a.notes[dim]?.trim();
-    if (na && b.notes[dim]?.trim()) notes[dim] = na.slice(0, 160);
+    const nb = b.notes[dim]?.trim();
+    if (na && nb) notes[dim] = na.slice(0, 160);
+    else if (na) drops.push({ run: 1, item: `note:${dim}`, reason: "order-disagreement" });
+    else if (nb) drops.push({ run: 2, item: `note:${dim}`, reason: "order-disagreement" });
   }
   let narrative: CohortNarrative | null = null;
   if (a.narrative?.text.trim()) {
@@ -168,7 +209,14 @@ export function intersectCompareRuns(a: CompareOutput, b: CompareOutput, input: 
       engine: a.engine,
     };
   }
-  return { cells, notes, narrative };
+  const byReason: Record<string, number> = {};
+  for (const d of drops) byReason[d.reason] = (byReason[d.reason] ?? 0) + 1;
+  return {
+    cells,
+    notes,
+    narrative,
+    dropped: { total: drops.length, byReason, trimmed: a.trimmed.length + b.trimmed.length, items: drops.slice(0, DROP_ITEMS_KEPT) },
+  };
 }
 
 // ---- the pure core -----------------------------------------------------------------
@@ -312,7 +360,11 @@ export async function runCohortCore(deps: CohortRunDeps): Promise<CohortRunSumma
     if (neutral.members.length >= 2) {
       const reversed = buildCompareInput(view, "reversed");
       const [a, b] = await Promise.all([deps.compare(neutral), deps.compare(reversed)]);
-      comments = intersectCompareRuns(a, b, neutral);
+      const stored = intersectCompareRuns(a, b, neutral);
+      if (stored.dropped.total > 0) {
+        console.warn(`[analyze-cohort] "${rec.id}": ${stored.dropped.total} model item(s) dropped ${JSON.stringify(stored.dropped.byReason)}`);
+      }
+      comments = stored;
     }
   } catch (error) {
     console.error(`[analyze-cohort] the comparative pass for "${rec.id}" did not run`, error);
@@ -329,7 +381,7 @@ export const COHORT_GITHUB_BUDGET = { limit: 10, windowMs: 10 * 60_000 };
 
 /** Shape-check one CLI answer; anything malformed reads as "said nothing". */
 export function parseCompareOutput(raw: unknown): CompareOutput {
-  const r = (raw ?? {}) as { cells?: unknown; notes?: unknown; narrative?: unknown; engine?: unknown };
+  const r = (raw ?? {}) as { cells?: unknown; notes?: unknown; narrative?: unknown; engine?: unknown; dropped?: unknown; trimmed?: unknown };
   const cells = Array.isArray(r.cells)
     ? (r.cells as Array<Record<string, unknown>>).flatMap((c) =>
         c && typeof c.memberId === "string" && typeof c.dimension === "string" && typeof c.comment === "string"
@@ -350,7 +402,13 @@ export function parseCompareOutput(raw: unknown): CompareOutput {
           text: n.text,
         }
       : null;
-  return { cells, notes, narrative, engine: r.engine === "model" ? "model" : "keyless" };
+  const dropped = Array.isArray(r.dropped)
+    ? (r.dropped as Array<Record<string, unknown>>).flatMap((d) =>
+        d && typeof d.item === "string" && typeof d.reason === "string" ? [{ item: d.item, reason: d.reason }] : []
+      )
+    : [];
+  const trimmed = Array.isArray(r.trimmed) ? r.trimmed.filter((x): x is string => typeof x === "string") : [];
+  return { cells, notes, narrative, engine: r.engine === "model" ? "model" : "keyless", dropped, trimmed };
 }
 
 export async function runAnalyzeCohortTask(ctx: ExternalTaskCtx): Promise<CohortRunSummary | { status: "skipped"; reason: string }> {
