@@ -94,7 +94,7 @@ test("chapter ids, catalog keys and numbers are each unique and in order", () =>
 
 type DetectionRule = { id: string; scores?: Record<string, number> };
 type Registry = {
-  archetypes: { id: string }[];
+  archetypes: { id: string; fairnessProtected: boolean }[];
   detection: {
     signals: DetectionRule[];
     selfDeclaredConfidence: number;
@@ -366,6 +366,48 @@ test("chapter 5's baseline-similarity threshold is still the one the checker use
     OVERLAP < aim,
     "the scene shows a submission that does NOT trip the prompt — its overlap has to sit below AIM"
   );
+});
+
+// ---- claims pass 1 proved true and left unpinned ----------------------------
+
+test("the JD-sources detail card says what the design prompt really sends: the first 4 000 characters", () => {
+  // design.py hands the model `need.jd_text[:4000]`. about.jd.sources.jdDetail
+  // quotes the 4 000; a cap change upstream leaves the card naming a window the
+  // model no longer sees, in every locale (a number is never translated).
+  const hit = pySource("pipeline/jobfit/devcase/design.py").match(/need\.jd_text\[:(\d+)\]/);
+  assert.ok(hit, "design.py no longer slices need.jd_text — about.jd.sources.jdDetail quotes the cap");
+  const cap = Number(hit[1]);
+  assert.equal(cap, 4000, "about.jd.sources.jdDetail says 4 000");
+  for (const locale of ["en", "cs", "de", "fr"]) {
+    const flat = aboutCopyIn(locale, "jd.sources.jdDetail").replace(/(\d)[\s  ](?=\d)/g, "$1");
+    assert.ok(
+      [...flat.matchAll(/\d+/g)].some((m) => Number(m[0]) === cap),
+      `${locale}: about.jd.sources.jdDetail must state the ${cap}-character cap (design.py)`,
+    );
+  }
+});
+
+test("the archetypes lede says two of three archetypes are fairness-protected, and the registry agrees", () => {
+  // archetypes.json `fairnessProtected` shields an archetype from AUTOMATED
+  // rejection. The lede counts them; adding an archetype or flipping a flag
+  // changes the count the sentence states.
+  const { archetypes } = registry();
+  const protectedCount = archetypes.filter((a) => a.fairnessProtected).length;
+  assert.equal(archetypes.length, 3, "about.chapters.archetypes.lede says 'three archetypes'");
+  assert.equal(protectedCount, 2, "about.chapters.archetypes.lede says two of the three are fairness-protected");
+  const TWO_OF_THREE: Record<string, RegExp> = {
+    en: /\btwo of the three archetypes\b/i,
+    cs: /dva ze tří archetypů/i,
+    de: /\bzwei der drei archetypen\b/i,
+    fr: /deux des trois archétypes/i,
+  };
+  for (const [locale, pattern] of Object.entries(TWO_OF_THREE)) {
+    assert.match(
+      aboutCopyIn(locale, "chapters.archetypes.lede"),
+      pattern,
+      `${locale}: about.chapters.archetypes.lede must state ${protectedCount} of ${archetypes.length}`,
+    );
+  }
 });
 
 // ---- chapter 6: the parked kinds --------------------------------------------
