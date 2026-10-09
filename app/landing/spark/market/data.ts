@@ -146,7 +146,7 @@ export interface Geo {
 export const snapshot = snapshotJson as unknown as Snapshot;
 export const geo = geoJson as unknown as Geo;
 
-/** The 16 role families in taxonomy order (used to colour-key demand + salary). */
+/** The role families the snapshot has reference salaries for (15 of the 16 in FamilyKey; product_project has none), in taxonomy order. */
 export const FAMILY_ORDER = snapshot.reference_salaries.map((r) => r.family);
 
 // ── formatting ───────────────────────────────────────────────────────────────
