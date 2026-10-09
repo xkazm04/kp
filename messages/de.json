@@ -17043,6 +17043,164 @@
           "follow": "Einer Person folgen"
         }
       }
+    },
+    "pages": {
+      "common": {
+        "region": "{dimension}: alle Kandidaten im Vergleich",
+        "openReport": "Vollständigen Bericht für {name} öffnen",
+        "comment": "Kommentar zu {name}: {text}",
+        "decoy": "Lockvogel neben {name}: eine etwas schwächere Kopie, in jeder verglichenen Dimension unterlegen. Sie kann {name} stärker wirken lassen, als der Vergleich zeigt.",
+        "decoyShort": "Lockvogel",
+        "notCompared": "Nicht verglichen",
+        "absentMember": "{name}: {reason}",
+        "pendingWord": "Wird analysiert…",
+        "sepClears": "{leader} führt, und der Abstand übersteigt beide Unsicherheitsbänder.",
+        "sepNoise": "Eine Reihenfolge, keine Führung: Die Spitze liegt im gegenseitigen Rauschen.",
+        "sepFloor": "Hier sind weniger als zwei Kandidaten bewertet, daher wird nichts verglichen.",
+        "sepSalary": "Nach Betrag geordnet, nie gerankt: Eine höhere Erwartung macht keinen besseren Kandidaten.",
+        "sepShort": {
+          "clears": "Klarer Abstand",
+          "insideNoise": "Im Rauschen",
+          "belowFloor": "Kein Vergleich",
+          "never": "Nie gerankt"
+        },
+        "rated": "{rated} von {total} bewertet",
+        "partitionCompared": "Verglichen in {key}: {n}",
+        "partitionRefused": "Nicht vergleichbar, {key}: {n}",
+        "note": "Modellnotiz",
+        "keys": "Tasten auf dieser Seite",
+        "keyMove": "Zwischen Kandidaten wechseln",
+        "readFailed": "GitHub-Abruf fehlgeschlagen"
+      },
+      "fit": {
+        "list": "Kandidaten nach Passung, mit Unsicherheitsbändern",
+        "rank": "#{rank}",
+        "row": "{name}: Passung {rating}, Band {lo} bis {hi}",
+        "gapClears": "Die Führung ist klar: {width} Punkte Abstand zwischen der Obergrenze des Zweiten ({from}) und der Untergrenze des Ersten ({to}).",
+        "gapTouch": "Kein Abstand: Die Bänder der ersten beiden berühren sich bei {at}, die Reihenfolge zwischen ihnen liegt im Rauschen.",
+        "gapOverlap": "Kein Abstand: Die Bänder der ersten beiden überlappen um {width} Punkte ({from} bis {to}), die Reihenfolge zwischen ihnen liegt im Rauschen.",
+        "focusPrompt": "Wählen Sie einen Kandidaten, um zu sehen, warum sein Band so breit ist.",
+        "focusKicker": "Ausgewählt",
+        "bandFigure": "Passung {rating}, Band {lo} bis {hi} ({width} Punkte breit)",
+        "drivers": "Was das Band verbreitert hat",
+        "driversNone": "Nur die Grundbreite: Nichts im Datensatz hat sie verbreitert.",
+        "seniority": "Seniorität",
+        "role": "Rolle",
+        "risks": "Risikohinweise",
+        "leads": "Führt: klarer Abstand zum Zweiten"
+      },
+      "skills": {
+        "marks": {
+          "matched": "Vorhanden",
+          "unproven": "Behauptet, nicht belegt",
+          "missing": "Fehlt",
+          "unlisted": "Für diesen Kandidaten nicht aufgeführt"
+        },
+        "grid": "Geforderte Fähigkeiten je Kandidat",
+        "rows": "Geforderte Fähigkeit",
+        "colRated": "{rating}/100 bei Fähigkeiten",
+        "column": "{name}, {fact}",
+        "lackHead": "Fehlt",
+        "cell": "{name}, {skill}: {mark}",
+        "rowLack": "{unproven, plural, =0 {{n}} other {{n} + # unbelegt}}",
+        "extra": "Über die Rolle hinaus",
+        "legend": "Was die Zeichen bedeuten",
+        "extraOf": "nennt außerdem: {list}",
+        "extraNone": "nennt nichts über die Rolle hinaus."
+      },
+      "experience": {
+        "years": "{n, plural, one {# Jahr} other {# Jahre}}",
+        "yearsUnknown": "Jahre nicht gelesen",
+        "track": "Kandidaten nach Berufsjahren und Seniorität",
+        "lanes": {
+          "lead": "Lead",
+          "senior": "Senior",
+          "medior": "Mid-Level",
+          "junior": "Junior",
+          "unknown": "Stufe unbekannt"
+        },
+        "education": {
+          "phd": "Promotion",
+          "master": "Master",
+          "bachelor": "Bachelor",
+          "secondary": "Sekundarstufe",
+          "unknown": "Ausbildung unbekannt"
+        },
+        "mark": "{name}: {years}, {lane}, {education}, Bewertung {rating}",
+        "axis": "Berufsjahre",
+        "legend": "Ausbildung: das kleine Quadrat neben jeder Marke",
+        "focusKicker": "Ausgewählt",
+        "rating": "Bewertung {rating}/100",
+        "evidence": "Belege aus dem Lebenslauf",
+        "evidenceNone": "Der Lebenslauf nennt keine Stationen, auf die sich verweisen ließe.",
+        "focusPrompt": "Wählen Sie einen Kandidaten, um die Belege hinter seiner Marke zu lesen."
+      },
+      "signals": {
+        "strengths": "Stärken",
+        "antipatterns": "Warnzeichen",
+        "carriers": "{n, plural, one {# Kandidat} other {# Kandidaten}}, Gewicht {weight}",
+        "chip": "{name}, Sicherheit {c}: {detail}",
+        "chipUnstated": "{name}, Sicherheit nicht angegeben: {detail}",
+        "noneStrengths": "In dieser Kohorte wurde keine Stärke genannt.",
+        "noneAntipatterns": "In dieser Kohorte wurde kein Warnzeichen genannt.",
+        "quiet": "Nichts fiel auf",
+        "quietMember": "{name}: Signale gelesen, nichts fiel auf",
+        "focusPrompt": "Wählen Sie einen Kandidaten, um seine Interviewfragen zu sammeln.",
+        "probes": "Interviewfragen für {name}",
+        "probesKicker": "Interviewfragen",
+        "copy": "Kopieren",
+        "copied": "Kopiert",
+        "copyAll": "{n, plural, one {Frage kopieren} other {Alle # Fragen kopieren}}",
+        "probesNone": "Für diesen Kandidaten ist keine Frage vorgeschlagen."
+      },
+      "trust": {
+        "ledger": "Vertrauensbefunde nach Art, Blocker zuerst",
+        "chip": "{name}: {text}",
+        "sev": {
+          "blocker": "Blocker",
+          "warn": "Warnung",
+          "ok": "Bestanden"
+        },
+        "clean": "Unauffällig",
+        "cleanLine": "Keine Warnung und kein Blocker.",
+        "cleanNone": "Niemand ist ohne Befund.",
+        "noneFlagged": "Kein Kandidat hat eine Warnung oder einen Blocker.",
+        "passed": "Bestandene Prüfungen",
+        "focusKicker": "Ausgewählt",
+        "focusPrompt": "Wählen Sie einen Kandidaten, um seine Befunde zu lesen."
+      },
+      "salary": {
+        "period": "{period, select, month {Monat} year {Jahr} hour {Stunde} day {Tag} other {{period}}}",
+        "comparable": "Verglichen in {currency} pro {period}",
+        "notComparable": "Nicht vergleichbar: {currency} pro {period}",
+        "basisRole": "Bewertet gegen das Gehaltsband der Rolle. Die Grenzen des Bands sind nicht Teil dieser Ansicht, daher sagt jede Zeile nur, ob ihr Mittelwert darin liegt.",
+        "basisCohort": "Bewertet gegen den Median dieser Kohorte: Das schattierte Fenster ist der Median ± 15 %.",
+        "notComparableWhy": "Andere Währung oder Gehaltsbasis: auf eigener Skala, nie umgerechnet.",
+        "range": "{name}: {min} bis {max} {currency} pro {period}, Mittelwert {mid}",
+        "inBand": "im Band",
+        "outBand": "außerhalb des Bands",
+        "confidence": "{c, select, high {Schätzung mit hoher Sicherheit} medium {Schätzung mit mittlerer Sicherheit} low {Schätzung mit geringer Sicherheit} other {Sicherheit nicht angegeben}}",
+        "median": "Median der Kohorte: {mid} {currency}",
+        "order": "Aufsteigend nach Mittelwert. Das ist eine Reihenfolge der Kosten, kein Ranking.",
+        "none": "Kein Kandidat nennt eine Gehaltsvorstellung."
+      },
+      "publicWork": {
+        "cardPress": "{name}: öffentliche Arbeit mit {rating}/100 bewertet",
+        "profile": "{user} auf GitHub öffnen",
+        "repos": "Repos",
+        "stars": "Sterne",
+        "active": "Aktiv",
+        "languagesLabel": "Sprachen: {list}",
+        "other": "Andere",
+        "top": "Top-Repositories",
+        "starCount": "{n, plural, one {# Stern} other {# Sterne}}",
+        "gap": "{skill}: in öffentlicher Arbeit nicht belegt",
+        "shown": "Belegte Fähigkeiten der Rolle",
+        "gaps": "Öffentlich nicht belegt",
+        "noCards": "Bei keinem Kandidaten wurde GitHub gelesen.",
+        "remainder": "Keine öffentliche Arbeit zu lesen",
+        "leads": "Führt: klarer Abstand zum Zweiten"
+      }
     }
   }
 }

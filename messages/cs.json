@@ -17043,6 +17043,164 @@
           "follow": "Sledovat kandidáta"
         }
       }
+    },
+    "pages": {
+      "common": {
+        "region": "{dimension}: srovnání všech kandidátů",
+        "openReport": "Otevřít úplnou zprávu: {name}",
+        "comment": "Komentář, {name}: {text}",
+        "decoy": "Návnada vůči profilu {name}: o něco slabší kopie, horší ve všech srovnávaných rozměrech. Může profil {name} zdánlivě posílit nad rámec toho, co srovnání ukazuje.",
+        "decoyShort": "návnada",
+        "notCompared": "Nesrovnáno",
+        "absentMember": "{name}: {reason}",
+        "pendingWord": "Analyzuje se…",
+        "sepClears": "{leader} vede a odstup přesahuje obě pásma nejistoty.",
+        "sepNoise": "Pořadí, ne náskok: nejlepší kandidáti jsou navzájem v mezích šumu.",
+        "sepFloor": "Hodnocení tu mají méně než dva kandidáti, proto se nic nesrovnává.",
+        "sepSalary": "Seřazeno podle částky, nikdy podle kvality: vyšší očekávání neznamená lepšího kandidáta.",
+        "sepShort": {
+          "clears": "Jasný náskok",
+          "insideNoise": "V mezích šumu",
+          "belowFloor": "Bez srovnání",
+          "never": "Bez pořadí"
+        },
+        "rated": "Hodnoceno {rated} z {total}",
+        "partitionCompared": "Srovnáno v {key}: {n}",
+        "partitionRefused": "Nesrovnatelné, {key}: {n}",
+        "note": "Poznámka modelu",
+        "keys": "Klávesy na této stránce",
+        "keyMove": "Přechod mezi kandidáty",
+        "readFailed": "Načtení GitHubu selhalo"
+      },
+      "fit": {
+        "list": "Kandidáti podle shody, s pásmy nejistoty",
+        "rank": "#{rank}",
+        "row": "{name}: shoda {rating}, pásmo {lo} až {hi}",
+        "gapClears": "Náskok je jasný: odstup {width, plural, one {# bod} few {# body} many {# bodu} other {# bodů}} mezi horní hranicí druhého ({from}) a spodní hranicí prvního ({to}).",
+        "gapTouch": "Bez odstupu: pásma prvních dvou se dotýkají v hodnotě {at}, pořadí mezi nimi je v mezích šumu.",
+        "gapOverlap": "Bez odstupu: pásma prvních dvou se překrývají o {width, plural, one {# bod} few {# body} many {# bodu} other {# bodů}} ({from} až {to}), pořadí mezi nimi je v mezích šumu.",
+        "focusPrompt": "Klikněte na kandidáta a uvidíte, proč je jeho pásmo tak široké.",
+        "focusKicker": "Vybraný kandidát",
+        "bandFigure": "Shoda {rating}, pásmo {lo} až {hi} (šíře {width, plural, one {# bod} few {# body} many {# bodu} other {# bodů}})",
+        "drivers": "Co pásmo rozšířilo",
+        "driversNone": "Jen základní šíře: nic v záznamu ji nerozšířilo.",
+        "seniority": "Seniorita",
+        "role": "Role",
+        "risks": "Rizikové signály",
+        "leads": "Vede: s jasným odstupem od druhého"
+      },
+      "skills": {
+        "marks": {
+          "matched": "Splněno",
+          "unproven": "Uvedeno, nedoloženo",
+          "missing": "Chybí",
+          "unlisted": "U kandidáta neuvedeno"
+        },
+        "grid": "Požadované dovednosti podle kandidátů",
+        "rows": "Požadovaná dovednost",
+        "colRated": "dovednosti {rating}/100",
+        "column": "{name}, {fact}",
+        "lackHead": "Chybí",
+        "cell": "{name}, {skill}: {mark}",
+        "rowLack": "{unproven, plural, =0 {{n}} one {{n} + # nedoložená} few {{n} + # nedoložené} many {{n} + # nedoložené} other {{n} + # nedoložených}}",
+        "extra": "Nad rámec role",
+        "legend": "Co které značky znamenají",
+        "extraOf": "uvádí navíc: {list}",
+        "extraNone": "neuvádí nic nad rámec role."
+      },
+      "experience": {
+        "years": "{n, plural, one {# rok} few {# roky} many {# roku} other {# let}}",
+        "yearsUnknown": "délka praxe nenačtena",
+        "track": "Kandidáti podle let praxe a seniority",
+        "lanes": {
+          "lead": "Vedoucí",
+          "senior": "Senior",
+          "medior": "Medior",
+          "junior": "Junior",
+          "unknown": "Úroveň neznámá"
+        },
+        "education": {
+          "phd": "Doktorské",
+          "master": "Magisterské",
+          "bachelor": "Bakalářské",
+          "secondary": "Středoškolské",
+          "unknown": "Vzdělání neznámé"
+        },
+        "mark": "{name}: {years}, {lane}, {education}, hodnocení {rating}",
+        "axis": "Roky praxe",
+        "legend": "Vzdělání: malý čtverec u každé značky",
+        "focusKicker": "Vybraný kandidát",
+        "rating": "hodnocení {rating}/100",
+        "evidence": "Doklady ze životopisu",
+        "evidenceNone": "Životopis neuvádí žádné pozice, na které by šlo odkázat.",
+        "focusPrompt": "Klikněte na kandidáta a přečtěte si doklady k jeho značce."
+      },
+      "signals": {
+        "strengths": "Silné stránky",
+        "antipatterns": "Na co si dát pozor",
+        "carriers": "{n, plural, one {# kandidát} few {# kandidáti} many {# kandidáta} other {# kandidátů}}, váha {weight}",
+        "chip": "{name}, jistota {c}: {detail}",
+        "chipUnstated": "{name}, jistota neuvedena: {detail}",
+        "noneStrengths": "V této skupině nebyla zmíněna žádná silná stránka.",
+        "noneAntipatterns": "V této skupině nebylo zmíněno nic, na co si dát pozor.",
+        "quiet": "Nic nevyčnívá",
+        "quietMember": "{name}: signály načteny, nic nevyčnívá",
+        "focusPrompt": "Klikněte na kandidáta a sestavte si jeho otázky k pohovoru.",
+        "probes": "Otázky k pohovoru: {name}",
+        "probesKicker": "Otázky k pohovoru",
+        "copy": "Kopírovat",
+        "copied": "Zkopírováno",
+        "copyAll": "{n, plural, one {Kopírovat otázku} few {Kopírovat všechny # otázky} many {Kopírovat všech # otázky} other {Kopírovat všech # otázek}}",
+        "probesNone": "Pro tohoto kandidáta není navržena žádná otázka."
+      },
+      "trust": {
+        "ledger": "Zjištění důvěryhodnosti podle druhu, blokující první",
+        "chip": "{name}: {text}",
+        "sev": {
+          "blocker": "Blokující",
+          "warn": "Varování",
+          "ok": "V pořádku"
+        },
+        "clean": "Bez nálezů",
+        "cleanLine": "Žádné varování ani blokující zjištění.",
+        "cleanNone": "Nikdo není bez nálezů.",
+        "noneFlagged": "Žádný kandidát nemá varování ani blokující zjištění.",
+        "passed": "Kontroly, které prošly",
+        "focusKicker": "Vybraný kandidát",
+        "focusPrompt": "Klikněte na kandidáta a přečtěte si jeho zjištění."
+      },
+      "salary": {
+        "period": "{period, select, month {měsíc} year {rok} hour {hodinu} day {den} other {{period}}}",
+        "comparable": "Srovnáno v {currency} za {period}",
+        "notComparable": "Nesrovnatelné: {currency} za {period}",
+        "basisRole": "Hodnoceno vůči mzdovému pásmu role. Hranice pásma nejsou součástí tohoto pohledu, proto každý řádek uvádí jen to, zda jeho střed leží uvnitř.",
+        "basisCohort": "Hodnoceno vůči mediánu této skupiny: vystínované okno je medián ± 15 %.",
+        "notComparableWhy": "Jiná měna nebo jiný základ mzdy: vlastní stupnice, nikdy se nepřepočítává.",
+        "range": "{name}: {min} až {max} {currency} za {period}, střed {mid}",
+        "inBand": "v pásmu",
+        "outBand": "mimo pásmo",
+        "confidence": "{c, select, high {Odhad s vysokou jistotou} medium {Odhad se střední jistotou} low {Odhad s nízkou jistotou} other {Jistota neuvedena}}",
+        "median": "Medián skupiny: {mid} {currency}",
+        "order": "Od nejnižšího středu po nejvyšší. Jde o pořadí podle ceny, ne o hodnocení.",
+        "none": "Žádný kandidát neuvádí mzdové očekávání."
+      },
+      "publicWork": {
+        "cardPress": "{name}: veřejná práce hodnocena {rating}/100",
+        "profile": "Otevřít {user} na GitHubu",
+        "repos": "Repozitáře",
+        "stars": "Hvězdy",
+        "active": "Aktivní",
+        "languagesLabel": "Jazyky: {list}",
+        "other": "Ostatní",
+        "top": "Nejlepší repozitáře",
+        "starCount": "{n, plural, one {# hvězda} few {# hvězdy} many {# hvězdy} other {# hvězd}}",
+        "gap": "{skill}: ve veřejné práci nedoloženo",
+        "shown": "Doložené dovednosti role",
+        "gaps": "Veřejně nedoloženo",
+        "noCards": "U žádného kandidáta nebyl GitHub načten.",
+        "remainder": "Žádná veřejná práce k načtení",
+        "leads": "Vede: s jasným odstupem od druhého"
+      }
     }
   }
 }

@@ -17043,6 +17043,164 @@
           "follow": "Follow a candidate"
         }
       }
+    },
+    "pages": {
+      "common": {
+        "region": "{dimension}: every candidate compared",
+        "openReport": "Open the full report for {name}",
+        "comment": "Comment on {name}: {text}",
+        "decoy": "Decoy of {name}: a slightly weaker copy, outdone on every compared dimension. It can make {name} look stronger than the comparison shows.",
+        "decoyShort": "decoy",
+        "notCompared": "Not compared",
+        "absentMember": "{name}: {reason}",
+        "pendingWord": "Analyzing…",
+        "sepClears": "{leader} leads, and the gap clears both uncertainty bands.",
+        "sepNoise": "An order, not a lead: the top candidates sit within each other's noise.",
+        "sepFloor": "Fewer than two candidates are rated here, so nothing is compared.",
+        "sepSalary": "Ordered by figure, never ranked: a higher expectation is not a better candidate.",
+        "sepShort": {
+          "clears": "Clears",
+          "insideNoise": "Within the noise",
+          "belowFloor": "No comparison",
+          "never": "Never ranked"
+        },
+        "rated": "{rated} of {total} rated",
+        "partitionCompared": "Compared within {key}: {n}",
+        "partitionRefused": "Not comparable, {key}: {n}",
+        "note": "Model note",
+        "keys": "Keys on this page",
+        "keyMove": "Move between candidates",
+        "readFailed": "GitHub read failed"
+      },
+      "fit": {
+        "list": "Candidates by fit, with their uncertainty bands",
+        "rank": "#{rank}",
+        "row": "{name}: fit {rating}, band {lo} to {hi}",
+        "gapClears": "The lead clears: {width} points of open air between the runner-up's ceiling ({from}) and the leader's floor ({to}).",
+        "gapTouch": "No gap: the top two bands touch at {at}, so the order between them is inside the noise.",
+        "gapOverlap": "No gap: the top two bands share {width} points ({from} to {to}), so the order between them is inside the noise.",
+        "focusPrompt": "Press a candidate to see why their band is as wide as it is.",
+        "focusKicker": "Focused",
+        "bandFigure": "Fit {rating}, band {lo} to {hi} ({width} points wide)",
+        "drivers": "What widened the band",
+        "driversNone": "Base width only: nothing in the record widened it.",
+        "seniority": "Seniority",
+        "role": "Role",
+        "risks": "Risk flags",
+        "leads": "Leads: clears the runner-up"
+      },
+      "skills": {
+        "marks": {
+          "matched": "Matched",
+          "unproven": "Claimed, not shown",
+          "missing": "Missing",
+          "unlisted": "Not listed for this candidate"
+        },
+        "grid": "Required skills by candidate",
+        "rows": "Required skill",
+        "colRated": "{rating}/100 on skills",
+        "column": "{name}, {fact}",
+        "lackHead": "Lacking",
+        "cell": "{name}, {skill}: {mark}",
+        "rowLack": "{unproven, plural, =0 {{n}} other {{n} + {unproven} unproven}}",
+        "extra": "Beyond the role",
+        "legend": "What each mark means",
+        "extraOf": "also lists: {list}",
+        "extraNone": "lists nothing beyond the role."
+      },
+      "experience": {
+        "years": "{n, plural, one {# year} other {# years}}",
+        "yearsUnknown": "years not read",
+        "track": "Candidates by years of experience and seniority",
+        "lanes": {
+          "lead": "Lead",
+          "senior": "Senior",
+          "medior": "Mid-level",
+          "junior": "Junior",
+          "unknown": "Level unknown"
+        },
+        "education": {
+          "phd": "Doctorate",
+          "master": "Master's",
+          "bachelor": "Bachelor's",
+          "secondary": "Secondary",
+          "unknown": "Education unknown"
+        },
+        "mark": "{name}: {years}, {lane}, {education}, rated {rating}",
+        "axis": "Years of experience",
+        "legend": "Education, the small square beside each mark",
+        "focusKicker": "Focused",
+        "rating": "rated {rating}/100",
+        "evidence": "Evidence from the CV",
+        "evidenceNone": "The CV lists no roles to cite.",
+        "focusPrompt": "Press a candidate to read the evidence behind their mark."
+      },
+      "signals": {
+        "strengths": "Strengths",
+        "antipatterns": "Watch-outs",
+        "carriers": "{n, plural, one {# candidate} other {# candidates}}, weight {weight}",
+        "chip": "{name}, confidence {c}: {detail}",
+        "chipUnstated": "{name}, confidence not stated: {detail}",
+        "noneStrengths": "No strength was named in this cohort.",
+        "noneAntipatterns": "No watch-out was named in this cohort.",
+        "quiet": "Nothing stood out",
+        "quietMember": "{name}: signals read, nothing stood out",
+        "focusPrompt": "Press a candidate to collect their interview probes.",
+        "probes": "Interview probes for {name}",
+        "probesKicker": "Interview probes",
+        "copy": "Copy",
+        "copied": "Copied",
+        "copyAll": "{n, plural, one {Copy the probe} other {Copy all # probes}}",
+        "probesNone": "No suggested probe for this candidate."
+      },
+      "trust": {
+        "ledger": "Trust findings by kind, blockers first",
+        "chip": "{name}: {text}",
+        "sev": {
+          "blocker": "Blocker",
+          "warn": "Warning",
+          "ok": "Passed"
+        },
+        "clean": "Clean",
+        "cleanLine": "No warning and no blocker.",
+        "cleanNone": "Nobody is clean of findings.",
+        "noneFlagged": "No candidate carries a warning or a blocker.",
+        "passed": "Checks that passed",
+        "focusKicker": "Focused",
+        "focusPrompt": "Press a candidate to read their findings."
+      },
+      "salary": {
+        "period": "{period, select, month {month} year {year} hour {hour} day {day} other {{period}}}",
+        "comparable": "Compared in {currency} per {period}",
+        "notComparable": "Not comparable: {currency} per {period}",
+        "basisRole": "Rated against the role's salary band. The band's edges are not part of this view, so each row says only whether its midpoint falls inside it.",
+        "basisCohort": "Rated against this cohort's median: the shaded window is the median plus or minus 15%.",
+        "notComparableWhy": "Another currency or pay basis: shown on its own ruler, never converted.",
+        "range": "{name}: {min} to {max} {currency} per {period}, midpoint {mid}",
+        "inBand": "inside the band",
+        "outBand": "outside the band",
+        "confidence": "{c, select, high {High confidence estimate} medium {Medium confidence estimate} low {Low confidence estimate} other {Confidence not stated}}",
+        "median": "Cohort median: {mid} {currency}",
+        "order": "Low to high by midpoint. This is an order of cost, not a ranking.",
+        "none": "No candidate states a salary expectation."
+      },
+      "publicWork": {
+        "cardPress": "{name}: public work rated {rating}/100",
+        "profile": "Open {user} on GitHub",
+        "repos": "Repos",
+        "stars": "Stars",
+        "active": "Active",
+        "languagesLabel": "Languages: {list}",
+        "other": "Other",
+        "top": "Top repositories",
+        "starCount": "{n, plural, one {# star} other {# stars}}",
+        "gap": "{skill}: not shown in public work",
+        "shown": "The role's skills it shows",
+        "gaps": "Not shown in public",
+        "noCards": "No candidate's GitHub was read.",
+        "remainder": "No public work to read",
+        "leads": "Leads: clears the runner-up"
+      }
     }
   }
 }

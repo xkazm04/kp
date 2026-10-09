@@ -17043,6 +17043,164 @@
           "follow": "Suivre un candidat"
         }
       }
+    },
+    "pages": {
+      "common": {
+        "region": "{dimension} : tous les candidats comparés",
+        "openReport": "Ouvrir le rapport complet de {name}",
+        "comment": "Commentaire sur {name} : {text}",
+        "decoy": "Leurre de {name} : une copie un peu plus faible, devancée sur chaque dimension comparée. Il peut faire paraître {name} plus fort que la comparaison ne le montre.",
+        "decoyShort": "leurre",
+        "notCompared": "Non comparés",
+        "absentMember": "{name} : {reason}",
+        "pendingWord": "Analyse en cours…",
+        "sepClears": "{leader} est en tête, et l’écart dépasse les deux bandes d’incertitude.",
+        "sepNoise": "Un ordre, pas une avance : les premiers candidats se situent dans le bruit les uns des autres.",
+        "sepFloor": "Moins de deux candidats sont évalués ici, donc rien n’est comparé.",
+        "sepSalary": "Classé par montant, jamais par mérite : une attente plus élevée ne fait pas un meilleur candidat.",
+        "sepShort": {
+          "clears": "Écart net",
+          "insideNoise": "Dans le bruit",
+          "belowFloor": "Pas de comparaison",
+          "never": "Jamais classé"
+        },
+        "rated": "{rated, plural, one {# sur {total} évalué} other {# sur {total} évalués}}",
+        "partitionCompared": "Comparés en {key} : {n}",
+        "partitionRefused": "Non comparables, {key} : {n}",
+        "note": "Note du modèle",
+        "keys": "Touches de cette page",
+        "keyMove": "Passer d’un candidat à l’autre",
+        "readFailed": "Échec de la lecture GitHub"
+      },
+      "fit": {
+        "list": "Candidats par adéquation, avec leurs bandes d’incertitude",
+        "rank": "#{rank}",
+        "row": "{name} : adéquation {rating}, bande de {lo} à {hi}",
+        "gapClears": "L’avance est nette : {width} points d’écart entre le plafond du deuxième ({from}) et le plancher du premier ({to}).",
+        "gapTouch": "Aucun écart : les bandes des deux premiers se touchent à {at}, l’ordre entre eux reste dans le bruit.",
+        "gapOverlap": "Aucun écart : les bandes des deux premiers se chevauchent sur {width} points (de {from} à {to}), l’ordre entre eux reste dans le bruit.",
+        "focusPrompt": "Sélectionnez un candidat pour voir pourquoi sa bande est aussi large.",
+        "focusKicker": "Sélection",
+        "bandFigure": "Adéquation {rating}, bande de {lo} à {hi} ({width} points de large)",
+        "drivers": "Ce qui a élargi la bande",
+        "driversNone": "Largeur de base uniquement : rien dans le dossier ne l’a élargie.",
+        "seniority": "Séniorité",
+        "role": "Poste",
+        "risks": "Signaux de risque",
+        "leads": "En tête : écart net sur le deuxième"
+      },
+      "skills": {
+        "marks": {
+          "matched": "Présente",
+          "unproven": "Déclarée, non démontrée",
+          "missing": "Manquante",
+          "unlisted": "Non listée pour ce candidat"
+        },
+        "grid": "Compétences requises par candidat",
+        "rows": "Compétence requise",
+        "colRated": "{rating}/100 en compétences",
+        "column": "{name}, {fact}",
+        "lackHead": "Manquante",
+        "cell": "{name}, {skill} : {mark}",
+        "rowLack": "{unproven, plural, =0 {{n}} one {{n} + # non démontrée} other {{n} + # non démontrées}}",
+        "extra": "Au-delà du poste",
+        "legend": "Signification des marques",
+        "extraOf": "cite aussi : {list}",
+        "extraNone": "ne cite rien au-delà du poste."
+      },
+      "experience": {
+        "years": "{n, plural, one {# an} other {# ans}}",
+        "yearsUnknown": "années non lues",
+        "track": "Candidats par années d’expérience et séniorité",
+        "lanes": {
+          "lead": "Lead",
+          "senior": "Senior",
+          "medior": "Confirmé",
+          "junior": "Junior",
+          "unknown": "Niveau inconnu"
+        },
+        "education": {
+          "phd": "Doctorat",
+          "master": "Master",
+          "bachelor": "Licence",
+          "secondary": "Secondaire",
+          "unknown": "Formation inconnue"
+        },
+        "mark": "{name} : {years}, {lane}, {education}, note {rating}",
+        "axis": "Années d’expérience",
+        "legend": "Formation : le petit carré à côté de chaque marque",
+        "focusKicker": "Sélection",
+        "rating": "note {rating}/100",
+        "evidence": "Éléments tirés du CV",
+        "evidenceNone": "Le CV ne cite aucun poste à l’appui.",
+        "focusPrompt": "Sélectionnez un candidat pour lire les éléments derrière sa marque."
+      },
+      "signals": {
+        "strengths": "Points forts",
+        "antipatterns": "Points de vigilance",
+        "carriers": "{n, plural, one {# candidat} other {# candidats}}, poids {weight}",
+        "chip": "{name}, confiance {c} : {detail}",
+        "chipUnstated": "{name}, confiance non précisée : {detail}",
+        "noneStrengths": "Aucun point fort n’a été relevé dans cette cohorte.",
+        "noneAntipatterns": "Aucun point de vigilance n’a été relevé dans cette cohorte.",
+        "quiet": "Rien de saillant",
+        "quietMember": "{name} : signaux lus, rien de saillant",
+        "focusPrompt": "Sélectionnez un candidat pour rassembler ses questions d’entretien.",
+        "probes": "Questions d’entretien pour {name}",
+        "probesKicker": "Questions d’entretien",
+        "copy": "Copier",
+        "copied": "Copié",
+        "copyAll": "{n, plural, one {Copier la question} other {Copier les # questions}}",
+        "probesNone": "Aucune question suggérée pour ce candidat."
+      },
+      "trust": {
+        "ledger": "Constats de fiabilité par type, bloquants d’abord",
+        "chip": "{name} : {text}",
+        "sev": {
+          "blocker": "Bloquant",
+          "warn": "Avertissement",
+          "ok": "Réussi"
+        },
+        "clean": "Sans constat",
+        "cleanLine": "Aucun avertissement ni constat bloquant.",
+        "cleanNone": "Personne n’est sans constat.",
+        "noneFlagged": "Aucun candidat n’a d’avertissement ni de constat bloquant.",
+        "passed": "Contrôles réussis",
+        "focusKicker": "Sélection",
+        "focusPrompt": "Sélectionnez un candidat pour lire ses constats."
+      },
+      "salary": {
+        "period": "{period, select, month {mois} year {an} hour {heure} day {jour} other {{period}}}",
+        "comparable": "Comparé en {currency} par {period}",
+        "notComparable": "Non comparable : {currency} par {period}",
+        "basisRole": "Évalué par rapport à la fourchette salariale du poste. Les bornes de la fourchette ne font pas partie de cette vue ; chaque ligne indique seulement si son point médian s’y trouve.",
+        "basisCohort": "Évalué par rapport à la médiane de cette cohorte : la zone ombrée correspond à la médiane ± 15 %.",
+        "notComparableWhy": "Autre devise ou autre base de rémunération : sur sa propre règle, jamais convertie.",
+        "range": "{name} : de {min} à {max} {currency} par {period}, point médian {mid}",
+        "inBand": "dans la fourchette",
+        "outBand": "hors fourchette",
+        "confidence": "{c, select, high {Estimation de confiance élevée} medium {Estimation de confiance moyenne} low {Estimation de faible confiance} other {Confiance non précisée}}",
+        "median": "Médiane de la cohorte : {mid} {currency}",
+        "order": "Du point médian le plus bas au plus haut. C’est un ordre de coût, pas un classement.",
+        "none": "Aucun candidat n’indique d’attente salariale."
+      },
+      "publicWork": {
+        "cardPress": "{name} : travaux publics notés {rating}/100",
+        "profile": "Ouvrir {user} sur GitHub",
+        "repos": "Dépôts",
+        "stars": "Étoiles",
+        "active": "Actifs",
+        "languagesLabel": "Langages : {list}",
+        "other": "Autres",
+        "top": "Principaux dépôts",
+        "starCount": "{n, plural, one {# étoile} other {# étoiles}}",
+        "gap": "{skill} : non démontrée dans les travaux publics",
+        "shown": "Compétences du poste démontrées",
+        "gaps": "Non démontrées publiquement",
+        "noCards": "Le GitHub d’aucun candidat n’a été lu.",
+        "remainder": "Aucun travail public à lire",
+        "leads": "En tête : écart net sur le deuxième"
+      }
     }
   }
 }
