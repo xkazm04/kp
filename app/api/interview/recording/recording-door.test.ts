@@ -31,7 +31,7 @@ import {
 import { listInterviewEvents } from "../../../_lib/db/interview-events.ts";
 import { setDecisionConfig } from "../../../_lib/decision-config-store.ts";
 import { isPublicPath } from "../../../_lib/auth/public-routes.ts";
-import { recordingFilePath } from "../../../_lib/interview-recording.ts";
+import { deleteSessionRecordings, recordingFilePath } from "../../../_lib/interview-recording.ts";
 import { recordingFileName } from "../../../_lib/interview-recording-paths.ts";
 
 after(() => cleanupUnitDb());
@@ -169,6 +169,29 @@ test("the final flush lands after the call finalizes, and stops being accepted l
   const late = await upload(session, { chunk: 1 });
   assert.equal(late.status, 409);
   assert.equal(((await late.json()) as Body).code, "INTERVIEW_RECORDING_CLOSED");
+});
+
+test("a chunk for a deleted attempt is closed — in progress and inside the grace — and leaves no file", async () => {
+  for (const phase of ["in_progress", "grace"] as const) {
+    const { session } = recordedCall();
+    assert.equal((await upload(session, { chunk: 0, bytes: 256 })).status, 200, phase);
+    if (phase === "grace") {
+      ensureDb()
+        .prepare(`UPDATE interview_sessions SET status = 'completed', ended_at = ? WHERE id = ?`)
+        .run(new Date().toISOString(), session.id);
+    }
+    const recordings = interviewRecordingsForSession(session.id, WS)!;
+    assert.equal(deleteSessionRecordings({ sessionId: session.id, workspaceId: WS, recordings } as never, "candidate_request"), 1, phase);
+    const file = recordingFilePath(WS, recordingFileName(session.id, 1, "audio/webm")!)!;
+    assert.equal(fs.existsSync(file), false, `${phase}: deleted`);
+    const before = interviewRecordingsForSession(session.id, WS)![0]!;
+
+    const res = await upload(session, { chunk: 1, bytes: 256 });
+    assert.equal(res.status, 409, phase);
+    assert.equal(((await res.json()) as Body).code, "INTERVIEW_RECORDING_CLOSED", phase);
+    assert.equal(fs.existsSync(file), false, `${phase}: the audio did not come back`);
+    assert.deepEqual(interviewRecordingsForSession(session.id, WS)![0], before, `${phase}: ledger untouched`);
+  }
 });
 
 test("a chunk past the per-chunk byte cap is refused on the BYTES READ", async () => {

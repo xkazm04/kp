@@ -880,9 +880,10 @@ export function markInterviewRecordingConsent(id: string): boolean {
 export type RecordingChunkClaim = {
   /** `claimed` — the chunk is ours to append. `duplicate` — a replay at or below the
    *  stored cursor, already on disk, acknowledge and append nothing. `full` — the
-   *  session's byte budget is spent (the attempt is marked partial). `missing` — no
-   *  such session in this workspace. */
-  outcome: "claimed" | "duplicate" | "full" | "missing";
+   *  session's byte budget is spent (the attempt is marked partial). `closed` — the
+   *  attempt's recording was deleted; nothing is written, so the audio cannot come
+   *  back. `missing` — no such session in this workspace. */
+  outcome: "claimed" | "duplicate" | "full" | "closed" | "missing";
   meta: RecordingMeta | null;
   /** True when this claim CREATED the attempt's record — the caller writes the
    *  `recording_started` event exactly once off this flag. */
@@ -940,6 +941,11 @@ export function claimInterviewRecordingChunk(input: {
     if (existing && typeof existing.lastChunk === "number" && input.chunk <= existing.lastChunk) {
       return { outcome: "duplicate", meta: existing, first: false };
     }
+    // A DELETED attempt takes no more audio. Without this the next chunk would rebuild
+    // the meta from `existing`, append a file the ledger already calls deleted, and no
+    // later deletion or retention sweep (both skip deletedAt rows) would ever remove it.
+    // Before the ceiling check so the `full` branch never rewrites a deleted meta.
+    if (existing?.deletedAt) return { outcome: "closed", meta: existing, first: false };
     // The ceiling counts every attempt of this session, including deleted ones: what is
     // bounded is how much audio ONE interview link may ever push onto the disk.
     const held = recordings.reduce((sum, r) => sum + (Number.isFinite(r.bytes) ? r.bytes : 0), 0);

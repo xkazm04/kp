@@ -151,3 +151,27 @@ test("an unknown status token answers the same coded refusal its siblings do", a
   assert.equal(((await res.json()) as { code?: string }).code, "STATUS_LINK_INVALID");
   assert.ok(ensureDb(), "the store was reachable — the 404 is a decision, not an outage");
 });
+
+test("after the candidate's delete, the next chunk of the same attempt is not claimed and no file returns", async () => {
+  const c = recordedCandidate();
+  assert.deepEqual(await (await del(c.token)).json(), { ok: true, deleted: 1 });
+  const before = interviewRecordingsForSession(c.session.id, WS)![0]!;
+
+  const claim = claimInterviewRecordingChunk({
+    sessionId: c.session.id,
+    workspaceId: WS,
+    attempt: 1,
+    chunk: 1,
+    bytes: 64,
+    mime: "audio/webm",
+    file: c.file!,
+    maxSessionBytes: MAX_RECORDING_SESSION_BYTES,
+  });
+  assert.equal(claim.outcome, "closed", "a deleted attempt takes no more audio");
+  assert.equal(claim.first, false);
+  const after1 = interviewRecordingsForSession(c.session.id, WS)![0]!;
+  assert.deepEqual(after1, before, "the ledger meta is untouched");
+  assert.equal(after1.bytes, 128);
+  assert.equal(after1.lastChunk, 0);
+  assert.equal(fs.existsSync(recordingFilePath(WS, c.file!)!), false, "no file at the recording path");
+});

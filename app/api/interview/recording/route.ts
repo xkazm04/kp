@@ -117,6 +117,8 @@ export async function POST(request: NextRequest) {
     });
     if (claim.outcome === "missing") return jsonRefusal("INTERVIEW_LINK_NOT_FOUND", 404);
     if (claim.outcome === "duplicate") return NextResponse.json({ ok: true, duplicate: true });
+    // The attempt's recording was deleted (candidate or recruiter): no bytes, no file.
+    if (claim.outcome === "closed") return jsonRefusal("INTERVIEW_RECORDING_CLOSED", 409);
     if (claim.outcome === "full") {
       return jsonRefusal("INTERVIEW_RECORDING_FULL", 413, { maxBytes: MAX_RECORDING_SESSION_BYTES });
     }

@@ -18,12 +18,12 @@ import { DELETE } from "./[id]/recording/route.ts";
 import { POST as UPLOAD } from "../recording/route.ts";
 import { GET as PLAY } from "../recording/[sessionId]/route.ts";
 import { ensureDb } from "../../../_lib/db/core.ts";
-import { createInterviewSession, interviewRecordingsForSession, markInterviewStarted } from "../../../_lib/db/interviews.ts";
+import { claimInterviewRecordingChunk, createInterviewSession, interviewRecordingsForSession, markInterviewStarted } from "../../../_lib/db/interviews.ts";
 import { listInterviewEvents } from "../../../_lib/db/interview-events.ts";
 import { createPipelineEntry } from "../../../_lib/db/pipeline.ts";
 import { setDecisionConfig } from "../../../_lib/decision-config-store.ts";
 import { recordingFilePath } from "../../../_lib/interview-recording.ts";
-import { recordingFileName } from "../../../_lib/interview-recording-paths.ts";
+import { MAX_RECORDING_SESSION_BYTES, recordingFileName } from "../../../_lib/interview-recording-paths.ts";
 
 after(() => cleanupUnitDb());
 
@@ -154,4 +154,31 @@ test("a foreign session, an unknown id and a session with no audio all answer th
   }
   // The foreign row is still there: the refusal deleted nothing.
   assert.equal((interviewRecordingsForSession(foreign.id, foreign.workspaceId) ?? [])[0]?.deletedAt ?? null, null);
+});
+
+test("after the recruiter's delete, a further chunk is closed — whole session and single attempt", async () => {
+  const whole = recordedCall();
+  assert.equal((await upload(whole.session, 1)).status, 200);
+  assert.deepEqual(await (await del(whole.session.id)).json(), { ok: true, deleted: 1 });
+
+  const single = recordedCall();
+  assert.equal((await upload(single.session, 1)).status, 200);
+  assert.deepEqual(await (await del(single.session.id, 1)).json(), { ok: true, deleted: 1 });
+
+  for (const [what, session] of [["whole session", whole.session], ["single attempt", single.session]] as const) {
+    const before = (interviewRecordingsForSession(session.id, WS) ?? [])[0]!;
+    const claim = claimInterviewRecordingChunk({
+      sessionId: session.id,
+      workspaceId: WS,
+      attempt: 1,
+      chunk: 1,
+      bytes: 64,
+      mime: "audio/webm",
+      file: before.file,
+      maxSessionBytes: MAX_RECORDING_SESSION_BYTES,
+    });
+    assert.equal(claim.outcome, "closed", what);
+    assert.deepEqual((interviewRecordingsForSession(session.id, WS) ?? [])[0], before, `${what}: ledger untouched`);
+    assert.equal(fs.existsSync(filePath(session.id, 1)), false, `${what}: no file returns`);
+  }
 });
