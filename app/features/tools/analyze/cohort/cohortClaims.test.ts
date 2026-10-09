@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { computeCohortClaims, dominates, fitRanks, isDecoyOf, neutralOrder, robustnessOf } from "./cohortClaims.ts";
 import { absentCell, tierOf, type ProjectedMember } from "./cohortProject.ts";
-import { COHORT_DIMENSIONS, NARRATIVE_TOP, type CohortCell, type CohortDimension } from "./cohortTypes.ts";
+import { COHORT_DIMENSIONS, NARRATIVE_TOP, type CohortCell, type CohortDimension, type CohortMember } from "./cohortTypes.ts";
 
 type Ratings = Partial<Record<CohortDimension, number | [rating: number, lo: number, hi: number]>>;
 
@@ -25,6 +25,7 @@ function member(id: string, ratings: Ratings, salary: { currency: string; period
     runState: "done",
     analysisSlug: id,
     roleFamily: null,
+    why: Object.fromEntries(COHORT_DIMENSIONS.map((d) => [d, null])) as CohortMember["why"],
     cells,
     detail: {
       fit: null,

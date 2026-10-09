@@ -50,7 +50,7 @@ export function DimensionPage({ view, dimension, focusMemberId, onFocusMember, o
   // A member focused AFTER mount (pressed, or reached by j/k) is scrolled into view inside
   // whatever scrolls: the grid's own overflow, then the page. The first render never scrolls:
   // the world owns the initial positioning, and a scroll on mount would yank the viewport in the
-  // middle of its descent animation (Director's contract change, from the Loom builder).
+  // middle of its descent animation (Director's contract change, from the world round).
   const prevFocus = useRef(focusMemberId);
   useEffect(() => {
     if (prevFocus.current === focusMemberId) return;

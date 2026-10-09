@@ -28,7 +28,7 @@ import { displayMemberLabel, uniqueDisplayLabels, type ProposalContext } from ".
 export type CohortEngine = {
   projectCohortMember: (input: ProjectInput) => ProjectedMember;
   assembleCohortView: (
-    base: Omit<CohortView, "members" | "claims" | "narrative" | "progress">,
+    base: Omit<CohortView, "members" | "claims" | "narrative" | "progress" | "criteria" | "roleBand">,
     members: ProjectedMember[],
     comments: CohortComments | null
   ) => CohortView;

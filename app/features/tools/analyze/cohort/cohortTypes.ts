@@ -28,8 +28,9 @@ export const TECHNICAL_FAMILIES = ["software_engineering", "data_ai"] as const;
 export const isTechnicalFamily = (v: unknown): boolean =>
   typeof v === "string" && (TECHNICAL_FAMILIES as readonly string[]).includes(v);
 
-/** The prototype round's switcher. `v1` is the baseline (the upload form), kept for judging only. */
-export const COHORT_VARIANTS = ["v1", "lineup", "loom", "console"] as const;
+/** The switcher. `v1` is the baseline (the upload form) and stays production's view until the
+ * nested-layer round closes; Line-up won the world round (Loom and Console were deleted). */
+export const COHORT_VARIANTS = ["v1", "lineup"] as const;
 export type CohortVariant = (typeof COHORT_VARIANTS)[number];
 export const isCohortVariant = (v: unknown): v is CohortVariant =>
   typeof v === "string" && (COHORT_VARIANTS as readonly string[]).includes(v);
@@ -211,6 +212,8 @@ export interface CohortMember {
   decoyOf: string | null;
   cells: Record<CohortDimension, CohortCell>;
   detail: { [D in CohortDimension]: DetailFor<D> | null };
+  /** Why each rating sits where it does (round 2). null where the cell is absent. */
+  why: Record<CohortDimension, MemberDimensionWhy | null>;
 }
 
 // ---- Claims: decided by code ---------------------------------------------------
@@ -268,6 +271,10 @@ export interface CohortView {
   narrative: CohortNarrative | null;
   /** Counts for the run sheet / progress. */
   progress: { total: number; done: number; reused: number; failed: number };
+  /** The role's criteria per dimension (round 2): the rows a criteria matrix / head-to-head aligns on. */
+  criteria: Record<CohortDimension, DimensionCriterion[]>;
+  /** The role's salary band, so the salary layer can draw it; null when the job has none. */
+  roleBand: RoleBand | null;
 }
 
 /** GET /api/analyze/cohort — the recent-cohorts strip. */
@@ -319,3 +326,88 @@ export interface CohortComments {
   notes: Partial<Record<CohortDimension, string>>;
   narrative: CohortNarrative | null;
 }
+
+// ---- Round 2: why a score sits where it does -------------------------------------
+//
+// Assembled DETERMINISTICALLY by cohortProject from fields every analysis already carries
+// (score parts, matched / missing / unproven skills with reasons, seniority and role
+// alignment, risk flags, must-prove evidence, salary assessment, soft signals, trust
+// findings, GitHub evidence). Nothing here is newly written by a model; prose that DOES
+// come from the analysis (an alignment sentence, a strength) is carried verbatim as
+// `text` and is in the analysis's report language.
+
+/** Code-made words as data (`key` under analyzeCohort.why.*) OR analysis prose verbatim. */
+export type Phrase = ShortLabel | { text: string };
+export const isTextPhrase = (p: Phrase): p is { text: string } => "text" in p;
+
+export const REASON_TONES = ["pro", "con", "note"] as const;
+export type ReasonTone = (typeof REASON_TONES)[number];
+
+/** Which analysis field a reason came from — the evidence expand names it. */
+export const REASON_SOURCES = [
+  "scoreParts", "skills", "unproven", "alignment", "strengths", "gaps", "risk", "mustProve",
+  "softSignal", "trust", "salary", "band", "github", "evidenceTrace",
+] as const;
+export type ReasonSource = (typeof REASON_SOURCES)[number];
+
+export interface Reason {
+  tone: ReasonTone;
+  phrase: Phrase;
+  source: ReasonSource;
+  /**
+   * The exact signed contribution to THIS dimension's rating, in rating points — present ONLY
+   * when the rating is a code formula over parts (skills, experience, signals, trust, salary,
+   * publicWork). Fit's rating is model-given: its reasons never carry points.
+   */
+  points?: number;
+  /** Supporting lines from the analysis (verbatim), for the expand. Omitted when none. */
+  evidence?: string[];
+  /** The criterion this reason speaks to, when it maps onto one (DimensionCriterion.id). */
+  criterionId?: string;
+}
+
+/** The exact decomposition of a formula-made rating. Omitted for fit (model-given) and absent cells. */
+export interface ScoreAnatomy {
+  /** Where the formula starts (e.g. signals start at 50); 0 when it starts at nothing. */
+  base: number;
+  parts: Array<{ phrase: Phrase; points: number; tone: ReasonTone }>;
+  /** base + sum(parts) before clamping, and the rating after — they differ only when clamped. */
+  raw: number;
+  rating: number;
+}
+
+export const CRITERION_STATUSES = ["meets", "partial", "misses", "unknown"] as const;
+export type CriterionStatus = (typeof CRITERION_STATUSES)[number];
+
+/** One row a matrix / head-to-head aligns on: a required skill, the seniority target, the band, a trust check… */
+export interface DimensionCriterion {
+  /** Stable within the cohort and dimension, e.g. "skill:kafka", "seniority", "band", "trust:EMPLOYMENT_OVERLAP". */
+  id: string;
+  phrase: Phrase;
+  /** must = a requirement of the role; signal = observed across members (a soft signal, a finding). */
+  kind: "must" | "nice" | "target" | "signal";
+}
+
+export interface MemberDimensionWhy {
+  /** One short code-made sentence: why the rating is at this level (e.g. "7 of 9 required skills; Oracle missing"). */
+  why: Phrase;
+  pros: Reason[];
+  cons: Reason[];
+  /** Neutral context (an unproven claim, a probe to ask) — neither earns nor costs. */
+  notes: Reason[];
+  anatomy?: ScoreAnatomy;
+  /** Status per DimensionCriterion.id of this dimension (every criterion has an entry; unknown when not read). */
+  criteria: Record<string, { status: CriterionStatus; note?: Phrase }>;
+}
+
+// ---- Round 2: the nested-layer prototypes ----------------------------------------
+
+/** `pages` = the round-1 dimension pages (baseline); the four structures are under judgement. */
+export const COHORT_LAYERS = ["pages", "ledger", "anatomy", "headToHead", "matrix"] as const;
+export type CohortLayer = (typeof COHORT_LAYERS)[number];
+export const isCohortLayer = (v: unknown): v is CohortLayer =>
+  typeof v === "string" && (COHORT_LAYERS as readonly string[]).includes(v);
+
+/** Props of every nested-layer structure: the same seam as DimensionPage. */
+export type DimensionLayerProps = DimensionPageProps;
+

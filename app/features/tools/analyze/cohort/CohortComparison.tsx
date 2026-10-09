@@ -16,8 +16,6 @@ import { useNarrowStudio } from "./useNarrowStudio";
 const quiet = () => <LoadingGap className="min-h-[24rem]" />;
 const WORLDS: Record<Exclude<CohortVariant, "v1">, React.ComponentType<CohortWorldProps>> = {
   lineup: dynamic(() => import("./worlds/lineup/LineupWorld").then((m) => ({ default: m.LineupWorld })), { loading: quiet }),
-  loom: dynamic(() => import("./worlds/loom/LoomWorld").then((m) => ({ default: m.LoomWorld })), { loading: quiet }),
-  console: dynamic(() => import("./worlds/console/ConsoleWorld").then((m) => ({ default: m.ConsoleWorld })), { loading: quiet }),
 };
 
 /** The full single-candidate report, in a new tab so the comparison stays where it was. */

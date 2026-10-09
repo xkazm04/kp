@@ -3,7 +3,7 @@
 import { Button } from "@/app/_components/kit";
 import { KeyHints, LevelFrame, LevelTrail, ScenePress, type Crumb, type LevelTone } from "@/app/_components/kit/scene";
 import type { CohortDimension, CohortMember, CohortView } from "../../cohortTypes";
-import { DimensionPage } from "../../dimensions/DimensionPage";
+import { DimensionLayer } from "../../layers/DimensionLayer";
 import { LineupCorridorStrip } from "./LineupCorridorStrip";
 import { STREET_ROWS, floorClaimOf, stepDimension } from "./lineupModel";
 import type { LineupWords } from "./useLineupWords";
@@ -86,7 +86,7 @@ export function LineupFloorLevel({ view, street, dimension, focus, words, crumbs
             <span>{t("level.note")}</span> {note}
           </p>
         ) : null}
-        <DimensionPage view={view} dimension={dimension} focusMemberId={focus} onFocusMember={onFocusMember} onOpenReport={onOpenReport} />
+        <DimensionLayer view={view} dimension={dimension} focusMemberId={focus} onFocusMember={onFocusMember} onOpenReport={onOpenReport} />
       </div>
     </LevelFrame>
   );

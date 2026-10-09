@@ -16874,9 +16874,7 @@
     "variants": {
       "label": "Prototyp",
       "v1": "Formulář v1",
-      "lineup": "Sestava",
-      "loom": "Tkalcovský stav",
-      "console": "Mixážní pult"
+      "lineup": "Sestava"
     },
     "labels": {
       "none": "Bez hodnocení",
@@ -16911,138 +16909,6 @@
       "noJdFit": "Bez shody s pozicí",
       "failed": "Analýza selhala",
       "blind": "Skryto (naslepo)"
-    },
-    "loom": {
-      "root": "Tkalcovský stav",
-      "kicker": "Tkalcovský stav · {threads, plural, one {# nit} few {# nitě} many {# nitě} other {# nití}} v {rows} řadách",
-      "weaveLabel": "Tkanina: každý kandidát je nit, každá řada jedno hledisko",
-      "run": {
-        "running": "Analyzováno {landed} z {total} · ostatní se ještě předou",
-        "done": "Analyzováno {landed} z {total}",
-        "failed": "{n, plural, one {# nit je přestřižená: analýza selhala} few {# nitě jsou přestřižené: analýzy selhaly} many {# nitě je přestřižené: analýzy selhaly} other {# nití je přestřižených: analýzy selhaly}}"
-      },
-      "order": {
-        "label": "Pořadí nití",
-        "neutral": "Neutrální pořadí",
-        "fit": "Podle shody",
-        "neutralNote": "Neutrální, zamíchané pořadí: místo nitě nic neříká.",
-        "fitNote": "Podle pořadí shody: pořadí, ne vedení."
-      },
-      "overall": {
-        "clears": "{name} vede ve shodě, mimo šum",
-        "insideNoise": "Ve shodě nikdo nevede: {names} jsou první, ale v rámci šumu",
-        "belowFloor": "Zatím bez srovnání: ve shodě jsou hodnoceni méně než dva kandidáti"
-      },
-      "robustness": {
-        "stable": "Pořadí platí při každém vážení",
-        "sensitive": "Při jiném vážení se pořadí mění",
-        "undetermined": "Odolnost pořadí zatím nelze spočítat"
-      },
-      "claim": {
-        "clears": "{name} vede mimo šum",
-        "insideNoise": "v rámci šumu",
-        "belowFloor": "málo hodnocených",
-        "neverLeads": "nikdy nevede"
-      },
-      "tier": {
-        "strong": "silné",
-        "solid": "solidní",
-        "thin": "slabší",
-        "weak": "slabé"
-      },
-      "membership": {
-        "applicant": "Uchazeč",
-        "matched": "Vybrán z databáze",
-        "added": "Přidán ručně"
-      },
-      "runState": {
-        "queued": "Ve frontě",
-        "reused": "Převzatá analýza",
-        "analyzing": "Analyzuje se…",
-        "done": "Analyzováno",
-        "failed": "Analýza selhala"
-      },
-      "aria": {
-        "knot": "{name}, {dim}: {rating}, {tier}. {label}",
-        "knotNote": "{name}, {dim}: {rating}, {tier}. {label}. Má poznámku.",
-        "knotAbsent": "{name}, {dim}: bez hodnocení, {reason}",
-        "row": "{dim}: {claim}. Vytáhnout tuto řadu",
-        "tag": "{name}, {membership}, {state}",
-        "tagReport": "{name}, {membership}, {state}. Otevře celou zprávu"
-      },
-      "shuttle": {
-        "label": "Čtení",
-        "idle": "Najeďte na uzel, nit nebo řadu a přečtěte si ji. Stisknutím řady nebo uzlu řadu vytáhnete.",
-        "fitRank": "Pořadí ve shodě {rank} z {rated} · pořadí, ne vedení",
-        "noFitRank": "Bez pořadí ve shodě: {reason}",
-        "slack": "Volná nit: {other} je na tom stejně nebo lépe ve všech srovnávaných hlediscích (návnada).",
-        "report": "Stisknutím jména otevřete celou zprávu",
-        "noReport": "Celá zpráva se otevře, jakmile analýza doběhne",
-        "band": "Rozpětí {lo}–{hi}",
-        "note": "Poznámka",
-        "noise": "V rámci šumu s: {names}",
-        "noiseRow": "První v rámci šumu: {names}",
-        "leads": "V této řadě vede, mimo šum",
-        "pull": "Stisknutím řadu vytáhnete",
-        "rated": "Hodnoceno {rated} z {total}",
-        "partitions": "Mezi měnami se nesrovnává",
-        "partition": "{key}: {n, plural, one {# kandidát} few {# kandidáti} many {# kandidáta} other {# kandidátů}}",
-        "salary": "Mzda se čte vůči rozpětí pozice a kandidáty nikdy neřadí."
-      },
-      "legend": {
-        "label": "Jak číst tkaninu",
-        "strong": "Silné",
-        "solid": "Solidní",
-        "thin": "Slabší",
-        "weak": "Slabé",
-        "absent": "Bez uzlu: nit vede vzadu, s důvodem",
-        "spinning": "Ještě se analyzuje",
-        "note": "Štítek: krátká poznámka",
-        "float": "Volné přehození: v rámci šumu, nikdo nevede",
-        "stitch": "Svázaný uzel: vedení mimo šum",
-        "slack": "Volná nit: návnada"
-      },
-      "cloth": {
-        "title": "Utkáno z {n, plural, one {nejlepší nitě} few {# nejlepších nití} many {# nejlepší nitě} other {# nejlepších nití}}",
-        "leavesOut": "{n, plural, =0 {Všechny nitě jsou v tkanině.} one {# nit tu není rozebrána; její buňky platí samy za sebe.} few {# nitě tu nejsou rozebrány; jejich buňky platí samy za sebe.} many {# nitě tu není rozebráno; jejich buňky platí samy za sebe.} other {# nití tu není rozebráno; jejich buňky platí samy za sebe.}}",
-        "model": "Napsal jazykový model podle výše uvedených závěrů; nikdy je nemění.",
-        "keyless": "Napsáno bez jazykového modelu, podle výše uvedených závěrů.",
-        "pending": "Tkanina zatím není: shrnutí se utká, až běh skončí.",
-        "none": "Bez shrnutí: hodnoceni jsou méně než dva kandidáti."
-      },
-      "level": {
-        "kicker": {
-          "clears": "Mimo šum · hodnoceno {rated} z {total}",
-          "insideNoise": "V rámci šumu · hodnoceno {rated} z {total}",
-          "belowFloor": "Málo hodnocených · {rated} z {total}",
-          "neverLeads": "Nikdy nevede · hodnoceno {rated} z {total}"
-        },
-        "back": "Zpět na {place}",
-        "crumbs": "Kde jste",
-        "rail": "Vytažená řada: všechny nitě v hledisku {dim}",
-        "following": "Sledujete: {name}",
-        "followNone": "Stisknutím uzlu budete sledovat jednoho kandidáta",
-        "rows": "Řady",
-        "prev": "Předchozí řada",
-        "next": "Další řada"
-      },
-      "keys": {
-        "label": "Klávesy",
-        "names": {
-          "arrows": "Šipky",
-          "enter": "Enter",
-          "esc": "Esc",
-          "brackets": "[ ]",
-          "leftRight": "← →"
-        },
-        "acts": {
-          "walk": "Procházet tkaninu",
-          "pull": "Vytáhnout řadu",
-          "back": "Zpět na stav",
-          "step": "Předchozí nebo další řada",
-          "follow": "Sledovat kandidáta"
-        }
-      }
     },
     "pages": {
       "common": {
@@ -17331,162 +17197,6 @@
         "focusOne": "Sledujete: {name}, {value}"
       }
     },
-    "console": {
-      "root": "Pult",
-      "deskLabel": "Srovnávací pult: {n, plural, one {# kanál} few {# kanály} other {# kanálů}}, pro každou dimenzi jedna sběrnice",
-      "crumbsLabel": "Kde jste",
-      "back": "Zpět k pultu",
-      "head": {
-        "eyebrow": "Pult kohorty",
-        "channels": "{n, plural, one {# kanál} few {# kanály} other {# kanálů}} z {cap}",
-        "blind": "Naslepo: jména jsou skrytá"
-      },
-      "row": {
-        "channels": "Kanály",
-        "patchedNeutral": "Neutrální zapojení",
-        "patchedFit": "Zapojeno podle shody"
-      },
-      "bus": {
-        "solo": "Sólo",
-        "soloLabel": "Sólo {dim}: otevřít rozbor napříč všemi kanály",
-        "claim": {
-          "lead": "Vede: {name}",
-          "noise": "V rámci šumu",
-          "floor": "Bez srovnání",
-          "unranked": "Nikdy se neřadí"
-        },
-        "claimLong": {
-          "lead": "{name} vede na této sběrnici s odstupem větším než pásma nejistoty.",
-          "noise": "Pořadí existuje, ale špička je v rámci šumu: nikdo není označen za vedoucího.",
-          "floor": "Hodnocení má příliš málo kanálů, než aby se na této sběrnici dalo srovnávat.",
-          "unranked": "Mzda se nikdy neřadí: každé očekávání se posuzuje vůči rozpětí pozice."
-        },
-        "rated": "Hodnoceno {rated} z {total}",
-        "partitions": "{n, plural, one {# měnová skupina} few {# měnové skupiny} other {# měnových skupin}}, navzájem nesrovnatelné: {keys}"
-      },
-      "tier": {
-        "strong": "silné",
-        "solid": "solidní",
-        "thin": "chabé",
-        "weak": "slabé"
-      },
-      "strip": {
-        "membership": {
-          "applicant": "Podaná přihláška",
-          "matched": "Doplněno z databáze kandidátů",
-          "added": "Přidáno ručně"
-        },
-        "run": {
-          "queued": "Ve frontě",
-          "analyzing": "Analyzuje se",
-          "reused": "Převzatá analýza",
-          "done": "Analyzováno",
-          "failed": "Analýza selhala"
-        },
-        "lamps": {
-          "peak": "Varování důvěryhodnosti",
-          "clip": "Blokace důvěryhodnosti",
-          "unread": "Důvěryhodnost nenačtena",
-          "talkback": "Zmíněno ve shrnutí"
-        },
-        "open": "{name}: otevřít celou zprávu",
-        "noReport": "{name}: zpráva zatím není",
-        "channel": "Kanál {n}",
-        "tape": {
-          "applicant": "Přihláška",
-          "matched": "Z databáze",
-          "added": "Ručně"
-        }
-      },
-      "cell": {
-        "rated": "{name}, {dim}: {rating}, {tier}. {label}",
-        "absent": "{name}, {dim}: bez hodnocení. {reason}",
-        "lead": "Vede na této sběrnici",
-        "note": "Poznámka: {comment}",
-        "band": "Pásmo {lo}–{hi}"
-      },
-      "decoy": "Fázově vyrušený: {name} je lepší ve všech srovnávaných dimenzích",
-      "noise": "V pásmu šumu, {lo}–{hi}",
-      "master": {
-        "title": "Master",
-        "overall": {
-          "lead": "{name} vede s odstupem nad šumem",
-          "noise": "Nikdo nevede: špička je v rámci šumu",
-          "floor": "Příliš málo hodnocených pro srovnání"
-        },
-        "overallDetail": {
-          "lead": "Odstup od dalšího kanálu je větší než obě pásma nejistoty.",
-          "noise": "{names} sdílejí pásmo shody od {lo} do {hi}; pořadí mezi nimi není zjištění.",
-          "noiseNone": "Pásmo shody zatím nelze vykreslit.",
-          "floor": "Hodnocení shody mají méně než dva kanály, takže se nic nesrovnává."
-        },
-        "robustness": {
-          "label": "Robustnost",
-          "stable": "Stabilní při každém vážení",
-          "sensitive": "Při některých váženích se mění",
-          "undetermined": "Zatím nelze spočítat"
-        },
-        "progress": "Analyzováno {done} z {total}",
-        "progressDetail": "převzato {reused} · selhalo {failed}",
-        "running": "Probíhá: kanály se rozsvěcují, jak analýzy dobíhají",
-        "patch": {
-          "label": "Pořadí zapojení",
-          "neutral": "Neutrální",
-          "fit": "Podle shody"
-        },
-        "readout": {
-          "label": "Displej",
-          "idle": "Najeďte na kanál, měřák nebo sběrnici a přečtete si je tady.",
-          "openHint": "Stiskem otevřete celou zprávu.",
-          "soloHint": "Stiskem tuto sběrnici přepnete na sólo."
-        },
-        "legend": {
-          "label": "Legenda",
-          "meter": "Rozsvícené segmenty = hodnocení, každý za deset bodů",
-          "capped": "Zaslepený měřák: bez hodnocení, důvod je na displeji",
-          "pending": "Nerozsvícený: analýza ještě nedoběhla",
-          "lamps": "Kontrolky: jantarová varování důvěryhodnosti, korálová blokace",
-          "phase": "Ø fázově vyrušený: všude zaostává za jiným kanálem",
-          "talkback": "TB: zmíněno ve shrnutí",
-          "tape": "Páska: přihláška, z databáze kandidátů, přidáno ručně"
-        }
-      },
-      "talkback": {
-        "title": "Talkback",
-        "covers": "Pokrývá {n} nejsilnějších podle shody · {out, plural, one {# kanál vynechává, jeho měřáky mluví} few {# kanály vynechává, jejich měřáky mluví} other {# kanálů vynechává, jejich měřáky mluví}} samy za sebe",
-        "none": "Shrnutí vznikne, až budou mít hodnocení shody alespoň dva kanály a běh skončí.",
-        "model": "Napsal jazykový model; každé vedení i šum na tomto pultu rozhoduje kód.",
-        "keyless": "Napsáno bez jazykového modelu, jen ze zjištění."
-      },
-      "solo": {
-        "kicker": "Sólo sběrnice · {claim} · {rated}",
-        "busLabel": "{dim} na všech kanálech: vyberte kanál, na který se zaměřit",
-        "prev": "Předchozí sběrnice",
-        "next": "Další sběrnice",
-        "muted": "{dim}, ztlumeno: přepnout na sólo",
-        "claim": {
-          "lead": "vedení je nad šumem",
-          "noise": "v rámci šumu",
-          "floor": "bez srovnání",
-          "unranked": "nikdy se neřadí"
-        }
-      },
-      "keys": {
-        "label": "Klávesy",
-        "names": {
-          "arrows": "Šipky",
-          "enter": "Enter",
-          "esc": "Esc",
-          "brackets": "[ ]"
-        },
-        "acts": {
-          "move": "pohyb po pultu",
-          "solo": "sólo sběrnice, nebo zpráva kanálu",
-          "back": "zpět k pultu",
-          "bus": "předchozí / další sběrnice"
-        }
-      }
-    },
     "shell": {
       "dev": {
         "data": "Data",
@@ -17685,6 +17395,14 @@
         "engineMissing": "Nové analýzy potřebují AI engine a žádný není nastavený: {n, plural, one {# nový životopis by selhal} few {# nové životopisy by selhaly} many {# nového životopisu by selhalo} other {# nových životopisů by selhalo}}. Převzaté analýzy se porovnají i tak.",
         "engineUnknown": "Dostupnost AI enginu se nepodařilo ověřit. Nové analýzy ho potřebují, převzaté se porovnají i bez něj."
       }
+    },
+    "layers": {
+      "label": "Prototyp vrstvy",
+      "pages": "Stránky (1. kolo)",
+      "ledger": "Přehled verdiktů",
+      "anatomy": "Anatomie skóre",
+      "headToHead": "Přímé srovnání",
+      "matrix": "Matice kritérií"
     }
   }
 }

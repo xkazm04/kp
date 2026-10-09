@@ -72,6 +72,7 @@ function viewMember(m: AnalysisCohortMemberRecord, i: number): CohortMember {
     runState: m.runState,
     analysisSlug: m.analysisSlug,
     roleFamily: null,
+    why: Object.fromEntries(COHORT_DIMENSIONS.map((d) => [d, null])) as CohortMember["why"],
     neutralIndex: i,
     fitRank: i + 1,
     decoyOf: null,

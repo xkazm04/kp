@@ -16874,9 +16874,7 @@
     "variants": {
       "label": "Prototyp",
       "v1": "Formular v1",
-      "lineup": "Aufstellung",
-      "loom": "Webstuhl",
-      "console": "Mischpult"
+      "lineup": "Aufstellung"
     },
     "labels": {
       "none": "Keine Bewertung",
@@ -16911,138 +16909,6 @@
       "noJdFit": "Keine Stellenpassung",
       "failed": "Analyse fehlgeschlagen",
       "blind": "Verborgen (anonym)"
-    },
-    "loom": {
-      "root": "Webstuhl",
-      "kicker": "Der Webstuhl · {threads, plural, one {# Faden} other {# Fäden}} über {rows} Reihen",
-      "weaveLabel": "Das Gewebe: jede Person ist ein Faden, jede Reihe ein Kriterium",
-      "run": {
-        "running": "{landed} von {total} analysiert · der Rest wird noch gesponnen",
-        "done": "{landed} von {total} analysiert",
-        "failed": "{n, plural, one {# Faden ist gerissen: die Analyse ist fehlgeschlagen} other {# Fäden sind gerissen: die Analysen sind fehlgeschlagen}}"
-      },
-      "order": {
-        "label": "Fäden ordnen",
-        "neutral": "Neutrale Reihenfolge",
-        "fit": "Nach Passung",
-        "neutralNote": "Eine neutrale, gemischte Reihenfolge: die Position eines Fadens sagt nichts.",
-        "fitNote": "Nach Passungsrang: eine Reihenfolge, keine Führung."
-      },
-      "overall": {
-        "clears": "{name} führt bei der Passung, klar außerhalb des Rauschens",
-        "insideNoise": "Keine Führung bei der Passung: {names} liegen vorn, aber im Rauschen",
-        "belowFloor": "Noch kein Vergleich: weniger als zwei Personen haben eine Passung"
-      },
-      "robustness": {
-        "stable": "Die Reihenfolge hält bei jeder Gewichtung",
-        "sensitive": "Bei anderer Gewichtung ändert sich die Reihenfolge",
-        "undetermined": "Die Robustheit lässt sich noch nicht berechnen"
-      },
-      "claim": {
-        "clears": "{name} führt klar",
-        "insideNoise": "im Rauschen",
-        "belowFloor": "zu wenige bewertet",
-        "neverLeads": "nie eine Führung"
-      },
-      "tier": {
-        "strong": "stark",
-        "solid": "solide",
-        "thin": "dünn",
-        "weak": "schwach"
-      },
-      "membership": {
-        "applicant": "Bewerbung",
-        "matched": "Aus dem Pool gefunden",
-        "added": "Von Hand hinzugefügt"
-      },
-      "runState": {
-        "queued": "In der Warteschlange",
-        "reused": "Analyse wiederverwendet",
-        "analyzing": "Wird analysiert…",
-        "done": "Analysiert",
-        "failed": "Analyse fehlgeschlagen"
-      },
-      "aria": {
-        "knot": "{name}, {dim}: {rating}, {tier}. {label}",
-        "knotNote": "{name}, {dim}: {rating}, {tier}. {label}. Mit Notiz.",
-        "knotAbsent": "{name}, {dim}: keine Bewertung, {reason}",
-        "row": "{dim}: {claim}. Diese Reihe herausziehen",
-        "tag": "{name}, {membership}, {state}",
-        "tagReport": "{name}, {membership}, {state}. Öffnet den vollständigen Bericht"
-      },
-      "shuttle": {
-        "label": "Ablesen",
-        "idle": "Zeigen Sie auf einen Knoten, einen Faden oder eine Reihe, um sie zu lesen. Ein Druck auf Reihe oder Knoten zieht die Reihe heraus.",
-        "fitRank": "Passungsrang {rank} von {rated} · eine Reihenfolge, keine Führung",
-        "noFitRank": "Kein Passungsrang: {reason}",
-        "slack": "Ein loser Faden: {other} ist bei jedem verglichenen Kriterium gleichauf oder vorn (ein Köder).",
-        "report": "Ein Druck auf den Namen öffnet den vollständigen Bericht",
-        "noReport": "Der vollständige Bericht öffnet sich, sobald die Analyse vorliegt",
-        "band": "Spanne {lo}–{hi}",
-        "note": "Notiz",
-        "noise": "Im Rauschen mit {names}",
-        "noiseRow": "Vorn, aber im Rauschen: {names}",
-        "leads": "Führt in dieser Reihe, klar außerhalb des Rauschens",
-        "pull": "Drücken, um diese Reihe herauszuziehen",
-        "rated": "{rated} von {total} bewertet",
-        "partitions": "Über Währungen hinweg nicht verglichen",
-        "partition": "{key}: {n, plural, one {# Person} other {# Personen}}",
-        "salary": "Das Gehalt wird an der Spanne der Stelle gemessen und ordnet niemanden ein."
-      },
-      "legend": {
-        "label": "So lesen Sie den Webstuhl",
-        "strong": "Stark",
-        "solid": "Solide",
-        "thin": "Dünn",
-        "weak": "Schwach",
-        "absent": "Kein Knoten: der Faden läuft dahinter, mit Grund",
-        "spinning": "Wird noch analysiert",
-        "note": "Ein Anhänger: eine kurze Notiz",
-        "float": "Eine lose Flottung: im Rauschen, keine Führung",
-        "stitch": "Ein gebundener Knoten: eine klare Führung",
-        "slack": "Ein loser Faden: ein Köder"
-      },
-      "cloth": {
-        "title": "Gewebt aus {n, plural, one {dem stärksten Faden} other {den # stärksten Fäden}}",
-        "leavesOut": "{n, plural, =0 {Jeder Faden ist im Tuch.} one {# Faden wird hier nicht besprochen; seine Zellen stehen für sich.} other {# Fäden werden hier nicht besprochen; ihre Zellen stehen für sich.}}",
-        "model": "Vom Sprachmodell aus den obigen Aussagen geschrieben; es ändert sie nie.",
-        "keyless": "Ohne Sprachmodell aus den obigen Aussagen geschrieben.",
-        "pending": "Noch kein Tuch: die Zusammenfassung wird gewebt, wenn der Lauf endet.",
-        "none": "Keine Zusammenfassung: weniger als zwei Personen sind bewertet."
-      },
-      "level": {
-        "kicker": {
-          "clears": "Klar außerhalb des Rauschens · {rated} von {total} bewertet",
-          "insideNoise": "Im Rauschen · {rated} von {total} bewertet",
-          "belowFloor": "Zu wenige bewertet · {rated} von {total}",
-          "neverLeads": "Nie eine Führung · {rated} von {total} bewertet"
-        },
-        "back": "Zurück zu: {place}",
-        "crumbs": "Wo Sie sind",
-        "rail": "Die herausgezogene Reihe: jeder Faden bei {dim}",
-        "following": "Sie folgen {name}",
-        "followNone": "Drücken Sie einen Knoten, um einer Person zu folgen",
-        "rows": "Reihen",
-        "prev": "Vorige Reihe",
-        "next": "Nächste Reihe"
-      },
-      "keys": {
-        "label": "Tasten",
-        "names": {
-          "arrows": "Pfeile",
-          "enter": "Enter",
-          "esc": "Esc",
-          "brackets": "[ ]",
-          "leftRight": "← →"
-        },
-        "acts": {
-          "walk": "Durch das Gewebe gehen",
-          "pull": "Eine Reihe herausziehen",
-          "back": "Zurück zum Webstuhl",
-          "step": "Vorige oder nächste Reihe",
-          "follow": "Einer Person folgen"
-        }
-      }
     },
     "pages": {
       "common": {
@@ -17331,162 +17197,6 @@
         "focusOne": "Sie folgen {name}: {value}"
       }
     },
-    "console": {
-      "root": "Pult",
-      "deskLabel": "Vergleichspult: {n, plural, one {# Kanal} other {# Kanäle}}, ein Bus je Dimension",
-      "crumbsLabel": "Wo Sie sind",
-      "back": "Zurück zum Pult",
-      "head": {
-        "eyebrow": "Kohortenpult",
-        "channels": "{n, plural, one {# Kanal} other {# Kanäle}} von {cap}",
-        "blind": "Blind: Namen ausgeblendet"
-      },
-      "row": {
-        "channels": "Kanäle",
-        "patchedNeutral": "Neutral gesteckt",
-        "patchedFit": "Nach Passung gesteckt"
-      },
-      "bus": {
-        "solo": "Solo",
-        "soloLabel": "{dim} solo: die Aufschlüsselung über alle Kanäle öffnen",
-        "claim": {
-          "lead": "Vorn: {name}",
-          "noise": "Im Rauschen",
-          "floor": "Kein Vergleich",
-          "unranked": "Nie gereiht"
-        },
-        "claimLong": {
-          "lead": "{name} liegt auf diesem Bus vorn, mit mehr Abstand als die Unsicherheitsbänder.",
-          "noise": "Es gibt eine Reihenfolge, aber die Spitze liegt im Rauschen: Niemand wird als vorn benannt.",
-          "floor": "Zu wenige Kanäle haben eine Bewertung, um auf diesem Bus zu vergleichen.",
-          "unranked": "Gehalt wird nie gereiht: Jede Erwartung wird am Band der Stelle gemessen."
-        },
-        "rated": "{rated} von {total} bewertet",
-        "partitions": "{n, plural, one {# Währungsgruppe} other {# Währungsgruppen}}, untereinander nicht vergleichbar: {keys}"
-      },
-      "tier": {
-        "strong": "stark",
-        "solid": "solide",
-        "thin": "dünn",
-        "weak": "schwach"
-      },
-      "strip": {
-        "membership": {
-          "applicant": "Hat sich beworben",
-          "matched": "Aus dem Kandidatenpool ergänzt",
-          "added": "Von Hand hinzugefügt"
-        },
-        "run": {
-          "queued": "In der Warteschlange",
-          "analyzing": "Wird analysiert",
-          "reused": "Übernommene Analyse",
-          "done": "Analysiert",
-          "failed": "Analyse fehlgeschlagen"
-        },
-        "lamps": {
-          "peak": "Vertrauenswarnung",
-          "clip": "Vertrauensblocker",
-          "unread": "Vertrauen nicht gelesen",
-          "talkback": "In der Zusammenfassung besprochen"
-        },
-        "open": "{name}: den vollständigen Bericht öffnen",
-        "noReport": "{name}: noch kein Bericht",
-        "channel": "Kanal {n}",
-        "tape": {
-          "applicant": "Beworben",
-          "matched": "Aus Pool",
-          "added": "Ergänzt"
-        }
-      },
-      "cell": {
-        "rated": "{name}, {dim}: {rating}, {tier}. {label}",
-        "absent": "{name}, {dim}: keine Bewertung. {reason}",
-        "lead": "Liegt auf diesem Bus vorn",
-        "note": "Notiz: {comment}",
-        "band": "Band {lo}–{hi}"
-      },
-      "decoy": "Phasenausgelöscht: liegt in jeder verglichenen Dimension hinter {name}",
-      "noise": "Im Rauschband, {lo}–{hi}",
-      "master": {
-        "title": "Master",
-        "overall": {
-          "lead": "{name} liegt vorn, klar über dem Rauschen",
-          "noise": "Niemand vorn: Die Spitze liegt im Rauschen",
-          "floor": "Zu wenige bewertet für einen Vergleich"
-        },
-        "overallDetail": {
-          "lead": "Der Abstand zum nächsten Kanal ist größer als beide Unsicherheitsbänder.",
-          "noise": "{names} teilen sich das Passungsband von {lo} bis {hi}; die Reihenfolge zwischen ihnen ist kein Befund.",
-          "noiseNone": "Ein Passungsband lässt sich noch nicht zeichnen.",
-          "floor": "Weniger als zwei Kanäle haben eine Passungsbewertung, daher wird nichts verglichen."
-        },
-        "robustness": {
-          "label": "Robustheit",
-          "stable": "Stabil unter jeder Gewichtung",
-          "sensitive": "Ändert sich unter manchen Gewichtungen",
-          "undetermined": "Noch nicht berechenbar"
-        },
-        "progress": "{done} von {total} analysiert",
-        "progressDetail": "{reused} übernommen · {failed} fehlgeschlagen",
-        "running": "Läuft: Kanäle leuchten auf, sobald ihre Analysen eintreffen",
-        "patch": {
-          "label": "Reihenfolge",
-          "neutral": "Neutral",
-          "fit": "Nach Passung"
-        },
-        "readout": {
-          "label": "Anzeige",
-          "idle": "Zeigen Sie auf einen Kanal, eine Anzeige oder einen Bus, um ihn hier zu lesen.",
-          "openHint": "Drücken, um den vollständigen Bericht zu öffnen.",
-          "soloHint": "Drücken, um diesen Bus solo zu schalten."
-        },
-        "legend": {
-          "label": "Legende",
-          "meter": "Leuchtende Segmente = die Bewertung, je zehn Punkte",
-          "capped": "Verschlossene Anzeige: keine Bewertung, der Grund steht in der Anzeige",
-          "pending": "Unbeleuchtet: Die Analyse ist noch nicht eingetroffen",
-          "lamps": "Lampen: bernsteinfarben Vertrauenswarnung, korallenrot Vertrauensblocker",
-          "phase": "Ø phasenausgelöscht: liegt überall hinter einem anderen Kanal",
-          "talkback": "TB: in der Zusammenfassung besprochen",
-          "tape": "Band: beworben, aus dem Pool ergänzt, von Hand hinzugefügt"
-        }
-      },
-      "talkback": {
-        "title": "Talkback",
-        "covers": "Behandelt die {n} Stärksten nach Passung · lässt {out, plural, one {# Kanal aus, dessen Anzeigen} other {# Kanäle aus, deren Anzeigen}} für sich stehen",
-        "none": "Die Zusammenfassung entsteht, sobald mindestens zwei Kanäle eine Passungsbewertung haben und der Lauf fertig ist.",
-        "model": "Vom Sprachmodell geschrieben; jede Aussage über Vorsprung und Rauschen auf diesem Pult entscheidet der Code.",
-        "keyless": "Ohne Sprachmodell geschrieben, nur aus den Befunden."
-      },
-      "solo": {
-        "kicker": "Solo-Bus · {claim} · {rated}",
-        "busLabel": "{dim} auf allen Kanälen: einen Kanal zum Fokussieren wählen",
-        "prev": "Vorheriger Bus",
-        "next": "Nächster Bus",
-        "muted": "{dim}, stumm: stattdessen solo schalten",
-        "claim": {
-          "lead": "Vorsprung über dem Rauschen",
-          "noise": "im Rauschen",
-          "floor": "kein Vergleich",
-          "unranked": "nie gereiht"
-        }
-      },
-      "keys": {
-        "label": "Tasten",
-        "names": {
-          "arrows": "Pfeiltasten",
-          "enter": "Enter",
-          "esc": "Esc",
-          "brackets": "[ ]"
-        },
-        "acts": {
-          "move": "über das Pult bewegen",
-          "solo": "Bus solo schalten oder Bericht eines Kanals öffnen",
-          "back": "zurück zum Pult",
-          "bus": "vorheriger / nächster Bus"
-        }
-      }
-    },
     "shell": {
       "dev": {
         "data": "Daten",
@@ -17685,6 +17395,14 @@
         "engineMissing": "Neue Analysen brauchen eine KI-Engine, und keine ist eingerichtet: {n, plural, one {der # neue Lebenslauf würde scheitern} other {die # neuen Lebensläufe würden scheitern}}. Übernommene Analysen werden trotzdem verglichen.",
         "engineUnknown": "Die KI-Engine konnte nicht geprüft werden. Neue Analysen brauchen eine; übernommene Analysen werden in jedem Fall verglichen."
       }
+    },
+    "layers": {
+      "label": "Ebenen-Prototyp",
+      "pages": "Seiten (Runde 1)",
+      "ledger": "Urteilsliste",
+      "anatomy": "Anatomie der Bewertung",
+      "headToHead": "Direktvergleich",
+      "matrix": "Kriterienmatrix"
     }
   }
 }

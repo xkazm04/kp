@@ -395,7 +395,7 @@ export function projectCohortMember(input: ProjectInput): ProjectedMember {
     // Not landed: pending while it runs, failed when it failed. A "done" member with no
     // readable analysis is a record we could not read — not a failure we observed.
     const reason: AbsentReason = input.runState === "failed" ? "failed" : input.runState === "done" || input.runState === "reused" ? "notRead" : "pending";
-    return { ...base, roleFamily: null, cells: allAbsent(reason), detail: emptyDetail() };
+    return { ...base, roleFamily: null, cells: allAbsent(reason), detail: emptyDetail(), why: emptyWhy() };
   }
   const r = input.blind ? makeRedactor(a.candidate.name) : (t: string) => t;
   const jf = a.jobFit ?? null;
@@ -411,6 +411,7 @@ export function projectCohortMember(input: ProjectInput): ProjectedMember {
   });
   return {
     ...base,
+    why: emptyWhy(), // STUB (round 2 seed): the engine builder assembles pros/cons/anatomy/criteria here
     roleFamily: a.candidate.roleFamily || null,
     cells: {
       fit: fitCell(a),
@@ -496,8 +497,13 @@ function withComments(members: ProjectedMember[], comments: CohortComments | nul
  * (it never changes a claim), and lets computeCohortClaims decide every claim.
  * Member order is the input order; neutralIndex is the presentation order.
  */
+/** STUB (round 2 seed): no why yet. */
+export function emptyWhy(): CohortMember["why"] {
+  return Object.fromEntries(COHORT_DIMENSIONS.map((d) => [d, null])) as CohortMember["why"];
+}
+
 export function assembleCohortView(
-  base: Omit<CohortView, "members" | "claims" | "narrative" | "progress">,
+  base: Omit<CohortView, "members" | "claims" | "narrative" | "progress" | "criteria" | "roleBand">,
   members: ProjectedMember[],
   comments: CohortComments | null
 ): CohortView {
@@ -527,6 +533,8 @@ export function assembleCohortView(
     })),
     claims,
     narrative,
+    criteria: Object.fromEntries(COHORT_DIMENSIONS.map((d) => [d, []])) as unknown as CohortView["criteria"], // STUB (round 2 seed)
+    roleBand: null, // STUB (round 2 seed)
     progress: {
       total: projected.length,
       // `done` counts every landed member; `reused` is the subset that spent nothing.

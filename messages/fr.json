@@ -16874,9 +16874,7 @@
     "variants": {
       "label": "Prototype",
       "v1": "Formulaire v1",
-      "lineup": "Alignement",
-      "loom": "Métier à tisser",
-      "console": "Console de mixage"
+      "lineup": "Alignement"
     },
     "labels": {
       "none": "Non évalué",
@@ -16911,138 +16909,6 @@
       "noJdFit": "Pas d’adéquation au poste",
       "failed": "Échec de l’analyse",
       "blind": "Masqué (anonyme)"
-    },
-    "loom": {
-      "root": "Métier à tisser",
-      "kicker": "Le métier · {threads, plural, one {# fil} other {# fils}} sur {rows} rangs",
-      "weaveLabel": "Le tissage : chaque candidat est un fil, chaque rang un critère",
-      "run": {
-        "running": "{landed} sur {total} analysés · les autres sont encore au filage",
-        "done": "{landed} sur {total} analysés",
-        "failed": "{n, plural, one {# fil est coupé : son analyse a échoué} other {# fils sont coupés : leurs analyses ont échoué}}"
-      },
-      "order": {
-        "label": "Ordre des fils",
-        "neutral": "Ordre neutre",
-        "fit": "Par adéquation",
-        "neutralNote": "Un ordre neutre, mélangé : la place d’un fil ne dit rien.",
-        "fitNote": "Par rang d’adéquation : un ordre, pas une avance."
-      },
-      "overall": {
-        "clears": "{name} mène sur l’adéquation, hors du bruit",
-        "insideNoise": "Personne ne mène sur l’adéquation : {names} sont en tête, dans le bruit",
-        "belowFloor": "Pas encore de comparaison : moins de deux candidats ont une adéquation"
-      },
-      "robustness": {
-        "stable": "L’ordre tient sous toutes les pondérations",
-        "sensitive": "L’ordre change sous une autre pondération",
-        "undetermined": "La robustesse ne peut pas encore être calculée"
-      },
-      "claim": {
-        "clears": "{name} se détache",
-        "insideNoise": "dans le bruit",
-        "belowFloor": "trop peu notés",
-        "neverLeads": "jamais d’avance"
-      },
-      "tier": {
-        "strong": "fort",
-        "solid": "solide",
-        "thin": "mince",
-        "weak": "faible"
-      },
-      "membership": {
-        "applicant": "Candidature",
-        "matched": "Trouvé dans le vivier",
-        "added": "Ajouté à la main"
-      },
-      "runState": {
-        "queued": "En file d’attente",
-        "reused": "Analyse réutilisée",
-        "analyzing": "Analyse en cours…",
-        "done": "Analysé",
-        "failed": "Échec de l’analyse"
-      },
-      "aria": {
-        "knot": "{name}, {dim} : {rating}, {tier}. {label}",
-        "knotNote": "{name}, {dim} : {rating}, {tier}. {label}. Avec une note.",
-        "knotAbsent": "{name}, {dim} : pas de note, {reason}",
-        "row": "{dim} : {claim}. Tirer ce rang",
-        "tag": "{name}, {membership}, {state}",
-        "tagReport": "{name}, {membership}, {state}. Ouvre le rapport complet"
-      },
-      "shuttle": {
-        "label": "Lecture",
-        "idle": "Pointez un nœud, un fil ou un rang pour le lire. Appuyez sur un rang ou un nœud pour tirer ce rang.",
-        "fitRank": "Rang d’adéquation {rank} sur {rated} · un ordre, pas une avance",
-        "noFitRank": "Pas de rang d’adéquation : {reason}",
-        "slack": "Un fil lâche : {other} est à égalité ou devant sur chaque critère comparé (un leurre).",
-        "report": "Appuyez sur le nom pour ouvrir le rapport complet",
-        "noReport": "Le rapport complet s’ouvre dès que l’analyse est arrivée",
-        "band": "Fourchette {lo}–{hi}",
-        "note": "Note",
-        "noise": "Dans le bruit avec {names}",
-        "noiseRow": "En tête, dans le bruit : {names}",
-        "leads": "Mène ce rang, hors du bruit",
-        "pull": "Appuyez pour tirer ce rang",
-        "rated": "{rated} sur {total} notés",
-        "partitions": "Pas de comparaison entre devises",
-        "partition": "{key} : {n, plural, one {# candidat} other {# candidats}}",
-        "salary": "Le salaire se lit par rapport à la fourchette du poste et ne classe jamais un candidat."
-      },
-      "legend": {
-        "label": "Lire le métier",
-        "strong": "Fort",
-        "solid": "Solide",
-        "thin": "Mince",
-        "weak": "Faible",
-        "absent": "Pas de nœud : le fil passe derrière, avec sa raison",
-        "spinning": "Analyse en cours",
-        "note": "Une étiquette : une courte note",
-        "float": "Un flotté lâche : dans le bruit, personne ne mène",
-        "stitch": "Un nœud lié : une avance qui se détache",
-        "slack": "Un fil lâche : un leurre"
-      },
-      "cloth": {
-        "title": "Tissé avec {n, plural, one {le meilleur fil} other {les # meilleurs fils}}",
-        "leavesOut": "{n, plural, =0 {Tous les fils sont dans le tissu.} one {# fil n’est pas commenté ; ses cellules parlent d’elles-mêmes.} other {# fils ne sont pas commentés ; leurs cellules parlent d’elles-mêmes.}}",
-        "model": "Rédigé par le modèle de langage à partir des constats ci-dessus ; il ne les modifie jamais.",
-        "keyless": "Rédigé sans modèle de langage, à partir des constats ci-dessus.",
-        "pending": "Pas encore de tissu : la synthèse sera tissée à la fin de l’analyse.",
-        "none": "Pas de synthèse : moins de deux candidats sont notés."
-      },
-      "level": {
-        "kicker": {
-          "clears": "Hors du bruit · {rated} sur {total} notés",
-          "insideNoise": "Dans le bruit · {rated} sur {total} notés",
-          "belowFloor": "Trop peu notés · {rated} sur {total}",
-          "neverLeads": "Jamais d’avance · {rated} sur {total} notés"
-        },
-        "back": "Retour : {place}",
-        "crumbs": "Où vous êtes",
-        "rail": "Le rang tiré : chaque fil sur {dim}",
-        "following": "Vous suivez {name}",
-        "followNone": "Appuyez sur un nœud pour suivre un candidat",
-        "rows": "Rangs",
-        "prev": "Rang précédent",
-        "next": "Rang suivant"
-      },
-      "keys": {
-        "label": "Touches",
-        "names": {
-          "arrows": "Flèches",
-          "enter": "Entrée",
-          "esc": "Échap",
-          "brackets": "[ ]",
-          "leftRight": "← →"
-        },
-        "acts": {
-          "walk": "Parcourir le tissage",
-          "pull": "Tirer un rang",
-          "back": "Retour au métier",
-          "step": "Rang précédent ou suivant",
-          "follow": "Suivre un candidat"
-        }
-      }
     },
     "pages": {
       "common": {
@@ -17331,162 +17197,6 @@
         "focusOne": "Vous suivez {name} : {value}"
       }
     },
-    "console": {
-      "root": "Console",
-      "deskLabel": "Console de comparaison : {n, plural, one {# tranche} other {# tranches}}, un bus par dimension",
-      "crumbsLabel": "Où vous êtes",
-      "back": "Retour à la console",
-      "head": {
-        "eyebrow": "Console de la cohorte",
-        "channels": "{n, plural, one {# tranche} other {# tranches}} sur {cap}",
-        "blind": "À l'aveugle : noms masqués"
-      },
-      "row": {
-        "channels": "Tranches",
-        "patchedNeutral": "Ordre neutre",
-        "patchedFit": "Classées par adéquation"
-      },
-      "bus": {
-        "solo": "Solo",
-        "soloLabel": "Solo {dim} : ouvrir le détail sur toutes les tranches",
-        "claim": {
-          "lead": "En tête : {name}",
-          "noise": "Dans le bruit",
-          "floor": "Aucune comparaison",
-          "unranked": "Jamais classé"
-        },
-        "claimLong": {
-          "lead": "{name} est en tête sur ce bus, avec un écart plus large que les marges d'incertitude.",
-          "noise": "Un ordre existe, mais le haut du classement reste dans le bruit : personne n'est désigné en tête.",
-          "floor": "Trop peu de tranches ont une note pour comparer sur ce bus.",
-          "unranked": "Le salaire n'est jamais classé : chaque prétention est lue au regard de la fourchette du poste."
-        },
-        "rated": "{rated} sur {total} notés",
-        "partitions": "{n, plural, one {# groupe de devises} other {# groupes de devises}}, non comparables entre eux : {keys}"
-      },
-      "tier": {
-        "strong": "fort",
-        "solid": "solide",
-        "thin": "mince",
-        "weak": "faible"
-      },
-      "strip": {
-        "membership": {
-          "applicant": "A postulé",
-          "matched": "Ajouté depuis le vivier",
-          "added": "Ajouté à la main"
-        },
-        "run": {
-          "queued": "En file d'attente",
-          "analyzing": "Analyse en cours",
-          "reused": "Analyse réutilisée",
-          "done": "Analysé",
-          "failed": "Échec de l'analyse"
-        },
-        "lamps": {
-          "peak": "Alerte de fiabilité",
-          "clip": "Blocage de fiabilité",
-          "unread": "Fiabilité non lue",
-          "talkback": "Évoqué dans la synthèse"
-        },
-        "open": "{name} : ouvrir le rapport complet",
-        "noReport": "{name} : pas encore de rapport",
-        "channel": "Tranche {n}",
-        "tape": {
-          "applicant": "Postulé",
-          "matched": "Vivier",
-          "added": "Ajouté"
-        }
-      },
-      "cell": {
-        "rated": "{name}, {dim} : {rating}, {tier}. {label}",
-        "absent": "{name}, {dim} : pas de note. {reason}",
-        "lead": "En tête sur ce bus",
-        "note": "Note : {comment}",
-        "band": "Marge {lo}–{hi}"
-      },
-      "decoy": "En opposition de phase : derrière {name} sur chaque dimension comparée",
-      "noise": "Dans la bande de bruit, {lo}–{hi}",
-      "master": {
-        "title": "Master",
-        "overall": {
-          "lead": "{name} est en tête, au-dessus du bruit",
-          "noise": "Personne en tête : le haut du classement reste dans le bruit",
-          "floor": "Trop peu de notes pour comparer"
-        },
-        "overallDetail": {
-          "lead": "L'écart avec la tranche suivante dépasse les deux marges d'incertitude.",
-          "noise": "{names} partagent la marge d'adéquation de {lo} à {hi} ; l'ordre entre eux n'est pas un constat.",
-          "noiseNone": "Aucune marge d'adéquation ne peut encore être tracée.",
-          "floor": "Moins de deux tranches ont une note d'adéquation : rien n'est comparé."
-        },
-        "robustness": {
-          "label": "Robustesse",
-          "stable": "Stable sous toutes les pondérations",
-          "sensitive": "Change sous certaines pondérations",
-          "undetermined": "Pas encore calculable"
-        },
-        "progress": "{done} sur {total} analysés",
-        "progressDetail": "{reused} réutilisés · {failed} en échec",
-        "running": "En cours : les tranches s'allument à mesure que les analyses arrivent",
-        "patch": {
-          "label": "Ordre des tranches",
-          "neutral": "Neutre",
-          "fit": "Par adéquation"
-        },
-        "readout": {
-          "label": "Afficheur",
-          "idle": "Pointez une tranche, un vumètre ou un bus pour le lire ici.",
-          "openHint": "Appuyez pour ouvrir le rapport complet.",
-          "soloHint": "Appuyez pour passer ce bus en solo."
-        },
-        "legend": {
-          "label": "Légende",
-          "meter": "Segments allumés = la note, dix points chacun",
-          "capped": "Vumètre obturé : pas de note, la raison est sur l'afficheur",
-          "pending": "Éteint : l'analyse n'est pas encore arrivée",
-          "lamps": "Voyants : ambre pour une alerte de fiabilité, corail pour un blocage",
-          "phase": "Ø en opposition de phase : derrière une autre tranche partout",
-          "talkback": "TB : évoqué dans la synthèse",
-          "tape": "Bande : a postulé, ajouté depuis le vivier, ajouté à la main"
-        }
-      },
-      "talkback": {
-        "title": "Talkback",
-        "covers": "Couvre les {n} meilleurs par adéquation · laisse de côté {out, plural, one {# tranche, dont les vumètres parlent} other {# tranches, dont les vumètres parlent}} d'eux-mêmes",
-        "none": "La synthèse est rédigée quand au moins deux tranches ont une note d'adéquation et que l'analyse est terminée.",
-        "model": "Rédigé par le modèle de langage ; chaque tête et chaque bruit sur cette console est décidé par le code.",
-        "keyless": "Rédigé sans modèle de langage, à partir des seuls constats."
-      },
-      "solo": {
-        "kicker": "Bus en solo · {claim} · {rated}",
-        "busLabel": "{dim} sur toutes les tranches : choisissez une tranche à mettre en avant",
-        "prev": "Bus précédent",
-        "next": "Bus suivant",
-        "muted": "{dim}, coupé : le passer en solo",
-        "claim": {
-          "lead": "une tête au-dessus du bruit",
-          "noise": "dans le bruit",
-          "floor": "aucune comparaison",
-          "unranked": "jamais classé"
-        }
-      },
-      "keys": {
-        "label": "Touches",
-        "names": {
-          "arrows": "Flèches",
-          "enter": "Entrée",
-          "esc": "Échap",
-          "brackets": "[ ]"
-        },
-        "acts": {
-          "move": "se déplacer sur la console",
-          "solo": "passer le bus en solo, ou ouvrir le rapport d'une tranche",
-          "back": "retour à la console",
-          "bus": "bus précédent / suivant"
-        }
-      }
-    },
     "shell": {
       "dev": {
         "data": "Données",
@@ -17685,6 +17395,14 @@
         "engineMissing": "Les nouvelles analyses demandent un moteur d’IA, et aucun n’est configuré : {n, plural, one {le # nouveau CV échouerait} other {les # nouveaux CV échoueraient}}. Les analyses reprises sont comparées malgré tout.",
         "engineUnknown": "Le moteur d’IA n’a pas pu être vérifié. Les nouvelles analyses en ont besoin ; les analyses reprises sont comparées dans tous les cas."
       }
+    },
+    "layers": {
+      "label": "Prototype de couche",
+      "pages": "Pages (1er tour)",
+      "ledger": "Registre des verdicts",
+      "anatomy": "Anatomie du score",
+      "headToHead": "Face-à-face",
+      "matrix": "Matrice des critères"
     }
   }
 }

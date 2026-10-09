@@ -15,6 +15,15 @@
       "membership": "applicant",
       "runState": "done",
       "analysisSlug": "cohort-cand-000",
+      "why": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
       "roleFamily": "software_engineering",
       "cells": {
         "fit": {
@@ -261,6 +270,15 @@
       "membership": "applicant",
       "runState": "done",
       "analysisSlug": "cohort-cand-040",
+      "why": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
       "roleFamily": "software_engineering",
       "cells": {
         "fit": {
@@ -507,6 +525,15 @@
       "membership": "applicant",
       "runState": "done",
       "analysisSlug": "cohort-cand-007",
+      "why": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
       "roleFamily": "software_engineering",
       "cells": {
         "fit": {
@@ -727,6 +754,15 @@
       "membership": "applicant",
       "runState": "done",
       "analysisSlug": "cohort-cand-047",
+      "why": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
       "roleFamily": "software_engineering",
       "cells": {
         "fit": {
@@ -913,6 +949,15 @@
       "membership": "applicant",
       "runState": "done",
       "analysisSlug": "cohort-cand-016",
+      "why": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
       "roleFamily": "software_engineering",
       "cells": {
         "fit": {
@@ -1075,6 +1120,15 @@
       "membership": "applicant",
       "runState": "done",
       "analysisSlug": "cohort-cand-030",
+      "why": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
       "roleFamily": "software_engineering",
       "cells": {
         "fit": {
@@ -1263,6 +1317,15 @@
       "membership": "applicant",
       "runState": "done",
       "analysisSlug": "cohort-cand-013",
+      "why": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
       "roleFamily": "product_project",
       "cells": {
         "fit": {
@@ -1515,6 +1578,15 @@
         "salary": null,
         "publicWork": null
       },
+      "why": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
       "neutralIndex": 7,
       "fitRank": null,
       "decoyOf": null
@@ -1525,6 +1597,15 @@
       "membership": "matched",
       "runState": "done",
       "analysisSlug": "cohort-cand-039",
+      "why": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
       "roleFamily": "software_engineering",
       "cells": {
         "fit": {
@@ -1702,6 +1783,15 @@
       "membership": "matched",
       "runState": "done",
       "analysisSlug": "cohort-cand-032",
+      "why": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
       "roleFamily": "software_engineering",
       "cells": {
         "fit": {
@@ -1865,6 +1955,15 @@
       "membership": "matched",
       "runState": "done",
       "analysisSlug": "cohort-cand-024",
+      "why": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
       "roleFamily": "software_engineering",
       "cells": {
         "fit": {
@@ -2034,6 +2133,15 @@
       "membership": "matched",
       "runState": "done",
       "analysisSlug": "cohort-cand-015",
+      "why": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
       "roleFamily": "software_engineering",
       "cells": {
         "fit": {
@@ -2232,6 +2340,15 @@
       "membership": "matched",
       "runState": "done",
       "analysisSlug": "cohort-cand-022",
+      "why": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
       "roleFamily": "data_ai",
       "cells": {
         "fit": {
@@ -2409,6 +2526,15 @@
       "membership": "matched",
       "runState": "reused",
       "analysisSlug": "cohort-cand-012",
+      "why": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
       "roleFamily": "software_engineering",
       "cells": {
         "fit": {
@@ -2594,6 +2720,15 @@
       "membership": "matched",
       "runState": "done",
       "analysisSlug": "cohort-cand-042",
+      "why": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
       "roleFamily": "software_engineering",
       "cells": {
         "fit": {
@@ -2774,6 +2909,15 @@
       "membership": "matched",
       "runState": "done",
       "analysisSlug": "cohort-cand-003",
+      "why": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
       "roleFamily": "software_engineering",
       "cells": {
         "fit": {
@@ -2982,6 +3126,15 @@
       "membership": "matched",
       "runState": "reused",
       "analysisSlug": "cohort-cand-048",
+      "why": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
       "roleFamily": "product_project",
       "cells": {
         "fit": {
@@ -3230,6 +3383,15 @@
         "salary": null,
         "publicWork": null
       },
+      "why": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
       "neutralIndex": 9,
       "fitRank": null,
       "decoyOf": null
@@ -3240,6 +3402,15 @@
       "membership": "added",
       "runState": "done",
       "analysisSlug": "cohort-cand-005",
+      "why": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
       "roleFamily": "software_engineering",
       "cells": {
         "fit": {
@@ -3398,6 +3569,15 @@
       "membership": "added",
       "runState": "reused",
       "analysisSlug": "cohort-cand-033",
+      "why": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
       "roleFamily": "product_project",
       "cells": {
         "fit": {
@@ -3689,6 +3869,16 @@
     "text": "Klára Blažková and David Kříž both cover every must-have for the backend role, and their fit bands overlap, so the order between them is not a finding. Klára's public Kafka and Spring work corroborates her CV; David's overlapping roles need a date check before the interview. Klára Kovářová and Vít Malý match the Java and Kafka core but each has one skill that is claimed rather than shown (Oracle, microservices). Adam Malý covers every must-have at junior level; his experience, not his skills, is the gap. Jan Mareš matches Vít Malý's skills but trails him on every compared dimension. Fourteen members are not discussed here; their cells stand on their own.",
     "engine": "model"
   },
+  "criteria": {
+    "fit": [],
+    "skills": [],
+    "experience": [],
+    "signals": [],
+    "trust": [],
+    "salary": [],
+    "publicWork": []
+  },
+  "roleBand": null,
   "progress": {
     "total": 20,
     "done": 18,

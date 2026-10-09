@@ -16874,9 +16874,7 @@
     "variants": {
       "label": "Prototype",
       "v1": "v1 form",
-      "lineup": "Line-up",
-      "loom": "Loom",
-      "console": "Console"
+      "lineup": "Line-up"
     },
     "labels": {
       "none": "No rating",
@@ -16911,138 +16909,6 @@
       "noJdFit": "No job fit",
       "failed": "Analysis failed",
       "blind": "Hidden (blind)"
-    },
-    "loom": {
-      "root": "Loom",
-      "kicker": "The loom · {threads, plural, one {# thread} other {# threads}} across {rows} rows",
-      "weaveLabel": "The weave: each candidate is a thread, each row a dimension",
-      "run": {
-        "running": "{landed} of {total} analysed · the rest are still being spun",
-        "done": "{landed} of {total} analysed",
-        "failed": "{n, plural, one {# thread is cut: its analysis failed} other {# threads are cut: their analyses failed}}"
-      },
-      "order": {
-        "label": "Hang the threads",
-        "neutral": "Neutral order",
-        "fit": "By fit rank",
-        "neutralNote": "A neutral, shuffled order: a thread's place says nothing.",
-        "fitNote": "By fit rank: an order, not a lead."
-      },
-      "overall": {
-        "clears": "{name} leads on fit, clear of the noise",
-        "insideNoise": "No lead on fit: {names} are first, within the noise",
-        "belowFloor": "No comparison yet: fewer than two members are rated on fit"
-      },
-      "robustness": {
-        "stable": "The order holds under every weighting",
-        "sensitive": "The order changes under another weighting",
-        "undetermined": "Robustness cannot be computed yet"
-      },
-      "claim": {
-        "clears": "{name} clears",
-        "insideNoise": "within the noise",
-        "belowFloor": "too few rated",
-        "neverLeads": "never a lead"
-      },
-      "tier": {
-        "strong": "strong",
-        "solid": "solid",
-        "thin": "thin",
-        "weak": "weak"
-      },
-      "membership": {
-        "applicant": "Applicant",
-        "matched": "Matched from the pool",
-        "added": "Added by hand"
-      },
-      "runState": {
-        "queued": "Queued",
-        "reused": "Reused analysis",
-        "analyzing": "Analysing…",
-        "done": "Analysed",
-        "failed": "Analysis failed"
-      },
-      "aria": {
-        "knot": "{name}, {dim}: {rating}, {tier}. {label}",
-        "knotNote": "{name}, {dim}: {rating}, {tier}. {label}. Has a note.",
-        "knotAbsent": "{name}, {dim}: no rating, {reason}",
-        "row": "{dim}: {claim}. Pull this row out",
-        "tag": "{name}, {membership}, {state}",
-        "tagReport": "{name}, {membership}, {state}. Opens the full report"
-      },
-      "shuttle": {
-        "label": "Reading",
-        "idle": "Point at a knot, a thread or a row to read it. Press a row or a knot to pull that row out.",
-        "fitRank": "Fit rank {rank} of {rated} · an order, not a lead",
-        "noFitRank": "No fit rank: {reason}",
-        "slack": "A slack thread: {other} is level or ahead on every compared dimension (a decoy).",
-        "report": "Press the name to open the full report",
-        "noReport": "The full report opens once the analysis lands",
-        "band": "Range {lo}–{hi}",
-        "note": "Note",
-        "noise": "Within the noise with {names}",
-        "noiseRow": "First within the noise: {names}",
-        "leads": "Leads this row, clear of the noise",
-        "pull": "Press to pull this row out",
-        "rated": "{rated} of {total} rated",
-        "partitions": "Not compared across currencies",
-        "partition": "{key}: {n, plural, one {# member} other {# members}}",
-        "salary": "Salary is read against the role's band and never ranks a candidate."
-      },
-      "legend": {
-        "label": "How to read the loom",
-        "strong": "Strong",
-        "solid": "Solid",
-        "thin": "Thin",
-        "weak": "Weak",
-        "absent": "No knot: the thread passes behind, with its reason",
-        "spinning": "Still being analysed",
-        "note": "A tag: a short note",
-        "float": "A loose float: within the noise, no lead",
-        "stitch": "A bound knot: a lead that clears",
-        "slack": "A slack thread: a decoy"
-      },
-      "cloth": {
-        "title": "Woven from {n, plural, one {the top thread} other {the top # threads}}",
-        "leavesOut": "{n, plural, =0 {Every thread is in the cloth.} one {# thread is not discussed; its cells stand on their own.} other {# threads are not discussed; their cells stand on their own.}}",
-        "model": "Written by the language model from the claims above; it never changes them.",
-        "keyless": "Written without a language model, from the claims above.",
-        "pending": "No cloth yet: the narrative is woven when the run finishes.",
-        "none": "No narrative: fewer than two members are rated."
-      },
-      "level": {
-        "kicker": {
-          "clears": "Clears the noise · {rated} of {total} rated",
-          "insideNoise": "Within the noise · {rated} of {total} rated",
-          "belowFloor": "Too few rated · {rated} of {total}",
-          "neverLeads": "Never a lead · {rated} of {total} rated"
-        },
-        "back": "Back to {place}",
-        "crumbs": "Where you are",
-        "rail": "The pulled row: every thread on {dim}",
-        "following": "Following {name}",
-        "followNone": "Press a knot to follow one candidate",
-        "rows": "Rows",
-        "prev": "Previous row",
-        "next": "Next row"
-      },
-      "keys": {
-        "label": "Keys",
-        "names": {
-          "arrows": "Arrows",
-          "enter": "Enter",
-          "esc": "Esc",
-          "brackets": "[ ]",
-          "leftRight": "← →"
-        },
-        "acts": {
-          "walk": "Walk the weave",
-          "pull": "Pull a row out",
-          "back": "Back to the loom",
-          "step": "Previous or next row",
-          "follow": "Follow a candidate"
-        }
-      }
     },
     "pages": {
       "common": {
@@ -17331,162 +17197,6 @@
         "focusOne": "Following {name}: {value}"
       }
     },
-    "console": {
-      "root": "Desk",
-      "deskLabel": "Comparison desk: {n, plural, one {# channel} other {# channels}}, one bus per dimension",
-      "crumbsLabel": "Where you are",
-      "back": "Back to the desk",
-      "head": {
-        "eyebrow": "Cohort desk",
-        "channels": "{n, plural, one {# channel} other {# channels}} of {cap}",
-        "blind": "Blind: names hidden"
-      },
-      "row": {
-        "channels": "Channels",
-        "patchedNeutral": "Neutral patch",
-        "patchedFit": "Patched by fit"
-      },
-      "bus": {
-        "solo": "Solo",
-        "soloLabel": "Solo {dim}: open its breakdown across every channel",
-        "claim": {
-          "lead": "Leads: {name}",
-          "noise": "Within the noise",
-          "floor": "No comparison",
-          "unranked": "Never ranked"
-        },
-        "claimLong": {
-          "lead": "{name} leads this bus, clear of the uncertainty bands.",
-          "noise": "Ordered, but the top is within the noise: no lead is named.",
-          "floor": "Too few channels carry a rating to compare on this bus.",
-          "unranked": "Salary is never ranked: each expectation is read against the role's band."
-        },
-        "rated": "{rated} of {total} rated",
-        "partitions": "{n, plural, one {# currency group} other {# currency groups}}, not comparable with each other: {keys}"
-      },
-      "tier": {
-        "strong": "strong",
-        "solid": "solid",
-        "thin": "thin",
-        "weak": "weak"
-      },
-      "strip": {
-        "membership": {
-          "applicant": "Applied",
-          "matched": "Matched from the pool",
-          "added": "Added by hand"
-        },
-        "run": {
-          "queued": "Queued",
-          "analyzing": "Analyzing",
-          "reused": "Reused analysis",
-          "done": "Analyzed",
-          "failed": "Analysis failed"
-        },
-        "lamps": {
-          "peak": "Trust warning",
-          "clip": "Trust blocker",
-          "unread": "Trust not read",
-          "talkback": "Discussed in the narrative"
-        },
-        "open": "{name}: open the full report",
-        "noReport": "{name}: no report yet",
-        "channel": "Channel {n}",
-        "tape": {
-          "applicant": "Applied",
-          "matched": "Matched",
-          "added": "Added"
-        }
-      },
-      "cell": {
-        "rated": "{name}, {dim}: {rating}, {tier}. {label}",
-        "absent": "{name}, {dim}: no rating. {reason}",
-        "lead": "Leads this bus",
-        "note": "Note: {comment}",
-        "band": "Band {lo}–{hi}"
-      },
-      "decoy": "Phase-cancelled: trails {name} on every compared dimension",
-      "noise": "In the noise band, {lo}–{hi}",
-      "master": {
-        "title": "Master",
-        "overall": {
-          "lead": "{name} leads, clear of the noise",
-          "noise": "No lead: the top is within the noise",
-          "floor": "Too few rated to compare"
-        },
-        "overallDetail": {
-          "lead": "The gap to the next channel is wider than both uncertainty bands.",
-          "noise": "{names} share the fit band from {lo} to {hi}; the order between them is not a finding.",
-          "noiseNone": "No fit band could be drawn yet.",
-          "floor": "Fewer than two channels carry a fit rating, so nothing is compared."
-        },
-        "robustness": {
-          "label": "Robustness",
-          "stable": "Stable under every weighting",
-          "sensitive": "Changes under some weightings",
-          "undetermined": "Not computable yet"
-        },
-        "progress": "{done} of {total} analyzed",
-        "progressDetail": "{reused} reused · {failed} failed",
-        "running": "Running: channels light up as their analyses land",
-        "patch": {
-          "label": "Patch order",
-          "neutral": "Neutral",
-          "fit": "By fit"
-        },
-        "readout": {
-          "label": "Readout",
-          "idle": "Point at a channel, a meter or a bus to read it here.",
-          "openHint": "Press to open the full report.",
-          "soloHint": "Press to solo this bus."
-        },
-        "legend": {
-          "label": "Legend",
-          "meter": "Lit segments = the rating, ten points each",
-          "capped": "Capped meter: no rating, the reason is in the readout",
-          "pending": "Unlit: the analysis has not landed yet",
-          "lamps": "Lamps: amber trust warning, coral trust blocker",
-          "phase": "Ø phase-cancelled: trails another channel everywhere",
-          "talkback": "TB: discussed in the narrative",
-          "tape": "Tape: applied, matched from the pool, added by hand"
-        }
-      },
-      "talkback": {
-        "title": "Talkback",
-        "covers": "Covers the strongest {n} by fit · leaves out {out, plural, one {# channel} other {# channels}}, whose meters stand on their own",
-        "none": "The narrative is written once at least two channels carry a fit rating and the run is done.",
-        "model": "Written by the language model; every lead and noise claim on this desk is decided by code.",
-        "keyless": "Written without a language model, from the claims alone."
-      },
-      "solo": {
-        "kicker": "Solo bus · {claim} · {rated}",
-        "busLabel": "{dim} on every channel: pick a channel to focus it",
-        "prev": "Previous bus",
-        "next": "Next bus",
-        "muted": "{dim}, muted: solo it instead",
-        "claim": {
-          "lead": "a lead clears the noise",
-          "noise": "within the noise",
-          "floor": "no comparison",
-          "unranked": "never ranked"
-        }
-      },
-      "keys": {
-        "label": "Keys",
-        "names": {
-          "arrows": "Arrows",
-          "enter": "Enter",
-          "esc": "Esc",
-          "brackets": "[ ]"
-        },
-        "acts": {
-          "move": "move across the desk",
-          "solo": "solo the bus, or open a channel's report",
-          "back": "back to the desk",
-          "bus": "previous / next bus"
-        }
-      }
-    },
     "shell": {
       "dev": {
         "data": "Data",
@@ -17685,6 +17395,14 @@
         "engineMissing": "Fresh analyses need an AI engine, and none is configured: {n, plural, one {the # fresh CV} other {the # fresh CVs}} would fail. Reused analyses still compare.",
         "engineUnknown": "The AI engine could not be checked. Fresh analyses need one; reused analyses compare either way."
       }
+    },
+    "layers": {
+      "label": "Layer prototype",
+      "pages": "Pages (round 1)",
+      "ledger": "Verdict ledger",
+      "anatomy": "Score anatomy",
+      "headToHead": "Head-to-head",
+      "matrix": "Criteria matrix"
     }
   }
 }

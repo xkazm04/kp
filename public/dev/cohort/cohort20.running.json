@@ -15,6 +15,15 @@
       "membership": "applicant",
       "runState": "done",
       "analysisSlug": "cohort-cand-000",
+      "why": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
       "roleFamily": "software_engineering",
       "cells": {
         "fit": {
@@ -260,6 +269,15 @@
       "membership": "applicant",
       "runState": "done",
       "analysisSlug": "cohort-cand-040",
+      "why": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
       "roleFamily": "software_engineering",
       "cells": {
         "fit": {
@@ -505,6 +523,15 @@
       "membership": "applicant",
       "runState": "done",
       "analysisSlug": "cohort-cand-007",
+      "why": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
       "roleFamily": "software_engineering",
       "cells": {
         "fit": {
@@ -724,6 +751,15 @@
       "membership": "applicant",
       "runState": "done",
       "analysisSlug": "cohort-cand-047",
+      "why": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
       "roleFamily": "software_engineering",
       "cells": {
         "fit": {
@@ -910,6 +946,15 @@
       "membership": "applicant",
       "runState": "done",
       "analysisSlug": "cohort-cand-016",
+      "why": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
       "roleFamily": "software_engineering",
       "cells": {
         "fit": {
@@ -1147,6 +1192,15 @@
         "salary": null,
         "publicWork": null
       },
+      "why": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
       "neutralIndex": 19,
       "fitRank": null,
       "decoyOf": null
@@ -1157,6 +1211,15 @@
       "membership": "applicant",
       "runState": "done",
       "analysisSlug": "cohort-cand-013",
+      "why": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
       "roleFamily": "product_project",
       "cells": {
         "fit": {
@@ -1409,6 +1472,15 @@
         "salary": null,
         "publicWork": null
       },
+      "why": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
       "neutralIndex": 7,
       "fitRank": null,
       "decoyOf": null
@@ -1486,6 +1558,15 @@
         }
       },
       "detail": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
+      "why": {
         "fit": null,
         "skills": null,
         "experience": null,
@@ -1579,6 +1660,15 @@
         "salary": null,
         "publicWork": null
       },
+      "why": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
       "neutralIndex": 12,
       "fitRank": null,
       "decoyOf": null
@@ -1656,6 +1746,15 @@
         }
       },
       "detail": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
+      "why": {
         "fit": null,
         "skills": null,
         "experience": null,
@@ -1749,6 +1848,15 @@
         "salary": null,
         "publicWork": null
       },
+      "why": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
       "neutralIndex": 16,
       "fitRank": null,
       "decoyOf": null
@@ -1834,6 +1942,15 @@
         "salary": null,
         "publicWork": null
       },
+      "why": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
       "neutralIndex": 4,
       "fitRank": null,
       "decoyOf": null
@@ -1844,6 +1961,15 @@
       "membership": "matched",
       "runState": "reused",
       "analysisSlug": "cohort-cand-012",
+      "why": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
       "roleFamily": "software_engineering",
       "cells": {
         "fit": {
@@ -2104,6 +2230,15 @@
         "salary": null,
         "publicWork": null
       },
+      "why": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
       "neutralIndex": 10,
       "fitRank": null,
       "decoyOf": null
@@ -2181,6 +2316,15 @@
         }
       },
       "detail": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
+      "why": {
         "fit": null,
         "skills": null,
         "experience": null,
@@ -2274,6 +2418,15 @@
         "salary": null,
         "publicWork": null
       },
+      "why": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
       "neutralIndex": 0,
       "fitRank": null,
       "decoyOf": null
@@ -2351,6 +2504,15 @@
         }
       },
       "detail": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
+      "why": {
         "fit": null,
         "skills": null,
         "experience": null,
@@ -2444,6 +2606,15 @@
         "salary": null,
         "publicWork": null
       },
+      "why": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
       "neutralIndex": 14,
       "fitRank": null,
       "decoyOf": null
@@ -2529,6 +2700,15 @@
         "salary": null,
         "publicWork": null
       },
+      "why": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
       "neutralIndex": 13,
       "fitRank": null,
       "decoyOf": null
@@ -2586,6 +2766,16 @@
     }
   },
   "narrative": null,
+  "criteria": {
+    "fit": [],
+    "skills": [],
+    "experience": [],
+    "signals": [],
+    "trust": [],
+    "salary": [],
+    "publicWork": []
+  },
+  "roleBand": null,
   "progress": {
     "total": 20,
     "done": 7,

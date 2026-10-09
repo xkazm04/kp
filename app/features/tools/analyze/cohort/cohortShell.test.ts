@@ -28,8 +28,8 @@ test("the fixture inbox knows live, done and running", () => {
 });
 
 test("production shows the baseline form and live data whatever was chosen", () => {
-  assert.equal(activeVariant(false, "loom"), "v1");
-  assert.equal(activeVariant(true, "loom"), "loom");
+  assert.equal(activeVariant(false, "lineup"), "v1");
+  assert.equal(activeVariant(true, "lineup"), "lineup");
   assert.equal(activeFixture(false, "done"), "live");
   assert.equal(activeFixture(true, "running"), "running");
 });
