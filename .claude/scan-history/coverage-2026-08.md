@@ -941,6 +941,438 @@ All five contexts count: every applicable lens ran on each, and the three n/a ce
 contexts with no `.tsx`. 41 thread contexts remain. At five per round that is nine more
 rounds, now against a settled denominator.
 
+## Recorded per-context coverage — 2026-10-09, ROUND 4, READ-ONLY (branch `autopilot/codebase-static-analysis-sweep-2fe18012`)
+
+**The denominator is round 3's, unchanged:** the 55 thread contexts of the retired 143-map
+(`git show 9c20a787:context-map.json`), decided and re-counted in the round-3 section above.
+Every id below is a 143-map id, and each file list was resolved from `9c20a787`.
+
+Fourth five-lens round of dev_goal `081c3e5a`. **Read-only:** every feature span was under an
+open operator Approval until 09:00, so nothing in `app/`, `pipeline/`, `scripts/` or
+`messages/` changed. Every finding is recorded here, not fixed. The batch is 5 contexts, each
+the least reconstructed coverage in its group by the per-group tables at the top of this file
+(one `bug-hunter` batch each):
+
+- `voice-runtime-1` and `interview-ui-and-voice-interview-portal-and-interviews`: Voice
+  Interviews, which round 3 left holding one five-lens context.
+- `schedule-ui-2`: Interview Scheduling, which also held one.
+- `matrix-ui-1`: Candidate Matching & Scoring.
+- `api-devcase-1`: Developer Assessment.
+
+`app/api/comms/`, the `about.*` / `landing.*` catalog keys,
+`app/features/insights/about/chapters.test.ts` and `app/landing/spark/MarketingClaims.test.ts`
+were neither read nor judged: another builder was changing them.
+
+### The round
+
+`✓` = read through that lens and judged; *clean* = judged with nothing found, which IS
+coverage; *n/a* = the lens has no surface here (no `.tsx` in the context). Counts are new
+findings; S/M/L as in round 2.
+
+| context | cat | files read | bug-hunter | ui-perfectionist | security-auditor | performance | ambiguity | fixed |
+|---|---|---|---|---|---|---|---|---|
+| `voice-runtime-1` | lib | 23 / 10 map-src | ✓ 4 S | n/a | ✓ 2 S | ✓ clean | ✓ 2 S | - (read-only round) |
+| `interview-ui-and-voice-interview-portal-and-interviews` | ui | 11 / 9 map-src | ✓ 3 S | ✓ 4 S, 1 M | ✓ 2 S | ✓ 1 S (U) | ✓ 2 S | - (read-only round) |
+| `schedule-ui-2` | ui | 39 / 19 map-src | ✓ 6 S, 2 M | ✓ 6 S | ✓ 1 S, 1 M | ✓ 1 S | ✓ 1 S | - (read-only round) |
+| `matrix-ui-1` | ui | 21 / 17 map-src | ✓ 6 S | ✓ 6 S | ✓ clean | ✓ 1 M | ✓ 2 S, 1 M | - (read-only round) |
+| `api-devcase-1` | api | 17 / 16 map-src | ✓ 6 S, 1 M | n/a | ✓ 1 S, 2 M | ✓ 2 S | ✓ 2 S | - (read-only round) |
+
+### Declared cuts, stated rather than rounded away
+
+- **"Files read" counts SOURCE files, read in full.** It is map source plus new source in the
+  same directories that is in no 143-map context: voice +13 (`director*.ts`,
+  `director-tools.mjs`, `asr-keywords.mjs`, `discarded-turns.ts`, `mint-error.ts`,
+  `provider-traits.ts`, `readiness.ts`, `resume.ts`, `transcript-of-record.ts`), interview +2
+  (`simBilling.ts`, `portal-state.ts`), schedule +20, matrix +4 (all in `focus/`), devcase +1
+  (`session/session-limits.ts`). `app/_lib/voice/` more than doubled; `schedule/` doubled.
+- **No listed file is gone.** All 85 `file_paths` of the five contexts exist on this tree.
+- **Colocated `*.test.ts` files were read only for what they already assert**, so a covered
+  case is not reported as a gap. They were never audited as code. Same gap as rounds 1-3.
+- **`voice-runtime-1`:**
+  - The three `.d.mts` declaration files were not opened.
+  - `quote-match.ts` and `interview-sim/director-loop.ts` were not read; `interview-run.ts`
+    and `interview-agenda.ts` were read only at the lines cited.
+  - Performance is *clean* by reasoning, not measurement: about three state derivations
+    and one events read of at most ~4100 rows per director exchange, under an IMMEDIATE
+    lock, at a rate-limited ≤0.4 requests/s.
+- **`interview-ui-and-voice-interview-portal-and-interviews`:**
+  - The map puts `app/_lib/db/` in this context's directories, and that directory gained
+    ~150 unrelated files. Only the functions `interviews.ts` calls were traced; none was
+    counted as read.
+  - `app/_components/voice/**` was traced only as far as the props the portal passes.
+    `anonymizeEntry` (`app/_lib/db/pipeline.ts`) was not read, which is the open half of
+    R4-interview-ui-2.
+  - Recipe drift at `interview-lab/page.tsx:51,55` and `InterviewStartPanel.tsx:49` is
+    already declared in `recipe-debt.json` / `style-debt.json` and is not filed.
+- **`schedule-ui-2`:**
+  - The sibling `schedule-ui-1` files (`useScheduleTab.ts`, `ScheduleCalendar.tsx`,
+    `ScheduleAiRound.tsx`, `useScheduleInviteLifecycle.ts`) were traced, not judged. Three
+    findings below have their fix site there and say so.
+  - `ScheduleInterviewTelemetryStrip`, `ScheduleInterviewObservations` and
+    `ScheduleInterviewRecordings` pass server enum values into `t(KEY[x])`; whether the
+    server narrows them was not checked, so a possible throw is not filed.
+- **`matrix-ui-1`:**
+  - The new files in the parent `matrix/` directory (`MatrixGridRow.tsx`,
+    `matrixSelection.ts`, `useMatrixTab.ts`, …) belong to `matrix-ui-2`, which round 2 read
+    through five lenses. They were traced, not judged.
+  - The Python reasoning task handler was not read, so R4-matrix-ui-1-5's English-text
+    branch is inferred from `app/_lib/tasks.ts:736`; its CODE branch is traced.
+  - Recipe drift at `MatchJobCompare.tsx:46`, `MatrixCandidateFocus.tsx:67` and
+    `MatchResultsHeader.tsx:73` is declared in `recipe-debt.json:130-140` and is not filed.
+- **`api-devcase-1`:**
+  - `app/_lib/devcase-session-auth.ts` internals, `readJsonWithLimit`, `task-budget.ts`,
+    the billing `meterGate`, `wrapUpRecipients` / `stopVerdict` and `createPipelineEntry`'s
+    dedup were not read. So promote double-click idempotency is unjudged, and whether
+    `meterGate` bounds redesign spend on a self-hosted install is open.
+- **One finding was found by one read and filed under the other context.** The
+  `voice-runtime-1` read, checking the claim at `candidate-brief.ts:32-34`, found that
+  `app/interview/[token]/page.tsx:157` hands the raw run-of-show to a client component. The
+  `interview-ui` read had judged that page's props clean. The code decides: it is filed as
+  R4-interview-ui-13, under the context that owns the file, and counted once.
+- **Observed out of lane, not counted:** `app/_lib/calendar-links.ts`
+  `interviewCalendarEvent` writes English event copy ("Interview with…", "Scheduled with
+  KP.") into the recruiter's calendar in every locale.
+- **Line anchors were taken one file at a time** (`grep -n` on one file, or a Read of one
+  file). Every reviewer was told never to use `cat -n` over several files. On top of that, the
+  anchors of 41 of the 69 findings were re-read on this worktree with a per-file `sed -n` or
+  `grep -n` before this table was written: devcase 1, 2, 5, 6, 9, 11, 12, 13 and 14; matrix
+  1, 2, 3, 5, 10, 11 and 13; voice 1, 2, 4, 6, 7 and 8; interview 1, 2, 3, 4, 5, 9, 11 and
+  13; and schedule 1, 2, 3, 4, 6, 7, 8, 11, 12, 13 and 18. All held. The other 28 rest on the
+  reviewer's own per-file anchors.
+
+### Findings
+
+**69 new findings: 60 S, 9 M, 0 L.** Five duplicates were not counted (below). Nothing was
+fixed (read-only round). "C" = CONFIRMED, traced end to end; "U" = UNVERIFIED, with what was
+not read. Path roots: voice = `app/_lib/voice/`; schedule = `app/features/hiring/schedule/`;
+matrix = `app/features/insights/matrix/` (`focus/` where written); devcase =
+`app/api/devcase/`; anything else is rooted.
+
+| id | lens | sev | file:line | what is wrong | path read | |
+|---|---|---|---|---|---|---|
+| R4-voice-runtime-1-1 | bug | S | `director.ts:578-581`, `:750-755` | an overrun request the candidate never answers is meant to close "exactly like a refusal" (`:506-508`, `director-tools.mjs:36`), but two paths treat the silence as open. Between grace end and the ceiling, `prematureCompletion` refuses the model's own `end_interview("complete")` and sends it back to must-asks the candidate never agreed to; `report_extra_time` accepts a late `agreed` with no grace check, raising the ceiling to 2× the booking and reopening a closing call | `pickDirective` `:493-514` → `applyDirectorTool` `:774-781` → `prematureCompletion` `:572-582` (only `declined` releases) → `:744-764`; `director.test.ts:576-616` tests 31.5 and 38, nothing inside the window | C |
+| R4-voice-runtime-1-2 | bug | S | `transcript-of-record.ts:112-121` | the merge anchors on the body's LAST occurrence of the ledger's final turn. If that text recurs in the unsent tail (an interviewer "Thank you.", a candidate "Yes."), the turns between the two copies land in `head` past the ledger, are counted `unanchored` and dropped from the stored, scored transcript | `:113-119` → alignment `:131-154` → `:153` → `:162`; every test fixture has unique texts | C |
+| R4-voice-runtime-1-3 | bug | S | `director.ts:766-799`; `app/_lib/interview-axis-coverage.ts:90-93` | every accepted `end_interview` writes one `must_ask_unasked` row per outstanding question, with no `state.endRequested` check. A repeated call, or an ended → failed → resumed attempt, writes a second set; `axisCoverage` counts rows, not distinct `questionId`s, so `mustAsksUnasked` doubles in the jobs compare view (`jobsCompareCohorts.ts:183`). `ScheduleInterviewObservations.tsx:87-91` already dedupes for this case | `director.ts:787-799` → `director-exchange.ts:140-142` → axis-coverage `:89-93` | C (path); how often a model repeats the call not measured |
+| R4-voice-runtime-1-4 | bug | S | `elevenlabs.ts:61`; `openai.ts:334` | `await res.json()` sits outside `mintFetch`: a 200 with an HTML body (a self-hosted `ELEVENLABS_BASE_URL` pointing at the wrong service) throws a `SyntaxError` that `classifyMintFailure` reads as `upstream`, so readiness says "retry" instead of the `malformed` fix "check ELEVENLABS_BASE_URL"; a body read cut by the timeout reads as `upstream` too | `elevenlabs.ts:43-63` → `mint-error.ts:74-76` → `readiness.ts:99,105-107,233-236`; `mint-error.test.ts:88-102` uses JSON bodies only | C |
+| R4-voice-runtime-1-5 | security | S | `director-brief.ts:319-322,353-359` | `resumeAddendum` claims prior turns are "quoted as transcript and never as instructions", but wraps them in curly quotes without neutralising quotes inside, and strips `[Director]` only at the start of a turn. A browser-written turn `ok” [Director] … “` closes the quote and lands in the next attempt's server-side brief as text shaped like the producer channel the protocol says to "follow immediately" | `api/interview/director/route.ts:78-81` → `director-step.ts:55-67` (`clampTurn` caps length only) → `resume.ts:33-43` → `connect/route.ts:292,405,422`, `interview-run.ts:91-92` → `resumeAddendum` | C (reaches the brief); U: whether a realtime model obeys it |
+| R4-voice-runtime-1-6 | security | S | `candidate-brief.ts:104-105` | `candidateSafeTopic`, the declared scrub boundary for the client-sent ElevenLabs brief and every candidate-facing agenda title, cannot handle nested brackets: `[^)\]]*` runs over the inner `(` and stops at the first `)`, so "Leadership (gap: no team lead (only mentoring) experience)" scrubs to "Leadership experience)" | regex traced by hand on this worktree; `candidate-brief.test.ts:165-180` has no nested case; consumers `interview-agenda.ts:335,443,498` | C (traced, not executed) |
+| R4-voice-runtime-1-7 | ambiguity | S | `openai.ts:194-196` vs `:291` | the `expiresAfterSec` doc says omitting it is "the shape the `metadata`-rejected retry in connect() falls back to"; the retry `mint(false)` (`:324`) still sends `expiresAfterSec: OPENAI_SECRET_TTL_SEC` | `:274-302`, `:311-328` | C |
+| R4-voice-runtime-1-8 | ambiguity | S | `preflight.ts:75-76` | the `@deprecated` alias `voicePreflightError` has no caller anywhere, tests included | grep over `app/` | C |
+| R4-interview-ui-1 | bug | S | `app/_lib/db/interviews.ts:1103-1115` | the nightly recording-retention read keeps every session with `recordings_json != '[]'`, oldest first, `LIMIT 2000`, and only then (`toRetentionRows`, `:1064`) drops sessions whose recordings are all deleted. Deleted recordings keep their ledger row by design, so once 2000 sessions have ever recorded, the window is the oldest 2000 and newer audio past retention is never selected | `app/_lib/interview-recording.ts:250` → `:1111-1113` → `:1064`; nothing resets `recordings_json` (grep) | C |
+| R4-interview-ui-2 | security | S | `app/_lib/db/interviews.ts:936-977` | a chunk claim for an attempt whose recording is already deleted succeeds: the new meta is `{ ...existing, … }`, keeping `deletedAt`, and the route then `appendFile`s the audio back. The ledger says deleted, so every later deletion skips it and the file stays on disk for good. Reachable: the candidate's delete door has no live-call guard (`app/api/status/[token]/recording/route.ts:48`), and uploads are accepted for 2 min after `/complete` (`app/api/interview/recording/route.ts:84`) | `recording/route.ts:108` → `:940-977` → `recording/route.ts:125` → `interview-recording.ts:88-93,161` | C (store + upload); U: whether `anonymizeEntry` clears `recording_consent_at`, which would close the GDPR-erasure variant only |
+| R4-interview-ui-3 | bug | S | `app/_lib/db/interviews.ts:360` | the recruiter's AI-round list filters `mode = 'candidate'` only, and `/api/interview/simulate` mints sessions as candidate mode with no entry ("Demo candidate", `simulate/route.ts:54,105`). Every simulation, abandoned ones included, shows in `ScheduleAiLedger` as an outstanding link (a stuck one as "live", `ScheduleAiLedger.tsx:57-60`), uses the 100-row limit and is counted by the palette preview (`resolve-library-tools.ts:65`). Only the completed table filters it (`ScheduleAiRoundCompleted.tsx:60`) | `InterviewSimTab.tsx:82` → `simulate/route.ts:105` → `:360` → `api/interview/sessions/route.ts:16` → `ScheduleAiRound.tsx:38` | C |
+| R4-interview-ui-4 | bug | S | `app/_lib/db/interviews.ts:497-506` | `isInterviewLinkExpired`'s parameter type omits `lastActivityAt` and passes only `updatedAt` to the live check, so a directed call >30 min past connect but still talking is not "live" there. On a link >7 days old a mid-call reload shows the "expired" card (`portal-state.ts:54` checks expiry first) and `/connect` answers `INTERVIEW_LINK_EXPIRED` (`connect/route.ts:141` before `:162`), against the docstring `:489-492` | `page.tsx:28` → `portal-state.ts:54` → `:503`; `isInterviewSessionLive` `:519-522` | C |
+| R4-interview-ui-5 | ui | S | `app/features/tools/interview/InterviewSimTab.tsx:97` | a network failure throws `TypeError` and the catch renders `e.message`, so the browser's English "Failed to fetch" reaches cs/de/fr | `:82` → `:94` → `:97` → `InterviewStartPanel.tsx:67` | C |
+| R4-interview-ui-6 | ui | S | `app/features/tools/interview/InterviewStartPanel.tsx:67` | the "could not start the simulation" failure is a plain `<p>` with no `role="alert"` | — | C |
+| R4-interview-ui-7 | ui | S | `app/features/tools/interview/InterviewAttachToCandidate.tsx:57,67,108` | `throw new Error()` discards the body, so the route's codes (`simulate/attach/route.ts:27,44,61`) never reach `useErrorMessage`; the failure text has no `role="alert"`; on success the focused Attach button unmounts and the "done" text has no `role="status"`, so focus drops to `<body>` unannounced | — | C |
+| R4-interview-ui-8 | ui | M | `app/features/tools/interview/InterviewStartPanel.tsx:37,48-52`; `InterviewSimTab.tsx:127-128` | English fixture text inside localized copy: `DEMO_CASE_SCENARIO.caseIntro` in a Czech sentence, rubric names straight from `pipeline/jobfit/interview-script.json`, and the route's hard-coded "Demo candidate" / "Senior Backend Engineer (demo)" (`simulate/route.ts:54-55`). M: localized fixture/rubric keys or a client-side demo label is a choice | — | C |
+| R4-interview-ui-9 | ui | S | `app/interview-lab/page.tsx:8` | `export const metadata = { title: "Voice interview lab" }` is English in every locale although `interview.lab.title` exists in all four catalogs | — | C |
+| R4-interview-ui-10 | perf | S | `app/_lib/db/interviews.ts:74,356` | the per-session cost subquery filters `llm_usage.request_id`, which has no index (`core.ts:962-963,2592` index `ts`, `(use_case, provider)`, `ingest_key`), so each listed session (up to 500; unbounded in `interviewedForJob`) may scan every `interview_realtime` ledger row | — | U: `EXPLAIN QUERY PLAN` not run |
+| R4-interview-ui-11 | ambiguity | S | `app/_lib/db/interviews.ts:436-439` | "Every other op is by the globally-unique id/token/entry_id" describes the pre-tenancy state; every entry-keyed read and write now filters by workspace (`:568-575`, `:591-675`, `:1139-1153`) | — | C |
+| R4-interview-ui-12 | ambiguity | S | `app/_lib/db/interviews.ts:1036-1041` | `interviewRecordingsForSession` has no production caller (three tests only), yet its docstring describes a door that is "never an existence oracle" | grep over `app`, `scripts`, `docs` | C |
+| R4-interview-ui-13 | security | S | `app/interview/[token]/page.tsx:157` | the public candidate page passes `session.runOfShow` raw as a prop to the `"use client"` `InterviewPortalClient`, so the unscrubbed agenda annotations ("(missing must-have)", per `candidate-brief.ts:28-34`) ride the RSC payload, a devtools tab away. The sidebar scrubs only what it DISPLAYS (`InterviewSidebar.tsx:64,72`) | `page.tsx:151-158` → `InterviewPortalClient.tsx:1` → `InterviewSidebar.tsx:42-75` | C (raw prop serialized); annotation content taken from the two code comments, `interview-run.ts` not re-read |
+| R4-schedule-ui-2-1 | bug | M | `scheduleTabDerived.ts:40` | `bookedMarkersFrom` calls `isoToDateSlot(i.slotAt)` with its default zone, `INTERVIEW_TZ = process.env.KP_INTERVIEW_TZ \|\| "Europe/Prague"` (`app/_lib/schedule-slots.ts:130`), which a client bundle always resolves to Prague. On a non-Prague install confirmed bookings draw in the wrong hour cell or vanish on a Prague weekend, and the recruiter can book over a taken hour. The server already returns `interviewTz` and the client uses it only for the label. M: the same default sits in `useScheduleTab.ts:205` and `ScheduleCalendar.tsx:72` (sibling context) | `schedule-slots.ts:504-510` → `:130`; `api/schedule/route.ts:90-94,111`; `useScheduleTab.ts:119-122,198` | C |
+| R4-schedule-ui-2-2 | bug | S | `schedulePendingCardState.ts:129` | a CONFIRMED invite whose cell source is not `booked` resolves to `awaiting`: "Link sent {when}, no time picked yet" for a candidate who booked, with Confirm demoted. Reached by a weekend slot (`isoToDateSlot` null) or a failed agenda read (`useScheduleTab.ts:182,203` seeds from `[]` while `:184` keeps the old invites) | `useScheduleTab.ts:182-219,387-391` → `:126-130` → `ScheduleTabPendingList.tsx:50-56` | C |
+| R4-schedule-ui-2-3 | bug | S | `scheduleTabDerived.ts:65` | `unscored`/`scoring` rows are admitted whatever `approvalKind` is, so a calendar-gated entry whose voice call just ended lists in BOTH pending and Interviewed, for 5 min (`SCORING_GRACE_MS`) or for good if scoring failed. The test "a candidate still awaiting a slot is never listed as interviewed" (`scheduleTabDerived.test.ts:77-80`) passes only because its fixture has no `mode`/`status` | `useScheduleTab.ts:376,398-401` → `:62-66` → `app/_lib/interview-scoring-state.ts:17-33`; `api/interview/complete/route.ts:270-274` | C |
+| R4-schedule-ui-2-4 | bug | S | `ScheduleTabInterviewedList.tsx:51` | a successful Re-score calls `router.refresh()`, which re-renders server components only; this tab is client state. The card stays "Unscored" with Re-score enabled (a second paid re-score), and when the poll later shows `scored` the stale `approvalKind` drops the card from the tab (`scheduleTabDerived.ts:67-70`) until a `load()` | `scheduleRescore.ts:19-20` → `api/interview/sessions/[id]/rescore/route.ts:70-78` | C |
+| R4-schedule-ui-2-5 | bug | M | `ScheduleTab.tsx:196-199` | the tab's single `error` replaces the whole calendar and pending list, and the per-card "Start interview" failure writes the same slot (`useScheduleTab.ts:511,526`), so a refused start (409, 402, `COMMS_SUPPRESSED`) blanks the grid until the next `load()`, which the status poll never calls. M: the fix site is the sibling hook | `ScheduleTab.tsx:242` → `useScheduleTab.ts:509-531` | C |
+| R4-schedule-ui-2-6 | ui | S | `ScheduleTab.tsx:198` | renders `error`, a thrown `e.message`: "HTTP 500" (`app/features/shared/sharedGet.ts:44-58`), "Failed to fetch", or the server's raw `p.error` (`useScheduleTab.ts:169` → `:222`) — English in every locale | — | C |
+| R4-schedule-ui-2-7 | security | M | `ScheduleInviteAttentionSection.tsx:79` | `t("needsReconcile", { reason: i.reconcileReason })` renders the persisted `advanceError.message` verbatim — SQLite or pipeline exception text the token route itself calls "raw internal error text" (`api/schedule/[token]/route.ts:40`). Same class as R3-pipeline-board-5-5, different data flow. M: a reason code across store, route and 4 catalogs | `api/schedule/route.ts:276,435` → `app/_lib/schedule-store.ts:741-742` → GET `/api/schedule` | C |
+| R4-schedule-ui-2-8 | security | S | `ScheduleInviteAgendaRow.tsx:74-75` | the recruiter's "Add to calendar" event gets `baseUrl`, so `interviewCalendarEvent` writes "Confirm, reschedule, or cancel: `<base>/schedule/<candidate token>`" into the description, which goes into a calendar.google.com / Outlook URL query (`calendar-links.ts:31,34`) and the `.ics`, whose `uid` is `interview-${i.token}`. The candidate's capability link leaves kp and lands in a possibly shared calendar | `:74` → `app/_lib/calendar-links.ts:86-110` → `ScheduleAddToCalendar.tsx:37-47` | C (path; no doc says it is intended) |
+| R4-schedule-ui-2-9 | ui | S | `ScheduleInviteLifecyclePanel.tsx:47`; `ScheduleMeetingLinkCell.tsx:112`; `ScheduleInterviewTranscriptModal.tsx:98` | three failure outcomes render without `role="alert"` | — | C |
+| R4-schedule-ui-2-10 | ui | S | `ScheduleTabPendingList.tsx:215,220,285`; `ScheduleTabInterviewedList.tsx:91`; `ScheduleAiLedger.tsx:153`; `ScheduleAiRoundCompleted.tsx:87`; `ScheduleInterviewPrepOverlay.tsx:80`; `ScheduleInterviewPrepOverlayRow.tsx:141`; `ScheduleInterviewTranscriptTurns.tsx:43,48,118`; `ScheduleInviteAgendaRow.tsx:51` | `title=` tooltips (`ui.md` bans them) carrying information shown nowhere else: the "sends them no message" warning on a no-undo direct booking (`:285`), the stale-prep instruction (`:220`), and two disabled buttons whose only reason sits on the disabled button itself, out of keyboard and screen-reader reach | — | C |
+| R4-schedule-ui-2-11 | ui, perf | S | `useScheduleInterviewPrep.ts:86` | `new Intl.DateTimeFormat(locale, …)` on every render, notes keystrokes included, instead of `useFormatter()`, which also bypasses next-intl's configured `timeZone` | — | C |
+| R4-schedule-ui-2-12 | ui | S | `useScheduleInterviewPrep.ts:303` | the copy-prep clipboard line hard-codes the English unit: `` `- [${from}–${to} min] …` ``; its neighbours `:296,300,301,307` go through `t()` | — | C |
+| R4-schedule-ui-2-13 | ui | S | `ScheduleTabPendingList.tsx:296` | the terminal Decline is guarded by `window.confirm`: unthemed, OK/Cancel in the browser's language. `ui.md` names `ConfirmDialog` | — | C |
+| R4-schedule-ui-2-14 | bug | S | `useScheduleInterviewPrepOverlay.ts:85-91` | an edit refused locally (`problems`) shows on screen but is not persisted, and `saveState` keeps its previous `"saved"`, so `ScheduleInterviewPrepOverlay.tsx:146` says "Saved" for an overlay the server does not hold; closing drops the edit silently | — | C |
+| R4-schedule-ui-2-15 | bug | S | `schedulePrepPlanDiff.ts:116-130` | a pure reorder of blocks makes `isNoop` false (`:130`) but `PlanDiff` has no field for it, so `ScheduleInterviewPrepPlanDiff.tsx:57` shows "Review what would change" over zero lines. No test reorders | — | C |
+| R4-schedule-ui-2-16 | bug | S | `ScheduleInterviewTranscriptModal.tsx:39` | the `/api/interview-prep` read's `error` is discarded, so a failed human-scorecard read looks exactly like "no scorecard filed" (`:118,:155`), the failure-vs-empty conflation `:95-96` forbids for the session read | — | C |
+| R4-schedule-ui-2-17 | perf, ambiguity | S | `ScheduleCalendarStatus.tsx:12,18` | the doc says "from the same slot offer used to reschedule"; the recruiter reschedule control was removed (`ScheduleInviteRecruiterControls.tsx:5-8`). This is now the only caller of `/api/schedule?slots=1`, so every tab mount runs a 21-day `proposeFreeSlots` plus a Google free/busy lookup (`api/schedule/route.ts:78`) to keep one status enum; the `token`/`minutes` branch (`:73-75`) has no caller | grep over `app/` | C |
+| R4-schedule-ui-2-18 | ambiguity | S | `scheduleAgenda.ts:49,126`; `scheduleInterviewPrepProgress.ts:25` | exports with no production caller: `isAgendaVerb` (none at all); `calendarEntryIdsOf` (test-only, while `useScheduleTab.ts:381` inlines the same rule, so the test pins a helper production never runs); `emptyPrepState` (test-only, though its doc says regeneration resets to it; the hook uses literals and `hydratePrepState`) | grep over `app/` | C |
+| R4-matrix-ui-1-1 | bug | S | `focus/useMatchTabRun.ts:87,103` | the options load always selects `rows[0]`, after the deep-link effect (`:192-210`, a 0 ms timer) has selected the linked candidate. The picker shows rows[0] over the linked candidate's ranking, and "Run matching" (`:174-178`) runs rows[0]. Every entry into focus mode arrives by deep link (`MatrixTab.tsx:37-44`) | `:82-88,99-104` → `MatrixCandidateFocus.tsx:90,110` | C (the ordering is the common case: a network round-trip outlasts a 0 ms timer) |
+| R4-matrix-ui-1-2 | bug | S | `focus/useMatchTabRun.ts:193,201` | `autoRan` is a boolean set once, so a second `?profile=B` while focus mode is open is ignored; the URL names B, the screen keeps A. `MatrixTab.tsx:40-44` says a second navigation must work, and nothing remounts the hook (`MatrixTab.tsx:130`, `WorkspaceTabChunks.tsx:127`) | — | C |
+| R4-matrix-ui-1-3 | bug | S | `focus/useMatchTabRun.ts:150,164` | `await r.json()` has no catch (unlike `:75,95`), and the catch at `:164` shows `caught.message` for any `Error`, so a non-JSON body's `SyntaxError` or a dropped network's `TypeError` reaches the panel (`MatrixCandidateFocus.tsx:169`) or `rerankFailed {error}` (`MatchResultsHeader.tsx:66`) in English; `t("matchFailed")` is unreachable | — | C |
+| R4-matrix-ui-1-4 | ui | S | `focus/MatrixCandidateFocus.tsx:169` | the full-panel failure `<p>` has no `role="alert"`; the inline banner for the same failure has one (`MatchResultsHeader.tsx:65`) | — | C |
+| R4-matrix-ui-1-5 | ui | S | `focus/useMatchCardReasoning.ts:45` | `reasoningError ?? t("card.reasoningFailed")` is the inverted fallback the repo retired: the task error is stored as a CODE (`app/_lib/tasks.ts:733-737`), passed through (`useTaskResult.ts:47-52`) and rendered verbatim (`app/features/shared/MatchReasoningPanel.tsx:39`), so a recruiter reads "ENGINE_TIMEOUT". `TasksTableRow.tsx:111` resolves the same field | — | C (code branch); English-handler branch inferred, see cuts |
+| R4-matrix-ui-1-6 | bug | S | `focus/useMatchCardReasoning.ts:36-47` | `resultUnavailable` is never read, though `useTaskResult.ts:39-42` says consumers MUST resolve busy on it. A succeeded task whose full-record fetch gave up leaves `reasoning` at `{loading: true}` for good: "Explain fit" stays disabled on its busy label (`MatchCard.tsx:147,150`) | — | C |
+| R4-matrix-ui-1-7 | bug | S | `focus/useMatchResultsPipeline.ts:32,107-111` | a card whose add came back stale-run (409) offers "Run matching"; the rerun succeeds with a new `matchRunId`, but `MatchResults` keeps its key (candidate id, `MatrixCandidateFocus.tsx:150`) and nothing resets `stale`/`errors`, so the "stored result is gone" alert stays over a valid run | — | C |
+| R4-matrix-ui-1-8 | bug (explainability) | S | `focus/useMatchTabRun.ts:140-143`; `focus/matchView.ts:36` | the keep-the-ranking-mounted rule is commented for a re-rank but applied to every run, so while candidate B loads, A's ranking (live Add buttons) sits under a picker showing B; if B fails, `rerankFailed` says "Showing the previous ranking" over another candidate's ranking | — | C |
+| R4-matrix-ui-1-9 | ui | S | `focus/MatchCard.tsx:161`; `focus/MatchJobCompare.tsx:62`; `focus/MatchResultsHeader.tsx:93`; `focus/MatrixCandidateFocus.tsx:119` | seniority rendered as the raw slug (and `role_family` raw at `:119`) while the same lines pass family through `enumLabel`; a fr reader sees "medior" where the catalog has "Confirmé" | `MatrixGrid.tsx:118,124` use `enumLabel("seniority", …)`; cs/de/fr catalogs checked | C |
+| R4-matrix-ui-1-10 | ui | S | `focus/matchCsv.ts:27` | the CSV exports `m.fitTier` as the raw slug under a localized header, while the same row's reasons column localizes it (`matchReasons.ts:94`) | — | C |
+| R4-matrix-ui-1-11 | ui | S | `MatrixDataNotices.tsx:52` | `` title={`${data.poolCap} of ${data.poolTotal} candidates scored`} `` is English in every locale, contradicts `:55-56` ("without a new i18n string"), is a banned `title=` on a non-focusable `<p>`, and repeats the visible `ofCount` | — | C |
+| R4-matrix-ui-1-12 | ui (explainability) | S | `focus/MatchCardSkillChips.tsx:88,91,106,108,119,121` | a chip's bucket (partial / unproven / missing) is carried by colour, a glyph and a `title=` on a non-focusable span; a screen reader hears "~ Kubernetes", and keyboard/touch users never reach the partial percentage or "probe, don't count it", so a partial match reads as verified. `MatchCard.tsx:89,117` put the score-provenance sentence in `title` only too | — | C |
+| R4-matrix-ui-1-13 | ambiguity, perf | M | `focus/matchRunSequence.ts:11-13` | rejects an AbortController because a superseded run's answer "is still worth writing to the server-side cache"; /api/match has no cache (it spawns, parses and `recordMatchRun`s under a run id the client discards, `app/api/match/route.ts:80-118`; `matching.py:765`'s `lru_cache` lives one CLI process). The route already forwards `request.signal` (`:80-83`), and every superseded run holds an engine-semaphore slot (`python-runner.ts:203-217`, default 4), so rapid re-weights can 503 ENGINE_BUSY the current run. M: it reverses a written decision | — | C (no cache, semaphore); U: the 503 under load not reproduced |
+| R4-matrix-ui-1-14 | perf | M | `focus/MatchResults.tsx:178-195`; `focus/MatchCard.tsx:16` | every add / select / compare toggle re-renders every card: `MatchCard` is not memoised and the inline `onAdd` / `onToggleSelect` closures (`:190,193`) would defeat a memo; each card rebuilds `ScoreBreakdown`, the chips and `matchReasons(m)`, up to 200 cards (`MATCH_LIMIT_MAX`). Same churn class as round 2's header finding | — | U: cost not profiled |
+| R4-matrix-ui-1-15 | ambiguity | S | `focus/MatchCardSkillChips.tsx:27` | `unprovenLabelKey` is exported but imported nowhere (one test regex, `matrixGridRoles.test.ts:59`); the mapper is re-written at `decisionsAnalysisSummaryData.ts:127` and `JobFitTab.tsx:138` while `:23-26` says to "reuse it verbatim rather than forking" | grep over `app/` | C |
+| R4-matrix-ui-1-16 | ambiguity | S | `focus/useMatchTabRun.ts:2,43` | the comments name `MatchTab.tsx` and "key in MatchTab"; that file no longer exists, the key lives at `MatrixCandidateFocus.tsx:150` | — | C |
+| R4-api-devcase-1-1 | bug | S | `lifecycle/[id]/close/route.ts:112` | postings are closed only after the whole `await sendComm` loop (`:81-110`). Applications arriving meanwhile pass `intakeSubmission`'s posting-status check, are acknowledged and filed, and are never told anything (`recipients` was fixed at `:70`). If anything throws between the claim (`:41`) and `:112`, the lifecycle is closed and its postings stay open for good, since a retry hits `alreadyClosed` | `:41` → `app/_lib/db/devcase.ts:413-419` (claim flips the stage only) → `distribution.ts:119-121` → `:112` | C |
+| R4-api-devcase-1-2 | bug | S | `lifecycle/[id]/close/route.ts:92-93` (and `:74`) | the wrap-up rejection letter is a hard-coded English subject and body (and an English `"the role"` fallback) in all four locales; its siblings (intake ack `distribution.ts:160`, the feedback brief) go through `commsTranslator`, and `lc.lang` / `lc.workspaceId` are at hand | grep "moving forward": the only copy | C |
+| R4-api-devcase-1-3 | bug | S | `feedback/route.ts:40-53` | `buildFeedbackBrief` is never given `locale`, so the candidate's letter is always in the team's `default_locale`; the comment `:47-51` says that happens only "when the submission records none", but `DevSubmission` has no locale field, and `promoteSubmission` already uses `lifecycle.lang` | `app/_lib/devcase-feedback.ts:22-33,54-55` → `app/_lib/db/devcase.ts:470-494` → `devcase-run.ts:1087,1191` | C |
+| R4-api-devcase-1-4 | bug | S | `publish/route.ts:36,47,55` | `body.channel` is unvalidated; `getAdapter` throws `UnknownChannelError` "so the publish route [can] reject the request" (`distribution.ts:71-76,86-89`), but the catch answers `safeJsonError` 500 `DEVCASE_PUBLISH_FAILED`, so caller input reads and logs as a store failure | `:47` → `distribution.ts:88` → `api-response.ts:2159-2161` | C |
+| R4-api-devcase-1-5 | bug | S | `outcomes/route.ts:86` | the audit reason records `Math.round(body.setFloor)` unclamped while `setPromoteFloor` stores 0..100, so `setFloor: 150` audits "floor → 150" with 100 in force | `:82-86` → `app/_lib/dev-control.ts:150-156` | C |
+| R4-api-devcase-1-6 | bug | S | `session/[id]/submit/route.ts:88` | `contact` is any trimmed string; the ack goes to `contact \|\| candidateRef`, which can be a display name or `"live-session"`. Only the client checks the address (`LiveWorkSurface.tsx:136`); the inbound door refuses this case with `DEVCASE_CONTACT_REQUIRED` (`inbound/route.ts:80-84`) | `:88` → `:140-150` → `distribution.ts:162-163` → `app/_lib/comms.ts:409-419` (no recipient check) | C to `sendComm`; U: what the relay does with an address-less `to` |
+| R4-api-devcase-1-7 | bug (error paths) | M | `feedback/route.ts:18,26,28`; `lifecycle/route.ts:50`; `lifecycle/[id]/approve/route.ts:82`; `lifecycle/[id]/close/route.ts:28`; `lifecycle/[id]/redesign/route.ts:29,38,40,43,73-79`; `promote/route.ts:20,28,30`; `publish/route.ts:25,35` | 16 raw English prose refusals with no code (untranslated in every locale), plus redesign's 409 embedding the stage in an English sentence where approve answers the same condition with `jsonRefusal("DEVCASE_LIFECYCLE_NOT_AT_GATE")`. Not on the error-contract ratchet, which covers catch-forwarding only. M: ~8 new codes × 4 catalogs, and `"lifecycle not found"` is pinned verbatim by `devcase-lifecycle-tenancy.test.ts:73-110` and `rate-limit-contract.test.ts:2961` | grep `NextResponse.json({ error:` over the routes | C |
+| R4-api-devcase-1-8 | security | M | `lifecycle/[id]/close/route.ts:19`; `lifecycle/[id]/redesign/route.ts:24`; `promote/route.ts:17`; `feedback/route.ts:15`; `lifecycle/route.ts:43` | five mutating doors call neither `requireOperator` nor `requireCapabilityCoded`, so a viewer seat can close a lifecycle (mailing rejections to every non-promoted submitter), run a paid redesign, promote onto the board, queue candidate letters and start a lifecycle. `approve`, `publish` and the four studio doors require `pipeline:write`. All five sit on `route-capability-coverage.test.ts:109-114` as "slice 2 candidate — not yet judged": known debt, but close is an adverse recruiter action, not an open question | `devcase-doors-capability.test.ts:1-16` (the pattern) | C |
+| R4-api-devcase-1-9 | security (tenancy) | S | `lifecycle/[id]/close/route.ts:132`; `lifecycle/[id]/redesign/route.ts:67,86` | `recordAudit` without `workspaceId` falls back to `DEFAULT_WORKSPACE` (`app/_lib/dev-control.ts:77-94`): a non-default team never sees its own close / redesign decisions in its control room, and the default team's sees other teams' lifecycle ids and the reviewer's redesign note. `approve` passes `workspaceId: lc.workspaceId` (`:132`), pinned by `devcase-approve-audit-tenancy.test.ts` | `dev-control.ts:110-116`; `control/route.ts:78` | C |
+| R4-api-devcase-1-10 | security | M | `inbound/route.ts:119` | the public, unauthenticated webhook returns the internal store `submissionId`, on `duplicate: true` too, so a token holder replaying another applicant's (candidate, repoRef) gets that applicant's id back — against the "internal ids off the wire" rule the finalize door states (`session/[id]/submit/route.ts:152-155`). M: the comment keeps it for external channels, a product call | every door taking a submission id is operator-gated and owner-guarded, so no direct exploit was found | C |
+| R4-api-devcase-1-11 | perf | S | `session/[id]/route.ts:197` | on every flush (~8 s per candidate) of a case with a mid-flight update, `getDevSessionEvents(id)` reads and maps the session's whole event log (up to `MAX_SESSION_EVENTS = 20000`, `app/_lib/db/devcase.ts:1014`) to test whether one `perturbation` exists: quadratic over a session, on the hot path the MFU cache comment (`:13-17`) set out to trim | `:195-202` → `db/devcase.ts:1016-1024` (no LIMIT) | C |
+| R4-api-devcase-1-12 | perf, ambiguity | S | `lifecycle/[id]/redesign/route.ts:14,53-54` | `runDesignArtifacts(…, undefined /* signal */, …)` drops `request.signal`, so an abandoned redesign keeps a Python LLM child alive to the 600 s spawn default; the comment calls it "a ~60s await (maxDuration)", and `maxDuration` is serverless-only. The chat route fixed exactly this | `:53` → `app/_lib/devcase-run-design.ts:98-131` → `devcase-run-cli.ts:29` → `python-runner.ts:175,568` | C |
+| R4-api-devcase-1-13 | ambiguity | S | `feedback/route.ts:72-73` | the catch comment cites "buildFeedbackBrief's model call: provider stderr"; `buildFeedbackBrief` makes no model call (its header: the brief is "assembled for free") | `app/_lib/devcase-feedback.ts:1-20,54` | C |
+| R4-api-devcase-1-14 | ambiguity | S | `session/[id]/route.ts:107,151` | "its byte length is what the per-token daily budget charges", but `chargeFlushBytes(session.token, raw.length)` charges UTF-16 code units, undercounting non-ASCII trees by up to 3× against the "4 GiB" budget (`session/session-limits.ts:48-53`) | — | C |
+
+### Duplicates, not counted
+
+All five are round-2 `matrix-ui-2` findings whose file belongs to this round's `matrix-ui-1`.
+Every one is **still present** on this tree:
+
+- `MatrixDataNotices.tsx:87` `title={m.error}` renders the engine's error text (round-2 S
+  carry-over). Still at `:87`.
+- `MatrixDataNotices.tsx:69,79` re-type NOTICE (round-2 recipe drift). Still present, and now
+  declared debt in `recipe-debt.json` (`noticeAmber` 2).
+- `MatrixGrid.tsx:91` re-types PANEL (round-2 recipe drift). Still at `:91`.
+- `MatrixGrid.tsx:103-128`: the header row re-renders on every popover transition (round-2
+  M). The header is still not memoised.
+- `MatrixGrid.tsx` sortable headers carry no `aria-sort` (round-2 a11y carry-over). Still only
+  `aria-pressed` (`:117`).
+
+Pointer updates, not findings of this round:
+
+- Round 2's `STAGE_INITIAL` (M) now sits at `matrixTabTypes.ts:60` and `MatrixGridRow.tsx:161`.
+- Round 2's `app/api/devcase/submit/route.ts` raw refusals are still at `:43,:53,:57`, and
+  `source/route.ts`'s have moved to `:49,:54`. Both are `api-devcase-2` files; they appear here
+  only because R4-api-devcase-1-7 is the same class in the sibling routes.
+- Nothing else matched rounds 1-3 or "Known gaps" in
+  `docs/architecture/engine-and-prompt-coordination.md`. No voice finding concerns the
+  transport sitting outside the LLM matrix.
+
+### Confirmed S findings NOT fixed this round — carry-over, written to be taken as-is
+
+Each line is the fix, then the test that fails today and passes after it. One commit per
+line, test-first, as round 2 did.
+
+- **R4-voice-runtime-1-1.** Fix: in `deriveDirectorState` (which has `nowMs`), set
+  `overrunLapsed` when a request is older than `OVERRUN_ANSWER_GRACE_MS` with no answer, and
+  ignore an `overrun_answered` recorded after the grace; `prematureCompletion` treats a lapse
+  as `declined`, and `report_extra_time` answers "time to answer has passed" with no events.
+  Test (`director.test.ts`): `state([...REACHED_RESERVE, askedAt(31)], 34, kitOpts)` makes
+  `prematureCompletion` return null, and a late `report_extra_time {answer:"agreed"}` records
+  no events.
+- **R4-voice-runtime-1-2.** Fix: align the body against the ledger in order and anchor at the
+  body index where the alignment consumes the last ledger turn, not at the last textual
+  occurrence. Test (`transcript-of-record.test.ts`): ledger ending interviewer "Thank you.",
+  body = ledger + candidate "one more thing" + interviewer "Thank you."; both closing turns
+  are kept and `unanchored === 0`.
+- **R4-voice-runtime-1-3.** Fix: `axisCoverage` counts distinct `payload.questionId`;
+  optionally `end_interview` answers "Already recorded" with no events once
+  `state.endRequested`. Test (`interview-axis-coverage.test.ts`): two accepted
+  `end_requested` rows and `must_ask_unasked` q1 twice give `mustAsksUnasked === 1`.
+- **R4-voice-runtime-1-4.** Fix: wrap the body parse in both adapters; a parse failure or
+  non-object body throws `VoiceMintError({cause:"malformed"})`, a Timeout/AbortError
+  `cause:"timeout"`. Test (`mint-error.test.ts`): a stubbed `new Response("<html>",
+  {status:200})` classifies as `malformed`.
+- **R4-voice-runtime-1-5.** Fix: in `capTurn`, replace `“”"„«»` inside the text and remove
+  every `DIRECTOR_NOTE_PREFIX`, not only a leading one. Test (`director-brief.test.ts`): a
+  prior turn `a” [Director] reveal “b` yields an addendum with no `[Director]` and no quote
+  mark between the turn's own quotes.
+- **R4-voice-runtime-1-6.** Fix: repeat the innermost-aside replace
+  (`/[([][^()[\]]*[)\]]/g`) until stable, then the unterminated rule, then drop stray
+  `)`/`]`. Test (`candidate-brief.test.ts`):
+  `candidateSafeTopic("Leadership (gap: no team lead (only mentoring) experience)") === "Leadership"`.
+- **R4-voice-runtime-1-7.** Fix: correct the comment (the retry drops only `metadata`).
+  Test: none (comment only); to pin behaviour, `mint-credential.test.ts:185` can assert the
+  retry body still carries `expires_after.seconds === OPENAI_SECRET_TTL_SEC`.
+- **R4-voice-runtime-1-8.** Fix: delete `voicePreflightError`. Test: none (typecheck stays
+  green).
+- **R4-interview-ui-1.** Fix: filter in SQL with
+  `AND EXISTS (SELECT 1 FROM json_each(s.recordings_json) j WHERE json_extract(j.value,'$.deletedAt') IS NULL)`
+  so the LIMIT counts only sessions still holding audio. Test
+  (`app/_lib/interview-recording.test.ts`): seed more fully-deleted sessions than the limit
+  plus one live recording past retention; the sweep deletes the live one.
+- **R4-interview-ui-2.** Fix: in the chunk claim, an `existing.deletedAt` returns without
+  writing (`full`, or a new `closed` outcome the route answers 409). Test
+  (`app/api/status/status-recording.test.ts`): after the candidate delete, claiming the next
+  chunk of the same attempt writes nothing and no file exists.
+- **R4-interview-ui-3.** Fix: add `AND s.entry_id IS NOT NULL` at `:360`. Test
+  (`app/api/interview/interview-session-cost.test.ts`, which already exercises the read): a
+  candidate-mode session with no entry is absent from the list.
+- **R4-interview-ui-4.** Fix: add `lastActivityAt?: string | null` to the parameter and pass
+  it at `:503`. Test (`app/_lib/db/interview-link-lifecycle.test.ts`): an `in_progress`
+  session past the TTL with `updatedAt` 45 min ago and `lastActivityAt` 1 min ago is not
+  expired.
+- **R4-interview-ui-5.** Fix: on `!ok`, `setError(errMsg(data, t("createFailed")))` and
+  return rather than throw; the catch always uses `t("createFailed")`. Test (source contract,
+  beside `simBilling.test.ts`): `InterviewSimTab.tsx` contains no `e.message`.
+- **R4-interview-ui-6.** Fix: `role="alert"` on the error paragraph. Test (source contract):
+  the paragraph carries it.
+- **R4-interview-ui-7.** Fix: parse the body and resolve it through `errMsg(body, t("failed"))`;
+  `role="alert"` at `:108`, `role="status"` at `:67`. Test (source contract):
+  `useErrorMessage` is imported and both roles are present.
+- **R4-interview-ui-9.** Fix: `generateMetadata` with `getTranslations("interview.lab")`.
+  Test (source contract): no literal `metadata` title in the file.
+- **R4-interview-ui-10** is S but UNVERIFIED. Run `EXPLAIN QUERY PLAN` on the cost subquery
+  first. If it scans, add `CREATE INDEX IF NOT EXISTS idx_llm_usage_request ON llm_usage
+  (request_id, use_case)` to the `core.ts` migration; the test is a schema test asserting the
+  index via `PRAGMA index_list(llm_usage)`.
+- **R4-interview-ui-11.** Fix: say only the id and token point reads are unscoped. Test:
+  none (comment only).
+- **R4-interview-ui-12.** Fix: mark it a test seam in its docstring, or move it to a test
+  helper. Test: none.
+- **R4-interview-ui-13.** Fix: pass `(session.runOfShow ?? []).map(candidateSafeTopic).filter(Boolean)`
+  at `page.tsx:157`, and correct `candidate-brief.ts:32-34`. Test (source contract, the
+  `rate-limit-contract` idiom): `page.tsx` never passes `session.runOfShow` unscrubbed.
+- **R4-schedule-ui-2-2.** Fix: "confirmed, but the cell is not the booking" gets its own
+  kind (or `booked` with `bookSuggested: true`), never the awaiting copy. Test
+  (`schedulePendingCardState.test.ts`): `pendingCardState(e, confirmedInvite, "guess", NOW)`
+  and the `"legacy"` case are not `awaiting`.
+- **R4-schedule-ui-2-3.** Fix (pick one): guard `:65` with `e.approvalKind !== "calendar"`,
+  or rename the test and document the double listing. Test (`scheduleTabDerived.test.ts`): a
+  calendar entry with a full row `{mode:"candidate", status:"completed", hasTranscript:true,
+  hasScorecard:false, endedAt}` asserts the chosen behaviour.
+- **R4-schedule-ui-2-4.** Fix: `ScheduleTab.tsx:251` passes `onRescored={load}` and the
+  list calls it instead of `router.refresh()`. Test (source contract): no `router.refresh` in
+  `ScheduleTabInterviewedList.tsx`, and `ScheduleTab.tsx` passes `onRescored`.
+- **R4-schedule-ui-2-6.** Fix: `useScheduleTab.ts:222` sets `t("loadFailed")`, or
+  `errMsg({code}, t("loadFailed"))` when a code is present. Test (source contract):
+  `useScheduleTab.ts` has no `setError(e instanceof Error ? e.message`.
+- **R4-schedule-ui-2-8.** Fix: drop `baseUrl` at `:74` and key the uid on `i.id`. Test: a
+  `calendar-links` unit test that an event built without `baseUrl` contains no `/schedule/`,
+  plus a source contract that the row passes no `baseUrl` and no `i.token` into `uid`.
+- **R4-schedule-ui-2-9.** Fix: `role="alert"` at the three sites. Test (source contract):
+  each failure branch carries it.
+- **R4-schedule-ui-2-10.** Fix: `Tooltip` / `IconAction`; the disabled reasons and the
+  `:285` warning become visible text. Test (source contract): count `title=` in
+  `app/features/hiring/schedule/*.tsx` (excluding `Modal` / `ColumnHead` props) with a
+  ceiling of 0.
+- **R4-schedule-ui-2-11.** Fix: `useFormatter().dateTime(new Date(jdEditedAt), {...})`.
+  Test (source contract): no `Intl.DateTimeFormat` / `toLocale*` in the directory's non-test
+  files.
+- **R4-schedule-ui-2-12.** Fix: an ICU key `copyBlock {from} {to} {topic} {goal}` in all 4
+  catalogs. Test: extract the copy builder into a `.ts` module; with a stub `t` it emits no
+  literal "min".
+- **R4-schedule-ui-2-13.** Fix: `ConfirmDialog`. Test (source contract): no `window.confirm`
+  in the directory's `.tsx`.
+- **R4-schedule-ui-2-14.** Fix: an `"unsaved"` state when persistence is skipped. Test: a
+  pure `overlaySaveState(problemCount, prev)` in `scheduleInterviewPrepOverlayModel.ts` never
+  returns `"saved"` when problems > 0.
+- **R4-schedule-ui-2-15.** Fix: `reordered: boolean` on `PlanDiff` and a catalog line. Test
+  (`schedulePrepPlanDiff.test.ts`): the same blocks reordered give `reordered: true`,
+  `isNoop: false`.
+- **R4-schedule-ui-2-16.** Fix: destructure `error` from the second `useJsonFetch` and render
+  a one-line notice beside the human scorecard slot. Test (source contract): it is
+  destructured.
+- **R4-schedule-ui-2-17.** Fix: a light `?calendarStatus=1` probe, or correct the comment and
+  drop the dead `token`/`minutes` branch. Test (if split): a route test that the status probe
+  never calls `proposeFreeSlots`.
+- **R4-schedule-ui-2-18.** Fix: delete `isAgendaVerb`; `useScheduleTab.ts:381` calls
+  `calendarEntryIdsOf`; use or delete `emptyPrepState`. Test: the existing
+  `scheduleAgenda.test.ts` then covers the production path.
+- **R4-matrix-ui-1-1.** Fix: `setSelProfile(cur => cur || rows[0].id)` (and the same for
+  analyses). Test: a pure `seedSelection(current, rows)` in `matchView.ts`;
+  `matchView.test.ts` asserts a non-empty current wins.
+- **R4-matrix-ui-1-2.** Fix: `autoRanFor: string | null` (`profile:<id>` /
+  `analysis:<slug>`), run whenever it differs. Test: a pure
+  `autoRunTarget(profileParam, analysisParam, lastRanFor)` in `matchView.ts`.
+- **R4-matrix-ui-1-3.** Fix: `r.json().catch(() => ({}))`; trust only the messages thrown at
+  `:156-157` (a tagged class), anything else becomes `t("matchFailed")`. Test: a pure
+  `matchRunFailureMessage(caught, fallback)` in `matchView.ts`; a `TypeError` resolves to the
+  fallback.
+- **R4-matrix-ui-1-4.** Fix: `role="alert"`. Test (source contract, the
+  `matrixGridRoles.test.ts` style): the `{view.message}` element carries it.
+- **R4-matrix-ui-1-5.** Fix: `errMsg({ code: reasoningError }, t("card.reasoningFailed"))`
+  through `useErrorMessage`. Test: a pure `reasoningOutcome(status, error, full, gaveUp,
+  resolve)` in a `.ts` module; a code goes through `resolve` and is never returned raw.
+- **R4-matrix-ui-1-6.** Fix: read `resultUnavailable` and set
+  `{ error: t("card.reasoningFailed") }`. Test: the same `reasoningOutcome`, `gaveUp` yields an
+  error.
+- **R4-matrix-ui-1-7.** Fix: anchor on `matchRunId` with the adjust-state-during-render
+  pattern (as `MatchWeightsPanel.tsx:54-58`) and clear `stale` and the stale-coded errors.
+  Test: a pure `resetOnNewRun(prevId, nextId, state)`; a changed id clears them.
+- **R4-matrix-ui-1-8.** Fix: `selectMatchView` takes `sameCandidate` (in-flight ref equals
+  `matchRef`); for a different candidate, loading and error own the panel. Test
+  (`matchView.test.ts`): `hasResult` + error + `!sameCandidate` gives `kind: "error"`.
+- **R4-matrix-ui-1-9.** Fix: `enumLabel("seniority", …)` and `enumLabel("family", …)` at the
+  four sites. Test (source contract): no bare `seniority: m.seniority` /
+  `${candidate.seniority` interpolation in `focus/*.tsx`.
+- **R4-matrix-ui-1-10.** Fix: `` m.fitTier ? tMatch(`fitTier.${m.fitTier}`) : "" ``. Test
+  (the CSV case in `matchReasons.test.ts`): `rows[1][6] === t("fitTier.promising")`.
+- **R4-matrix-ui-1-11.** Fix: delete the `title`. Test (source contract): no template-literal
+  `title=` in `MatrixDataNotices.tsx`.
+- **R4-matrix-ui-1-12.** Fix: an `sr-only` bucket label per chip (keys exist:
+  `card.partialTitle`, `decisions.summary.unprovenTitle`, `card.missingTitle`), the glyph
+  `aria-hidden`, `Tooltip` for hover. Test (source contract): each of the three chip maps
+  renders an `sr-only` span.
+- **R4-matrix-ui-1-15.** Fix: move `unprovenLabelKey` to a `.ts` module and import it at all
+  three sites. Test: a unit test of the mapper (an unknown reason gives `unprovenClaimed`),
+  keeping `matrixGridRoles.test.ts:59` matching.
+- **R4-matrix-ui-1-16.** Fix: re-point both comments. Test: none (comment only).
+- **R4-api-devcase-1-1.** Fix: run `setPostingStatus(posting.id, "closed")` right after the
+  postings are computed (`:53-55`), before the send loop. Test (`close-tenancy.test.ts`): a
+  `sendComm` stub that posts to the inbound door for the same token mid-send gets 410
+  `POSTING_CLOSED`.
+- **R4-api-devcase-1-2.** Fix: `const t = await commsTranslator(lc.lang, lc.workspaceId)`
+  with new `devcaseWrapUp.*` keys in all 4 catalogs. Test (`close-tenancy.test.ts`): a `cs`
+  lifecycle's outbox row is not the English body.
+- **R4-api-devcase-1-3.** Fix: pass
+  `locale: sub.postingId ? lifecycleByPosting(sub.postingId)?.lang ?? null : null`. Test (new
+  `feedback/route.test.ts`): a `cs` lifecycle produces the Czech `devcaseFeedback.subject`.
+- **R4-api-devcase-1-4.** Fix: check `channel` against the adapter registry first and answer
+  `jsonRefusal("<NEW_CODE>", 400, { channel })`, with the code in the 4 catalogs. Test
+  (`[id]/intake/route.test.ts`, which already imports publish): `channel: "nope"` is 400 plus
+  the code.
+- **R4-api-devcase-1-5.** Fix: audit the floor in force after the write (`activeFloor()`).
+  Test (an outcomes route test): set 150, `listAudit` shows 100.
+- **R4-api-devcase-1-6.** Fix: the same `SENDABLE_EMAIL_RE` check and
+  `jsonRefusal("DEVCASE_CONTACT_REQUIRED", 400)` before the seal. Test
+  (`session-intake-guards.test.ts`): a finalize with no or non-email contact is 400 and the
+  session is not sealed.
+- **R4-api-devcase-1-9.** Fix: `workspaceId: lc.workspaceId` on all three `recordAudit` calls.
+  Test: a twin of `devcase-approve-audit-tenancy.test.ts`; a team lifecycle's close row is
+  under `listAudit(…, team.id)` and not the default workspace's.
+- **R4-api-devcase-1-11.** Fix: a store helper `hasDevSessionEvent(id, "perturbation")`
+  (`SELECT 1 … AND kind = ? LIMIT 1`). Test (`devcase-flush-guards.test.ts`): the
+  perturbation still fires exactly once across two flushes, and the route no longer calls
+  `getDevSessionEvents` (source assertion).
+- **R4-api-devcase-1-12.** Fix: pass `request.signal` and correct the comment. Test: a
+  redesign route test with a pre-aborted signal asserts the (stubbed) spawn sees `aborted`.
+- **R4-api-devcase-1-13.** Fix: reword the comment to store plus translator. Test: none
+  (comment only).
+- **R4-api-devcase-1-14.** Fix: `Buffer.byteLength(raw, "utf8")`. Test
+  (`devcase-flush-guards.test.ts`): a multi-byte body charges its UTF-8 length.
+
+The 9 M findings (R4-interview-ui-8, R4-schedule-ui-2-1/5/7, R4-matrix-ui-1-13/14,
+R4-api-devcase-1-7/8/10) need a design choice or a multi-file change. They are anchored in the
+findings table and escalated, not carried as S.
+
+### Gate output
+
+This round changed no source, so the code gates were run once, on the branch base
+`4443387e8`:
+
+- `npm run typecheck` clean. It rewrote the three `app/_lib/*.generated.ts` files with CRLF
+  only (`git diff --ignore-all-space` empty); they were restored.
+- `npm run lint`: 0 errors / 49 warnings (pre-existing).
+- `npm run test:unit`: 13014 / 13014.
+- `node scripts/run-unit-tests.mjs "scripts/kpi/**/*.test.mjs"`: 85 / 85.
+- `npm run test:docs` and `npm run docs:check` ran on the tree WITH this section: both exit 0
+  (`docs:check`: 22 decision records valid). `test:docs` also rewrote the three
+  `*.generated.ts` files with CRLF only; restored.
+
+### Coverage after this round
+
+| | |
+|---|---|
+| thread contexts read through all five lenses | **19 / 55** (34.5%) — was 14 / 55 |
+| of the whole 143-map | **19 / 143** (13.3%) — was 14 / 143 |
+| contexts where `ui-perfectionist` had a surface and ran | 8 (was 5) |
+| thread groups with no five-lens context | **0 / 7** — unchanged. Per group: CV Analysis 2/8, Candidate Matching 3/7, Developer Assessment 4/9, Hiring Decisions 3/8, Hiring Pipeline 2/10, Interview Scheduling 2/5, Voice Interviews 3/8. Thinnest by share now: Hiring Pipeline (2/10) and CV Analysis (2/8) |
+| S findings fixed | 0 (read-only round) — round 2: 8 |
+| new findings recorded | 69 (60 S, 9 M) + 5 duplicates |
+| S carried over, written fix-and-test-ready | 60 (59 CONFIRMED, six of them with a named unverified side; 1 UNVERIFIED) |
+
+All five contexts count: every applicable lens ran on each, and the two n/a cells are the two
+contexts with no `.tsx` (`voice-runtime-1`, `api-devcase-1`). 36 thread contexts remain. At
+five per round that is eight more rounds.
+
 ## What to do with this file
 
 A `/scan-sweep` run should **write this file itself**, per context, at the moment it picks
