@@ -16911,6 +16911,138 @@
       "noJdFit": "No job fit",
       "failed": "Analysis failed",
       "blind": "Hidden (blind)"
+    },
+    "loom": {
+      "root": "Loom",
+      "kicker": "The loom · {threads, plural, one {# thread} other {# threads}} across {rows} rows",
+      "weaveLabel": "The weave: each candidate is a thread, each row a dimension",
+      "run": {
+        "running": "{landed} of {total} analysed · the rest are still being spun",
+        "done": "{landed} of {total} analysed",
+        "failed": "{n, plural, one {# thread is cut: its analysis failed} other {# threads are cut: their analyses failed}}"
+      },
+      "order": {
+        "label": "Hang the threads",
+        "neutral": "Neutral order",
+        "fit": "By fit rank",
+        "neutralNote": "A neutral, shuffled order: a thread's place says nothing.",
+        "fitNote": "By fit rank: an order, not a lead."
+      },
+      "overall": {
+        "clears": "{name} leads on fit, clear of the noise",
+        "insideNoise": "No lead on fit: {names} are first, within the noise",
+        "belowFloor": "No comparison yet: fewer than two members are rated on fit"
+      },
+      "robustness": {
+        "stable": "The order holds under every weighting",
+        "sensitive": "The order changes under another weighting",
+        "undetermined": "Robustness cannot be computed yet"
+      },
+      "claim": {
+        "clears": "{name} clears",
+        "insideNoise": "within the noise",
+        "belowFloor": "too few rated",
+        "neverLeads": "never a lead"
+      },
+      "tier": {
+        "strong": "strong",
+        "solid": "solid",
+        "thin": "thin",
+        "weak": "weak"
+      },
+      "membership": {
+        "applicant": "Applicant",
+        "matched": "Matched from the pool",
+        "added": "Added by hand"
+      },
+      "runState": {
+        "queued": "Queued",
+        "reused": "Reused analysis",
+        "analyzing": "Analysing…",
+        "done": "Analysed",
+        "failed": "Analysis failed"
+      },
+      "aria": {
+        "knot": "{name}, {dim}: {rating}, {tier}. {label}",
+        "knotNote": "{name}, {dim}: {rating}, {tier}. {label}. Has a note.",
+        "knotAbsent": "{name}, {dim}: no rating, {reason}",
+        "row": "{dim}: {claim}. Pull this row out",
+        "tag": "{name}, {membership}, {state}",
+        "tagReport": "{name}, {membership}, {state}. Opens the full report"
+      },
+      "shuttle": {
+        "label": "Reading",
+        "idle": "Point at a knot, a thread or a row to read it. Press a row or a knot to pull that row out.",
+        "fitRank": "Fit rank {rank} of {rated} · an order, not a lead",
+        "noFitRank": "No fit rank: {reason}",
+        "slack": "A slack thread: {other} is level or ahead on every compared dimension (a decoy).",
+        "report": "Press the name to open the full report",
+        "noReport": "The full report opens once the analysis lands",
+        "band": "Range {lo}–{hi}",
+        "note": "Note",
+        "noise": "Within the noise with {names}",
+        "noiseRow": "First within the noise: {names}",
+        "leads": "Leads this row, clear of the noise",
+        "pull": "Press to pull this row out",
+        "rated": "{rated} of {total} rated",
+        "partitions": "Not compared across currencies",
+        "partition": "{key}: {n, plural, one {# member} other {# members}}",
+        "salary": "Salary is read against the role's band and never ranks a candidate."
+      },
+      "legend": {
+        "label": "How to read the loom",
+        "strong": "Strong",
+        "solid": "Solid",
+        "thin": "Thin",
+        "weak": "Weak",
+        "absent": "No knot: the thread passes behind, with its reason",
+        "spinning": "Still being analysed",
+        "note": "A tag: a short note",
+        "float": "A loose float: within the noise, no lead",
+        "stitch": "A bound knot: a lead that clears",
+        "slack": "A slack thread: a decoy"
+      },
+      "cloth": {
+        "title": "Woven from {n, plural, one {the top thread} other {the top # threads}}",
+        "leavesOut": "{n, plural, =0 {Every thread is in the cloth.} one {# thread is not discussed; its cells stand on their own.} other {# threads are not discussed; their cells stand on their own.}}",
+        "model": "Written by the language model from the claims above; it never changes them.",
+        "keyless": "Written without a language model, from the claims above.",
+        "pending": "No cloth yet: the narrative is woven when the run finishes.",
+        "none": "No narrative: fewer than two members are rated."
+      },
+      "level": {
+        "kicker": {
+          "clears": "Clears the noise · {rated} of {total} rated",
+          "insideNoise": "Within the noise · {rated} of {total} rated",
+          "belowFloor": "Too few rated · {rated} of {total}",
+          "neverLeads": "Never a lead · {rated} of {total} rated"
+        },
+        "back": "Back to {place}",
+        "crumbs": "Where you are",
+        "rail": "The pulled row: every thread on {dim}",
+        "following": "Following {name}",
+        "followNone": "Press a knot to follow one candidate",
+        "rows": "Rows",
+        "prev": "Previous row",
+        "next": "Next row"
+      },
+      "keys": {
+        "label": "Keys",
+        "names": {
+          "arrows": "Arrows",
+          "enter": "Enter",
+          "esc": "Esc",
+          "brackets": "[ ]",
+          "leftRight": "← →"
+        },
+        "acts": {
+          "walk": "Walk the weave",
+          "pull": "Pull a row out",
+          "back": "Back to the loom",
+          "step": "Previous or next row",
+          "follow": "Follow a candidate"
+        }
+      }
     }
   }
 }

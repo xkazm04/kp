@@ -16911,6 +16911,138 @@
       "noJdFit": "Keine Stellenpassung",
       "failed": "Analyse fehlgeschlagen",
       "blind": "Verborgen (anonym)"
+    },
+    "loom": {
+      "root": "Webstuhl",
+      "kicker": "Der Webstuhl · {threads, plural, one {# Faden} other {# Fäden}} über {rows} Reihen",
+      "weaveLabel": "Das Gewebe: jede Person ist ein Faden, jede Reihe ein Kriterium",
+      "run": {
+        "running": "{landed} von {total} analysiert · der Rest wird noch gesponnen",
+        "done": "{landed} von {total} analysiert",
+        "failed": "{n, plural, one {# Faden ist gerissen: die Analyse ist fehlgeschlagen} other {# Fäden sind gerissen: die Analysen sind fehlgeschlagen}}"
+      },
+      "order": {
+        "label": "Fäden ordnen",
+        "neutral": "Neutrale Reihenfolge",
+        "fit": "Nach Passung",
+        "neutralNote": "Eine neutrale, gemischte Reihenfolge: die Position eines Fadens sagt nichts.",
+        "fitNote": "Nach Passungsrang: eine Reihenfolge, keine Führung."
+      },
+      "overall": {
+        "clears": "{name} führt bei der Passung, klar außerhalb des Rauschens",
+        "insideNoise": "Keine Führung bei der Passung: {names} liegen vorn, aber im Rauschen",
+        "belowFloor": "Noch kein Vergleich: weniger als zwei Personen haben eine Passung"
+      },
+      "robustness": {
+        "stable": "Die Reihenfolge hält bei jeder Gewichtung",
+        "sensitive": "Bei anderer Gewichtung ändert sich die Reihenfolge",
+        "undetermined": "Die Robustheit lässt sich noch nicht berechnen"
+      },
+      "claim": {
+        "clears": "{name} führt klar",
+        "insideNoise": "im Rauschen",
+        "belowFloor": "zu wenige bewertet",
+        "neverLeads": "nie eine Führung"
+      },
+      "tier": {
+        "strong": "stark",
+        "solid": "solide",
+        "thin": "dünn",
+        "weak": "schwach"
+      },
+      "membership": {
+        "applicant": "Bewerbung",
+        "matched": "Aus dem Pool gefunden",
+        "added": "Von Hand hinzugefügt"
+      },
+      "runState": {
+        "queued": "In der Warteschlange",
+        "reused": "Analyse wiederverwendet",
+        "analyzing": "Wird analysiert…",
+        "done": "Analysiert",
+        "failed": "Analyse fehlgeschlagen"
+      },
+      "aria": {
+        "knot": "{name}, {dim}: {rating}, {tier}. {label}",
+        "knotNote": "{name}, {dim}: {rating}, {tier}. {label}. Mit Notiz.",
+        "knotAbsent": "{name}, {dim}: keine Bewertung, {reason}",
+        "row": "{dim}: {claim}. Diese Reihe herausziehen",
+        "tag": "{name}, {membership}, {state}",
+        "tagReport": "{name}, {membership}, {state}. Öffnet den vollständigen Bericht"
+      },
+      "shuttle": {
+        "label": "Ablesen",
+        "idle": "Zeigen Sie auf einen Knoten, einen Faden oder eine Reihe, um sie zu lesen. Ein Druck auf Reihe oder Knoten zieht die Reihe heraus.",
+        "fitRank": "Passungsrang {rank} von {rated} · eine Reihenfolge, keine Führung",
+        "noFitRank": "Kein Passungsrang: {reason}",
+        "slack": "Ein loser Faden: {other} ist bei jedem verglichenen Kriterium gleichauf oder vorn (ein Köder).",
+        "report": "Ein Druck auf den Namen öffnet den vollständigen Bericht",
+        "noReport": "Der vollständige Bericht öffnet sich, sobald die Analyse vorliegt",
+        "band": "Spanne {lo}–{hi}",
+        "note": "Notiz",
+        "noise": "Im Rauschen mit {names}",
+        "noiseRow": "Vorn, aber im Rauschen: {names}",
+        "leads": "Führt in dieser Reihe, klar außerhalb des Rauschens",
+        "pull": "Drücken, um diese Reihe herauszuziehen",
+        "rated": "{rated} von {total} bewertet",
+        "partitions": "Über Währungen hinweg nicht verglichen",
+        "partition": "{key}: {n, plural, one {# Person} other {# Personen}}",
+        "salary": "Das Gehalt wird an der Spanne der Stelle gemessen und ordnet niemanden ein."
+      },
+      "legend": {
+        "label": "So lesen Sie den Webstuhl",
+        "strong": "Stark",
+        "solid": "Solide",
+        "thin": "Dünn",
+        "weak": "Schwach",
+        "absent": "Kein Knoten: der Faden läuft dahinter, mit Grund",
+        "spinning": "Wird noch analysiert",
+        "note": "Ein Anhänger: eine kurze Notiz",
+        "float": "Eine lose Flottung: im Rauschen, keine Führung",
+        "stitch": "Ein gebundener Knoten: eine klare Führung",
+        "slack": "Ein loser Faden: ein Köder"
+      },
+      "cloth": {
+        "title": "Gewebt aus {n, plural, one {dem stärksten Faden} other {den # stärksten Fäden}}",
+        "leavesOut": "{n, plural, =0 {Jeder Faden ist im Tuch.} one {# Faden wird hier nicht besprochen; seine Zellen stehen für sich.} other {# Fäden werden hier nicht besprochen; ihre Zellen stehen für sich.}}",
+        "model": "Vom Sprachmodell aus den obigen Aussagen geschrieben; es ändert sie nie.",
+        "keyless": "Ohne Sprachmodell aus den obigen Aussagen geschrieben.",
+        "pending": "Noch kein Tuch: die Zusammenfassung wird gewebt, wenn der Lauf endet.",
+        "none": "Keine Zusammenfassung: weniger als zwei Personen sind bewertet."
+      },
+      "level": {
+        "kicker": {
+          "clears": "Klar außerhalb des Rauschens · {rated} von {total} bewertet",
+          "insideNoise": "Im Rauschen · {rated} von {total} bewertet",
+          "belowFloor": "Zu wenige bewertet · {rated} von {total}",
+          "neverLeads": "Nie eine Führung · {rated} von {total} bewertet"
+        },
+        "back": "Zurück zu: {place}",
+        "crumbs": "Wo Sie sind",
+        "rail": "Die herausgezogene Reihe: jeder Faden bei {dim}",
+        "following": "Sie folgen {name}",
+        "followNone": "Drücken Sie einen Knoten, um einer Person zu folgen",
+        "rows": "Reihen",
+        "prev": "Vorige Reihe",
+        "next": "Nächste Reihe"
+      },
+      "keys": {
+        "label": "Tasten",
+        "names": {
+          "arrows": "Pfeile",
+          "enter": "Enter",
+          "esc": "Esc",
+          "brackets": "[ ]",
+          "leftRight": "← →"
+        },
+        "acts": {
+          "walk": "Durch das Gewebe gehen",
+          "pull": "Eine Reihe herausziehen",
+          "back": "Zurück zum Webstuhl",
+          "step": "Vorige oder nächste Reihe",
+          "follow": "Einer Person folgen"
+        }
+      }
     }
   }
 }

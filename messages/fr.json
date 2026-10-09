@@ -16911,6 +16911,138 @@
       "noJdFit": "Pas d’adéquation au poste",
       "failed": "Échec de l’analyse",
       "blind": "Masqué (anonyme)"
+    },
+    "loom": {
+      "root": "Métier à tisser",
+      "kicker": "Le métier · {threads, plural, one {# fil} other {# fils}} sur {rows} rangs",
+      "weaveLabel": "Le tissage : chaque candidat est un fil, chaque rang un critère",
+      "run": {
+        "running": "{landed} sur {total} analysés · les autres sont encore au filage",
+        "done": "{landed} sur {total} analysés",
+        "failed": "{n, plural, one {# fil est coupé : son analyse a échoué} other {# fils sont coupés : leurs analyses ont échoué}}"
+      },
+      "order": {
+        "label": "Ordre des fils",
+        "neutral": "Ordre neutre",
+        "fit": "Par adéquation",
+        "neutralNote": "Un ordre neutre, mélangé : la place d’un fil ne dit rien.",
+        "fitNote": "Par rang d’adéquation : un ordre, pas une avance."
+      },
+      "overall": {
+        "clears": "{name} mène sur l’adéquation, hors du bruit",
+        "insideNoise": "Personne ne mène sur l’adéquation : {names} sont en tête, dans le bruit",
+        "belowFloor": "Pas encore de comparaison : moins de deux candidats ont une adéquation"
+      },
+      "robustness": {
+        "stable": "L’ordre tient sous toutes les pondérations",
+        "sensitive": "L’ordre change sous une autre pondération",
+        "undetermined": "La robustesse ne peut pas encore être calculée"
+      },
+      "claim": {
+        "clears": "{name} se détache",
+        "insideNoise": "dans le bruit",
+        "belowFloor": "trop peu notés",
+        "neverLeads": "jamais d’avance"
+      },
+      "tier": {
+        "strong": "fort",
+        "solid": "solide",
+        "thin": "mince",
+        "weak": "faible"
+      },
+      "membership": {
+        "applicant": "Candidature",
+        "matched": "Trouvé dans le vivier",
+        "added": "Ajouté à la main"
+      },
+      "runState": {
+        "queued": "En file d’attente",
+        "reused": "Analyse réutilisée",
+        "analyzing": "Analyse en cours…",
+        "done": "Analysé",
+        "failed": "Échec de l’analyse"
+      },
+      "aria": {
+        "knot": "{name}, {dim} : {rating}, {tier}. {label}",
+        "knotNote": "{name}, {dim} : {rating}, {tier}. {label}. Avec une note.",
+        "knotAbsent": "{name}, {dim} : pas de note, {reason}",
+        "row": "{dim} : {claim}. Tirer ce rang",
+        "tag": "{name}, {membership}, {state}",
+        "tagReport": "{name}, {membership}, {state}. Ouvre le rapport complet"
+      },
+      "shuttle": {
+        "label": "Lecture",
+        "idle": "Pointez un nœud, un fil ou un rang pour le lire. Appuyez sur un rang ou un nœud pour tirer ce rang.",
+        "fitRank": "Rang d’adéquation {rank} sur {rated} · un ordre, pas une avance",
+        "noFitRank": "Pas de rang d’adéquation : {reason}",
+        "slack": "Un fil lâche : {other} est à égalité ou devant sur chaque critère comparé (un leurre).",
+        "report": "Appuyez sur le nom pour ouvrir le rapport complet",
+        "noReport": "Le rapport complet s’ouvre dès que l’analyse est arrivée",
+        "band": "Fourchette {lo}–{hi}",
+        "note": "Note",
+        "noise": "Dans le bruit avec {names}",
+        "noiseRow": "En tête, dans le bruit : {names}",
+        "leads": "Mène ce rang, hors du bruit",
+        "pull": "Appuyez pour tirer ce rang",
+        "rated": "{rated} sur {total} notés",
+        "partitions": "Pas de comparaison entre devises",
+        "partition": "{key} : {n, plural, one {# candidat} other {# candidats}}",
+        "salary": "Le salaire se lit par rapport à la fourchette du poste et ne classe jamais un candidat."
+      },
+      "legend": {
+        "label": "Lire le métier",
+        "strong": "Fort",
+        "solid": "Solide",
+        "thin": "Mince",
+        "weak": "Faible",
+        "absent": "Pas de nœud : le fil passe derrière, avec sa raison",
+        "spinning": "Analyse en cours",
+        "note": "Une étiquette : une courte note",
+        "float": "Un flotté lâche : dans le bruit, personne ne mène",
+        "stitch": "Un nœud lié : une avance qui se détache",
+        "slack": "Un fil lâche : un leurre"
+      },
+      "cloth": {
+        "title": "Tissé avec {n, plural, one {le meilleur fil} other {les # meilleurs fils}}",
+        "leavesOut": "{n, plural, =0 {Tous les fils sont dans le tissu.} one {# fil n’est pas commenté ; ses cellules parlent d’elles-mêmes.} other {# fils ne sont pas commentés ; leurs cellules parlent d’elles-mêmes.}}",
+        "model": "Rédigé par le modèle de langage à partir des constats ci-dessus ; il ne les modifie jamais.",
+        "keyless": "Rédigé sans modèle de langage, à partir des constats ci-dessus.",
+        "pending": "Pas encore de tissu : la synthèse sera tissée à la fin de l’analyse.",
+        "none": "Pas de synthèse : moins de deux candidats sont notés."
+      },
+      "level": {
+        "kicker": {
+          "clears": "Hors du bruit · {rated} sur {total} notés",
+          "insideNoise": "Dans le bruit · {rated} sur {total} notés",
+          "belowFloor": "Trop peu notés · {rated} sur {total}",
+          "neverLeads": "Jamais d’avance · {rated} sur {total} notés"
+        },
+        "back": "Retour : {place}",
+        "crumbs": "Où vous êtes",
+        "rail": "Le rang tiré : chaque fil sur {dim}",
+        "following": "Vous suivez {name}",
+        "followNone": "Appuyez sur un nœud pour suivre un candidat",
+        "rows": "Rangs",
+        "prev": "Rang précédent",
+        "next": "Rang suivant"
+      },
+      "keys": {
+        "label": "Touches",
+        "names": {
+          "arrows": "Flèches",
+          "enter": "Entrée",
+          "esc": "Échap",
+          "brackets": "[ ]",
+          "leftRight": "← →"
+        },
+        "acts": {
+          "walk": "Parcourir le tissage",
+          "pull": "Tirer un rang",
+          "back": "Retour au métier",
+          "step": "Rang précédent ou suivant",
+          "follow": "Suivre un candidat"
+        }
+      }
     }
   }
 }

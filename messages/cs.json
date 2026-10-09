@@ -16911,6 +16911,138 @@
       "noJdFit": "Bez shody s pozicí",
       "failed": "Analýza selhala",
       "blind": "Skryto (naslepo)"
+    },
+    "loom": {
+      "root": "Tkalcovský stav",
+      "kicker": "Tkalcovský stav · {threads, plural, one {# nit} few {# nitě} many {# nitě} other {# nití}} v {rows} řadách",
+      "weaveLabel": "Tkanina: každý kandidát je nit, každá řada jedno hledisko",
+      "run": {
+        "running": "Analyzováno {landed} z {total} · ostatní se ještě předou",
+        "done": "Analyzováno {landed} z {total}",
+        "failed": "{n, plural, one {# nit je přestřižená: analýza selhala} few {# nitě jsou přestřižené: analýzy selhaly} many {# nitě je přestřižené: analýzy selhaly} other {# nití je přestřižených: analýzy selhaly}}"
+      },
+      "order": {
+        "label": "Pořadí nití",
+        "neutral": "Neutrální pořadí",
+        "fit": "Podle shody",
+        "neutralNote": "Neutrální, zamíchané pořadí: místo nitě nic neříká.",
+        "fitNote": "Podle pořadí shody: pořadí, ne vedení."
+      },
+      "overall": {
+        "clears": "{name} vede ve shodě, mimo šum",
+        "insideNoise": "Ve shodě nikdo nevede: {names} jsou první, ale v rámci šumu",
+        "belowFloor": "Zatím bez srovnání: ve shodě jsou hodnoceni méně než dva kandidáti"
+      },
+      "robustness": {
+        "stable": "Pořadí platí při každém vážení",
+        "sensitive": "Při jiném vážení se pořadí mění",
+        "undetermined": "Odolnost pořadí zatím nelze spočítat"
+      },
+      "claim": {
+        "clears": "{name} vede mimo šum",
+        "insideNoise": "v rámci šumu",
+        "belowFloor": "málo hodnocených",
+        "neverLeads": "nikdy nevede"
+      },
+      "tier": {
+        "strong": "silné",
+        "solid": "solidní",
+        "thin": "slabší",
+        "weak": "slabé"
+      },
+      "membership": {
+        "applicant": "Uchazeč",
+        "matched": "Vybrán z databáze",
+        "added": "Přidán ručně"
+      },
+      "runState": {
+        "queued": "Ve frontě",
+        "reused": "Převzatá analýza",
+        "analyzing": "Analyzuje se…",
+        "done": "Analyzováno",
+        "failed": "Analýza selhala"
+      },
+      "aria": {
+        "knot": "{name}, {dim}: {rating}, {tier}. {label}",
+        "knotNote": "{name}, {dim}: {rating}, {tier}. {label}. Má poznámku.",
+        "knotAbsent": "{name}, {dim}: bez hodnocení, {reason}",
+        "row": "{dim}: {claim}. Vytáhnout tuto řadu",
+        "tag": "{name}, {membership}, {state}",
+        "tagReport": "{name}, {membership}, {state}. Otevře celou zprávu"
+      },
+      "shuttle": {
+        "label": "Čtení",
+        "idle": "Najeďte na uzel, nit nebo řadu a přečtěte si ji. Stisknutím řady nebo uzlu řadu vytáhnete.",
+        "fitRank": "Pořadí ve shodě {rank} z {rated} · pořadí, ne vedení",
+        "noFitRank": "Bez pořadí ve shodě: {reason}",
+        "slack": "Volná nit: {other} je na tom stejně nebo lépe ve všech srovnávaných hlediscích (návnada).",
+        "report": "Stisknutím jména otevřete celou zprávu",
+        "noReport": "Celá zpráva se otevře, jakmile analýza doběhne",
+        "band": "Rozpětí {lo}–{hi}",
+        "note": "Poznámka",
+        "noise": "V rámci šumu s: {names}",
+        "noiseRow": "První v rámci šumu: {names}",
+        "leads": "V této řadě vede, mimo šum",
+        "pull": "Stisknutím řadu vytáhnete",
+        "rated": "Hodnoceno {rated} z {total}",
+        "partitions": "Mezi měnami se nesrovnává",
+        "partition": "{key}: {n, plural, one {# kandidát} few {# kandidáti} many {# kandidáta} other {# kandidátů}}",
+        "salary": "Mzda se čte vůči rozpětí pozice a kandidáty nikdy neřadí."
+      },
+      "legend": {
+        "label": "Jak číst tkaninu",
+        "strong": "Silné",
+        "solid": "Solidní",
+        "thin": "Slabší",
+        "weak": "Slabé",
+        "absent": "Bez uzlu: nit vede vzadu, s důvodem",
+        "spinning": "Ještě se analyzuje",
+        "note": "Štítek: krátká poznámka",
+        "float": "Volné přehození: v rámci šumu, nikdo nevede",
+        "stitch": "Svázaný uzel: vedení mimo šum",
+        "slack": "Volná nit: návnada"
+      },
+      "cloth": {
+        "title": "Utkáno z {n, plural, one {nejlepší nitě} few {# nejlepších nití} many {# nejlepší nitě} other {# nejlepších nití}}",
+        "leavesOut": "{n, plural, =0 {Všechny nitě jsou v tkanině.} one {# nit tu není rozebrána; její buňky platí samy za sebe.} few {# nitě tu nejsou rozebrány; jejich buňky platí samy za sebe.} many {# nitě tu není rozebráno; jejich buňky platí samy za sebe.} other {# nití tu není rozebráno; jejich buňky platí samy za sebe.}}",
+        "model": "Napsal jazykový model podle výše uvedených závěrů; nikdy je nemění.",
+        "keyless": "Napsáno bez jazykového modelu, podle výše uvedených závěrů.",
+        "pending": "Tkanina zatím není: shrnutí se utká, až běh skončí.",
+        "none": "Bez shrnutí: hodnoceni jsou méně než dva kandidáti."
+      },
+      "level": {
+        "kicker": {
+          "clears": "Mimo šum · hodnoceno {rated} z {total}",
+          "insideNoise": "V rámci šumu · hodnoceno {rated} z {total}",
+          "belowFloor": "Málo hodnocených · {rated} z {total}",
+          "neverLeads": "Nikdy nevede · hodnoceno {rated} z {total}"
+        },
+        "back": "Zpět na {place}",
+        "crumbs": "Kde jste",
+        "rail": "Vytažená řada: všechny nitě v hledisku {dim}",
+        "following": "Sledujete: {name}",
+        "followNone": "Stisknutím uzlu budete sledovat jednoho kandidáta",
+        "rows": "Řady",
+        "prev": "Předchozí řada",
+        "next": "Další řada"
+      },
+      "keys": {
+        "label": "Klávesy",
+        "names": {
+          "arrows": "Šipky",
+          "enter": "Enter",
+          "esc": "Esc",
+          "brackets": "[ ]",
+          "leftRight": "← →"
+        },
+        "acts": {
+          "walk": "Procházet tkaninu",
+          "pull": "Vytáhnout řadu",
+          "back": "Zpět na stav",
+          "step": "Předchozí nebo další řada",
+          "follow": "Sledovat kandidáta"
+        }
+      }
     }
   }
 }
