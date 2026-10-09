@@ -10,7 +10,7 @@ All five POSTs called neither `requireOperator` nor `requireCapabilityCoded`, an
 Each POST now starts with `requireOperator()` then `requireCapabilityCoded("pipeline:write", requireCapability)`, the shape of `approve/route.ts`. The five `ALLOWED` lines are replaced by a "judged and CLOSED" comment. Open mode is unchanged: the test file's header notes that without `KP_OPERATOR_PASSWORD` every caller folds to owner, and the helpers were not touched.
 
 ## Commit
-Subject: `fix(devcase): five lifecycle/promote/feedback doors ask pipeline:write` (id: see `git log`; the merge may rebase).
+Subject: `fix(devcase): five lifecycle/promote/feedback doors ask pipeline:write` (id c6ae7ae3a; the merge may rebase).
 
 ## UI report (not changed)
 - `DevLifecycleRow.tsx:154` close, `DevLifecycleReviewPanel.tsx:106` redesign, `useDevSubmissionRow.ts:205` feedback and `:221` promote, `useDevTabActions.ts:71` start: none checks the seat, so a viewer still sees every control.
