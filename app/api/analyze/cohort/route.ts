@@ -2,6 +2,7 @@ import { getServerLocale } from "@/i18n/server";
 import { isLocale } from "@/i18n/locales";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireCapability } from "@/app/_lib/auth/current-user";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jsonOk, jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { meterGate } from "@/app/_lib/billing";
@@ -34,11 +35,18 @@ import { COHORT_CAP, COHORT_MIN, type CohortRunResponse, type CohortSummary, typ
 // Cohort Studio (Analyze v2): GET the recent-cohorts strip, POST to start a comparison.
 // The comparison itself runs as an `analyze_cohort` task (analyze-cohort-run.ts) and is
 // read through GET /api/analyze/cohort/[id].
+//
+// Auth posture (ADR 0005): every cohort door first re-verifies the session with
+// requireOperator() — no session, a revoked or disabled account's cookie and a demo-sandbox
+// session are a 401 here, not only at the proxy — and only then asks the seat. Pinned by
+// route-auth.test.ts beside this file.
 
 /** The strip's length. */
 const RECENT_COHORTS = 12;
 
 export async function GET() {
+  const opDenied = await requireOperator();
+  if (opDenied) return opDenied;
   const denied = await requireCapabilityCoded("read", requireCapability);
   if (denied) return denied;
   try {
@@ -65,6 +73,8 @@ export async function GET() {
 // would be analysed FRESH (a reused analysis spends nothing; an unmetered self-hosted
 // install stays unmetered — meterGate answers null there), then the row and the task.
 export async function POST(request: Request) {
+  const opDenied = await requireOperator();
+  if (opDenied) return opDenied;
   const denied = await requireCapabilityCoded("pipeline:write", requireCapability);
   if (denied) return denied;
   // 10/10min per IP: a cohort is up to COHORT_CAP paid analyses plus a comparative pass

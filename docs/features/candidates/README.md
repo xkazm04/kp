@@ -1738,6 +1738,12 @@ and it never changes a claim.
 | `app/_lib/db/analysis-cohorts.ts` | the `analysis_cohorts` store + narrow reads over `analyses` / `profiles` |
 | `pipeline/jobfit/cohort_compare.py` + `cohort_compare_cli.py` | the comparative pass and its keyless floor |
 
+**Auth.** Every cohort door re-verifies the session with `requireOperator()` first (401 for
+no session, a demo-sandbox session, or a disabled account's still-signed cookie), then asks
+the seat: `read` for the three GETs, `pipeline:write` for the POST (403
+`FORBIDDEN_CAPABILITY`). Open mode is unchanged. Pinned by
+`app/api/analyze/cohort/route-auth.test.ts`.
+
 ### Flow
 
 1. **Proposal.** Applicants first: every pipeline entry under the JD's job (`jd-<slug>`)

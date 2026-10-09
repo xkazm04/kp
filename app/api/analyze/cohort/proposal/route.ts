@@ -1,5 +1,6 @@
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireCapability } from "@/app/_lib/auth/current-user";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jsonOk, jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { loadJd } from "@/app/_lib/db/jobs";
@@ -36,8 +37,11 @@ function cohortProposalDeps(signal: AbortSignal): ProposalDeps {
 // (analyze-cohort-proposal.ts states the rules). A read seat may ask; nothing is written.
 // The ranking spawns a Python child, so it sits behind a per-IP limiter (the same 30/10min
 // shape as /api/jobs/[id]/candidates); the unknown-JD 404 answers before it, free.
-// Never on the wire: payload_json, the CV text, cv_hash.
+// Never on the wire: payload_json, the CV text, cv_hash. The session is re-verified
+// (requireOperator) before the seat is asked, like every cohort door.
 export async function GET(request: Request) {
+  const opDenied = await requireOperator();
+  if (opDenied) return opDenied;
   const denied = await requireCapabilityCoded("read", requireCapability);
   if (denied) return denied;
   const jd = new URL(request.url).searchParams.get("jd")?.trim() ?? "";
