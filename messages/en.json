@@ -17486,6 +17486,205 @@
           "bus": "previous / next bus"
         }
       }
+    },
+    "shell": {
+      "dev": {
+        "data": "Data",
+        "mode": {
+          "live": "Live",
+          "done": "Fixture · finished",
+          "running": "Fixture · running"
+        },
+        "note": "Dev only. Production shows the v1 form."
+      },
+      "slate": {
+        "eyebrow": "Cohort comparison",
+        "title": "Compare candidates for one role",
+        "label": "Comparison steps",
+        "intro": {
+          "role": "Pick the role first. The comparison is built from the people who applied for it and your best-matching candidates.",
+          "cast": "Check who is compared. Remove anyone, or add from your candidates, up to 20.",
+          "compare": "Everyone side by side on the same seven dimensions. A leader is named only where the gap clears the noise."
+        },
+        "fixture": {
+          "done": "Fixture · finished run",
+          "running": "Fixture · run in progress"
+        },
+        "act": {
+          "role": "Role",
+          "cast": "Who is compared",
+          "compare": "Comparison"
+        },
+        "value": {
+          "noRole": "Not chosen yet",
+          "cast": "{n, plural, one {# candidate} other {# candidates}}",
+          "notStarted": "Not started",
+          "status": {
+            "queued": "Queued",
+            "running": "Running",
+            "done": "Finished",
+            "failed": "Stopped"
+          }
+        }
+      },
+      "compare": {
+        "label": "Comparison",
+        "failed": "This run stopped before it finished: {landed} of {total} landed. Everything that landed is still shown.",
+        "retry": "Run again with the same candidates",
+        "retrying": "Starting…",
+        "retryFailed": "Could not start the new run.",
+        "loadFailed": "Could not load this comparison.",
+        "reload": "Try again",
+        "loading": "Loading the comparison…",
+        "stale": "The comparison stopped updating, so what you see may be out of date."
+      },
+      "progress": {
+        "line": "{done} of {total} landed{reused, plural, =0 {} other {, # reused at no cost}}{failed, plural, =0 {} other { · # failed}}",
+        "status": {
+          "queued": "Queued",
+          "running": "Running",
+          "done": "Finished",
+          "failed": "Stopped"
+        },
+        "key": {
+          "done": "analyzed",
+          "reused": "reused",
+          "analyzing": "analyzing",
+          "queued": "waiting",
+          "failed": "failed"
+        }
+      },
+      "cards": {
+        "label": "{n, plural, one {# candidate} other {# candidates}}, by fit",
+        "trail": "Comparison › {dimension}",
+        "trailRoot": "Comparison, all candidates",
+        "back": "All candidates",
+        "rank": "Fit rank {n}",
+        "unranked": "No fit rank",
+        "membership": {
+          "applicant": "Applied",
+          "matched": "Matched",
+          "added": "Added by you"
+        },
+        "decoy": "Dominated",
+        "decoyWhy": "{other} is at least as strong on every compared dimension.",
+        "tier": {
+          "strong": "Strong",
+          "solid": "Solid",
+          "thin": "Thin",
+          "weak": "Weak"
+        },
+        "dimsOf": "{name}: the seven dimensions",
+        "comment": "Comment",
+        "allAbsent": "All seven dimensions: {reason}"
+      },
+      "recent": {
+        "label": "Recent comparisons",
+        "failed": "Could not load your recent comparisons.",
+        "retry": "Try again",
+        "status": {
+          "queued": "Queued",
+          "running": "Running",
+          "done": "Finished",
+          "failed": "Stopped"
+        },
+        "count": "{n, plural, one {# candidate} other {# candidates}}",
+        "leader": "Leads clearly: {name}",
+        "noLeader": "No clear leader",
+        "pending": "Not finished yet",
+        "stoppedEarly": "Stopped before every CV landed"
+      },
+      "role": {
+        "title": "Which role?",
+        "loading": "Loading your roles…",
+        "failed": "Could not load your job descriptions.",
+        "retry": "Try again",
+        "emptyTitle": "No roles to compare for yet",
+        "empty": "A comparison is built around one role. <link>Add a job description to the library</link> first.",
+        "search": "Search roles",
+        "truncated": "Showing your newest {n} roles.",
+        "noMatch": "No role matches “{query}”.",
+        "listLabel": "{n, plural, one {# role} other {# roles}}",
+        "noMeta": "Field and seniority not set",
+        "inPipeline": "{n, plural, =0 {Pipeline empty} other {# in pipeline}}",
+        "noPipeline": "No pipeline yet",
+        "analysed": "{n, plural, =0 {no CVs analyzed} one {# CV analyzed} other {# CVs analyzed}}",
+        "more": "Showing {shown} of {n}. Search to narrow the list."
+      },
+      "cast": {
+        "loading": "Putting the comparison together…",
+        "failed": "Could not put the comparison together for this role.",
+        "retry": "Try again",
+        "otherRole": "Choose another role"
+      },
+      "tray": {
+        "title": "Who is compared",
+        "seats": "{n} of {cap} seats taken",
+        "seatsShort": "{n} / {cap}",
+        "group": {
+          "applicant": "Applicants",
+          "matched": "Matched from your candidates",
+          "added": "Added by you"
+        },
+        "leftOutApplicants": "{n, plural, one {# more applicant} other {# more applicants}} left out by the cap of {cap}.",
+        "leftOutMatched": "{n, plural, one {# more matched candidate} other {# more matched candidates}} left out by the cap of {cap}.",
+        "emptyTitle": "Nobody to compare for this role yet",
+        "empty": "No one has applied and no analyzed candidate matches it. Add people from the <pipeline>pipeline</pipeline>, or build candidate profiles in <profiles>Archetypes</profiles>.",
+        "match": "match {n}",
+        "noMatch": {
+          "applicant": "applied, not ranked",
+          "matched": "not ranked",
+          "added": "added by hand"
+        },
+        "reused": "Reused · no cost",
+        "remove": "Remove {name}"
+      },
+      "add": {
+        "open": "Add a candidate",
+        "close": "Done adding",
+        "full": "All {cap} seats are taken. Remove someone to add another.",
+        "removed": "Taken out",
+        "was": {
+          "applicant": "applied",
+          "matched": "matched",
+          "added": "added"
+        },
+        "putBack": "Put back",
+        "putBackNamed": "Put {name} back",
+        "search": "Search your candidates by name",
+        "loading": "Loading your candidates…",
+        "failed": "Could not load your candidates.",
+        "retry": "Try again",
+        "noMatch": "Nobody matches that name.",
+        "nobodyElse": "Every candidate with an analyzed CV is already here.",
+        "offerLabel": "Candidates you can add",
+        "add": "Add",
+        "addNamed": "Add {name}"
+      },
+      "run": {
+        "title": "Run the comparison",
+        "context": "Company context",
+        "contextFromOrg": "From your organization profile ({org}), read-only.",
+        "contextFrom": "From your organization profile, read-only.",
+        "more": "Show all",
+        "less": "Show less",
+        "noContext": "No organization or company context was found. The comparison reads the role alone.",
+        "atMost": "≤ {n}",
+        "fresh": "{n, plural, one {CV analyzed fresh} other {CVs analyzed fresh}}",
+        "reused": "{n, plural, one {analysis reused, no cost} other {analyses reused, no cost}}",
+        "units": "Uses {n, plural, one {# AI candidate} other {# AI candidates}} from your plan's allowance.",
+        "unitsUpTo": "Uses up to {n, plural, one {# AI candidate} other {# AI candidates}} from your plan's allowance. Someone you added may already be analyzed for this role.",
+        "blind": "Blind comparison",
+        "blindHint": "Candidates appear as letters instead of names, and their GitHub is not read.",
+        "language": "Report language",
+        "needSomeone": "Add at least {min} candidates to compare.",
+        "belowMin": "A comparison needs at least {min} candidates side by side. Add one more to start.",
+        "failed": "Could not start the comparison.",
+        "starting": "Starting…",
+        "start": "Compare {n, plural, one {# candidate} other {# candidates}}",
+        "engineMissing": "Fresh analyses need an AI engine, and none is configured: {n, plural, one {the # fresh CV} other {the # fresh CVs}} would fail. Reused analyses still compare.",
+        "engineUnknown": "The AI engine could not be checked. Fresh analyses need one; reused analyses compare either way."
+      }
     }
   }
 }

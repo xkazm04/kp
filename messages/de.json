@@ -17486,6 +17486,205 @@
           "bus": "vorheriger / nächster Bus"
         }
       }
+    },
+    "shell": {
+      "dev": {
+        "data": "Daten",
+        "mode": {
+          "live": "Live",
+          "done": "Fixture · fertig",
+          "running": "Fixture · läuft"
+        },
+        "note": "Nur in der Entwicklung. Produktiv erscheint das Formular v1."
+      },
+      "slate": {
+        "eyebrow": "Kandidatenvergleich",
+        "title": "Kandidaten für eine Stelle vergleichen",
+        "label": "Schritte des Vergleichs",
+        "intro": {
+          "role": "Wählen Sie zuerst die Stelle. Der Vergleich entsteht aus den Bewerbungen darauf und Ihren am besten passenden Kandidaten.",
+          "cast": "Prüfen Sie, wer verglichen wird. Entfernen Sie Personen oder fügen Sie welche aus Ihren Kandidaten hinzu, höchstens 20.",
+          "compare": "Alle nebeneinander in denselben sieben Dimensionen. Eine Spitze wird nur benannt, wo der Abstand das Rauschen übersteigt."
+        },
+        "fixture": {
+          "done": "Fixture · abgeschlossener Lauf",
+          "running": "Fixture · Lauf in Arbeit"
+        },
+        "act": {
+          "role": "Stelle",
+          "cast": "Wer verglichen wird",
+          "compare": "Vergleich"
+        },
+        "value": {
+          "noRole": "Noch nicht gewählt",
+          "cast": "{n, plural, one {# Kandidat} other {# Kandidaten}}",
+          "notStarted": "Nicht gestartet",
+          "status": {
+            "queued": "In der Warteschlange",
+            "running": "Läuft",
+            "done": "Abgeschlossen",
+            "failed": "Abgebrochen"
+          }
+        }
+      },
+      "compare": {
+        "label": "Vergleich",
+        "failed": "Dieser Lauf wurde vor dem Ende abgebrochen: {landed} von {total} sind fertig. Alles Fertige bleibt sichtbar.",
+        "retry": "Mit denselben Kandidaten erneut starten",
+        "retrying": "Wird gestartet…",
+        "retryFailed": "Der neue Lauf konnte nicht gestartet werden.",
+        "loadFailed": "Dieser Vergleich konnte nicht geladen werden.",
+        "reload": "Erneut versuchen",
+        "loading": "Vergleich wird geladen…",
+        "stale": "Der Vergleich wird nicht mehr aktualisiert. Was Sie sehen, ist möglicherweise veraltet."
+      },
+      "progress": {
+        "line": "{done} von {total} fertig{reused, plural, =0 {} one {, # davon ohne Kosten übernommen} other {, # davon ohne Kosten übernommen}}{failed, plural, =0 {} other { · # fehlgeschlagen}}",
+        "status": {
+          "queued": "In der Warteschlange",
+          "running": "Läuft",
+          "done": "Abgeschlossen",
+          "failed": "Abgebrochen"
+        },
+        "key": {
+          "done": "analysiert",
+          "reused": "übernommen",
+          "analyzing": "wird analysiert",
+          "queued": "wartet",
+          "failed": "fehlgeschlagen"
+        }
+      },
+      "cards": {
+        "label": "{n, plural, one {# Kandidat} other {# Kandidaten}}, nach Passung",
+        "trail": "Vergleich › {dimension}",
+        "trailRoot": "Vergleich, alle Kandidaten",
+        "back": "Alle Kandidaten",
+        "rank": "Rang nach Passung: {n}",
+        "unranked": "Kein Rang nach Passung",
+        "membership": {
+          "applicant": "Bewerbung",
+          "matched": "Nach Passung gewählt",
+          "added": "Von Ihnen hinzugefügt"
+        },
+        "decoy": "Überall übertroffen",
+        "decoyWhy": "{other} ist in jeder verglichenen Dimension mindestens gleich stark.",
+        "tier": {
+          "strong": "Stark",
+          "solid": "Solide",
+          "thin": "Dünn",
+          "weak": "Schwach"
+        },
+        "dimsOf": "{name}: die sieben Dimensionen",
+        "comment": "Kommentar",
+        "allAbsent": "Alle sieben Dimensionen: {reason}"
+      },
+      "recent": {
+        "label": "Letzte Vergleiche",
+        "failed": "Ihre letzten Vergleiche konnten nicht geladen werden.",
+        "retry": "Erneut versuchen",
+        "status": {
+          "queued": "In der Warteschlange",
+          "running": "Läuft",
+          "done": "Abgeschlossen",
+          "failed": "Abgebrochen"
+        },
+        "count": "{n, plural, one {# Kandidat} other {# Kandidaten}}",
+        "leader": "Klar vorn: {name}",
+        "noLeader": "Niemand klar vorn",
+        "pending": "Noch nicht abgeschlossen",
+        "stoppedEarly": "Abgebrochen, bevor alle Lebensläufe fertig waren"
+      },
+      "role": {
+        "title": "Für welche Stelle?",
+        "loading": "Ihre Stellen werden geladen…",
+        "failed": "Ihre Stellenbeschreibungen konnten nicht geladen werden.",
+        "retry": "Erneut versuchen",
+        "emptyTitle": "Noch keine Stelle für einen Vergleich",
+        "empty": "Ein Vergleich entsteht immer um eine Stelle. <link>Legen Sie zuerst eine Stellenbeschreibung in der Bibliothek an</link>.",
+        "search": "Stellen suchen",
+        "truncated": "Es werden Ihre {n} neuesten Stellen angezeigt.",
+        "noMatch": "Keine Stelle passt zu „{query}“.",
+        "listLabel": "{n, plural, one {# Stelle} other {# Stellen}}",
+        "noMeta": "Fachgebiet und Seniorität nicht angegeben",
+        "inPipeline": "{n, plural, =0 {Pipeline leer} other {# in der Pipeline}}",
+        "noPipeline": "Noch keine Pipeline",
+        "analysed": "{n, plural, =0 {kein Lebenslauf analysiert} one {# Lebenslauf analysiert} other {# Lebensläufe analysiert}}",
+        "more": "{shown} von {n} angezeigt. Grenzen Sie die Liste mit der Suche ein."
+      },
+      "cast": {
+        "loading": "Der Vergleich wird zusammengestellt…",
+        "failed": "Der Vergleich für diese Stelle konnte nicht zusammengestellt werden.",
+        "retry": "Erneut versuchen",
+        "otherRole": "Andere Stelle wählen"
+      },
+      "tray": {
+        "title": "Wer verglichen wird",
+        "seats": "{n} von {cap} Plätzen belegt",
+        "seatsShort": "{n} / {cap}",
+        "group": {
+          "applicant": "Bewerbungen",
+          "matched": "Passend aus Ihren Kandidaten",
+          "added": "Von Ihnen hinzugefügt"
+        },
+        "leftOutApplicants": "{n, plural, one {# weitere Bewerbung passt} other {# weitere Bewerbungen passen}} nicht mehr unter die Grenze von {cap}.",
+        "leftOutMatched": "{n, plural, one {# weiterer passender Kandidat passt} other {# weitere passende Kandidaten passen}} nicht mehr unter die Grenze von {cap}.",
+        "emptyTitle": "Für diese Stelle gibt es noch niemanden zu vergleichen",
+        "empty": "Niemand hat sich beworben, und kein analysierter Kandidat passt. Fügen Sie Personen aus der <pipeline>Pipeline</pipeline> hinzu oder legen Sie Kandidatenprofile unter <profiles>Archetypen</profiles> an.",
+        "match": "Passung {n}",
+        "noMatch": {
+          "applicant": "Bewerbung, ohne Rang",
+          "matched": "ohne Rang",
+          "added": "von Hand hinzugefügt"
+        },
+        "reused": "Übernommen · ohne Kosten",
+        "remove": "{name} entfernen"
+      },
+      "add": {
+        "open": "Kandidat hinzufügen",
+        "close": "Fertig",
+        "full": "Alle {cap} Plätze sind belegt. Entfernen Sie jemanden, um eine weitere Person hinzuzufügen.",
+        "removed": "Entfernt",
+        "was": {
+          "applicant": "Bewerbung",
+          "matched": "nach Passung",
+          "added": "hinzugefügt"
+        },
+        "putBack": "Zurückholen",
+        "putBackNamed": "{name} zurückholen",
+        "search": "Kandidaten nach Namen suchen",
+        "loading": "Ihre Kandidaten werden geladen…",
+        "failed": "Ihre Kandidaten konnten nicht geladen werden.",
+        "retry": "Erneut versuchen",
+        "noMatch": "Kein Kandidat passt zu diesem Namen.",
+        "nobodyElse": "Alle Kandidaten mit analysiertem Lebenslauf sind bereits dabei.",
+        "offerLabel": "Kandidaten, die Sie hinzufügen können",
+        "add": "Hinzufügen",
+        "addNamed": "{name} hinzufügen"
+      },
+      "run": {
+        "title": "Vergleich starten",
+        "context": "Unternehmenskontext",
+        "contextFromOrg": "Aus Ihrem Organisationsprofil ({org}), nur lesbar.",
+        "contextFrom": "Aus Ihrem Organisationsprofil, nur lesbar.",
+        "more": "Alles anzeigen",
+        "less": "Weniger anzeigen",
+        "noContext": "Es wurde kein Organisations- oder Unternehmenskontext gefunden. Der Vergleich stützt sich nur auf die Stelle.",
+        "atMost": "≤ {n}",
+        "fresh": "{n, plural, one {Lebenslauf neu analysiert} other {Lebensläufe neu analysiert}}",
+        "reused": "{n, plural, one {Analyse übernommen, ohne Kosten} other {Analysen übernommen, ohne Kosten}}",
+        "units": "Verbraucht {n, plural, one {# KI-Kandidaten} other {# KI-Kandidaten}} aus dem Kontingent Ihres Tarifs.",
+        "unitsUpTo": "Verbraucht höchstens {n, plural, one {# KI-Kandidaten} other {# KI-Kandidaten}} aus dem Kontingent Ihres Tarifs. Eine von Ihnen hinzugefügte Person ist für diese Stelle vielleicht schon analysiert.",
+        "blind": "Anonymer Vergleich",
+        "blindHint": "Kandidaten erscheinen als Buchstaben statt mit Namen, und ihr GitHub wird nicht gelesen.",
+        "language": "Berichtssprache",
+        "needSomeone": "Fügen Sie mindestens {min} Kandidaten für einen Vergleich hinzu.",
+        "belowMin": "Ein Vergleich braucht mindestens {min} Kandidaten nebeneinander. Fügen Sie noch einen hinzu, um zu starten.",
+        "failed": "Der Vergleich konnte nicht gestartet werden.",
+        "starting": "Wird gestartet…",
+        "start": "{n, plural, one {# Kandidaten vergleichen} other {# Kandidaten vergleichen}}",
+        "engineMissing": "Neue Analysen brauchen eine KI-Engine, und keine ist eingerichtet: {n, plural, one {der # neue Lebenslauf würde scheitern} other {die # neuen Lebensläufe würden scheitern}}. Übernommene Analysen werden trotzdem verglichen.",
+        "engineUnknown": "Die KI-Engine konnte nicht geprüft werden. Neue Analysen brauchen eine; übernommene Analysen werden in jedem Fall verglichen."
+      }
     }
   }
 }

@@ -17486,6 +17486,205 @@
           "bus": "předchozí / další sběrnice"
         }
       }
+    },
+    "shell": {
+      "dev": {
+        "data": "Data",
+        "mode": {
+          "live": "Živá data",
+          "done": "Fixtura · dokončeno",
+          "running": "Fixtura · běží"
+        },
+        "note": "Jen ve vývoji. Produkce ukazuje formulář v1."
+      },
+      "slate": {
+        "eyebrow": "Srovnání kandidátů",
+        "title": "Porovnejte kandidáty na jednu pozici",
+        "label": "Kroky srovnání",
+        "intro": {
+          "role": "Nejdřív vyberte pozici. Srovnání sestavíme z lidí, kteří se na ni přihlásili, a z vašich nejlépe odpovídajících kandidátů.",
+          "cast": "Zkontrolujte, koho porovnáváme. Kohokoli můžete odebrat nebo přidat z vašich kandidátů, nejvýše 20.",
+          "compare": "Všichni vedle sebe v týchž sedmi dimenzích. Vedoucího kandidáta jmenujeme jen tam, kde náskok přesahuje šum."
+        },
+        "fixture": {
+          "done": "Fixtura · dokončený běh",
+          "running": "Fixtura · běh probíhá"
+        },
+        "act": {
+          "role": "Pozice",
+          "cast": "Koho porovnáváme",
+          "compare": "Srovnání"
+        },
+        "value": {
+          "noRole": "Zatím nevybráno",
+          "cast": "{n, plural, one {# kandidát} few {# kandidáti} many {# kandidáta} other {# kandidátů}}",
+          "notStarted": "Nespuštěno",
+          "status": {
+            "queued": "Ve frontě",
+            "running": "Běží",
+            "done": "Dokončeno",
+            "failed": "Zastaveno"
+          }
+        }
+      },
+      "compare": {
+        "label": "Srovnání",
+        "failed": "Tento běh se zastavil před dokončením: hotovo {landed} z {total}. Vše, co doběhlo, zůstává zobrazené.",
+        "retry": "Spustit znovu se stejnými kandidáty",
+        "retrying": "Spouští se…",
+        "retryFailed": "Nový běh se nepodařilo spustit.",
+        "loadFailed": "Toto srovnání se nepodařilo načíst.",
+        "reload": "Zkusit znovu",
+        "loading": "Načítá se srovnání…",
+        "stale": "Srovnání se přestalo aktualizovat, zobrazený stav nemusí být aktuální."
+      },
+      "progress": {
+        "line": "Hotovo {done} z {total}{reused, plural, =0 {} one {, # převzatá analýza bez nákladů} few {, # převzaté analýzy bez nákladů} many {, # převzaté analýzy bez nákladů} other {, # převzatých analýz bez nákladů}}{failed, plural, =0 {} other { · selhalo: #}}",
+        "status": {
+          "queued": "Ve frontě",
+          "running": "Běží",
+          "done": "Dokončeno",
+          "failed": "Zastaveno"
+        },
+        "key": {
+          "done": "analyzováno",
+          "reused": "převzato",
+          "analyzing": "analyzuje se",
+          "queued": "čeká",
+          "failed": "selhalo"
+        }
+      },
+      "cards": {
+        "label": "{n, plural, one {# kandidát} few {# kandidáti} many {# kandidáta} other {# kandidátů}} podle shody",
+        "trail": "Srovnání › {dimension}",
+        "trailRoot": "Srovnání, všichni kandidáti",
+        "back": "Všichni kandidáti",
+        "rank": "Pořadí podle shody: {n}",
+        "unranked": "Bez pořadí podle shody",
+        "membership": {
+          "applicant": "Přihláška",
+          "matched": "Výběr podle shody",
+          "added": "Přidáno vámi"
+        },
+        "decoy": "Překonáno ve všem",
+        "decoyWhy": "{other}: ve všech porovnávaných dimenzích alespoň stejně silné hodnocení.",
+        "tier": {
+          "strong": "Silná",
+          "solid": "Solidní",
+          "thin": "Slabší",
+          "weak": "Slabá"
+        },
+        "dimsOf": "{name}: sedm dimenzí",
+        "comment": "Komentář",
+        "allAbsent": "Všech sedm dimenzí: {reason}"
+      },
+      "recent": {
+        "label": "Nedávná srovnání",
+        "failed": "Nedávná srovnání se nepodařilo načíst.",
+        "retry": "Zkusit znovu",
+        "status": {
+          "queued": "Ve frontě",
+          "running": "Běží",
+          "done": "Dokončeno",
+          "failed": "Zastaveno"
+        },
+        "count": "{n, plural, one {# kandidát} few {# kandidáti} many {# kandidáta} other {# kandidátů}}",
+        "leader": "Jasně vede: {name}",
+        "noLeader": "Nikdo jasně nevede",
+        "pending": "Zatím nedokončeno",
+        "stoppedEarly": "Zastaveno dřív, než doběhly všechny životopisy"
+      },
+      "role": {
+        "title": "Pro jakou pozici?",
+        "loading": "Načítají se vaše pozice…",
+        "failed": "Popisy pozic se nepodařilo načíst.",
+        "retry": "Zkusit znovu",
+        "emptyTitle": "Zatím nemáte pozici, pro kterou by šlo srovnávat",
+        "empty": "Srovnání se vždy sestavuje kolem jedné pozice. Nejdřív <link>přidejte popis pozice do knihovny</link>.",
+        "search": "Hledat pozice",
+        "truncated": "Zobrazujeme {n} nejnovějších pozic.",
+        "noMatch": "Hledání „{query}“ neodpovídá žádná pozice.",
+        "listLabel": "{n, plural, one {# pozice} few {# pozice} many {# pozice} other {# pozic}}",
+        "noMeta": "Obor a seniorita nejsou vyplněné",
+        "inPipeline": "{n, plural, =0 {Pipeline je prázdná} other {V pipeline: #}}",
+        "noPipeline": "Zatím bez pipeline",
+        "analysed": "{n, plural, =0 {žádný analyzovaný životopis} one {# analyzovaný životopis} few {# analyzované životopisy} many {# analyzovaného životopisu} other {# analyzovaných životopisů}}",
+        "more": "Zobrazeno {shown} z {n}. Zužte seznam hledáním."
+      },
+      "cast": {
+        "loading": "Sestavujeme srovnání…",
+        "failed": "Srovnání pro tuto pozici se nepodařilo sestavit.",
+        "retry": "Zkusit znovu",
+        "otherRole": "Vybrat jinou pozici"
+      },
+      "tray": {
+        "title": "Koho porovnáváme",
+        "seats": "Obsazeno {n} z {cap} míst",
+        "seatsShort": "{n} / {cap}",
+        "group": {
+          "applicant": "Uchazeči",
+          "matched": "Vybraní z vašich kandidátů",
+          "added": "Přidaní vámi"
+        },
+        "leftOutApplicants": "{n, plural, one {Další # uchazeč se kvůli limitu {cap} nevešel.} few {Další # uchazeči se kvůli limitu {cap} nevešli.} many {Dalších # uchazečů se kvůli limitu {cap} nevešlo.} other {Dalších # uchazečů se kvůli limitu {cap} nevešlo.}}",
+        "leftOutMatched": "{n, plural, one {Další # vhodný kandidát se kvůli limitu {cap} nevešel.} few {Další # vhodní kandidáti se kvůli limitu {cap} nevešli.} many {Dalších # vhodných kandidátů se kvůli limitu {cap} nevešlo.} other {Dalších # vhodných kandidátů se kvůli limitu {cap} nevešlo.}}",
+        "emptyTitle": "Pro tuto pozici zatím nemáme koho porovnat",
+        "empty": "Nikdo se nepřihlásil a žádný analyzovaný kandidát pozici neodpovídá. Přidejte lidi z <pipeline>pipeline</pipeline>, nebo vytvořte profily kandidátů v sekci <profiles>Archetypy</profiles>.",
+        "match": "shoda {n}",
+        "noMatch": {
+          "applicant": "přihláška, bez pořadí",
+          "matched": "bez pořadí",
+          "added": "přidáno ručně"
+        },
+        "reused": "Převzato · bez nákladů",
+        "remove": "Odebrat: {name}"
+      },
+      "add": {
+        "open": "Přidat kandidáta",
+        "close": "Hotovo",
+        "full": "Všech {cap} míst je obsazeno. Chcete-li přidat dalšího, někoho odeberte.",
+        "removed": "Odebraní",
+        "was": {
+          "applicant": "přihláška",
+          "matched": "výběr podle shody",
+          "added": "přidáno"
+        },
+        "putBack": "Vrátit",
+        "putBackNamed": "Vrátit zpět: {name}",
+        "search": "Hledat kandidáty podle jména",
+        "loading": "Načítají se vaši kandidáti…",
+        "failed": "Vaše kandidáty se nepodařilo načíst.",
+        "retry": "Zkusit znovu",
+        "noMatch": "Tomuto jménu nikdo neodpovídá.",
+        "nobodyElse": "Všichni kandidáti s analyzovaným životopisem už jsou ve srovnání.",
+        "offerLabel": "Kandidáti, které můžete přidat",
+        "add": "Přidat",
+        "addNamed": "Přidat: {name}"
+      },
+      "run": {
+        "title": "Spustit srovnání",
+        "context": "Kontext společnosti",
+        "contextFromOrg": "Z profilu vaší organizace ({org}), jen ke čtení.",
+        "contextFrom": "Z profilu vaší organizace, jen ke čtení.",
+        "more": "Zobrazit vše",
+        "less": "Zobrazit méně",
+        "noContext": "Nenašli jsme žádný kontext organizace ani společnosti. Srovnání vychází jen z pozice.",
+        "atMost": "≤ {n}",
+        "fresh": "{n, plural, one {nově analyzovaný životopis} few {nově analyzované životopisy} many {nově analyzovaného životopisu} other {nově analyzovaných životopisů}}",
+        "reused": "{n, plural, one {převzatá analýza, bez nákladů} few {převzaté analýzy, bez nákladů} many {převzaté analýzy, bez nákladů} other {převzatých analýz, bez nákladů}}",
+        "units": "Čerpá {n, plural, one {# AI kandidáta} few {# AI kandidáty} many {# AI kandidáta} other {# AI kandidátů}} z limitu vašeho tarifu.",
+        "unitsUpTo": "Čerpá nejvýše {n, plural, one {# AI kandidáta} few {# AI kandidáty} many {# AI kandidáta} other {# AI kandidátů}} z limitu vašeho tarifu. Někdo, koho jste přidali, už může být pro tuto pozici analyzován.",
+        "blind": "Anonymní srovnání",
+        "blindHint": "Kandidáti se zobrazí jako písmena místo jmen a jejich GitHub se nečte.",
+        "language": "Jazyk zprávy",
+        "needSomeone": "Pro srovnání přidejte alespoň {min} kandidáty.",
+        "belowMin": "Srovnání potřebuje alespoň {min} kandidáty vedle sebe. Přidejte ještě jednoho a můžete začít.",
+        "failed": "Srovnání se nepodařilo spustit.",
+        "starting": "Spouští se…",
+        "start": "Porovnat {n, plural, one {# kandidáta} few {# kandidáty} many {# kandidáta} other {# kandidátů}}",
+        "engineMissing": "Nové analýzy potřebují AI engine a žádný není nastavený: {n, plural, one {# nový životopis by selhal} few {# nové životopisy by selhaly} many {# nového životopisu by selhalo} other {# nových životopisů by selhalo}}. Převzaté analýzy se porovnají i tak.",
+        "engineUnknown": "Dostupnost AI enginu se nepodařilo ověřit. Nové analýzy ho potřebují, převzaté se porovnají i bez něj."
+      }
     }
   }
 }

@@ -17486,6 +17486,205 @@
           "bus": "bus précédent / suivant"
         }
       }
+    },
+    "shell": {
+      "dev": {
+        "data": "Données",
+        "mode": {
+          "live": "En direct",
+          "done": "Fixture · terminée",
+          "running": "Fixture · en cours"
+        },
+        "note": "Développement uniquement. La production affiche le formulaire v1."
+      },
+      "slate": {
+        "eyebrow": "Comparaison de candidats",
+        "title": "Comparer les candidats pour un poste",
+        "label": "Étapes de la comparaison",
+        "intro": {
+          "role": "Choisissez d’abord le poste. La comparaison réunit les personnes qui y ont postulé et vos candidats les plus proches du profil.",
+          "cast": "Vérifiez qui est comparé. Retirez qui vous voulez ou ajoutez des personnes parmi vos candidats, jusqu’à 20.",
+          "compare": "Tout le monde côte à côte sur les mêmes sept dimensions. Une tête n’est désignée que là où l’écart dépasse le bruit."
+        },
+        "fixture": {
+          "done": "Fixture · exécution terminée",
+          "running": "Fixture · exécution en cours"
+        },
+        "act": {
+          "role": "Poste",
+          "cast": "Qui est comparé",
+          "compare": "Comparaison"
+        },
+        "value": {
+          "noRole": "Pas encore choisi",
+          "cast": "{n, plural, one {# candidat} other {# candidats}}",
+          "notStarted": "Pas lancée",
+          "status": {
+            "queued": "En file d’attente",
+            "running": "En cours",
+            "done": "Terminée",
+            "failed": "Interrompue"
+          }
+        }
+      },
+      "compare": {
+        "label": "Comparaison",
+        "failed": "Cette exécution s’est interrompue avant la fin : {landed} sur {total} terminés. Tout ce qui est terminé reste affiché.",
+        "retry": "Relancer avec les mêmes candidats",
+        "retrying": "Lancement…",
+        "retryFailed": "Impossible de lancer la nouvelle exécution.",
+        "loadFailed": "Impossible de charger cette comparaison.",
+        "reload": "Réessayer",
+        "loading": "Chargement de la comparaison…",
+        "stale": "La comparaison ne se met plus à jour : ce que vous voyez n’est peut-être plus à jour."
+      },
+      "progress": {
+        "line": "{done} sur {total} terminés{reused, plural, =0 {} one {, dont # repris sans coût} other {, dont # repris sans coût}}{failed, plural, =0 {} one { · # en échec} other { · # en échec}}",
+        "status": {
+          "queued": "En file d’attente",
+          "running": "En cours",
+          "done": "Terminée",
+          "failed": "Interrompue"
+        },
+        "key": {
+          "done": "analysé",
+          "reused": "repris",
+          "analyzing": "en analyse",
+          "queued": "en attente",
+          "failed": "échec"
+        }
+      },
+      "cards": {
+        "label": "{n, plural, one {# candidat} other {# candidats}}, par adéquation",
+        "trail": "Comparaison › {dimension}",
+        "trailRoot": "Comparaison, tous les candidats",
+        "back": "Tous les candidats",
+        "rank": "Rang d’adéquation : {n}",
+        "unranked": "Sans rang d’adéquation",
+        "membership": {
+          "applicant": "Candidature",
+          "matched": "Retenu par adéquation",
+          "added": "Ajouté par vous"
+        },
+        "decoy": "Surpassé partout",
+        "decoyWhy": "{other} est au moins aussi fort sur chaque dimension comparée.",
+        "tier": {
+          "strong": "Forte",
+          "solid": "Solide",
+          "thin": "Mince",
+          "weak": "Faible"
+        },
+        "dimsOf": "{name} : les sept dimensions",
+        "comment": "Commentaire",
+        "allAbsent": "Les sept dimensions : {reason}"
+      },
+      "recent": {
+        "label": "Comparaisons récentes",
+        "failed": "Impossible de charger vos comparaisons récentes.",
+        "retry": "Réessayer",
+        "status": {
+          "queued": "En file d’attente",
+          "running": "En cours",
+          "done": "Terminée",
+          "failed": "Interrompue"
+        },
+        "count": "{n, plural, one {# candidat} other {# candidats}}",
+        "leader": "Nettement en tête : {name}",
+        "noLeader": "Personne nettement en tête",
+        "pending": "Pas encore terminée",
+        "stoppedEarly": "Interrompue avant la fin de tous les CV"
+      },
+      "role": {
+        "title": "Pour quel poste ?",
+        "loading": "Chargement de vos postes…",
+        "failed": "Impossible de charger vos fiches de poste.",
+        "retry": "Réessayer",
+        "emptyTitle": "Aucun poste à comparer pour l’instant",
+        "empty": "Une comparaison se construit autour d’un poste. <link>Ajoutez d’abord une fiche de poste à la bibliothèque</link>.",
+        "search": "Rechercher un poste",
+        "truncated": "Affichage de vos {n} postes les plus récents.",
+        "noMatch": "Aucun poste ne correspond à « {query} ».",
+        "listLabel": "{n, plural, one {# poste} other {# postes}}",
+        "noMeta": "Domaine et séniorité non renseignés",
+        "inPipeline": "{n, plural, =0 {Pipeline vide} other {# dans le pipeline}}",
+        "noPipeline": "Pas encore de pipeline",
+        "analysed": "{n, plural, =0 {aucun CV analysé} one {# CV analysé} other {# CV analysés}}",
+        "more": "{shown} sur {n} affichés. Affinez la liste avec la recherche."
+      },
+      "cast": {
+        "loading": "Constitution de la comparaison…",
+        "failed": "Impossible de constituer la comparaison pour ce poste.",
+        "retry": "Réessayer",
+        "otherRole": "Choisir un autre poste"
+      },
+      "tray": {
+        "title": "Qui est comparé",
+        "seats": "{n} places occupées sur {cap}",
+        "seatsShort": "{n} / {cap}",
+        "group": {
+          "applicant": "Candidatures",
+          "matched": "Retenus parmi vos candidats",
+          "added": "Ajoutés par vous"
+        },
+        "leftOutApplicants": "{n, plural, one {# autre candidature reste} other {# autres candidatures restent}} hors de la limite de {cap}.",
+        "leftOutMatched": "{n, plural, one {# autre candidat proche du profil reste} other {# autres candidats proches du profil restent}} hors de la limite de {cap}.",
+        "emptyTitle": "Personne à comparer pour ce poste pour l’instant",
+        "empty": "Personne n’a postulé et aucun candidat analysé ne correspond. Ajoutez des personnes depuis le <pipeline>pipeline</pipeline> ou créez des profils de candidats dans <profiles>Archétypes</profiles>.",
+        "match": "adéquation {n}",
+        "noMatch": {
+          "applicant": "candidature, sans rang",
+          "matched": "sans rang",
+          "added": "ajouté à la main"
+        },
+        "reused": "Repris · sans coût",
+        "remove": "Retirer {name}"
+      },
+      "add": {
+        "open": "Ajouter un candidat",
+        "close": "Terminé",
+        "full": "Les {cap} places sont occupées. Retirez quelqu’un pour en ajouter un autre.",
+        "removed": "Retirés",
+        "was": {
+          "applicant": "candidature",
+          "matched": "par adéquation",
+          "added": "ajouté"
+        },
+        "putBack": "Remettre",
+        "putBackNamed": "Remettre {name}",
+        "search": "Rechercher vos candidats par nom",
+        "loading": "Chargement de vos candidats…",
+        "failed": "Impossible de charger vos candidats.",
+        "retry": "Réessayer",
+        "noMatch": "Personne ne correspond à ce nom.",
+        "nobodyElse": "Tous les candidats dont le CV a été analysé sont déjà là.",
+        "offerLabel": "Candidats que vous pouvez ajouter",
+        "add": "Ajouter",
+        "addNamed": "Ajouter {name}"
+      },
+      "run": {
+        "title": "Lancer la comparaison",
+        "context": "Contexte de l’entreprise",
+        "contextFromOrg": "Issu du profil de votre organisation ({org}), en lecture seule.",
+        "contextFrom": "Issu du profil de votre organisation, en lecture seule.",
+        "more": "Tout afficher",
+        "less": "Afficher moins",
+        "noContext": "Aucun contexte d’organisation ou d’entreprise n’a été trouvé. La comparaison s’appuie uniquement sur le poste.",
+        "atMost": "≤ {n}",
+        "fresh": "{n, plural, one {CV analysé à neuf} other {CV analysés à neuf}}",
+        "reused": "{n, plural, one {analyse reprise, sans coût} other {analyses reprises, sans coût}}",
+        "units": "Utilise {n, plural, one {# candidat IA} other {# candidats IA}} du quota de votre forfait.",
+        "unitsUpTo": "Utilise au plus {n, plural, one {# candidat IA} other {# candidats IA}} du quota de votre forfait. Une personne que vous avez ajoutée est peut-être déjà analysée pour ce poste.",
+        "blind": "Comparaison anonyme",
+        "blindHint": "Les candidats apparaissent sous forme de lettres au lieu de leur nom, et leur GitHub n’est pas lu.",
+        "language": "Langue du rapport",
+        "needSomeone": "Ajoutez au moins {min} candidats pour comparer.",
+        "belowMin": "Une comparaison demande au moins {min} candidats côte à côte. Ajoutez-en un de plus pour lancer.",
+        "failed": "Impossible de lancer la comparaison.",
+        "starting": "Lancement…",
+        "start": "Comparer {n, plural, one {# candidat} other {# candidats}}",
+        "engineMissing": "Les nouvelles analyses demandent un moteur d’IA, et aucun n’est configuré : {n, plural, one {le # nouveau CV échouerait} other {les # nouveaux CV échoueraient}}. Les analyses reprises sont comparées malgré tout.",
+        "engineUnknown": "Le moteur d’IA n’a pas pu être vérifié. Les nouvelles analyses en ont besoin ; les analyses reprises sont comparées dans tous les cas."
+      }
     }
   }
 }
