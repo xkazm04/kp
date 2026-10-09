@@ -17201,6 +17201,135 @@
         "remainder": "No public work to read",
         "leads": "Leads: clears the runner-up"
       }
+    },
+    "lineup": {
+      "kicker": "{title} · the line-up",
+      "blind": "Blind cohort",
+      "count": "{count, plural, one {# candidate on the street} other {# candidates on the street}}",
+      "site": "{built} built · {building} still being analyzed · {failed} failed",
+      "head": {
+        "clears": "{name} stands clear of the street",
+        "insideNoise": "Nobody stands clear: the top {count, plural, one {tower is} other {# towers are}} in the same haze",
+        "belowFloor": "Too few buildings to compare: {rated, plural, =0 {none rated yet} one {only # rated} other {only # rated}}"
+      },
+      "robust": {
+        "clearsStable": "The lead holds under every weighting we tried.",
+        "clearsSensitive": "The lead changes under some weightings.",
+        "noiseStable": "The same tower comes first under every weighting, still within the noise.",
+        "noiseSensitive": "The first tower changes under some weightings.",
+        "undetermined": "Robustness not computable: too few candidates are rated on every dimension."
+      },
+      "order": {
+        "label": "Street order",
+        "fit": "By fit",
+        "neutral": "Neutral order",
+        "noteFit": "Left to right by fit rank; unrated lots at the far end.",
+        "noteNeutral": "A recorded shuffle that encodes no verdict."
+      },
+      "street": "The street: {count, plural, one {# candidate} other {# candidates}}. Tower height is fit; the floors are the other dimensions.",
+      "directory": "Floor directory",
+      "claim": {
+        "clears": "lead clears",
+        "insideNoise": "within the noise",
+        "belowFloor": "too few to compare",
+        "partitioned": "not comparable"
+      },
+      "claimLong": {
+        "clears": "{name} leads, clear of the noise",
+        "insideNoise": "ordered, not separated",
+        "belowFloor": "too few rated to compare",
+        "partitioned": "{count, plural, one {# currency} other {# currencies}}, never converted"
+      },
+      "walkFloor": "Walk the {floor} floor: {claim}, {rated} of {total} rated",
+      "haze": "Top {count} within the noise",
+      "cell": {
+        "rated": "{name}, {floor}: {label}, {rating} of 100",
+        "absent": "{name}, {floor}: no rating, {reason}",
+        "lead": "leads this floor, clear of the noise",
+        "comment": "comment: {text}",
+        "haze": "within the noise at the top",
+        "crown": "stands clear at the top",
+        "decoy": "in {name}'s shadow"
+      },
+      "building": "{name}, {rank}",
+      "sign": "{name}, {membership}, {rank}. Open the full report",
+      "signNoReport": "{name}, {membership}, {rank}. No report yet",
+      "rank": "#{rank} by fit",
+      "rankShared": "#{rank} by fit, shared",
+      "unranked": "no fit rank",
+      "house": "#{rank}",
+      "houseShared": "={rank}",
+      "membership": {
+        "applicant": "applicant",
+        "matched": "matched from the pool",
+        "added": "added by hand"
+      },
+      "decoy": "In {name}'s shadow: trails them on every compared dimension.",
+      "stop": "Stop {n} of the walk-through",
+      "readout": {
+        "label": "What you are looking at",
+        "idle": "Point at a building, or walk the street with the arrow keys, to read it here.",
+        "legend": "How to read the street",
+        "tower": "Tower height is fit; the bracket beside it is its band.",
+        "windows": "Lit windows are the rating: each window is 20 points.",
+        "boarded": "A boarded floor has no rating; its sign says why.",
+        "shadow": "Hatching marks a candidate in another's shadow.",
+        "pennant": "A pennant carries a rare comment.",
+        "haze": "Haze: ordered, but not separated.",
+        "stop": "A numbered ring: discussed in the walk-through.",
+        "band": "band {lo}–{hi}",
+        "lead": "Leads this floor: the gap clears every band.",
+        "salaryOther": "Quoted in {key}: shown on its own line, not converted or compared.",
+        "salaryNever": "Salary is ordered, never ranked: higher is not better.",
+        "open": "Open full report",
+        "walk": "Walk the {floor} floor"
+      },
+      "walk": {
+        "title": "The walk-through",
+        "covers": "Covers the top {covers} by fit (rings 1–{covers} on the street) · leaves out {leftOut, plural, one {# candidate} other {# candidates}}",
+        "model": "Written by the language model around the claims above; it never changes them.",
+        "keyless": "Written without a language model (the deterministic fallback).",
+        "pending": "No walk-through yet: it is written once every building is up.",
+        "none": "No walk-through: fewer than two candidates are rated."
+      },
+      "keys": {
+        "label": "Keys",
+        "names": {
+          "tab": "Tab",
+          "arrows": "Arrows",
+          "enter": "Enter",
+          "esc": "Esc",
+          "brackets": "[ ]",
+          "leftRight": "← →"
+        },
+        "acts": {
+          "move": "walk the street",
+          "open": "walk a floor or open a report",
+          "floors": "take the stairs to another floor",
+          "back": "back out to the street"
+        }
+      },
+      "level": {
+        "root": "The street",
+        "back": "Back to the street",
+        "crumbs": "Where you are",
+        "kicker": "{rated} of {total} rated · {claim}",
+        "lead": {
+          "clears": "{name} leads this floor and the gap clears every band.",
+          "insideNoise": "Ordered, not separated: nobody leads this floor.",
+          "belowFloor": "Too few candidates are rated here to compare them.",
+          "partitioned": "Quoted in {count, plural, one {# currency} other {# currencies}}: each line stands on its own, never converted. Salary is ordered, never ranked.",
+          "salary": "Salary is ordered, never ranked: a higher expectation is not a better candidate."
+        },
+        "note": "Note on this floor",
+        "indicator": "Floors",
+        "up": "Up a floor",
+        "down": "Down a floor",
+        "corridor": "The {floor} floor across the street",
+        "door": "{name}: {value}",
+        "focusNone": "Press a door to follow one candidate along this floor.",
+        "focusOne": "Following {name}: {value}"
+      }
     }
   }
 }

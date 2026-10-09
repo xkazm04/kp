@@ -17201,6 +17201,135 @@
         "remainder": "Keine öffentliche Arbeit zu lesen",
         "leads": "Führt: klarer Abstand zum Zweiten"
       }
+    },
+    "lineup": {
+      "kicker": "{title} · die Häuserzeile",
+      "blind": "Anonyme Kohorte",
+      "count": "{count, plural, one {# Kandidat in der Straße} other {# Kandidaten in der Straße}}",
+      "site": "{built} gebaut · {building} noch in Analyse · {failed} fehlgeschlagen",
+      "head": {
+        "clears": "{name} hebt sich klar von der Straße ab",
+        "insideNoise": "Niemand hebt sich klar ab: {count, plural, one {Der höchste Turm steht} other {Die # höchsten Türme stehen}} im selben Dunst",
+        "belowFloor": "Zu wenige Gebäude für einen Vergleich: {rated, plural, =0 {noch keines bewertet} one {nur # bewertet} other {nur # bewertet}}"
+      },
+      "robust": {
+        "clearsStable": "Der Vorsprung hält unter jeder getesteten Gewichtung.",
+        "clearsSensitive": "Unter manchen Gewichtungen ändert sich der Vorsprung.",
+        "noiseStable": "Unter jeder Gewichtung steht derselbe Turm vorn, aber weiterhin im Rauschen.",
+        "noiseSensitive": "Unter manchen Gewichtungen steht ein anderer Turm vorn.",
+        "undetermined": "Robustheit nicht berechenbar: Zu wenige Kandidaten sind auf allen Dimensionen bewertet."
+      },
+      "order": {
+        "label": "Reihenfolge",
+        "fit": "Nach Passung",
+        "neutral": "Neutrale Reihenfolge",
+        "noteFit": "Von links nach rechts nach Passungsrang, unbewertete Grundstücke am Ende.",
+        "noteNeutral": "Eine protokollierte Mischung, die kein Urteil enthält."
+      },
+      "street": "Die Straße: {count, plural, one {# Kandidat} other {# Kandidaten}}. Die Turmhöhe ist die Passung, die Etagen sind die übrigen Dimensionen.",
+      "directory": "Etagenverzeichnis",
+      "claim": {
+        "clears": "klarer Vorsprung",
+        "insideNoise": "im Rauschen",
+        "belowFloor": "zu wenige für Vergleich",
+        "partitioned": "nicht vergleichbar"
+      },
+      "claimLong": {
+        "clears": "{name} führt, klar über dem Rauschen",
+        "insideNoise": "geordnet, nicht getrennt",
+        "belowFloor": "zu wenige bewertet für einen Vergleich",
+        "partitioned": "{count, plural, one {# Währung} other {# Währungen}}, nie umgerechnet"
+      },
+      "walkFloor": "Etage {floor} betreten: {claim}, {rated} von {total} bewertet",
+      "haze": "Die ersten {count} im Rauschen",
+      "cell": {
+        "rated": "{name}, {floor}: {label}, {rating} von 100",
+        "absent": "{name}, {floor}: keine Bewertung, {reason}",
+        "lead": "führt diese Etage, klar über dem Rauschen",
+        "comment": "Kommentar: {text}",
+        "haze": "oben im Rauschen",
+        "crown": "hebt sich oben klar ab",
+        "decoy": "im Schatten von {name}"
+      },
+      "building": "{name}, {rank}",
+      "sign": "{name}, {membership}, {rank}. Vollständigen Bericht öffnen",
+      "signNoReport": "{name}, {membership}, {rank}. Noch kein Bericht",
+      "rank": "Platz {rank} nach Passung",
+      "rankShared": "Platz {rank} nach Passung, geteilt",
+      "unranked": "kein Passungsrang",
+      "house": "#{rank}",
+      "houseShared": "={rank}",
+      "membership": {
+        "applicant": "beworben",
+        "matched": "aus dem Pool zugeordnet",
+        "added": "manuell hinzugefügt"
+      },
+      "decoy": "Im Schatten von {name}: liegt auf jeder verglichenen Dimension dahinter.",
+      "stop": "Station {n} des Rundgangs",
+      "readout": {
+        "label": "Was Sie gerade sehen",
+        "idle": "Zeigen Sie auf ein Gebäude oder gehen Sie die Straße mit den Pfeiltasten entlang, um es hier zu lesen.",
+        "legend": "So lesen Sie die Straße",
+        "tower": "Die Turmhöhe ist die Passung, die Klammer daneben ihr Band.",
+        "windows": "Beleuchtete Fenster sind die Bewertung: Jedes Fenster steht für 20 Punkte.",
+        "boarded": "Eine vernagelte Etage hat keine Bewertung. Ihr Schild sagt, warum.",
+        "shadow": "Schraffur markiert einen Kandidaten im Schatten eines anderen.",
+        "pennant": "Ein Wimpel trägt einen seltenen Kommentar.",
+        "haze": "Dunst: geordnet, aber nicht getrennt.",
+        "stop": "Ein nummerierter Ring: im Rundgang besprochen.",
+        "band": "Band {lo}–{hi}",
+        "lead": "Führt diese Etage: Der Abstand übersteigt jedes Band.",
+        "salaryOther": "Angegeben in {key}: für sich gezeigt, weder umgerechnet noch verglichen.",
+        "salaryNever": "Gehalt wird geordnet, nie bewertet: Höher ist nicht besser.",
+        "open": "Vollständigen Bericht öffnen",
+        "walk": "Etage {floor} betreten"
+      },
+      "walk": {
+        "title": "Der Rundgang",
+        "covers": "Behandelt die ersten {covers} nach Passung (Ringe 1–{covers} in der Straße) · lässt {leftOut, plural, one {# Kandidaten} other {# Kandidaten}} aus",
+        "model": "Vom Sprachmodell um die obigen Aussagen herum geschrieben, ohne sie je zu ändern.",
+        "keyless": "Ohne Sprachmodell geschrieben (der deterministische Fallback).",
+        "pending": "Noch kein Rundgang: Er wird geschrieben, sobald alle Gebäude stehen.",
+        "none": "Kein Rundgang: Weniger als zwei Kandidaten sind bewertet."
+      },
+      "keys": {
+        "label": "Tasten",
+        "names": {
+          "tab": "Tab",
+          "arrows": "Pfeiltasten",
+          "enter": "Enter",
+          "esc": "Esc",
+          "brackets": "[ ]",
+          "leftRight": "← →"
+        },
+        "acts": {
+          "move": "die Straße entlanggehen",
+          "open": "eine Etage betreten oder einen Bericht öffnen",
+          "floors": "über die Treppe in eine andere Etage",
+          "back": "zurück auf die Straße"
+        }
+      },
+      "level": {
+        "root": "Die Straße",
+        "back": "Zurück zur Straße",
+        "crumbs": "Wo Sie sind",
+        "kicker": "{rated} von {total} bewertet · {claim}",
+        "lead": {
+          "clears": "{name} führt diese Etage, und der Abstand übersteigt jedes Band.",
+          "insideNoise": "Geordnet, nicht getrennt: Niemand führt diese Etage.",
+          "belowFloor": "Hier sind zu wenige Kandidaten für einen Vergleich bewertet.",
+          "partitioned": "In {count, plural, one {# Währung} other {# Währungen}} angegeben: Jede Linie steht für sich und wird nie umgerechnet. Gehalt wird geordnet, nie bewertet.",
+          "salary": "Gehalt wird geordnet, nie bewertet: Eine höhere Erwartung macht niemanden zum besseren Kandidaten."
+        },
+        "note": "Hinweis zu dieser Etage",
+        "indicator": "Etagen",
+        "up": "Eine Etage höher",
+        "down": "Eine Etage tiefer",
+        "corridor": "Die Etage {floor} quer über die Straße",
+        "door": "{name}: {value}",
+        "focusNone": "Drücken Sie auf eine Tür, um einem Kandidaten durch diese Etage zu folgen.",
+        "focusOne": "Sie folgen {name}: {value}"
+      }
     }
   }
 }

@@ -17201,6 +17201,135 @@
         "remainder": "Aucun travail public à lire",
         "leads": "En tête : écart net sur le deuxième"
       }
+    },
+    "lineup": {
+      "kicker": "{title} · la rue des candidats",
+      "blind": "Cohorte anonyme",
+      "count": "{count, plural, one {# candidat dans la rue} other {# candidats dans la rue}}",
+      "site": "{built} construits · {building} encore en analyse · {failed} en échec",
+      "head": {
+        "clears": "{name} se détache nettement de la rue",
+        "insideNoise": "Personne ne se détache nettement : {count, plural, one {la tour la plus haute est} other {les # tours les plus hautes sont}} dans la même brume",
+        "belowFloor": "Trop peu de bâtiments pour comparer : {rated, plural, =0 {aucun n’est encore évalué} one {seulement # évalué} other {seulement # évalués}}"
+      },
+      "robust": {
+        "clearsStable": "L’avance tient sous chaque pondération testée.",
+        "clearsSensitive": "L’avance change sous certaines pondérations.",
+        "noiseStable": "La même tour arrive en tête sous chaque pondération, toujours dans le bruit.",
+        "noiseSensitive": "La tour en tête change sous certaines pondérations.",
+        "undetermined": "Robustesse non calculable : trop peu de candidats sont évalués sur toutes les dimensions."
+      },
+      "order": {
+        "label": "Ordre de la rue",
+        "fit": "Par adéquation",
+        "neutral": "Ordre neutre",
+        "noteFit": "De gauche à droite par rang d’adéquation, terrains non évalués au bout.",
+        "noteNeutral": "Un mélange enregistré qui ne porte aucun verdict."
+      },
+      "street": "La rue : {count, plural, one {# candidat} other {# candidats}}. La hauteur de la tour est l’adéquation, les étages sont les autres dimensions.",
+      "directory": "Plan des étages",
+      "claim": {
+        "clears": "avance nette",
+        "insideNoise": "dans le bruit",
+        "belowFloor": "trop peu pour comparer",
+        "partitioned": "non comparable"
+      },
+      "claimLong": {
+        "clears": "{name} mène, au-delà du bruit",
+        "insideNoise": "ordonné, pas séparé",
+        "belowFloor": "trop peu d’évalués pour comparer",
+        "partitioned": "{count, plural, one {# devise} other {# devises}}, jamais converties"
+      },
+      "walkFloor": "Parcourir l’étage {floor} : {claim}, {rated} sur {total} évalués",
+      "haze": "Les {count} premiers dans le bruit",
+      "cell": {
+        "rated": "{name}, {floor} : {label}, {rating} sur 100",
+        "absent": "{name}, {floor} : pas de note, {reason}",
+        "lead": "mène cet étage, au-delà du bruit",
+        "comment": "commentaire : {text}",
+        "haze": "en tête, mais dans le bruit",
+        "crown": "se détache nettement en tête",
+        "decoy": "dans l’ombre de {name}"
+      },
+      "building": "{name}, {rank}",
+      "sign": "{name}, {membership}, {rank}. Ouvrir le rapport complet",
+      "signNoReport": "{name}, {membership}, {rank}. Pas encore de rapport",
+      "rank": "rang {rank} par adéquation",
+      "rankShared": "rang {rank} par adéquation, ex æquo",
+      "unranked": "sans rang d’adéquation",
+      "house": "#{rank}",
+      "houseShared": "={rank}",
+      "membership": {
+        "applicant": "candidature reçue",
+        "matched": "issu du vivier",
+        "added": "ajouté à la main"
+      },
+      "decoy": "Dans l’ombre de {name}, en retrait sur chaque dimension comparée.",
+      "stop": "Étape {n} de la visite",
+      "readout": {
+        "label": "Ce que vous regardez",
+        "idle": "Pointez un bâtiment ou parcourez la rue avec les flèches pour le lire ici.",
+        "legend": "Lire la rue",
+        "tower": "La hauteur de la tour est l’adéquation. Le crochet à côté est sa marge.",
+        "windows": "Les fenêtres allumées sont la note. Chaque fenêtre vaut 20 points.",
+        "boarded": "Un étage condamné n’a pas de note. Son panneau dit pourquoi.",
+        "shadow": "Les hachures signalent un candidat dans l’ombre d’un autre.",
+        "pennant": "Un fanion porte un commentaire, rare.",
+        "haze": "Brume : ordonné, mais pas séparé.",
+        "stop": "Un anneau numéroté : abordé dans la visite.",
+        "band": "marge {lo}–{hi}",
+        "lead": "Mène cet étage. L’écart dépasse toutes les marges.",
+        "salaryOther": "Indiqué en {key} : affiché à part, ni converti ni comparé.",
+        "salaryNever": "Le salaire est ordonné, jamais classé. Plus élevé ne veut pas dire meilleur.",
+        "open": "Ouvrir le rapport complet",
+        "walk": "Parcourir l’étage {floor}"
+      },
+      "walk": {
+        "title": "La visite",
+        "covers": "Couvre les {covers} premiers par adéquation (anneaux 1–{covers} dans la rue) · laisse de côté {leftOut, plural, one {# candidat} other {# candidats}}",
+        "model": "Rédigée par le modèle de langage autour des affirmations ci-dessus, sans jamais les modifier.",
+        "keyless": "Rédigée sans modèle de langage (repli déterministe).",
+        "pending": "Pas encore de visite. Elle sera rédigée quand tous les bâtiments seront debout.",
+        "none": "Pas de visite. Moins de deux candidats sont évalués."
+      },
+      "keys": {
+        "label": "Touches",
+        "names": {
+          "tab": "Tab",
+          "arrows": "Flèches",
+          "enter": "Entrée",
+          "esc": "Échap",
+          "brackets": "[ ]",
+          "leftRight": "← →"
+        },
+        "acts": {
+          "move": "parcourir la rue",
+          "open": "parcourir un étage ou ouvrir un rapport",
+          "floors": "prendre l’escalier vers un autre étage",
+          "back": "revenir dans la rue"
+        }
+      },
+      "level": {
+        "root": "La rue",
+        "back": "Retour à la rue",
+        "crumbs": "Où vous êtes",
+        "kicker": "{rated} sur {total} évalués · {claim}",
+        "lead": {
+          "clears": "{name} mène cet étage et l’écart dépasse toutes les marges.",
+          "insideNoise": "Ordonné, pas séparé. Personne ne mène cet étage.",
+          "belowFloor": "Trop peu de candidats sont évalués ici pour les comparer.",
+          "partitioned": "Indiqué en {count, plural, one {# devise} other {# devises}}. Chaque ligne reste à part et n’est jamais convertie. Le salaire est ordonné, jamais classé.",
+          "salary": "Le salaire est ordonné, jamais classé. Une attente plus élevée ne fait pas un meilleur candidat."
+        },
+        "note": "Note sur cet étage",
+        "indicator": "Étages",
+        "up": "Monter d’un étage",
+        "down": "Descendre d’un étage",
+        "corridor": "L’étage {floor} à travers la rue",
+        "door": "{name} : {value}",
+        "focusNone": "Appuyez sur une porte pour suivre un candidat dans cet étage.",
+        "focusOne": "Vous suivez {name} : {value}"
+      }
     }
   }
 }

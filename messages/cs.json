@@ -17201,6 +17201,135 @@
         "remainder": "Žádná veřejná práce k načtení",
         "leads": "Vede: s jasným odstupem od druhého"
       }
+    },
+    "lineup": {
+      "kicker": "{title} · ulice kandidátů",
+      "blind": "Kohorta naslepo",
+      "count": "{count, plural, one {# kandidát na ulici} few {# kandidáti na ulici} many {# kandidáta na ulici} other {# kandidátů na ulici}}",
+      "site": "Postaveno: {built} · stále se analyzuje: {building} · selhalo: {failed}",
+      "head": {
+        "clears": "{name} jasně vyčnívá nad ulicí",
+        "insideNoise": "Nikdo jasně nevyčnívá: {count, plural, one {nejvyšší věž stojí} few {# nejvyšší věže stojí} many {# nejvyšší věže stojí} other {# nejvyšších věží stojí}} ve stejném oparu",
+        "belowFloor": "Na srovnání je příliš málo budov: {rated, plural, =0 {zatím žádná není hodnocená} one {hodnocená je jen #} few {hodnocené jsou jen #} many {hodnoceno je jen #} other {hodnoceno je jen #}}"
+      },
+      "robust": {
+        "clearsStable": "Náskok platí při každém vyzkoušeném vážení.",
+        "clearsSensitive": "Při některých váženích se náskok mění.",
+        "noiseStable": "Při každém vážení vychází první stejná věž, stále však v rámci šumu.",
+        "noiseSensitive": "Při některých váženích vychází první jiná věž.",
+        "undetermined": "Robustnost nelze spočítat: na všech dimenzích je hodnoceno příliš málo kandidátů."
+      },
+      "order": {
+        "label": "Pořadí na ulici",
+        "fit": "Podle shody",
+        "neutral": "Neutrální pořadí",
+        "noteFit": "Zleva doprava podle pořadí shody, nehodnocené parcely na konci.",
+        "noteNeutral": "Zaznamenané zamíchání, které nenese žádný verdikt."
+      },
+      "street": "Ulice: {count, plural, one {# kandidát} few {# kandidáti} many {# kandidáta} other {# kandidátů}}. Výška věže je shoda, patra jsou ostatní dimenze.",
+      "directory": "Seznam pater",
+      "claim": {
+        "clears": "jasný náskok",
+        "insideNoise": "v rámci šumu",
+        "belowFloor": "málo pro srovnání",
+        "partitioned": "nesrovnatelné"
+      },
+      "claimLong": {
+        "clears": "{name} vede, mimo šum",
+        "insideNoise": "seřazeno, ne odděleno",
+        "belowFloor": "na srovnání je hodnoceno příliš málo kandidátů",
+        "partitioned": "{count, plural, one {# měna} few {# měny} many {# měny} other {# měn}}, nikdy nepřepočteno"
+      },
+      "walkFloor": "Projít patro {floor}: {claim}, hodnoceno {rated} z {total}",
+      "haze": "Prvních {count} v rámci šumu",
+      "cell": {
+        "rated": "{name}, {floor}: {label}, {rating} ze 100",
+        "absent": "{name}, {floor}: bez hodnocení, {reason}",
+        "lead": "vede toto patro, mimo šum",
+        "comment": "komentář: {text}",
+        "haze": "nahoře v rámci šumu",
+        "crown": "nahoře jasně vyčnívá",
+        "decoy": "ve stínu: {name} je lepší na každé srovnávané dimenzi"
+      },
+      "building": "{name}, {rank}",
+      "sign": "{name}, {membership}, {rank}. Otevřít celý report",
+      "signNoReport": "{name}, {membership}, {rank}. Report zatím není k dispozici",
+      "rank": "{rank}. podle shody",
+      "rankShared": "{rank}. podle shody, o místo se dělí",
+      "unranked": "bez pořadí ve shodě",
+      "house": "#{rank}",
+      "houseShared": "={rank}",
+      "membership": {
+        "applicant": "uchazeč",
+        "matched": "vybrán z databáze",
+        "added": "přidán ručně"
+      },
+      "decoy": "Ve stínu: {name} je lepší na každé srovnávané dimenzi.",
+      "stop": "Zastávka {n} prohlídky",
+      "readout": {
+        "label": "Na co se díváte",
+        "idle": "Najeďte na budovu nebo projděte ulici šipkami a uvidíte ji tady.",
+        "legend": "Jak číst ulici",
+        "tower": "Výška věže je shoda, závorka vedle ní je její pásmo.",
+        "windows": "Rozsvícená okna jsou hodnocení: každé okno má 20 bodů.",
+        "boarded": "Zabedněné patro nemá hodnocení, značka říká proč.",
+        "shadow": "Šrafování značí kandidáta ve stínu jiného.",
+        "pennant": "Vlaječka nese vzácný komentář.",
+        "haze": "Opar: seřazeno, ale neodděleno.",
+        "stop": "Číslo v kroužku: probráno v prohlídce.",
+        "band": "pásmo {lo}–{hi}",
+        "lead": "Vede toto patro: odstup přesahuje všechna pásma.",
+        "salaryOther": "Uvedeno v {key}: zobrazeno samostatně, bez přepočtu a bez srovnání.",
+        "salaryNever": "Mzda se řadí, nikdy nehodnotí: vyšší neznamená lepší.",
+        "open": "Otevřít celý report",
+        "walk": "Projít patro {floor}"
+      },
+      "walk": {
+        "title": "Prohlídka",
+        "covers": "Pokrývá prvních {covers} podle shody (kroužky 1–{covers} na ulici) · vynechává {leftOut, plural, one {# kandidáta} few {# kandidáty} many {# kandidáta} other {# kandidátů}}",
+        "model": "Napsal ji jazykový model kolem výroků výše a nikdy je nemění.",
+        "keyless": "Napsáno bez jazykového modelu (deterministická záloha).",
+        "pending": "Prohlídka zatím není: vznikne, až budou stát všechny budovy.",
+        "none": "Prohlídka není: hodnocení mají méně než dva kandidáti."
+      },
+      "keys": {
+        "label": "Klávesy",
+        "names": {
+          "tab": "Tab",
+          "arrows": "Šipky",
+          "enter": "Enter",
+          "esc": "Esc",
+          "brackets": "[ ]",
+          "leftRight": "← →"
+        },
+        "acts": {
+          "move": "procházet ulici",
+          "open": "projít patro nebo otevřít report",
+          "floors": "po schodech do jiného patra",
+          "back": "zpět na ulici"
+        }
+      },
+      "level": {
+        "root": "Ulice",
+        "back": "Zpět na ulici",
+        "crumbs": "Kde jste",
+        "kicker": "hodnoceno {rated} z {total} · {claim}",
+        "lead": {
+          "clears": "{name} vede toto patro a odstup přesahuje všechna pásma.",
+          "insideNoise": "Seřazeno, ne odděleno: toto patro nikdo nevede.",
+          "belowFloor": "Na tomto patře je hodnoceno příliš málo kandidátů na srovnání.",
+          "partitioned": "Uvedeno {count, plural, one {v # měně} few {ve # měnách} many {v # měny} other {v # měnách}}: každá řada stojí samostatně a nikdy se nepřepočítává. Mzda se řadí, nikdy nehodnotí.",
+          "salary": "Mzda se řadí, nikdy nehodnotí: vyšší očekávání neznamená lepšího kandidáta."
+        },
+        "note": "Poznámka k patru",
+        "indicator": "Patra",
+        "up": "O patro výš",
+        "down": "O patro níž",
+        "corridor": "Patro {floor} napříč ulicí",
+        "door": "{name}: {value}",
+        "focusNone": "Stiskněte dveře a sledujte jednoho kandidáta tímto patrem.",
+        "focusOne": "Sledujete: {name}, {value}"
+      }
     }
   }
 }

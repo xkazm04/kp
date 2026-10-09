@@ -1,0 +1,345 @@
+/* The Line-up (Analyze > Cohort, prototype world): a street of candidates drawn as a skyline, scoped to
+   .lu-world. Every colour is a token or a color-mix of tokens, painted through the --lu-* roles below and
+   re-declared for Spark Dark, so ONE geometry renders both registers. Studio Light is an architect's
+   elevation at dusk: paper sky, ink hairlines, warm lit panes. Spark Dark is the street at night: cream
+   2px outlines, amber windows that glow, hard sticker shadows, a degree of tilt, the Bricolage face.
+   The street's height never depends on the data: rows are fixed and towers grow inside the tower row.
+   Motion: the towers rise once, the order toggle walks the buildings (useStreetFlip), the floor you walk
+   into stays lit while the rest dims; none of it under reduced motion. */
+
+.lu-world {
+  --lu-line: 1px;
+  --lu-ink: var(--color-ink);
+  --lu-ink-soft: color-mix(in srgb, var(--color-ink) 55%, var(--color-paper));
+  --lu-wall: var(--color-white);
+  --lu-slab: color-mix(in srgb, var(--color-ink) 22%, var(--color-white));
+  --lu-pane: color-mix(in srgb, var(--color-stone-100) 60%, var(--color-white));
+  --lu-lit: color-mix(in srgb, var(--color-dial-amber) 66%, var(--color-white));
+  --lu-glow: none;
+  --lu-mullion: var(--color-white);
+  --lu-board: color-mix(in srgb, var(--color-stone-200) 70%, var(--color-white));
+  --lu-plank: color-mix(in srgb, var(--color-ink) 18%, var(--color-stone-200));
+  --lu-scaffold: color-mix(in srgb, var(--color-ink) 30%, transparent);
+  --lu-shade: color-mix(in srgb, var(--color-ink) 26%, transparent);
+  --lu-sky-top: var(--color-paper);
+  --lu-sky-bottom: color-mix(in srgb, var(--color-limewash) 40%, var(--color-paper));
+  --lu-pavement: color-mix(in srgb, var(--color-stone-100) 55%, var(--color-paper));
+  --lu-haze: color-mix(in srgb, var(--color-steel) 20%, transparent);
+  --lu-haze-edge: color-mix(in srgb, var(--color-steel) 60%, transparent);
+  --lu-band: var(--color-steel);
+  --lu-lead: var(--color-moss);
+  --lu-note: var(--color-steel);
+  --lu-lamp: color-mix(in srgb, var(--color-dial-amber) 34%, transparent);
+  --lu-drop: none;
+  --lu-tilt: 0deg;
+  --lu-ease: var(--k-ease);
+  position: relative;
+  container: lu / inline-size;
+  color: var(--color-ink);
+}
+[data-theme="dark"] .lu-world {
+  --lu-line: 2px;
+  --lu-ink-soft: color-mix(in srgb, var(--color-ink) 62%, var(--color-paper));
+  --lu-wall: var(--color-stone-100);
+  --lu-slab: color-mix(in srgb, var(--color-ink) 30%, var(--color-stone-100));
+  --lu-pane: color-mix(in srgb, var(--color-paper) 72%, var(--color-stone-100));
+  --lu-lit: var(--color-dial-amber);
+  --lu-glow: 0 0 10px color-mix(in srgb, var(--color-dial-amber) 45%, transparent);
+  --lu-mullion: var(--color-stone-100);
+  --lu-board: color-mix(in srgb, var(--color-stone-200) 70%, var(--color-paper));
+  --lu-plank: color-mix(in srgb, var(--color-ink) 28%, var(--color-stone-200));
+  --lu-shade: color-mix(in srgb, var(--color-ink) 34%, transparent);
+  --lu-sky-top: color-mix(in srgb, var(--color-steel) 26%, var(--color-paper));
+  --lu-sky-bottom: var(--color-paper);
+  --lu-pavement: var(--color-stone-50);
+  --lu-haze: color-mix(in srgb, var(--color-ink) 16%, transparent);
+  --lu-haze-edge: color-mix(in srgb, var(--color-ink) 55%, transparent);
+  --lu-band: var(--color-ink);
+  --lu-lamp: color-mix(in srgb, var(--color-dial-amber) 30%, transparent);
+  --lu-drop: drop-shadow(3px 4px 0 color-mix(in srgb, var(--color-paper) 90%, transparent));
+  --lu-tilt: .7deg;
+}
+
+/* ---------------------------------------------------------------- marks */
+.lu-glyph { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6px; stroke-linecap: round; stroke-linejoin: round; }
+.lu-glyph__fill { fill: currentColor; }
+.lu-glyph--lead { color: var(--lu-lead); }
+.lu-glyph--pennant { color: var(--lu-note); }
+.lu-glyph--crown { width: 16px; height: 22px; color: var(--lu-lead); }
+.lu-glyph--haze { color: var(--lu-band); }
+.lu-stop {
+  display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 999px; flex: none;
+  border: 1.5px solid var(--lu-band); background: var(--color-white); color: var(--color-ink);
+  font-size: var(--text-micro); font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums;
+}
+[data-theme="dark"] .lu-stop { border: 2px solid var(--color-ink); box-shadow: var(--sticker-xs-shadow); }
+
+/* ---------------------------------------------------------------- level 0 */
+.lu-l0 { display: grid; gap: 18px; padding: 4px 0 8px; }
+.lu-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; }
+.lu-head__titles { display: grid; gap: 6px; min-width: 0; flex: 1 1 520px; }
+.lu-head__kicker { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: var(--text-meta); letter-spacing: var(--text-meta--letter-spacing); font-weight: 600; text-transform: uppercase; color: var(--k-quiet); }
+.lu-head__chip { padding: 0 8px; border-radius: 999px; border: 1px solid var(--k-rule-strong); color: var(--color-ink); text-transform: none; letter-spacing: 0; }
+.lu-head__title { margin: 0; display: flex; align-items: center; gap: 10px; font-family: var(--font-serif); font-size: var(--text-h2); line-height: 1.25; font-weight: 600; letter-spacing: -.01em; }
+[data-theme="dark"] .lu-head__title { font-weight: 800; letter-spacing: -.02em; }
+.lu-head__mark { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 999px; flex: none; border: var(--k-line) solid var(--k-rule-strong); background: var(--color-white); }
+.lu-head__mark .lu-glyph { width: 20px; height: 20px; }
+.lu-head[data-claim="clears"] .lu-head__mark { border-color: var(--lu-lead); }
+[data-theme="dark"] .lu-head__mark { border-color: var(--color-ink); box-shadow: var(--sticker-xs-shadow); rotate: -4deg; }
+.lu-head__lead, .lu-head__site, .lu-head__note { margin: 0; font-size: var(--text-meta); color: var(--k-quiet); }
+.lu-head__site { color: var(--color-ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.lu-head__order { display: grid; justify-items: end; gap: 4px; }
+
+.lu-scene { display: grid; gap: 16px; align-items: start; min-width: 0; }
+@container lu (min-width: 1180px) { .lu-scene { grid-template-columns: minmax(0, 1fr) 300px; } }
+
+/* ---------------------------------------------------------------- the street */
+.lu-street {
+  --lu-gutter: 156px;
+  --lu-sky: 46px;
+  --lu-tower: 168px;
+  --lu-floor: 34px;
+  --lu-house: 26px;
+  --lu-sign: 140px;
+  --lu-podium: calc(6 * var(--lu-floor));
+  --lu-kerb: calc(var(--lu-sky) + var(--lu-tower) + var(--lu-podium));
+  --lu-pitch: calc((100% - var(--lu-gutter)) / var(--n));
+  position: relative; isolation: isolate; min-width: 0;
+  height: calc(var(--lu-kerb) + var(--lu-house) + var(--lu-sign));
+  border: var(--k-line) solid var(--k-rule); border-radius: var(--k-radius-lg);
+  background: linear-gradient(var(--lu-sky-top), var(--lu-sky-bottom) var(--lu-kerb), var(--lu-pavement) var(--lu-kerb));
+}
+[data-theme="dark"] .lu-street { border-color: var(--color-ink); box-shadow: var(--panel-shadow); }
+@container lu (min-width: 1180px) { .lu-street { --lu-tower: 184px; } }
+.lu-back { position: absolute; inset: 0; pointer-events: none; }
+.lu-band { position: absolute; left: var(--lu-gutter); right: 6px; top: calc(var(--lu-sky) + var(--lu-tower) + var(--row) * var(--lu-floor)); height: var(--lu-floor); }
+.lu-band[data-lu-band="fit"] { top: var(--lu-sky); height: var(--lu-tower); }
+.lu-kerb { position: absolute; left: 0; right: 0; top: var(--lu-kerb); height: var(--lu-line); background: var(--lu-ink); z-index: 2; }
+.lu-lamp {
+  position: absolute; z-index: 0; top: var(--lu-sky); height: calc(var(--lu-tower) + var(--lu-podium));
+  left: calc(var(--lu-gutter) + var(--col) * var(--lu-pitch) - var(--lu-pitch) / 2); width: calc(2 * var(--lu-pitch));
+  background: radial-gradient(ellipse 50% 60% at 50% 100%, var(--lu-lamp), transparent);
+}
+.lu-haze {
+  position: absolute; z-index: 3; left: calc(var(--lu-gutter) - 6px); right: 0;
+  top: calc(var(--lu-sky) + var(--lu-tower) * (100 - var(--hi)) / 100); height: calc(var(--lu-tower) * (var(--hi) - var(--lo)) / 100);
+  background: repeating-linear-gradient(180deg, var(--lu-haze) 0 3px, transparent 3px 7px);
+  border-block: 1.5px dashed var(--lu-haze-edge);
+}
+.lu-haze__label {
+  position: absolute; right: 100%; top: 50%; translate: 0 -50%; width: calc(var(--lu-gutter) - 14px); margin-right: -6px;
+  display: flex; align-items: center; gap: 6px; font-size: var(--text-micro); font-weight: 600; line-height: 1.15; color: var(--color-ink);
+}
+.lu-arc { position: absolute; z-index: 3; left: var(--lu-gutter); right: 0; top: var(--lu-sky); height: var(--lu-tower); width: calc(100% - var(--lu-gutter)); overflow: visible; }
+.lu-arc path { fill: none; stroke: var(--lu-ink); stroke-width: 2px; stroke-dasharray: 6 4; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+
+/* the floor directory, in the margin */
+.lu-dir { position: absolute; z-index: 2; left: 0; top: 0; bottom: 0; width: var(--lu-gutter); }
+.lu-dir__floor {
+  position: absolute; left: 6px; right: 8px; top: calc(var(--lu-sky) + var(--lu-tower) + var(--row) * var(--lu-floor)); height: var(--lu-floor);
+  display: grid; align-content: center; gap: 1px; padding: 0 6px; border-radius: 6px; line-height: 1.12;
+}
+.lu-dir__floor[data-row="fit"] { top: calc(var(--lu-sky) + var(--lu-tower) - 44px); height: 40px; }
+.lu-dir__floor:hover { background: var(--k-hover); }
+.lu-dir__name { font-size: var(--text-micro); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lu-dir__claim { display: flex; align-items: center; gap: 4px; min-width: 0; font-size: var(--text-micro); color: var(--k-quiet); white-space: nowrap; }
+.lu-dir__claim > span { overflow: hidden; text-overflow: ellipsis; }
+.lu-dir__floor[data-claim="clears"] .lu-dir__claim { color: var(--lu-lead); font-weight: 600; }
+.lu-dir__floor[data-claim="partitioned"] .lu-dir__claim { color: var(--color-ink); }
+
+/* the buildings */
+.lu-lots { position: absolute; inset: 0; z-index: 1; }
+.lu-b { position: absolute; top: 0; bottom: 0; left: calc(var(--lu-gutter) + var(--col) * var(--lu-pitch)); width: var(--lu-pitch); }
+[data-theme="dark"] .lu-b { filter: var(--lu-drop); }
+[data-theme="dark"] .lu-b:nth-child(odd) :is(.lu-tower, .lu-floor) { rotate: var(--lu-tilt); }
+[data-theme="dark"] .lu-b:nth-child(even) .lu-tower { rotate: calc(-1 * var(--lu-tilt)); }
+
+.lu-tower { position: absolute; top: var(--lu-sky); height: var(--lu-tower); left: 18%; right: 18%; }
+.lu-tower__body {
+  position: absolute; left: 0; right: 0; bottom: 0; height: calc(var(--fit) * 1%); min-height: 2px;
+  border: var(--lu-line) solid var(--lu-ink); border-bottom: 0; border-radius: 3px 3px 0 0; background: var(--lu-wall);
+  background-image: repeating-linear-gradient(180deg, transparent 0 9px, var(--lu-slab) 9px 10px);
+  transform-origin: 50% 100%;
+}
+.lu-street:not([data-risen]) .lu-tower__body { animation: lu-rise .7s var(--lu-ease) both; animation-delay: calc(var(--col) * 22ms); }
+@keyframes lu-rise { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+.lu-tower__band {
+  position: absolute; right: -7px; width: 4px; bottom: calc(var(--lo) * 1%); height: calc((var(--hi) - var(--lo)) * 1%);
+  border: 1.5px solid var(--lu-band); border-left: 0;
+}
+.lu-tower__lot {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 24%; display: grid; place-items: center;
+  border: 1.5px dashed var(--lu-ink-soft); border-bottom: 0; border-radius: 3px 3px 0 0; color: var(--lu-ink-soft);
+}
+.lu-tower[data-lot="building"] .lu-tower__lot {
+  background: repeating-linear-gradient(45deg, transparent 0 6px, var(--lu-scaffold) 6px 7px), repeating-linear-gradient(-45deg, transparent 0 6px, var(--lu-scaffold) 6px 7px);
+}
+.lu-tower__top {
+  position: absolute; left: 50%; bottom: calc(var(--top) * 1% + 3px); translate: -50% 0;
+  display: grid; justify-items: center; gap: 0; pointer-events: none;
+}
+.lu-tower__n { font-family: var(--font-serif); font-size: var(--text-micro); font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.lu-tower[data-lot="boarded"] .lu-tower__n, .lu-tower[data-lot="building"] .lu-tower__n { color: var(--lu-ink-soft); }
+.lu-tower__top .lu-glyph--pennant { position: absolute; left: 100%; top: 0; }
+.lu-b[data-haze] .lu-tower__body { border-top-style: dashed; }
+
+.lu-floor {
+  position: absolute; left: 8%; right: 8%; top: calc(var(--lu-sky) + var(--lu-tower) + var(--row) * var(--lu-floor)); height: var(--lu-floor);
+  background: var(--lu-wall); border-inline: var(--lu-line) solid var(--lu-ink); border-top: 1px solid var(--lu-slab);
+}
+.lu-floor[data-row="skills"] { border-top: var(--lu-line) solid var(--lu-ink); border-radius: 3px 3px 0 0; }
+.lu-win {
+  position: absolute; inset: 7px 4px; border-radius: 2px;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 calc(20% - 2px), var(--lu-mullion) calc(20% - 2px) 20%),
+    linear-gradient(90deg, var(--lu-lit) 0 calc(var(--lit) * 100%), var(--lu-pane) calc(var(--lit) * 100%));
+}
+[data-theme="dark"] .lu-floor[data-lot="rated"] .lu-win { box-shadow: var(--lu-glow); }
+.lu-floor[data-lot="boarded"] .lu-win { background: repeating-linear-gradient(-35deg, var(--lu-board) 0 5px, var(--lu-plank) 5px 6.5px); box-shadow: none; }
+.lu-floor[data-lot="building"] { border-style: dashed; border-color: var(--lu-ink-soft); background: transparent; }
+.lu-floor[data-lot="building"] .lu-win { background: none; border: 1px dashed var(--lu-scaffold); }
+.lu-floor > .lu-glyph { position: absolute; left: 50%; top: 50%; translate: -50% -50%; padding: 1px; border-radius: 3px; background: var(--lu-wall); color: var(--color-ink); box-sizing: content-box; }
+.lu-floor__lead, .lu-floor__note { position: absolute; top: -7px; display: grid; }
+.lu-floor__lead { right: -8px; }
+.lu-floor__note { left: -8px; }
+.lu-floor__n {
+  position: absolute; inset: 5px 3px; display: none; place-items: center; border-radius: 3px;
+  background: color-mix(in srgb, var(--color-white) 88%, transparent); font-size: var(--text-micro); font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums;
+}
+.lu-b[data-on] .lu-floor__n { display: grid; }
+.lu-b[data-on] :is(.lu-floor, .lu-tower__body) { border-color: var(--lu-ink); }
+.lu-b[data-decoy] :is(.lu-tower__body, .lu-floor)::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+  background: repeating-linear-gradient(135deg, var(--lu-shade) 0 2px, transparent 2px 6px);
+}
+
+.lu-house {
+  position: absolute; left: 0; right: 0; top: calc(var(--lu-kerb) + 4px); text-align: center;
+  font-family: var(--font-serif); font-size: var(--text-micro); font-weight: 700; line-height: 1.3; font-variant-numeric: tabular-nums;
+}
+.lu-b[data-decoy] .lu-house { text-decoration: underline dotted; text-underline-offset: 3px; }
+.lu-sign {
+  position: absolute; left: 50%; translate: -50% 0; top: calc(var(--lu-kerb) + var(--lu-house) + 2px); height: calc(var(--lu-sign) - 34px); width: 24px;
+  display: grid; justify-items: center; align-content: start; padding: 5px 0; border-radius: 6px;
+  border: 1px solid var(--k-rule-strong); background: var(--color-white);
+}
+.lu-sign[aria-disabled="true"] { cursor: default; border-style: dashed; background: transparent; }
+.lu-sign__text {
+  writing-mode: vertical-rl; rotate: 180deg; max-height: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--text-micro); font-weight: 600; line-height: 1;
+}
+.lu-sign:not([aria-disabled="true"]):hover { border-color: var(--color-ink); }
+[data-theme="dark"] .lu-sign { border: 2px solid var(--color-ink); box-shadow: var(--sticker-xs-shadow); }
+[data-theme="dark"] .lu-sign[aria-disabled="true"] { border-style: dashed; box-shadow: none; }
+.lu-b > .lu-stop { position: absolute; left: 50%; translate: -50% 0; bottom: 4px; }
+
+/* reading a building, walking a floor */
+.lu-b :is(.lu-tower, .lu-floor, .lu-sign):focus-visible { outline: 2px solid var(--color-coral); outline-offset: 2px; z-index: 2; }
+.lu-street :is(.lu-tower, .lu-floor, .lu-dir__floor) { transition: opacity .3s var(--lu-ease); }
+.lu-street[data-walking] :is(.lu-tower, .lu-floor, .lu-dir__floor):not([data-walk]) { opacity: .24; }
+.lu-street[data-walking] .lu-floor[data-walk] { box-shadow: 0 0 0 2px var(--lu-lit); }
+
+/* a comment, lit while its building is read */
+.lu-bubble {
+  position: absolute; z-index: 5; margin: 0; max-width: 240px; top: calc(var(--lu-sky) + var(--lu-tower) + var(--row) * var(--lu-floor) - 6px);
+  display: flex; gap: 6px; align-items: flex-start; padding: 6px 10px; border-radius: var(--k-radius);
+  border: var(--k-line) solid var(--k-rule-strong); background: var(--color-white); box-shadow: var(--shadow-pop);
+  font-size: var(--text-micro); line-height: 1.35; pointer-events: none;
+}
+.lu-bubble[data-side="right"] { left: calc(var(--lu-gutter) + (var(--col) + 1) * var(--lu-pitch) + 4px); }
+.lu-bubble[data-side="left"] { right: calc(100% - var(--lu-gutter) - var(--col) * var(--lu-pitch) + 4px); }
+[data-theme="dark"] .lu-bubble { border-color: var(--color-ink); box-shadow: var(--sticker-sm-shadow); rotate: -1deg; }
+
+/* ---------------------------------------------------------------- the directory board */
+.lu-board {
+  display: grid; gap: 8px; align-content: start; min-height: 300px; min-width: 0; padding: 14px 16px;
+  border: var(--k-line) solid var(--k-rule); border-radius: var(--k-radius-lg); background: var(--color-white); box-shadow: var(--shadow-panel);
+}
+[data-theme="dark"] .lu-board { border-color: var(--color-ink); box-shadow: var(--sticker-sm-shadow); }
+.lu-board__kicker { margin: 0; font-size: var(--text-meta); letter-spacing: var(--text-meta--letter-spacing); font-weight: 600; text-transform: uppercase; color: var(--k-quiet); }
+.lu-board__title { margin: 0; font-family: var(--font-serif); font-size: var(--text-h2); line-height: 1.2; font-weight: 600; overflow-wrap: anywhere; }
+[data-theme="dark"] .lu-board__title { font-weight: 800; }
+.lu-board__line, .lu-board__note, .lu-board__shade { margin: 0; font-size: var(--text-micro); color: var(--k-quiet); }
+.lu-board__note { font-family: var(--font-serif); font-style: italic; font-size: var(--text-body); color: var(--color-ink); }
+[data-theme="dark"] .lu-board__note { font-style: normal; font-weight: 700; }
+.lu-board__shade { color: var(--color-ink); padding-left: 10px; border-left: 3px solid var(--lu-shade); }
+.lu-board__floors { margin: 0; display: grid; }
+.lu-board__floor { display: grid; grid-template-columns: minmax(84px, auto) minmax(0, 1fr); align-items: baseline; gap: 8px; padding: 3px 0; font-size: var(--text-micro); }
+.lu-board__floor dt { font-weight: 600; display: flex; align-items: baseline; gap: 6px; }
+/* dotted leaders, as on a lobby board */
+.lu-board__floor dt::after { content: ""; flex: 1; min-width: 12px; border-bottom: 1.5px dotted var(--k-rule-strong); translate: 0 -3px; }
+.lu-board__floor dd { margin: 0; display: grid; justify-items: end; gap: 2px; text-align: right; min-width: 0; }
+.lu-board__value { display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; }
+.lu-board__floor[data-absent] .lu-board__value { color: var(--k-quiet); }
+.lu-board__floor[data-open] { margin: 2px -8px; padding: 6px 8px; border-radius: 6px; background: var(--k-select); }
+.lu-board__band, .lu-board__drivers, .lu-board__lead { color: var(--k-quiet); }
+.lu-board__lead { color: var(--lu-lead); font-weight: 600; }
+.lu-board__comment { display: flex; gap: 6px; align-items: flex-start; text-align: left; font-family: var(--font-serif); font-style: italic; color: var(--color-ink); }
+[data-theme="dark"] .lu-board__comment { font-style: normal; font-weight: 700; }
+.lu-board__acts { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 4px; }
+.lu-legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: var(--text-micro); }
+.lu-legend li { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 8px; align-items: center; }
+.lu-legend__mark { display: grid; place-items: center; }
+.lu-legend__win { width: 22px; height: 12px; border-radius: 2px; background: repeating-linear-gradient(90deg, transparent 0 calc(20% - 1px), var(--lu-mullion) calc(20% - 1px) 20%), linear-gradient(90deg, var(--lu-lit) 0 60%, var(--lu-pane) 60%); border: 1px solid var(--lu-ink); }
+.lu-legend__tower { width: 12px; height: 18px; border: var(--lu-line) solid var(--lu-ink); border-bottom: 0; background: var(--lu-wall); box-shadow: 5px 0 0 -3px var(--lu-band); }
+.lu-legend__shade { width: 18px; height: 16px; border: 1px solid var(--lu-ink); background: repeating-linear-gradient(135deg, var(--lu-shade) 0 2px, transparent 2px 6px), var(--lu-wall); }
+.lu-legend__stop { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 999px; border: 1.5px solid var(--lu-band); font-weight: 700; font-size: var(--text-micro); line-height: 1; }
+
+/* ---------------------------------------------------------------- the walk-through */
+.lu-walk { display: grid; gap: 10px; padding-top: 12px; border-top: 1px solid var(--k-rule); }
+[data-theme="dark"] .lu-walk { border-top: 2px dashed var(--k-rule); }
+.lu-walk__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; }
+.lu-walk__title { margin: 0; font-family: var(--font-serif); font-size: var(--text-h3); font-weight: 600; }
+[data-theme="dark"] .lu-walk__title { font-weight: 800; }
+.lu-walk__covers, .lu-walk__engine { margin: 0; font-size: var(--text-micro); color: var(--k-quiet); }
+.lu-walk__stops { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.lu-walk__stop { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px 2px 2px; border-radius: 999px; font-size: var(--text-micro); font-weight: 600; }
+.lu-walk__stop:hover { background: var(--k-hover); }
+.lu-walk__text { margin: 0; max-width: 78ch; font-size: var(--text-body); line-height: 1.55; }
+
+/* ---------------------------------------------------------------- level 1: the floor */
+.lu-floorlvl { display: grid; gap: 16px; min-width: 0; }
+.lu-lift { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px; border-radius: var(--k-radius-lg); background: var(--k-plane); border: var(--k-line) solid var(--k-rule); }
+.lu-lift__floors { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px; flex: 1; }
+.lu-lift__floor { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border-radius: 999px; font-size: var(--text-micro); font-weight: 600; color: var(--k-quiet); }
+.lu-lift__floor:hover { background: var(--k-hover); color: var(--color-ink); }
+.lu-lift__lamp { width: 8px; height: 8px; border-radius: 999px; border: 1.5px solid var(--lu-ink-soft); }
+.lu-lift__floor[aria-current="true"] { color: var(--color-ink); background: var(--color-white); box-shadow: inset 0 0 0 1px var(--k-rule-strong); }
+.lu-lift__floor[aria-current="true"] .lu-lift__lamp { background: var(--lu-lit); border-color: var(--lu-ink); box-shadow: var(--lu-glow); }
+[data-theme="dark"] .lu-lift__floor[aria-current="true"] { box-shadow: inset 0 0 0 2px var(--color-ink); }
+
+.lu-corridor { display: grid; gap: 6px; }
+.lu-corridor__doors {
+  display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 0; padding: 10px 6px 6px;
+  border-block: var(--lu-line) solid var(--lu-ink); background: linear-gradient(var(--lu-wall), var(--lu-wall)) padding-box;
+}
+.lu-door { display: grid; justify-items: center; gap: 4px; min-width: 0; padding: 2px 2px 4px; border-radius: 6px; }
+.lu-door:hover { background: var(--k-hover); }
+.lu-door[aria-pressed="true"] { background: var(--k-select); box-shadow: inset 0 0 0 1.5px var(--color-ink); }
+.lu-door__n { display: inline-flex; align-items: center; gap: 2px; font-family: var(--font-serif); font-size: var(--text-micro); font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.lu-door__win {
+  position: relative; display: grid; place-items: center; width: min(100%, 34px); height: 22px; border-radius: 2px; border: 1px solid var(--lu-ink);
+  background: repeating-linear-gradient(90deg, transparent 0 calc(20% - 2px), var(--lu-mullion) calc(20% - 2px) 20%), linear-gradient(0deg, var(--lu-lit) 0 calc(var(--lit) * 100%), var(--lu-pane) calc(var(--lit) * 100%));
+}
+.lu-door__win .lu-glyph--pennant { position: absolute; top: -9px; left: -7px; }
+.lu-door[data-lot="boarded"] .lu-door__win { background: repeating-linear-gradient(-35deg, var(--lu-board) 0 5px, var(--lu-plank) 5px 6.5px); }
+.lu-door[data-lot="building"] .lu-door__win { background: none; border-style: dashed; }
+.lu-door[data-decoy] .lu-door__win { box-shadow: inset 0 0 0 40px var(--lu-shade); }
+.lu-door__who { font-size: var(--text-micro); font-weight: 600; line-height: 1; color: var(--k-quiet); }
+.lu-door[aria-pressed="true"] .lu-door__who { color: var(--color-ink); }
+.lu-corridor__foot { margin: 0; font-size: var(--text-micro); color: var(--k-quiet); }
+.lu-floorlvl__note { margin: 0; max-width: 78ch; font-family: var(--font-serif); font-style: italic; font-size: var(--text-body); }
+.lu-floorlvl__note > span { font-family: var(--font-sans); font-style: normal; font-size: var(--text-meta); font-weight: 600; letter-spacing: var(--text-meta--letter-spacing); text-transform: uppercase; color: var(--k-quiet); }
+[data-theme="dark"] .lu-floorlvl__note { font-style: normal; font-weight: 700; }
+
+/* a narrow sheet: the studio shows a card list below 760px; the street keeps its lots and scrolls inside itself */
+@container lu (max-width: 760px) {
+  .lu-scene { overflow-x: auto; }
+  .lu-street { min-width: 720px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lu-street:not([data-risen]) .lu-tower__body { animation: none; }
+  .lu-street :is(.lu-tower, .lu-floor, .lu-dir__floor) { transition: none; }
+  [data-theme="dark"] .lu-b :is(.lu-tower, .lu-floor) { rotate: none; }
+}
