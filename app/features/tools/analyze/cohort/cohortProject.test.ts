@@ -81,7 +81,7 @@ function input(over: Partial<ProjectInput> = {}): ProjectInput {
     analysisSlug: "slug-1",
     analysis: makeAnalysis(),
     blind: false,
-    roleBand: null,
+    role: null,
     ...over,
   };
 }
@@ -254,7 +254,7 @@ test("rateAgainstRange: 100 inside, falling 150 points per unit of relative dist
 });
 
 test("salary against the band: inside, outside, and another currency or pay basis refused", () => {
-  const rate = (a: Analysis) => projectCohortMember(input({ analysis: a, roleBand: BAND })).cells.salary;
+  const rate = (a: Analysis) => projectCohortMember(input({ analysis: a, role: { minYears: null, seniority: null, roleFamily: null, band: BAND } })).cells.salary;
   assert.equal(rate(withSalary(120000)).rating, 100);
   assert.equal(rate(withSalary(165000)).rating, 85);
   const eur = rate(withSalary(5000, "EUR"));

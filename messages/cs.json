@@ -17403,6 +17403,63 @@
       "anatomy": "Anatomie skóre",
       "headToHead": "Přímé srovnání",
       "matrix": "Matice kritérií"
+    },
+    "why": {
+      "more": "+{n, plural, one {# další} few {# další} many {# dalšího} other {# dalších}}",
+      "sentence": {
+        "fit": "Hodnocení modelu {score}: {strengths, plural, =0 {žádné silné stránky} one {# silná stránka} few {# silné stránky} many {# silné stránky} other {# silných stránek}}, {gaps, plural, =0 {žádné mezery} one {# mezera} few {# mezery} many {# mezery} other {# mezer}}, {risks, plural, =0 {žádné rizikové signály} one {# rizikový signál} few {# rizikové signály} many {# rizikového signálu} other {# rizikových signálů}}",
+        "skills": "Doloženo {matched} z {total} požadovaných{unproven, plural, =0 {} one {, # neověřená} few {, # neověřené} many {, # neověřené} other {, # neověřených}}{missing, plural, =0 {} other {; chybí {names}{more, plural, =0 {} one { a # další} few { a # další} many { a # dalšího} other { a # dalších}}}}",
+        "experience": "{years, plural, one {# rok} few {# roky} many {# roku} other {# let}}: zkušenosti {experience}/{experienceMax}, úroveň role {roleSeniority}/{roleSeniorityMax}",
+        "signals": "Základ 50, +{plus} za {strengths, plural, =0 {žádné silné stránky} one {# silnou stránku} few {# silné stránky} many {# silné stránky} other {# silných stránek}}, −{minus} za {flags, plural, =0 {žádná rizika} one {# riziko} few {# rizika} many {# rizika} other {# rizik}}",
+        "trustClean": "Žádné nálezy důvěryhodnosti",
+        "trust": "Základ 100: {blockers, plural, =0 {žádný blokující nález} one {# blokující nález} few {# blokující nálezy} many {# blokujícího nálezu} other {# blokujících nálezů}}, {warns, plural, =0 {žádné varování} one {# varování} few {# varování} many {# varování} other {# varování}}",
+        "salaryInside": "V rámci {basis, select, band {rozpětí role} other {rozpětí skupiny}}",
+        "salaryOutside": "O {pct} % {direction, select, above {nad} other {pod}} {basis, select, band {rozpětím role} other {rozpětím skupiny}}",
+        "publicWork": "Na GitHubu je vidět {matched} z {compared} dovedností z popisu pozice, {active, plural, one {# aktivní repozitář} few {# aktivní repozitáře} many {# aktivního repozitáře} other {# aktivních repozitářů}}, {stars, plural, one {# hvězdička} few {# hvězdičky} many {# hvězdičky} other {# hvězdiček}}",
+        "publicWorkNoJd": "Žádné dovednosti z popisu pozice k porovnání: hodnocení nesou {active, plural, one {# aktivní repozitář} few {# aktivní repozitáře} many {# aktivního repozitáře} other {# aktivních repozitářů}} a {stars, plural, one {# hvězdička} few {# hvězdičky} many {# hvězdičky} other {# hvězdiček}}"
+      },
+      "part": {
+        "experience": "Zkušenosti {score}/{max}",
+        "roleSeniority": "Úroveň role {score}/{max}",
+        "salaryInside": "V rámci {basis, select, band {rozpětí role} other {rozpětí skupiny}}",
+        "salaryOutside": "O {pct} % {direction, select, above {nad} other {pod}} {basis, select, band {rozpětím role} other {rozpětím skupiny}}",
+        "ghActive": "{active, plural, one {# aktivní repozitář} few {# aktivní repozitáře} many {# aktivního repozitáře} other {# aktivních repozitářů}}",
+        "ghStars": "{stars, plural, one {# hvězdička} few {# hvězdičky} many {# hvězdičky} other {# hvězdiček}}"
+      },
+      "skill": {
+        "matched": "{skill}: doloženo v CV",
+        "unproven": "{skill}: uvedeno, ale nedoloženo",
+        "missing": "{skill}: chybí"
+      },
+      "exp": {
+        "years": "{years, plural, one {# rok} few {# roky} many {# roku} other {# let}} praxe",
+        "level": "Úroveň {seniority, select, junior {junior} medior {medior} senior {senior} lead {lead} other {neuvedena}}"
+      },
+      "trust": {
+        "noFindings": "Žádné nálezy důvěryhodnosti",
+        "noBlockers": "Žádný blokující nález"
+      },
+      "gh": {
+        "skill": "{skill}: vidět ve veřejných repozitářích",
+        "gap": "{skill}: ve veřejných repozitářích nevidět",
+        "noActive": "Žádné aktivní repozitáře",
+        "noStars": "Zatím žádné hvězdičky"
+      },
+      "criteria": {
+        "seniority": "Seniorita: {level, select, junior {junior} medior {medior} senior {senior} lead {lead} other {{level}}}",
+        "seniorityNone": "Seniorita: pozice ji neuvádí",
+        "family": "Rodina rolí: {family}",
+        "familyNone": "Rodina rolí: pozice ji neuvádí",
+        "risk": "Žádné rizikové signály pro náboráře",
+        "minYears": "Alespoň {years, plural, one {# rok} few {# roky} many {# roku} other {# let}} praxe",
+        "minYearsNone": "Minimální praxe: pozice ji neuvádí",
+        "trust": "Kontrola důvěryhodnosti: {code}",
+        "salaryBand": "Rozpětí role {min, number} až {max, number} {currency}/{period, select, month {měs.} year {rok} hour {hod.} day {den} other {{period}}}",
+        "salaryBandFrom": "Rozpětí role od {min, number} {currency}/{period, select, month {měs.} year {rok} hour {hod.} day {den} other {{period}}}",
+        "salaryBandUpTo": "Rozpětí role do {max, number} {currency}/{period, select, month {měs.} year {rok} hour {hod.} day {den} other {{period}}}",
+        "salaryCohort": "Nejvýše {tolerance} % od mediánu skupiny v {currency}",
+        "salaryNone": "Není rozpětí k porovnání"
+      }
     }
   }
 }

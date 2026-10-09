@@ -19,7 +19,7 @@ import type { AnalysisCohortRecord } from "./db/analysis-cohorts";
 import { getTask, type TaskStatus } from "./db/tasks";
 import { candidateLabelWithholdsPii } from "./db/pipeline";
 import { maskCandidateName, scrubPiiFromPayload } from "./consent";
-import type { CohortComments, CohortStatus, CohortSummary, CohortView, RoleBand } from "../features/tools/analyze/cohort/cohortTypes";
+import type { CohortComments, CohortStatus, CohortSummary, CohortView, RoleBand, RoleContext } from "../features/tools/analyze/cohort/cohortTypes";
 import { assembleCohortView, projectCohortMember, type ProjectInput, type ProjectedMember } from "../features/tools/analyze/cohort/cohortProject";
 import { neutralOrder } from "../features/tools/analyze/cohort/cohortClaims";
 import { displayMemberLabel, uniqueDisplayLabels, type ProposalContext } from "./analyze-cohort-proposal";
@@ -30,7 +30,8 @@ export type CohortEngine = {
   assembleCohortView: (
     base: Omit<CohortView, "members" | "claims" | "narrative" | "progress" | "criteria" | "roleBand">,
     members: ProjectedMember[],
-    comments: CohortComments | null
+    comments: CohortComments | null,
+    role: RoleContext | null
   ) => CohortView;
   neutralOrder: (cohortId: string, memberIds: string[]) => string[];
 };
@@ -64,6 +65,21 @@ export function cohortRoleBand(job: JobRecord | null): RoleBand | null {
   const max = Number.isFinite(hi) && hi > 0 ? hi : null;
   if (min === null && max === null) return null;
   return { currency: APP_CURRENCY, period: "month", min, max };
+}
+
+/** What the role asks for, as the why-engine reads it. A seniority the ingest DEFAULTED
+ *  (normalize_job's phantom "medior", defaultedFields "seniority") is not the role's, so
+ *  it is null; a minimum of 0 years asks for nothing, so it is null too. */
+export function cohortRoleContext(job: JobRecord | null): RoleContext | null {
+  if (!job) return null;
+  const min = job.minYearsExperience;
+  const seniority = (job.defaultedFields ?? []).includes("seniority") ? null : job.seniority?.trim() || null;
+  return {
+    minYears: typeof min === "number" && Number.isFinite(min) && min > 0 ? min : null,
+    seniority,
+    band: cohortRoleBand(job),
+    roleFamily: job.roleFamily?.trim() || null,
+  };
 }
 
 /** A run whose task ended without the runner closing the row (cancelled while queued, a
@@ -101,7 +117,7 @@ export function projectAnalysisCohortMembers(
   deps: ViewDeps
 ): ProjectedMember[] {
   const order = deps.engine.neutralOrder(rec.id, rec.members.map((m) => m.memberId));
-  const roleBand = cohortRoleBand(job);
+  const role = cohortRoleContext(job);
   const loadedAll = rec.members.map((m) =>
     m.analysisSlug ? loadCohortMemberAnalysis(m.analysisSlug, rec.workspaceId, deps) : { analysis: null, withheld: false }
   );
@@ -129,7 +145,7 @@ export function projectAnalysisCohortMembers(
       analysisSlug: m.analysisSlug,
       analysis: loaded.analysis,
       blind: rec.blind,
-      roleBand,
+      role,
     });
   });
 }
@@ -157,7 +173,8 @@ export function assembleAnalysisCohortView(
       finishedAt: rec.finishedAt,
     },
     members,
-    comments
+    comments,
+    cohortRoleContext(ctx.job)
   );
   // Re-asserted, whatever the engine did: a blind cohort's label is its neutral letter.
   if (rec.blind) view.members = view.members.map((m) => ({ ...m, label: blindMemberLabel(m.neutralIndex) }));

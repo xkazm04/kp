@@ -318,6 +318,18 @@ export interface RoleBand {
 }
 
 /**
+ * What the role asks for, as the why-engine reads it (jobs.min_years, seniority, role_family
+ * and the band above). Every field nullable: a value the ingest DEFAULTED (a phantom
+ * "medior", an anchor band) is null here, never read as the role's own statement.
+ */
+export interface RoleContext {
+  minYears: number | null;
+  seniority: string | null;
+  band: RoleBand | null;
+  roleFamily: string | null;
+}
+
+/**
  * What the comparative pass (pipeline/jobfit/cohort_compare.py) returns, already filtered to
  * reorder-surviving claims. Merged into the view by assembleCohortView (cohortProject.ts).
  */

@@ -1808,6 +1808,32 @@ and it never changes a claim.
    labelled "Candidate A".."T" by neutral order before the engine sees it. A queued/running row
    whose task ended without closing it (cancelled while queued, a restart) reads `failed`.
 
+### Why each score is where it is
+
+Every rated cell carries a `MemberDimensionWhy` (`cohortWhy.ts`), assembled by code from
+fields every analysis already has — nothing new is written by a model, so stored and
+keyless analyses explain themselves the same way:
+
+- **why** — one code-made line ("7 of 9 required; Oracle, Kafka missing").
+- **pros / cons / notes** — `Reason`s: a code phrase (`analyzeCohort.why.*`) or the
+  analysis's own prose verbatim (alignment sentences, strengths, gaps, risk flags,
+  must-prove evidence, salary assessment, soft signals, trust findings, GitHub evidence),
+  each naming the field it came from. Lists cap at 6 plus a "+N more" row.
+- **anatomy** — the exact decomposition of a formula-made rating (skills, experience,
+  signals, trust, salary, public work): `base + Σ parts = raw`, `clamp(raw) = rating`,
+  rounded so the parts sum exactly. The formulas live once in `cohortFormula.ts`, which
+  both the cells and the anatomy read. **Fit has no anatomy and no points**: its rating is
+  the model's job-fit judgement, and its reasons are the analysis's stated strengths, gaps
+  and risk flags (overall strengths/gaps are untagged, so they appear under fit only).
+- **criteria** — per dimension the role's rows (`view.criteria[d]`: each required skill,
+  seniority target, minimum years, the salary band, every soft signal and trust finding
+  seen in the cohort) with each member's status (meets / partial / misses / unknown). The
+  role context (min years, seniority, family, band) comes from the job row
+  (`cohortRoleContext` in `analyze-cohort-view.ts`); `view.roleBand` carries the band.
+
+Salary's "partial" is a 10 % soft window past the nearest band edge
+(`SALARY_SOFT_WINDOW`). Blind cohorts redact names inside every reason and criterion note.
+
 ### Data model — `analysis_cohorts`
 
 | Column | |

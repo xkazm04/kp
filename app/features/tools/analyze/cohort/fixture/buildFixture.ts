@@ -18,7 +18,7 @@
 import fs from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import type { Analysis, GithubAnalysis } from "../../../../../_lib/schemas.ts";
-import type { CohortComments, CohortView, Membership, MemberRunState, RoleBand } from "../cohortTypes.ts";
+import type { CohortComments, CohortView, Membership, MemberRunState, RoleBand, RoleContext } from "../cohortTypes.ts";
 import { assembleCohortView, projectCohortMember, type ProjectedMember } from "../cohortProject.ts";
 
 const ROOT = new URL("../../../../../../", import.meta.url);
@@ -26,10 +26,26 @@ const OUT_DIR = new URL("public/dev/cohort/", ROOT);
 
 // ---- the role ------------------------------------------------------------------------
 
-type SeedJob = { id: string; title: string; company: string; seniority: string; role_family: string; requirements: Array<{ skill: string; kind: string }> };
+type SeedJob = {
+  id: string;
+  title: string;
+  company: string;
+  seniority: string;
+  role_family: string;
+  min_years_experience?: number | null;
+  requirements: Array<{ skill: string; kind: string }>;
+};
 type Seed = { id: string; candidate_label: string; payload: Analysis };
 
 const ROLE_BAND: RoleBand = { currency: "CZK", period: "month", min: 110000, max: 160000 };
+
+/** job-000 as the why-engine reads it: its stated minimum years, seniority and family, plus the band above. */
+const roleContextOf = (job: SeedJob): RoleContext => ({
+  minYears: job.min_years_experience ?? null,
+  seniority: job.seniority || null,
+  band: ROLE_BAND,
+  roleFamily: job.role_family || null,
+});
 const COHORT_BASE = {
   cohortId: "cohort-fixture-20",
   jdSlug: "senior-java-backend-engineer",
@@ -287,6 +303,7 @@ export function buildCohortFixtures(): { done: CohortView; running: CohortView }
   const job = jobs.find((j) => j.id === "job-000");
   if (!job) throw new Error("buildFixture: job-000 is missing from data/seed_jobs/jobs.json");
   const bySeed = new Map(seeds.map((s) => [s.id, s]));
+  const role = roleContextOf(job);
   const memberIdOf = (seedId: string) => {
     const spec = ROSTER.find((r) => r.seed === seedId)!;
     return spec.membership === "matched" ? `profile:${seedId}` : `analysis-${seedId}`;
@@ -304,14 +321,15 @@ export function buildCohortFixtures(): { done: CohortView; running: CohortView }
       analysisSlug: analysis ? `cohort-${spec.seed}` : null,
       analysis,
       blind: false,
-      roleBand: ROLE_BAND,
+      role,
     });
   };
 
   const done = assembleCohortView(
     { ...COHORT_BASE, status: "done", finishedAt: "2026-10-08T09:19:41.000Z" },
     ROSTER.map((spec) => project(spec, spec.state, spec.state !== "failed")),
-    commentsFor(memberIdOf)
+    commentsFor(memberIdOf),
+    role
   );
   const running = assembleCohortView(
     { ...COHORT_BASE, status: "running", finishedAt: null },
@@ -320,7 +338,8 @@ export function buildCohortFixtures(): { done: CohortView; running: CohortView }
       if (RUNNING_DONE.has(spec.seed)) return project(spec, spec.state === "reused" ? "reused" : "done", true);
       return project(spec, RUNNING_ANALYZING.has(spec.seed) ? "analyzing" : "queued", false);
     }),
-    null
+    null,
+    role
   );
   return { done, running };
 }

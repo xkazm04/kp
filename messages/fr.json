@@ -17403,6 +17403,63 @@
       "anatomy": "Anatomie du score",
       "headToHead": "Face-à-face",
       "matrix": "Matrice des critères"
+    },
+    "why": {
+      "more": "+{n, plural, one {# autre} other {# autres}}",
+      "sentence": {
+        "fit": "Note du modèle {score} : {strengths, plural, =0 {aucun point fort} one {# point fort} other {# points forts}}, {gaps, plural, =0 {aucune lacune} one {# lacune} other {# lacunes}}, {risks, plural, =0 {aucun signal de risque} one {# signal de risque} other {# signaux de risque}}",
+        "skills": "{matched} sur {total} requises démontrées{unproven, plural, =0 {} one {, # non prouvée} other {, # non prouvées}}{missing, plural, =0 {} one { ; manque {names}} other { ; manquent {names}{more, plural, =0 {} one { et # autre} other { et # autres}}}}",
+        "experience": "{years, plural, one {# an} other {# ans}} : expérience {experience}/{experienceMax}, niveau du poste {roleSeniority}/{roleSeniorityMax}",
+        "signals": "Base 50, +{plus} pour {strengths, plural, =0 {aucun point fort} one {# point fort} other {# points forts}}, −{minus} pour {flags, plural, =0 {aucun signal d’alerte} one {# signal d’alerte} other {# signaux d’alerte}}",
+        "trustClean": "Aucun signalement de fiabilité",
+        "trust": "Base 100 : {blockers, plural, =0 {aucun signalement bloquant} one {# signalement bloquant} other {# signalements bloquants}}, {warns, plural, =0 {aucun avertissement} one {# avertissement} other {# avertissements}}",
+        "salaryInside": "Dans {basis, select, band {la fourchette du poste} other {la fourchette du groupe}}",
+        "salaryOutside": "{pct} % {direction, select, above {au-dessus de} other {en dessous de}} {basis, select, band {la fourchette du poste} other {la fourchette du groupe}}",
+        "publicWork": "{matched} sur {compared} compétences de l’offre visibles sur GitHub, {active, plural, one {# dépôt actif} other {# dépôts actifs}}, {stars, plural, one {# étoile} other {# étoiles}}",
+        "publicWorkNoJd": "Aucune compétence de l’offre comparée : {active, plural, one {# dépôt actif} other {# dépôts actifs}} et {stars, plural, one {# étoile} other {# étoiles}} portent la note"
+      },
+      "part": {
+        "experience": "Expérience {score}/{max}",
+        "roleSeniority": "Niveau du poste {score}/{max}",
+        "salaryInside": "Dans {basis, select, band {la fourchette du poste} other {la fourchette du groupe}}",
+        "salaryOutside": "{pct} % {direction, select, above {au-dessus de} other {en dessous de}} {basis, select, band {la fourchette du poste} other {la fourchette du groupe}}",
+        "ghActive": "{active, plural, one {# dépôt actif} other {# dépôts actifs}}",
+        "ghStars": "{stars, plural, one {# étoile} other {# étoiles}}"
+      },
+      "skill": {
+        "matched": "{skill} : démontrée dans le CV",
+        "unproven": "{skill} : déclarée, mais non démontrée",
+        "missing": "{skill} : manquante"
+      },
+      "exp": {
+        "years": "{years, plural, one {# an} other {# ans}} d’expérience",
+        "level": "Niveau {seniority, select, junior {junior} medior {confirmé} senior {senior} lead {lead} other {inconnu}}"
+      },
+      "trust": {
+        "noFindings": "Aucun signalement de fiabilité",
+        "noBlockers": "Aucun signalement bloquant"
+      },
+      "gh": {
+        "skill": "{skill} : visible dans les dépôts publics",
+        "gap": "{skill} : absente des dépôts publics",
+        "noActive": "Aucun dépôt actif",
+        "noStars": "Aucune étoile pour l’instant"
+      },
+      "criteria": {
+        "seniority": "Séniorité : {level, select, junior {junior} medior {confirmé} senior {senior} lead {lead} other {{level}}}",
+        "seniorityNone": "Séniorité : non précisée par le poste",
+        "family": "Famille de métiers : {family}",
+        "familyNone": "Famille de métiers : non précisée par le poste",
+        "risk": "Aucun signal de risque pour le recrutement",
+        "minYears": "Au moins {years, plural, one {# an} other {# ans}} d’expérience",
+        "minYearsNone": "Expérience minimale : non précisée par le poste",
+        "trust": "Contrôle de fiabilité : {code}",
+        "salaryBand": "Fourchette du poste de {min, number} à {max, number} {currency}/{period, select, month {mois} year {an} hour {h} day {jour} other {{period}}}",
+        "salaryBandFrom": "Fourchette du poste à partir de {min, number} {currency}/{period, select, month {mois} year {an} hour {h} day {jour} other {{period}}}",
+        "salaryBandUpTo": "Fourchette du poste jusqu’à {max, number} {currency}/{period, select, month {mois} year {an} hour {h} day {jour} other {{period}}}",
+        "salaryCohort": "À {tolerance} % près de la médiane {currency} du groupe",
+        "salaryNone": "Aucune fourchette de comparaison"
+      }
     }
   }
 }

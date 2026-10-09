@@ -17403,6 +17403,63 @@
       "anatomy": "Anatomie der Bewertung",
       "headToHead": "Direktvergleich",
       "matrix": "Kriterienmatrix"
+    },
+    "why": {
+      "more": "+{n} weitere",
+      "sentence": {
+        "fit": "Vom Modell mit {score} bewertet: {strengths, plural, =0 {keine Stärken} one {# Stärke} other {# Stärken}}, {gaps, plural, =0 {keine Lücken} one {# Lücke} other {# Lücken}}, {risks, plural, =0 {keine Risikohinweise} one {# Risikohinweis} other {# Risikohinweise}}",
+        "skills": "{matched} von {total} geforderten belegt{unproven, plural, =0 {} other {, # unbelegt}}{missing, plural, =0 {} one {; es fehlt {names}} other {; es fehlen {names}{more, plural, =0 {} other { und # weitere}}}}",
+        "experience": "{years, plural, one {# Jahr} other {# Jahre}}: Erfahrung {experience}/{experienceMax}, Rollenlevel {roleSeniority}/{roleSeniorityMax}",
+        "signals": "Basis 50, +{plus} durch {strengths, plural, =0 {keine Stärken} one {# Stärke} other {# Stärken}}, −{minus} durch {flags, plural, =0 {keine Warnsignale} one {# Warnsignal} other {# Warnsignale}}",
+        "trustClean": "Keine Vertrauensbefunde",
+        "trust": "Basis 100: {blockers, plural, =0 {keine blockierenden Befunde} one {# blockierender Befund} other {# blockierende Befunde}}, {warns, plural, =0 {keine Warnungen} one {# Warnung} other {# Warnungen}}",
+        "salaryInside": "Innerhalb {basis, select, band {der Spanne der Rolle} other {der Spanne der Gruppe}}",
+        "salaryOutside": "{pct} % {direction, select, above {über} other {unter}} {basis, select, band {der Spanne der Rolle} other {der Spanne der Gruppe}}",
+        "publicWork": "{matched} von {compared} Skills aus der Stellenbeschreibung auf GitHub sichtbar, {active, plural, one {# aktives Repo} other {# aktive Repos}}, {stars, plural, one {# Stern} other {# Sterne}}",
+        "publicWorkNoJd": "Keine Skills aus der Stellenbeschreibung verglichen: {active, plural, one {# aktives Repo} other {# aktive Repos}} und {stars, plural, one {# Stern} other {# Sterne}} tragen die Bewertung"
+      },
+      "part": {
+        "experience": "Erfahrung {score}/{max}",
+        "roleSeniority": "Rollenlevel {score}/{max}",
+        "salaryInside": "Innerhalb {basis, select, band {der Spanne der Rolle} other {der Spanne der Gruppe}}",
+        "salaryOutside": "{pct} % {direction, select, above {über} other {unter}} {basis, select, band {der Spanne der Rolle} other {der Spanne der Gruppe}}",
+        "ghActive": "{active, plural, one {# aktives Repo} other {# aktive Repos}}",
+        "ghStars": "{stars, plural, one {# Stern} other {# Sterne}}"
+      },
+      "skill": {
+        "matched": "{skill} im Lebenslauf belegt",
+        "unproven": "{skill} angegeben, aber nicht belegt",
+        "missing": "{skill} fehlt"
+      },
+      "exp": {
+        "years": "{years, plural, one {# Jahr} other {# Jahre}} Berufserfahrung",
+        "level": "Level: {seniority, select, junior {Junior} medior {Mid-Level} senior {Senior} lead {Lead} other {unbekannt}}"
+      },
+      "trust": {
+        "noFindings": "Keine Vertrauensbefunde",
+        "noBlockers": "Keine blockierenden Befunde"
+      },
+      "gh": {
+        "skill": "{skill} in öffentlichen Repos sichtbar",
+        "gap": "{skill} in öffentlichen Repos nicht sichtbar",
+        "noActive": "Keine aktiven Repos",
+        "noStars": "Noch keine Sterne"
+      },
+      "criteria": {
+        "seniority": "Seniorität: {level, select, junior {Junior} medior {Mid-Level} senior {Senior} lead {Lead} other {{level}}}",
+        "seniorityNone": "Seniorität: von der Rolle nicht angegeben",
+        "family": "Rollenfamilie: {family}",
+        "familyNone": "Rollenfamilie: von der Rolle nicht angegeben",
+        "risk": "Keine Risikohinweise für das Recruiting",
+        "minYears": "Mindestens {years, plural, one {# Jahr} other {# Jahre}} Berufserfahrung",
+        "minYearsNone": "Mindesterfahrung: von der Rolle nicht angegeben",
+        "trust": "Vertrauensprüfung: {code}",
+        "salaryBand": "Spanne der Rolle {min, number} bis {max, number} {currency}/{period, select, month {Monat} year {Jahr} hour {Std.} day {Tag} other {{period}}}",
+        "salaryBandFrom": "Spanne der Rolle ab {min, number} {currency}/{period, select, month {Monat} year {Jahr} hour {Std.} day {Tag} other {{period}}}",
+        "salaryBandUpTo": "Spanne der Rolle bis {max, number} {currency}/{period, select, month {Monat} year {Jahr} hour {Std.} day {Tag} other {{period}}}",
+        "salaryCohort": "Höchstens {tolerance} % vom {currency}-Median der Gruppe entfernt",
+        "salaryNone": "Keine Spanne zum Vergleich"
+      }
     }
   }
 }

@@ -18,6 +18,8 @@
 //   salary      against the role band when it states a currency + period; else against
 //               the cohort's majority-currency median (resolved in assembleCohortView).
 //   publicWork  40% matched-skill ratio + 30% active repos (/10) + 30% log-scaled stars.
+// The formulas themselves live ONCE in cohortFormula.ts; the why of every rated cell (pros,
+// cons, the exact score anatomy, the role's criteria) is cohortWhy.ts's.
 import type { Analysis } from "../../../../_lib/schemas.ts";
 import { parseGithubUsername } from "../../../../_lib/github-handle.ts";
 import { COHORT_DIMENSIONS, COHORT_MIN, isTechnicalFamily } from "./cohortTypes.ts";
@@ -32,10 +34,33 @@ import type {
   Membership,
   MemberRunState,
   RoleBand,
+  RoleContext,
   PublicWorkDetail,
   ShortLabel,
 } from "./cohortTypes.ts";
 import { computeCohortClaims, neutralOrder } from "./cohortClaims.ts";
+import {
+  clampRating,
+  experienceRaw,
+  norm,
+  publicWorkRating,
+  rateAgainstRange,
+  signalsRaw,
+  skillSets,
+  skillsRaw,
+  trustRaw,
+} from "./cohortFormula.ts";
+import { cohortCriteria, emptyWhy, memberWhy, salaryWhy, settleWhy } from "./cohortWhy.ts";
+
+export {
+  clampRating,
+  EXPERIENCE_SCALE,
+  publicWorkRating,
+  rateAgainstRange,
+  skillSets,
+  STAR_SATURATION,
+} from "./cohortFormula.ts";
+export { emptyWhy } from "./cohortWhy.ts";
 
 export interface ProjectInput {
   memberId: string;
@@ -45,13 +70,12 @@ export interface ProjectInput {
   analysisSlug: string | null;
   analysis: Analysis | null;
   blind: boolean;
-  roleBand: RoleBand | null;
+  /** What the role asks for (its band rates salary; the rest feeds the criteria); null when the job is gone. */
+  role: RoleContext | null;
 }
 export type ProjectedMember = Omit<CohortMember, "neutralIndex" | "fitRank" | "decoyOf">;
 
 // ---- small pure helpers ------------------------------------------------------------
-
-export const clampRating = (n: number): number => Math.max(0, Math.min(100, Math.round(n)));
 
 export function tierOf(rating: number): Exclude<CellTier, "absent"> {
   if (rating >= 75) return "strong";
@@ -77,8 +101,6 @@ function ratedCell(dimension: CohortDimension, raw: number, label: ShortLabel, b
   if (band) cell.band = band;
   return cell;
 }
-
-const norm = (s: string): string => s.trim().toLowerCase();
 
 /** One decimal, so 9 stays 9 and 2.46 reads 2.5. */
 const oneDecimal = (n: number): number => Math.round(n * 10) / 10;
@@ -185,26 +207,12 @@ function fitCell(analysis: Analysis): CohortCell {
 
 // ---- skills ------------------------------------------------------------------------
 
-/** matched / missing / unproven, with unproven pulled out of the other two (case-insensitive). */
-export function skillSets(analysis: Analysis): { matched: string[]; missing: string[]; unproven: string[] } | null {
-  const jf = analysis.jobFit;
-  if (!jf) return null;
-  const unproven = jf.unprovenSkills ?? [];
-  const u = new Set(unproven.map(norm));
-  return {
-    matched: jf.matchingSkills.filter((s) => !u.has(norm(s))),
-    missing: jf.missingSkills.filter((s) => !u.has(norm(s))),
-    unproven,
-  };
-}
-
 function skillsCell(analysis: Analysis): CohortCell {
   const sets = skillSets(analysis);
+  const score = sets ? skillsRaw(sets) : null;
   // No JD skill list to measure against is the same absence as no job fit at all.
-  if (!sets) return absentCell("skills", "noJdFit");
+  if (!sets || score === null) return absentCell("skills", "noJdFit");
   const total = sets.matched.length + sets.unproven.length + sets.missing.length;
-  if (total === 0) return absentCell("skills", "noJdFit");
-  const score = ((sets.matched.length + 0.5 * sets.unproven.length) / total) * 100;
   const label: ShortLabel = sets.unproven.length
     ? { key: "cells.skillsUnproven", params: { matched: sets.matched.length, total, unproven: sets.unproven.length } }
     : { key: "cells.skills", params: { matched: sets.matched.length, total } };
@@ -213,13 +221,9 @@ function skillsCell(analysis: Analysis): CohortCell {
 
 // ---- experience --------------------------------------------------------------------
 
-/** score.experience (max 25) + score.roleSeniority (max 23) = 48. */
-export const EXPERIENCE_SCALE = 48;
-
 function experienceCell(analysis: Analysis): CohortCell {
-  const s = analysis.score;
   const seniority = analysis.candidate.currentSeniority?.trim() || "unknown";
-  return ratedCell("experience", ((s.experience + s.roleSeniority) / EXPERIENCE_SCALE) * 100, {
+  return ratedCell("experience", experienceRaw(analysis.score), {
     key: "cells.experience",
     params: { years: oneDecimal(analysis.candidate.yearsExperience), seniority },
   });
@@ -227,14 +231,10 @@ function experienceCell(analysis: Analysis): CohortCell {
 
 // ---- signals -----------------------------------------------------------------------
 
-const confidenceOf = (c: number | null | undefined): number => (typeof c === "number" && Number.isFinite(c) ? c : 0.5);
-
 function signalsCell(analysis: Analysis): CohortCell {
   const ss = analysis.softSignals;
   if (!ss) return absentCell("signals", "notRead");
-  const plus = ss.strengths.reduce((a, s) => a + confidenceOf(s.confidence), 0);
-  const minus = ss.antipatterns.reduce((a, s) => a + confidenceOf(s.confidence), 0);
-  return ratedCell("signals", 50 + 12 * (plus - minus), {
+  return ratedCell("signals", signalsRaw(ss), {
     key: "cells.signals",
     params: { strengths: ss.strengths.length, flags: ss.antipatterns.length },
   });
@@ -250,7 +250,7 @@ function trustCell(analysis: Analysis): CohortCell {
   const flags = warns + blockers;
   return ratedCell(
     "trust",
-    100 - 15 * warns - 40 * blockers,
+    trustRaw(findings),
     flags ? { key: "cells.trustFlags", params: { n: flags } } : { key: "cells.trustClean" }
   );
 }
@@ -262,19 +262,6 @@ export const salaryKey = (currency: string, period: string): string => `${curren
 
 /** How a cohort-median rating tolerates spread: within +/-15% of the median counts as "at" it. */
 export const COHORT_MEDIAN_TOLERANCE = 0.15;
-
-/**
- * Rate a midpoint against a range [min, max] (either edge may be null = open).
- * Inside (inclusive) -> 100. Outside -> 100 - 150 * d, where d is the distance to the
- * nearest edge as a fraction of that edge: 10% outside = 85, 20% = 70, 1/3 = 50,
- * 2/3 or more = 0. Symmetric on purpose: far below the band is a seniority question,
- * far above it a budget question, and neither is "better".
- */
-export function rateAgainstRange(midpoint: number, min: number | null, max: number | null): number {
-  if (min != null && midpoint < min) return clampRating(100 - 150 * ((min - midpoint) / Math.max(min, 1)));
-  if (max != null && midpoint > max) return clampRating(100 - 150 * ((midpoint - max) / Math.max(max, 1)));
-  return 100;
-}
 
 /** A band is usable only when it names a currency AND a period AND at least one edge. */
 export function usableBand(band: RoleBand | null): band is RoleBand & { currency: string; period: string } {
@@ -304,9 +291,12 @@ function salaryCell(analysis: Analysis, band: RoleBand | null): CohortCell {
  * `currencyMismatch`. Each member of it is rated against the partition's median with
  * the +/-COHORT_MEDIAN_TOLERANCE window as the "band" (rateAgainstRange). Mutates nothing.
  */
-export function resolveCohortSalary(members: ProjectedMember[]): ProjectedMember[] {
-  const waiting = members.filter((m) => m.cells.salary.label.key === "cells.salaryCohort" && m.cells.salary.absentReason === "pending");
-  if (waiting.length === 0) return members;
+const waitingOnCohort = (m: ProjectedMember): boolean => m.cells.salary.label.key === "cells.salaryCohort" && m.cells.salary.absentReason === "pending";
+
+/** The no-band window: the majority partition's key and its median +/- tolerance; null when nobody waits on it. */
+export function cohortSalaryWindow(members: ProjectedMember[]): { key: string; lo: number; hi: number } | null {
+  const waiting = members.filter(waitingOnCohort);
+  if (waiting.length === 0) return null;
   const counts = new Map<string, number[]>();
   for (const m of waiting) {
     const d = m.detail.salary!;
@@ -317,17 +307,23 @@ export function resolveCohortSalary(members: ProjectedMember[]): ProjectedMember
   const sorted = [...mids].sort((a, b) => a - b);
   const mid = sorted.length / 2;
   const median = sorted.length % 2 ? sorted[Math.floor(mid)] : (sorted[mid - 1] + sorted[mid]) / 2;
-  const lo = median * (1 - COHORT_MEDIAN_TOLERANCE);
-  const hi = median * (1 + COHORT_MEDIAN_TOLERANCE);
+  return { key: majority, lo: median * (1 - COHORT_MEDIAN_TOLERANCE), hi: median * (1 + COHORT_MEDIAN_TOLERANCE) };
+}
+
+export function resolveCohortSalary(members: ProjectedMember[]): ProjectedMember[] {
+  const window = cohortSalaryWindow(members);
+  if (!window) return members;
   return members.map((m) => {
-    if (!waiting.includes(m)) return m;
+    if (!waitingOnCohort(m)) return m;
     const d = m.detail.salary!;
     const label = m.cells.salary.label;
-    const cell =
-      salaryKey(d.currency!, d.period!) === majority
-        ? ratedCell("salary", rateAgainstRange(d.midpoint!, lo, hi), label)
-        : absentCell("salary", "currencyMismatch", label);
-    return { ...m, cells: { ...m.cells, salary: cell } };
+    if (salaryKey(d.currency!, d.period!) !== window.key) {
+      return { ...m, cells: { ...m.cells, salary: absentCell("salary", "currencyMismatch", label) }, why: { ...m.why, salary: null } };
+    }
+    const cell = ratedCell("salary", rateAgainstRange(d.midpoint!, window.lo, window.hi), label);
+    // The interim why carried the analysis's salary notes; the window now explains the rating.
+    const why = salaryWhy(d.midpoint!, { kind: "cohort", min: window.lo, max: window.hi }, m.why.salary?.notes ?? []);
+    return { ...m, cells: { ...m.cells, salary: cell }, why: { ...m.why, salary: why } };
   });
 }
 
@@ -341,22 +337,10 @@ export function githubLinkOf(analysis: Analysis): string | null {
   return null;
 }
 
-/** Stars saturate at 1000: log10(1 + stars) / log10(1001). */
-export const STAR_SATURATION = 1000;
+type GithubRead = NonNullable<NonNullable<Analysis["githubDeepDive"]>["analysis"]>;
 
-export function publicWorkRating(gh: NonNullable<NonNullable<Analysis["githubDeepDive"]>["analysis"]>): number {
-  const matched = gh.jobFitSignals.matchingSkills.length;
-  const compared = matched + gh.jobFitSignals.potentialGaps.length;
-  const active = Math.min(gh.metrics.activeRepos, 10) / 10;
-  const stars = Math.min(1, Math.log10(1 + Math.max(0, gh.metrics.totalStars)) / Math.log10(1 + STAR_SATURATION));
-  // No JD skill was compared: the two measured parts carry the whole weight (30/60 each)
-  // rather than scoring an unread ratio as 0.
-  if (compared === 0) return clampRating(((0.3 * active + 0.3 * stars) / 0.6) * 100);
-  return clampRating((0.4 * (matched / compared) + 0.3 * active + 0.3 * stars) * 100);
-}
-
-function publicWork(analysis: Analysis, blind: boolean): { cell: CohortCell; detail: PublicWorkDetail | null } {
-  const absent = (r: AbsentReason) => ({ cell: absentCell("publicWork", r), detail: null });
+function publicWork(analysis: Analysis, blind: boolean): { cell: CohortCell; detail: PublicWorkDetail | null; gh: GithubRead | null } {
+  const absent = (r: AbsentReason) => ({ cell: absentCell("publicWork", r), detail: null, gh: null });
   if (blind) return absent("blind");
   if (!isTechnicalFamily(analysis.candidate.roleFamily)) return absent("notTechnical");
   if (!githubLinkOf(analysis)) return absent("noLink");
@@ -370,6 +354,7 @@ function publicWork(analysis: Analysis, blind: boolean): { cell: CohortCell; det
     : { key: "cells.publicWorkNoLanguage", params: { repos: gh.metrics.publicRepos } };
   return {
     cell: ratedCell("publicWork", publicWorkRating(gh), label),
+    gh,
     detail: {
       dimension: "publicWork",
       username: gh.username,
@@ -409,19 +394,21 @@ export function projectCohortMember(input: ProjectInput): ProjectedMember {
     probe: s.suggestedProbe ? r(s.suggestedProbe) : null,
     confidence: typeof s.confidence === "number" ? s.confidence : null,
   });
+  const band = usableBand(input.role?.band ?? null) ? (input.role!.band as RoleBand & { currency: string; period: string }) : null;
+  const cells: Record<CohortDimension, CohortCell> = {
+    fit: fitCell(a),
+    skills: skillsCell(a),
+    experience: experienceCell(a),
+    signals: signalsCell(a),
+    trust: trustCell(a),
+    salary: salaryCell(a, input.role?.band ?? null),
+    publicWork: pw.cell,
+  };
   return {
     ...base,
-    why: emptyWhy(), // STUB (round 2 seed): the engine builder assembles pros/cons/anatomy/criteria here
+    why: memberWhy(a, r, input.role, cells, pw.gh, band),
     roleFamily: a.candidate.roleFamily || null,
-    cells: {
-      fit: fitCell(a),
-      skills: skillsCell(a),
-      experience: experienceCell(a),
-      signals: signalsCell(a),
-      trust: trustCell(a),
-      salary: salaryCell(a, input.roleBand),
-      publicWork: pw.cell,
-    },
+    cells,
     detail: {
       fit: {
         dimension: "fit",
@@ -494,20 +481,21 @@ function withComments(members: ProjectedMember[], comments: CohortComments | nul
 /**
  * Projected members -> the whole comparison. Resolves the cohort-relative salary cells,
  * relabels a blind cohort by neutral order, merges the model's comments/notes/narrative
- * (it never changes a claim), and lets computeCohortClaims decide every claim.
+ * (it never changes a claim), and lets computeCohortClaims decide every claim. The role's
+ * criteria are built from `role` plus the cohort-wide unions, and every member's why is
+ * settled against them (cohortWhy.settleWhy).
  * Member order is the input order; neutralIndex is the presentation order.
  */
-/** STUB (round 2 seed): no why yet. */
-export function emptyWhy(): CohortMember["why"] {
-  return Object.fromEntries(COHORT_DIMENSIONS.map((d) => [d, null])) as CohortMember["why"];
-}
-
 export function assembleCohortView(
   base: Omit<CohortView, "members" | "claims" | "narrative" | "progress" | "criteria" | "roleBand">,
   members: ProjectedMember[],
-  comments: CohortComments | null
+  comments: CohortComments | null,
+  role: RoleContext | null = null
 ): CohortView {
+  const window = cohortSalaryWindow(members);
   let projected = withComments(resolveCohortSalary(members), comments);
+  const criteria = cohortCriteria(projected, role, window?.key ?? null);
+  projected = settleWhy(projected, criteria);
   if (base.blind) {
     const order = neutralOrder(base.cohortId, projected.map((m) => m.memberId));
     projected = projected.map((m) => ({ ...m, label: blindLabel(order.indexOf(m.memberId)) }));
@@ -533,8 +521,8 @@ export function assembleCohortView(
     })),
     claims,
     narrative,
-    criteria: Object.fromEntries(COHORT_DIMENSIONS.map((d) => [d, []])) as unknown as CohortView["criteria"], // STUB (round 2 seed)
-    roleBand: null, // STUB (round 2 seed)
+    criteria,
+    roleBand: role?.band ?? null,
     progress: {
       total: projected.length,
       // `done` counts every landed member; `reused` is the subset that spent nothing.

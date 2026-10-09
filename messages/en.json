@@ -17403,6 +17403,63 @@
       "anatomy": "Score anatomy",
       "headToHead": "Head-to-head",
       "matrix": "Criteria matrix"
+    },
+    "why": {
+      "more": "+{n} more",
+      "sentence": {
+        "fit": "Model rated {score}: {strengths, plural, =0 {no strengths} one {# strength} other {# strengths}}, {gaps, plural, =0 {no gaps} one {# gap} other {# gaps}}, {risks, plural, =0 {no risk flags} one {# risk flag} other {# risk flags}}",
+        "skills": "{matched} of {total} required shown{unproven, plural, =0 {} other {, # unproven}}{missing, plural, =0 {} other {; {names}{more, plural, =0 {} other { +# more}} missing}}",
+        "experience": "{years, plural, one {# year} other {# years}}: experience {experience}/{experienceMax}, role level {roleSeniority}/{roleSeniorityMax}",
+        "signals": "Base 50, +{plus} from {strengths, plural, =0 {no strengths} one {# strength} other {# strengths}}, −{minus} from {flags, plural, =0 {no flags} one {# flag} other {# flags}}",
+        "trustClean": "No trust findings",
+        "trust": "Base 100: {blockers, plural, =0 {no blockers} one {# blocker} other {# blockers}}, {warns, plural, =0 {no warnings} one {# warning} other {# warnings}}",
+        "salaryInside": "Inside the {basis, select, band {role band} other {cohort range}}",
+        "salaryOutside": "{pct}% {direction, select, above {above} other {below}} the {basis, select, band {role band} other {cohort range}}",
+        "publicWork": "{matched} of {compared} JD skills seen on GitHub, {active, plural, one {# active repo} other {# active repos}}, {stars, plural, one {# star} other {# stars}}",
+        "publicWorkNoJd": "No JD skills compared: {active, plural, one {# active repo} other {# active repos}} and {stars, plural, one {# star} other {# stars}} carry the rating"
+      },
+      "part": {
+        "experience": "Experience {score}/{max}",
+        "roleSeniority": "Role level {score}/{max}",
+        "salaryInside": "Inside the {basis, select, band {role band} other {cohort range}}",
+        "salaryOutside": "{pct}% {direction, select, above {above} other {below}} the {basis, select, band {role band} other {cohort range}}",
+        "ghActive": "{active, plural, one {# active repo} other {# active repos}}",
+        "ghStars": "{stars, plural, one {# star} other {# stars}}"
+      },
+      "skill": {
+        "matched": "{skill} shown on the CV",
+        "unproven": "{skill} claimed, not shown",
+        "missing": "{skill} missing"
+      },
+      "exp": {
+        "years": "{years, plural, one {# year} other {# years}} of experience",
+        "level": "{seniority, select, junior {Junior} medior {Mid-level} senior {Senior} lead {Lead} other {Unknown}} level"
+      },
+      "trust": {
+        "noFindings": "No trust findings",
+        "noBlockers": "No trust blockers"
+      },
+      "gh": {
+        "skill": "{skill} seen in public repos",
+        "gap": "{skill} not seen in public repos",
+        "noActive": "No active repos",
+        "noStars": "No stars yet"
+      },
+      "criteria": {
+        "seniority": "Seniority: {level, select, junior {junior} medior {mid-level} senior {senior} lead {lead} other {{level}}}",
+        "seniorityNone": "Seniority: the role does not state one",
+        "family": "Role family: {family}",
+        "familyNone": "Role family: the role does not state one",
+        "risk": "No recruiter risk flags",
+        "minYears": "At least {years, plural, one {# year} other {# years}} of experience",
+        "minYearsNone": "Minimum experience: the role does not state one",
+        "trust": "Trust check: {code}",
+        "salaryBand": "Role band {min, number} to {max, number} {currency}/{period, select, month {mo} year {yr} hour {hr} day {day} other {{period}}}",
+        "salaryBandFrom": "Role band from {min, number} {currency}/{period, select, month {mo} year {yr} hour {hr} day {day} other {{period}}}",
+        "salaryBandUpTo": "Role band up to {max, number} {currency}/{period, select, month {mo} year {yr} hour {hr} day {day} other {{period}}}",
+        "salaryCohort": "Within {tolerance}% of the cohort's {currency} median",
+        "salaryNone": "No band to compare against"
+      }
     }
   }
 }
