@@ -3,6 +3,7 @@
 // Act 2: who is compared. Reads the proposal for the role, seeds the tray from it, and lays
 // the tray (edit who sits) beside the run sheet (what the run will do, and Start). The tray is
 // this step's own state: a role change remounts the step (keyed by the role) and starts clean.
+// In the walkthrough the proposal is the fixture's (useWalkthroughSource) and nothing is fetched.
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { LoadingGap } from "@/app/_components/ui/LoadingGap";
@@ -10,7 +11,8 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { BTN_GHOST, BTN_SECONDARY, NOTICE } from "@/app/_components/ui/recipes";
 import type { CohortProposal, CohortRunRequest } from "./cohortTypes";
 import { addMember, removeMember, trayFromProposal } from "./cohortProposalEdits";
-import { useCohortProposal } from "./useCohortProposal";
+import { useCohortProposal, type ProposalState } from "./useCohortProposal";
+import { useWalkthroughSource } from "./cohortWalkthroughSource";
 import { CohortProposalTray } from "./CohortProposalTray";
 import { CohortRunSheet } from "./CohortRunSheet";
 
@@ -24,7 +26,11 @@ type Props = {
 export function CohortCastStep({ jdSlug, onCount, onStarted, onBack }: Props) {
   const t = useTranslations("analyzeCohort.shell.cast");
   const errorMessage = useErrorMessage();
-  const p = useCohortProposal(jdSlug);
+  const walkthrough = useWalkthroughSource();
+  const live = useCohortProposal(jdSlug, !walkthrough);
+  const fixed = walkthrough?.proposalFor(jdSlug) ?? null;
+  const fixedState: ProposalState = fixed ? { state: "ready", proposal: fixed } : { state: "failed", failure: { code: null, values: {}, status: 404 } };
+  const p = walkthrough ? { ...fixedState, reload: live.reload } : live;
   if (p.state === "loading") return <LoadingGap className="min-h-[20rem]" label={t("loading")} />;
   if (p.state === "failed") {
     return (

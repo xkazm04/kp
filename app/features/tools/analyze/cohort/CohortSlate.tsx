@@ -24,7 +24,7 @@ export function CohortSlate({
   roleTitle: string | null;
   castCount: number | null;
   status: CohortStatus | null;
-  fixture?: "done" | "running" | null;
+  fixture?: "done" | "running" | "walkthrough" | null;
   /** Acts the reader may go back (or forward) to from here. */
   reachable?: readonly StudioAct[];
   onAct?: (act: StudioAct) => void;

@@ -23,7 +23,8 @@ export interface CohortRole {
   pipeline?: { total: number } | null;
 }
 
-export function useCohortRoles() {
+/** `enabled` false (the walkthrough reads its own roles): no request is made. */
+export function useCohortRoles(enabled = true) {
   const [roles, setRoles] = useState<CohortRole[]>([]);
   const [state, setState] = useState<JdLibraryState>("loading");
   const [truncated, setTruncated] = useState(false);
@@ -34,6 +35,7 @@ export function useCohortRoles() {
     setState("loading");
   }
   useEffect(() => {
+    if (!enabled) return;
     const controller = new AbortController();
     fetch(`/api/jds?limit=${JD_LIBRARY_LIMIT}`, { signal: controller.signal })
       .then((r) => (r.ok ? r.json() : null))
@@ -51,7 +53,7 @@ export function useCohortRoles() {
         setState("failed");
       });
     return () => controller.abort();
-  }, [attempt]);
+  }, [attempt, enabled]);
   const reload = useCallback(() => setAttempt((n) => n + 1), []);
   return { roles, state, truncated, reload };
 }

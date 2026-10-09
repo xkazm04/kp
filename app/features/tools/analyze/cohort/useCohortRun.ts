@@ -46,10 +46,12 @@ export function useCohortRun(onStarted: (cohortId: string, request: CohortRunReq
   return { start, starting, failure };
 }
 
-/** true / false from the billing overview; null while unread or when it cannot be read. */
-export function useCohortMetered(): boolean | null {
+/** true / false from the billing overview; null while unread or when it cannot be read.
+ *  `enabled` false (the walkthrough spends nothing): never read, so it stays null. */
+export function useCohortMetered(enabled = true): boolean | null {
   const [metered, setMetered] = useState<boolean | null>(null);
   useEffect(() => {
+    if (!enabled) return;
     const controller = new AbortController();
     fetchMetered(fetch, controller.signal)
       .then((m) => {
@@ -59,6 +61,6 @@ export function useCohortMetered(): boolean | null {
         /* AbortError on unmount: the sheet is gone */
       });
     return () => controller.abort();
-  }, []);
-  return metered;
+  }, [enabled]);
+  return enabled ? metered : null;
 }

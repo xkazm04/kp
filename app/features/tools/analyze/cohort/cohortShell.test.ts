@@ -7,6 +7,7 @@ import {
   isCohortFixtureMode,
   orderCards,
   parseFixtureParam,
+  parseLayerParam,
   parseVariantParam,
   shouldPollCohort,
 } from "./cohortShell.ts";
@@ -20,9 +21,10 @@ test("the variant inbox adopts a known variant and nothing else", () => {
   assert.equal(parseVariantParam(null), null);
 });
 
-test("the fixture inbox knows live, done and running", () => {
+test("the fixture inbox knows live, done, running and walkthrough", () => {
   assert.equal(parseFixtureParam("live"), "live");
   assert.equal(parseFixtureParam("running"), "running");
+  assert.equal(parseFixtureParam("walkthrough"), "walkthrough");
   assert.equal(parseFixtureParam("failed"), null);
   assert.equal(isCohortFixtureMode(3), false);
 });
@@ -32,6 +34,14 @@ test("production shows the baseline form and live data whatever was chosen", () 
   assert.equal(activeVariant(true, "lineup"), "lineup");
   assert.equal(activeFixture(false, "done"), "live");
   assert.equal(activeFixture(true, "running"), "running");
+  assert.equal(activeFixture(false, "walkthrough"), "live");
+});
+
+test("the layer inbox adopts a nested-layer structure and nothing else", () => {
+  assert.equal(parseLayerParam("matrix"), "matrix");
+  assert.equal(parseLayerParam("pages"), "pages");
+  assert.equal(parseLayerParam("Matrix"), null);
+  assert.equal(parseLayerParam(null), null);
 });
 
 test("the live view polls while queued or running and stops on a terminal state", () => {

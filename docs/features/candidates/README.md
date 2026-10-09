@@ -1808,6 +1808,18 @@ and it never changes a claim.
    labelled "Candidate A".."T" by neutral order before the engine sees it. A queued/running row
    whose task ended without closing it (cancelled while queued, a restart) reads `failed`.
 
+### Walkthrough (dev)
+
+The dev-only DATA switch has a `walkthrough` mode (`?cohortFixture=walkthrough`): the real
+flow components (role picker, editable tray, run sheet) read a fixture source
+(`cohortWalkthroughSource.ts`, `public/dev/cohort/walkthrough.json`, derived from the
+20-member fixture by `fixture/buildWalkthroughFixture.ts`) instead of the routes, and Start
+runs a simulated clock (`useWalkthroughRun.ts`): reused members land first, fresh ones in
+seeded batches over ~10 s, reduced motion lands everyone at once. Claims are recomputed by
+the engine over the members actually kept; the fixture's narrative is withheld when the
+tray differs from it. Keyless, no fetch of install data, no writes. `?layer=<COHORT_LAYERS>`
+deep-links a nested-layer prototype.
+
 ### Why each score is where it is
 
 Every rated cell carries a `MemberDimensionWhy` (`cohortWhy.ts`), assembled by code from

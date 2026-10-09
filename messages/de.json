@@ -17156,7 +17156,8 @@
         "model": "Vom Sprachmodell um die obigen Aussagen herum geschrieben, ohne sie je zu ändern.",
         "keyless": "Ohne Sprachmodell geschrieben (der deterministische Fallback).",
         "pending": "Noch kein Rundgang: Er wird geschrieben, sobald alle Gebäude stehen.",
-        "none": "Kein Rundgang: Weniger als zwei Kandidaten sind bewertet."
+        "none": "Kein Rundgang: Weniger als zwei Kandidaten sind bewertet.",
+        "absent": "Für diese Auswahl an Kandidaten gibt es keinen Rundgang."
       },
       "keys": {
         "label": "Tasten",
@@ -17203,7 +17204,8 @@
         "mode": {
           "live": "Live",
           "done": "Fixture · fertig",
-          "running": "Fixture · läuft"
+          "running": "Fixture · läuft",
+          "walkthrough": "Rundgang"
         },
         "note": "Nur in der Entwicklung. Produktiv erscheint das Formular v1."
       },
@@ -17218,7 +17220,8 @@
         },
         "fixture": {
           "done": "Fixture · abgeschlossener Lauf",
-          "running": "Fixture · Lauf in Arbeit"
+          "running": "Fixture · Lauf in Arbeit",
+          "walkthrough": "Rundgang · Beispieldaten, nichts wird gespeichert"
         },
         "act": {
           "role": "Stelle",
@@ -17394,6 +17397,14 @@
         "start": "{n, plural, one {# Kandidaten vergleichen} other {# Kandidaten vergleichen}}",
         "engineMissing": "Neue Analysen brauchen eine KI-Engine, und keine ist eingerichtet: {n, plural, one {der # neue Lebenslauf würde scheitern} other {die # neuen Lebensläufe würden scheitern}}. Übernommene Analysen werden trotzdem verglichen.",
         "engineUnknown": "Die KI-Engine konnte nicht geprüft werden. Neue Analysen brauchen eine; übernommene Analysen werden in jedem Fall verglichen."
+      },
+      "walkthrough": {
+        "loading": "Rundgang wird geladen…",
+        "failed": "Die Beispieldaten des Rundgangs konnten nicht geladen werden.",
+        "retry": "Erneut versuchen",
+        "simulated": "Simulierter Lauf: Jede Analyse hier stammt aus Beispieldaten. Nichts wird analysiert, abgerechnet oder gespeichert.",
+        "startOver": "Von vorn beginnen",
+        "narrativeWithheld": "Der schriftliche Vergleich in den Beispieldaten nennt alle 20 Kandidaten namentlich. Er erscheint deshalb nur, wenn alle 20 ohne Anonymisierung verglichen werden."
       }
     },
     "layers": {

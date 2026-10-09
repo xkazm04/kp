@@ -17156,7 +17156,8 @@
         "model": "Written by the language model around the claims above; it never changes them.",
         "keyless": "Written without a language model (the deterministic fallback).",
         "pending": "No walk-through yet: it is written once every building is up.",
-        "none": "No walk-through: fewer than two candidates are rated."
+        "none": "No walk-through: fewer than two candidates are rated.",
+        "absent": "No walk-through for this set of candidates."
       },
       "keys": {
         "label": "Keys",
@@ -17203,7 +17204,8 @@
         "mode": {
           "live": "Live",
           "done": "Fixture · finished",
-          "running": "Fixture · running"
+          "running": "Fixture · running",
+          "walkthrough": "Walkthrough"
         },
         "note": "Dev only. Production shows the v1 form."
       },
@@ -17218,7 +17220,8 @@
         },
         "fixture": {
           "done": "Fixture · finished run",
-          "running": "Fixture · run in progress"
+          "running": "Fixture · run in progress",
+          "walkthrough": "Walkthrough · fixture data, nothing is saved"
         },
         "act": {
           "role": "Role",
@@ -17394,6 +17397,14 @@
         "start": "Compare {n, plural, one {# candidate} other {# candidates}}",
         "engineMissing": "Fresh analyses need an AI engine, and none is configured: {n, plural, one {the # fresh CV} other {the # fresh CVs}} would fail. Reused analyses still compare.",
         "engineUnknown": "The AI engine could not be checked. Fresh analyses need one; reused analyses compare either way."
+      },
+      "walkthrough": {
+        "loading": "Loading the walkthrough…",
+        "failed": "Could not load the walkthrough's fixture data.",
+        "retry": "Try again",
+        "simulated": "Simulated run: every analysis here comes from fixture data. Nothing is analyzed, spent or saved.",
+        "startOver": "Start over",
+        "narrativeWithheld": "The fixture's written comparison names all 20 candidates, so it appears only when all 20 are compared without blinding."
       }
     },
     "layers": {

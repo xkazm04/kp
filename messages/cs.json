@@ -17156,7 +17156,8 @@
         "model": "Napsal ji jazykový model kolem výroků výše a nikdy je nemění.",
         "keyless": "Napsáno bez jazykového modelu (deterministická záloha).",
         "pending": "Prohlídka zatím není: vznikne, až budou stát všechny budovy.",
-        "none": "Prohlídka není: hodnocení mají méně než dva kandidáti."
+        "none": "Prohlídka není: hodnocení mají méně než dva kandidáti.",
+        "absent": "Pro tuto sadu kandidátů není k dispozici žádný průvodní text."
       },
       "keys": {
         "label": "Klávesy",
@@ -17203,7 +17204,8 @@
         "mode": {
           "live": "Živá data",
           "done": "Fixtura · dokončeno",
-          "running": "Fixtura · běží"
+          "running": "Fixtura · běží",
+          "walkthrough": "Ukázkový průchod"
         },
         "note": "Jen ve vývoji. Produkce ukazuje formulář v1."
       },
@@ -17218,7 +17220,8 @@
         },
         "fixture": {
           "done": "Fixtura · dokončený běh",
-          "running": "Fixtura · běh probíhá"
+          "running": "Fixtura · běh probíhá",
+          "walkthrough": "Ukázkový průchod · vzorová data, nic se neukládá"
         },
         "act": {
           "role": "Pozice",
@@ -17394,6 +17397,14 @@
         "start": "Porovnat {n, plural, one {# kandidáta} few {# kandidáty} many {# kandidáta} other {# kandidátů}}",
         "engineMissing": "Nové analýzy potřebují AI engine a žádný není nastavený: {n, plural, one {# nový životopis by selhal} few {# nové životopisy by selhaly} many {# nového životopisu by selhalo} other {# nových životopisů by selhalo}}. Převzaté analýzy se porovnají i tak.",
         "engineUnknown": "Dostupnost AI enginu se nepodařilo ověřit. Nové analýzy ho potřebují, převzaté se porovnají i bez něj."
+      },
+      "walkthrough": {
+        "loading": "Načítáme ukázkový průchod…",
+        "failed": "Vzorová data pro ukázkový průchod se nepodařilo načíst.",
+        "retry": "Zkusit znovu",
+        "simulated": "Simulovaný běh: všechny analýzy pocházejí ze vzorových dat. Nic se neanalyzuje, neúčtuje ani neukládá.",
+        "startOver": "Začít znovu",
+        "narrativeWithheld": "Slovní srovnání ve vzorových datech jmenuje všech 20 kandidátů, proto se zobrazí jen tehdy, když srovnáváte všech 20 a bez anonymizace."
       }
     },
     "layers": {

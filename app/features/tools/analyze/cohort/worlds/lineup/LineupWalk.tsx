@@ -2,7 +2,7 @@
 
 import { useId } from "react";
 import { KeyHints, ScenePress } from "@/app/_components/kit/scene";
-import type { CohortView } from "../../cohortTypes";
+import { COHORT_MIN, type CohortView } from "../../cohortTypes";
 import type { LineupWords } from "./useLineupWords";
 
 const STOP = "lu-walk__stop";
@@ -48,7 +48,7 @@ export function LineupWalk({ view, words, onStop }: { view: CohortView; words: L
           <p className="lu-walk__engine">{t(nar.engine === "model" ? "walk.model" : "walk.keyless")}</p>
         </>
       ) : (
-        <p className="lu-walk__text">{t(running ? "walk.pending" : "walk.none")}</p>
+        <p className="lu-walk__text">{t(running ? "walk.pending" : view.claims.byDimension.fit.rated < COHORT_MIN ? "walk.none" : "walk.absent")}</p>
       )}
       <KeyHints
         label={t("keys.label")}

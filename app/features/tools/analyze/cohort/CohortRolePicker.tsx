@@ -3,7 +3,8 @@
 // Act 1: the role. A searchable, compact list of the JD library — title, field, seniority,
 // and the two counts the library route already knows (people in the role's pipeline, CVs already
 // analysed against it). An empty library is a state with a way forward, not an error; a failed
-// read says so and offers a retry; a cut library says it is the newest N.
+// read says so and offers a retry; a cut library says it is the newest N. In the walkthrough the
+// library is the fixture's (useWalkthroughSource) and nothing is fetched.
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -13,6 +14,7 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { BTN_SECONDARY, FIELD, NOTICE, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { useCohortRoles, type CohortRole } from "./useCohortLists";
+import { useWalkthroughSource } from "./cohortWalkthroughSource";
 
 /** How many roles the list draws before it asks the reader to search. */
 const SHOWN = 24;
@@ -23,7 +25,9 @@ export function CohortRolePicker({ onPick }: { onPick: (jdSlug: string, jdTitle:
   const t = useTranslations("analyzeCohort.shell.role");
   const errorMessage = useErrorMessage();
   const enumLabel = useEnumLabel();
-  const { roles, state, truncated, reload } = useCohortRoles();
+  const walkthrough = useWalkthroughSource();
+  const live = useCohortRoles(!walkthrough);
+  const { roles, state, truncated, reload } = walkthrough ? { ...live, roles: walkthrough.roles, state: "ready" as const, truncated: false } : live;
   const [query, setQuery] = useState("");
   const matches = useMemo(() => {
     const q = query.trim().toLocaleLowerCase();

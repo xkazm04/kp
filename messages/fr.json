@@ -17156,7 +17156,8 @@
         "model": "Rédigée par le modèle de langage autour des affirmations ci-dessus, sans jamais les modifier.",
         "keyless": "Rédigée sans modèle de langage (repli déterministe).",
         "pending": "Pas encore de visite. Elle sera rédigée quand tous les bâtiments seront debout.",
-        "none": "Pas de visite. Moins de deux candidats sont évalués."
+        "none": "Pas de visite. Moins de deux candidats sont évalués.",
+        "absent": "Pas de visite commentée pour cette sélection de candidats."
       },
       "keys": {
         "label": "Touches",
@@ -17203,7 +17204,8 @@
         "mode": {
           "live": "En direct",
           "done": "Fixture · terminée",
-          "running": "Fixture · en cours"
+          "running": "Fixture · en cours",
+          "walkthrough": "Parcours guidé"
         },
         "note": "Développement uniquement. La production affiche le formulaire v1."
       },
@@ -17218,7 +17220,8 @@
         },
         "fixture": {
           "done": "Fixture · exécution terminée",
-          "running": "Fixture · exécution en cours"
+          "running": "Fixture · exécution en cours",
+          "walkthrough": "Parcours guidé · données d’exemple, rien n’est enregistré"
         },
         "act": {
           "role": "Poste",
@@ -17394,6 +17397,14 @@
         "start": "Comparer {n, plural, one {# candidat} other {# candidats}}",
         "engineMissing": "Les nouvelles analyses demandent un moteur d’IA, et aucun n’est configuré : {n, plural, one {le # nouveau CV échouerait} other {les # nouveaux CV échoueraient}}. Les analyses reprises sont comparées malgré tout.",
         "engineUnknown": "Le moteur d’IA n’a pas pu être vérifié. Les nouvelles analyses en ont besoin ; les analyses reprises sont comparées dans tous les cas."
+      },
+      "walkthrough": {
+        "loading": "Chargement du parcours guidé…",
+        "failed": "Impossible de charger les données d’exemple du parcours guidé.",
+        "retry": "Réessayer",
+        "simulated": "Exécution simulée : chaque analyse provient de données d’exemple. Rien n’est analysé, facturé ni enregistré.",
+        "startOver": "Recommencer",
+        "narrativeWithheld": "La comparaison rédigée des données d’exemple nomme les 20 candidats : elle n’apparaît que lorsque les 20 sont comparés sans anonymisation."
       }
     },
     "layers": {

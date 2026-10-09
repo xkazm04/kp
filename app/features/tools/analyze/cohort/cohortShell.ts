@@ -1,11 +1,13 @@
 // The Cohort Studio shell's pure rules (spark analyze-v2-cohort, WP3): which variant and
 // which data source the studio shows, when the live view stops polling, and the order the
 // narrow card list reads in. React-free, so each rule is pinned by cohortShell.test.ts.
-import { isCohortVariant, type CohortMember, type CohortStatus, type CohortVariant } from "./cohortTypes.ts";
+import { isCohortLayer, isCohortVariant, type CohortLayer, type CohortMember, type CohortStatus, type CohortVariant } from "./cohortTypes.ts";
 
 /** Where the studio's comparison comes from. `live` = the role-first flow over the real
- *  routes; `done` / `running` = the engine's committed fixtures (a dev aid for judging). */
-export const COHORT_FIXTURE_MODES = ["live", "done", "running"] as const;
+ *  routes; `done` / `running` = the engine's committed fixtures (a dev aid for judging);
+ *  `walkthrough` = the same role-first flow run against fixture data, with a simulated run
+ *  (keyless, nothing written — the way into the comparison, shown end to end). */
+export const COHORT_FIXTURE_MODES = ["live", "done", "running", "walkthrough"] as const;
 export type CohortFixtureMode = (typeof COHORT_FIXTURE_MODES)[number];
 export const isCohortFixtureMode = (v: unknown): v is CohortFixtureMode =>
   typeof v === "string" && (COHORT_FIXTURE_MODES as readonly string[]).includes(v);
@@ -17,6 +19,8 @@ export const FIXTURE_KEY = "kp-analyze-cohort-fixture";
 /** One-shot inbox parse: a valid value is adopted, anything else (absent, junk) is not. */
 export const parseVariantParam = (raw: string | null): CohortVariant | null => (isCohortVariant(raw) ? raw : null);
 export const parseFixtureParam = (raw: string | null): CohortFixtureMode | null => (isCohortFixtureMode(raw) ? raw : null);
+/** ?layer= — which nested-layer structure a descent opens (persisted under DimensionLayer's key). */
+export const parseLayerParam = (raw: string | null): CohortLayer | null => (isCohortLayer(raw) ? raw : null);
 
 /** Production shows the baseline only: the prototype round never reaches a real install. */
 export function activeVariant(prototypesOn: boolean, chosen: CohortVariant): CohortVariant {

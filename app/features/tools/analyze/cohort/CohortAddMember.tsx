@@ -2,7 +2,8 @@
 
 // Add someone by hand: put back a proposal member taken out (with the rule that seated them),
 // or seat a candidate from the workspace's population (any CV already analysed, matched by
-// name). At the cap the control stays visible, disabled, and says why — no hover needed.
+// name). At the cap the control stays visible, disabled, and says why — no hover needed. In the
+// walkthrough the population is the fixture's (useWalkthroughSource) and nothing is fetched.
 import { useId, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plus, Search } from "lucide-react";
@@ -11,6 +12,7 @@ import { BTN_GHOST, BTN_SECONDARY, FIELD, META_LABEL, PANEL_SUNKEN } from "@/app
 import { useCandidatePopulation } from "@/app/features/tools/profile/useCandidatePopulation";
 import { COHORT_CAP } from "./cohortTypes";
 import { memberFromPopulation, populationOffer, trayIsFull, type Tray, type TrayMember } from "./cohortProposalEdits";
+import { useWalkthroughSource } from "./cohortWalkthroughSource";
 
 const ROW = "flex items-center justify-between gap-3 py-1";
 
@@ -20,7 +22,9 @@ export function CohortAddMember({ tray, onAdd }: { tray: Tray; onAdd: (member: T
   const [query, setQuery] = useState("");
   const reasonId = useId();
   const full = trayIsFull(tray);
-  const population = useCandidatePopulation({ active: open });
+  const walkthrough = useWalkthroughSource();
+  const live = useCandidatePopulation({ active: open && !walkthrough });
+  const population = walkthrough ? { rows: walkthrough.population, failed: false, reload: live.reload } : live;
   const offer = population.rows ? populationOffer(population.rows, tray, query) : [];
 
   return (

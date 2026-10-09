@@ -12,12 +12,14 @@ export type ProposalState =
   | { state: "ready"; proposal: CohortProposal }
   | { state: "failed"; failure: ApiFailure };
 
-export function useCohortProposal(jdSlug: string) {
+/** `enabled` false (the walkthrough holds its own proposals): no request is made. */
+export function useCohortProposal(jdSlug: string, enabled = true) {
   const [result, setResult] = useState<{ key: string; value: ProposalState } | null>(null);
   const [attempt, setAttempt] = useState(0);
   const key = `${jdSlug}#${attempt}`;
 
   useEffect(() => {
+    if (!enabled) return;
     const controller = new AbortController();
     fetchProposal(fetch, jdSlug, controller.signal)
       .then((r) => {
@@ -28,7 +30,7 @@ export function useCohortProposal(jdSlug: string) {
         /* AbortError: the role changed or the studio left — the newer read owns the state */
       });
     return () => controller.abort();
-  }, [jdSlug, key]);
+  }, [jdSlug, key, enabled]);
 
   const reload = useCallback(() => setAttempt((n) => n + 1), []);
   const value: ProposalState = result?.key === key ? result.value : { state: "loading" };

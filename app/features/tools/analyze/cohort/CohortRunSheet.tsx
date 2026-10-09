@@ -3,7 +3,8 @@
 // Act 2's right-hand sheet: what the run will read (the company context, read-only), what it
 // will do (CVs analysed fresh vs reused — units only where the install is KNOWN to meter), how
 // (blind, report language — the same controls the v1 form offers), and Start. Below the
-// head-to-head floor the run is not offered and the sheet says why.
+// head-to-head floor the run is not offered and the sheet says why. In the walkthrough, Start hands
+// the request to the simulated run (useWalkthroughSource): no POST, no billing or engine read.
 import { useId, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Play } from "lucide-react";
@@ -16,6 +17,7 @@ import { isLocale, LOCALES } from "@/i18n/locales";
 import { COHORT_MIN, type CohortProposal, type CohortRunRequest } from "./cohortTypes";
 import { freshEstimate, runRequest, runVerdict, type Tray } from "./cohortProposalEdits";
 import { useCohortMetered, useCohortRun } from "./useCohortRun";
+import { useWalkthroughSource } from "./cohortWalkthroughSource";
 
 const MORE_BTN = "focus-ring rounded-md font-semibold text-coral underline-offset-2 hover:underline";
 
@@ -34,11 +36,14 @@ export function CohortRunSheet({
   const [blind, setBlind] = useState(false);
   const [reportLang, setReportLang] = useState<string>(isLocale(locale) ? locale : LOCALES[0]);
   const [expanded, setExpanded] = useState(false);
-  const metered = useCohortMetered();
+  const walkthrough = useWalkthroughSource();
+  const metered = useCohortMetered(!walkthrough);
   // CV analysis has no keyless engine: on an install without one, every FRESH member fails
-  // (reused ones still compare). Said before Start, the same read the v1 form makes.
-  const { engines, unknown: enginesUnknown } = useEngineAvailabilityRead();
-  const engineMissing = Boolean(engines && !engines.gemini);
+  // (reused ones still compare). Said before Start, the same read the v1 form makes. The
+  // walkthrough's run is simulated from fixture data, so no engine is needed and none is named.
+  const engineRead = useEngineAvailabilityRead();
+  const engineMissing = !walkthrough && Boolean(engineRead.engines && !engineRead.engines.gemini);
+  const enginesUnknown = !walkthrough && engineRead.unknown;
   const { start, starting, failure } = useCohortRun(onStarted);
   const verdict = runVerdict(tray);
   const est = freshEstimate(tray);
@@ -116,7 +121,11 @@ export function CohortRunSheet({
         type="button"
         disabled={verdict !== "ok" || starting}
         aria-describedby={verdict !== "ok" ? reasonId : undefined}
-        onClick={() => void start(runRequest(proposal.jdSlug, tray, { blind, reportLang }))}
+        onClick={() => {
+          const request = runRequest(proposal.jdSlug, tray, { blind, reportLang });
+          if (walkthrough) onStarted(walkthrough.start(request), request);
+          else void start(request);
+        }}
         className={`${BTN_PRIMARY} h-10 w-full justify-center px-4 text-body disabled:cursor-not-allowed`}
       >
         <Play className="h-4 w-4" aria-hidden />
