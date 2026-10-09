@@ -12322,7 +12322,7 @@
         "switcher": "Měnící obor"
       },
       "confidence": "shoda signálů {value}",
-      "declaration": "Pokud si archetyp určil sám kandidát, jeho volba vítězí a má jistotu 0,9. Protichůdný signál ji nikdy nepřebije. Sníží jistotu na 0,65 a připojí důvod, který pak panel měkkých signálů znovu vystaví člověku k posouzení.",
+      "declaration": "Pokud si archetyp určil sám kandidát, jeho volba vítězí a má jistotu 0,9. Protichůdný signál ji nikdy nepřebije. Sníží jistotu na 0,65 (0,7 u archetypu Měnící obor) a připojí důvod, který pak panel měkkých signálů znovu vystaví člověku k posouzení.",
       "fallback": "Když se neozve vůbec nic, výsledkem je <k>bau</k> s jistotou 0,4. To číslo je záměrně pod prahem 0,55 pro revizi, takže zařazení provedené bez důkazů se vždy ukáže jako něco ke kontrole, místo aby tiše prošlo jako výsledek.",
       "status": {
         "s0": "registry.detect(): pravidlový engine, bez modelu",

@@ -12322,7 +12322,7 @@
         "switcher": "Quereinstieg"
       },
       "confidence": "Signalübereinstimmung {value}",
-      "declaration": "Hat die Person den Archetyp selbst angegeben, gewinnt diese Angabe und gilt mit 0,9. Ein widersprechendes Signal überschreibt sie nie. Es senkt die Konfidenz auf 0,65 und hängt einen Grund an, den das Panel der weichen Signale dann für einen Menschen sichtbar macht.",
+      "declaration": "Hat die Person den Archetyp selbst angegeben, gewinnt diese Angabe und gilt mit 0,9. Ein widersprechendes Signal überschreibt sie nie. Es senkt die Konfidenz auf 0,65 (0,7 bei Quereinstieg) und hängt einen Grund an, den das Panel der weichen Signale dann für einen Menschen sichtbar macht.",
       "fallback": "Feuert überhaupt nichts, lautet das Ergebnis <k>bau</k> mit 0,4. Diese Zahl liegt bewusst unter der Prüfschwelle von 0,55, sodass eine ohne Nachweise getroffene Zuordnung immer als prüfbedürftig erscheint, statt still als Ergebnis durchzugehen.",
       "status": {
         "s0": "registry.detect(): eine Regel-Engine, ohne Modell",

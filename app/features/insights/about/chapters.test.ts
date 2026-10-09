@@ -232,6 +232,28 @@ const aboutCopyIn = (locale: string, dotted: string): string => {
   return node as string;
 };
 
+test("about.archetypes.declaration names every contradiction confidence the registry applies, in every locale", () => {
+  // registry.py replaces the confidence with the matching contradiction's own
+  // value, and the three archetypes do not share one (0.65 / 0.65 / 0.7).
+  const { contradictions } = (
+    JSON.parse(readFileSync(path.resolve(ROOT, "pipeline", "jobfit", "archetypes.json"), "utf8")) as {
+      detection: { contradictions: Record<string, { confidence: number }[]> };
+    }
+  ).detection;
+  const values = [...new Set(Object.values(contradictions).flatMap((rules) => rules.map((r) => r.confidence)))];
+  assert.ok(values.length > 0, "archetypes.json declares no contradictions");
+  for (const locale of ["en", "cs", "de", "fr"]) {
+    const copy = aboutCopyIn(locale, "archetypes.declaration");
+    for (const v of values) {
+      const written = locale === "en" ? String(v) : String(v).replace(".", ",");
+      assert.ok(
+        new RegExp(`(?<![\\d.,])${written}(?![\\d])`).test(copy),
+        `messages/${locale}.json: about.archetypes.declaration does not state the contradiction confidence ${written}`
+      );
+    }
+  }
+});
+
 test("the status lines name the prompt versions the pipeline runs, in every locale", () => {
   const pins: [string, string, string][] = [
     ["jd.status.s0", "pipeline/jobfit/devcase/design.py", "ROLE_DESIGN_PROMPT_VERSION"],

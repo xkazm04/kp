@@ -12322,7 +12322,7 @@
         "switcher": "Reconversion"
       },
       "confidence": "concordance des signaux {value}",
-      "declaration": "Si la personne a déclaré elle-même son archétype, cette déclaration l'emporte et vaut 0,9. Un signal contradictoire ne la remplace jamais. Il abaisse la confiance à 0,65 et ajoute une raison, que le panneau des signaux faibles réexpose ensuite à un humain.",
+      "declaration": "Si la personne a déclaré elle-même son archétype, cette déclaration l'emporte et vaut 0,9. Un signal contradictoire ne la remplace jamais. Il abaisse la confiance à 0,65 (0,7 pour la Reconversion) et ajoute une raison, que le panneau des signaux faibles réexpose ensuite à un humain.",
       "fallback": "Quand rien ne se déclenche, le résultat est <k>bau</k> à 0,4. Ce chiffre se situe volontairement sous le seuil de revue de 0,55, si bien qu'une orientation décidée sans preuve apparaît toujours comme à vérifier plutôt que de passer discrètement pour un résultat.",
       "status": {
         "s0": "registry.detect() : un moteur de règles, sans modèle",
