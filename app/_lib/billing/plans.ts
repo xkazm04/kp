@@ -165,20 +165,70 @@ export function currentPeriod(now: Date = new Date()): string {
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
+/** The slice of billing_state the allowance anchor needs. */
+export type AllowanceAnchor = { currentPeriodStart: string | null } | null;
+
+type AnchoredWindow = { key: string; start: Date; end: Date };
+
+function daysInUTCMonth(year: number, monthIndex: number): number {
+  return new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
+}
+
+/** The anniversary instant of month `monthOffset` after the anchor: the anchor's day
+ *  clamped to that month's length (a 31st anchor recurs on the 28th in February, then
+ *  returns to the 31st — never the raw day, which drifts the window to the 1st). */
+function anniversary(anchor: Date, monthOffset: number): Date {
+  const y = anchor.getUTCFullYear();
+  const m = anchor.getUTCMonth() + monthOffset;
+  const first = new Date(Date.UTC(y, m, 1));
+  const day = Math.min(anchor.getUTCDate(), daysInUTCMonth(first.getUTCFullYear(), first.getUTCMonth()));
+  return new Date(
+    Date.UTC(first.getUTCFullYear(), first.getUTCMonth(), day, anchor.getUTCHours(), anchor.getUTCMinutes(), anchor.getUTCSeconds(), anchor.getUTCMilliseconds()),
+  );
+}
+
+/** The anchored window containing `now`, or null when the org has no usable anchor
+ *  (no billing_state row, a null/unparseable current_period_start, or an anchor in the
+ *  future) — the caller then keeps the calendar month. */
+function anchoredWindow(state: AllowanceAnchor, now: Date): AnchoredWindow | null {
+  const raw = state?.currentPeriodStart;
+  if (!raw) return null;
+  const anchor = new Date(raw);
+  if (Number.isNaN(anchor.getTime()) || anchor.getTime() > now.getTime()) return null;
+  let n = (now.getUTCFullYear() - anchor.getUTCFullYear()) * 12 + (now.getUTCMonth() - anchor.getUTCMonth());
+  if (anniversary(anchor, n).getTime() > now.getTime()) n -= 1;
+  const start = anniversary(anchor, n);
+  return { key: start.toISOString().slice(0, 10), start, end: anniversary(anchor, n + 1) };
+}
+
+/** The allowance ledger key a debit made at `now` lands in. Keyed on the subscription's
+ *  billing anchor (billing_state.current_period_start), because the provider bills on
+ *  that anniversary: the key is the window's start date 'YYYY-MM-DD', which can never
+ *  collide with a calendar 'YYYY-MM' key. Without a usable anchor it is `currentPeriod`.
+ *  ADR 0023. */
+export function allowancePeriod(state: AllowanceAnchor, now: Date = new Date()): string {
+  return anchoredWindow(state, now)?.key ?? currentPeriod(now);
+}
+
+/** True when `period` is an anchored key rather than a calendar month. */
+export function isAnchoredPeriodKey(period: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(period);
+}
+
 /** The allowance window a debit made at `now` lands in, stated as dates: `period` is
- *  the ledger key (`currentPeriod(now)`, by construction), `start` / `resetsAt` its UTC
- *  bounds (half-open — the reset instant belongs to the next window), `asOf` the
+ *  the ledger key (`allowancePeriod(state, now)`, by construction), `start` / `resetsAt`
+ *  its UTC bounds (half-open — the reset instant belongs to the next window), `asOf` the
  *  instant it was read. DISPLAY ONLY: nothing that gates or debits reads it, so it can
  *  never move a charge (allowance-window.test.ts pins both halves).
  *
- *  This is the ALLOWANCE window, not the PAID period: the provider bills on the
- *  subscription's own anniversary, and the two coincide only for a subscription
- *  anchored on the 1st (period-anchor.test.ts). When the allowance is re-keyed onto the
- *  anchor (.ai/tasks/2026-09-07-allowance-period-anchor.md), this function takes the
- *  subscription state as well — and every date the Billing tab shows follows. */
+ *  Without `state` (or with no usable anchor) it is the UTC calendar month. */
 export type AllowanceWindow = { period: string; start: string; resetsAt: string; asOf: string };
 
-export function allowanceWindow(now: Date = new Date()): AllowanceWindow {
+export function allowanceWindow(now: Date = new Date(), state: AllowanceAnchor = null): AllowanceWindow {
+  const anchored = anchoredWindow(state, now);
+  if (anchored) {
+    return { period: anchored.key, start: anchored.start.toISOString(), resetsAt: anchored.end.toISOString(), asOf: now.toISOString() };
+  }
   const period = currentPeriod(now);
   const year = now.getUTCFullYear();
   const month = now.getUTCMonth();

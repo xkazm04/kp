@@ -88,14 +88,14 @@ test("charge parity (GUARD): the window is additive and moves no money state", (
   const snapshot = JSON.stringify(parity.chargeParitySnapshot(fx, NOW), null, 2);
   assert.equal(snapshot, JSON.stringify(golden.replay, null, 2), "the scripted money history no longer reproduces the golden");
 
-  // The ONLY key billingOverview gains is the window, and it is the debit key.
-  const usagePeriods = new Set(
-    (golden.replay as { billing_usage: Array<{ period: string }> }).billing_usage.map((r) => r.period)
-  );
-  for (const ws of fx.workspace.values()) {
+  // The ONLY key billingOverview gains is the window, and it is the debit key: each
+  // org's window names the period ITS debits landed in (anchored for A and C, which have
+  // a billing_state row; the calendar month for B, which has none).
+  const usage = (golden.replay as { billing_usage: Array<{ org: string; period: string }> }).billing_usage;
+  for (const [label, ws] of fx.workspace.entries()) {
     const o = billingOverview(NOW, ws) as unknown as Record<string, unknown>;
     assert.deepEqual(Object.keys(o).sort(), [...parity.PINNED_OVERVIEW_KEYS, "allowanceWindow"].sort());
-    assert.deepEqual(o.allowanceWindow, allowanceWindow(NOW));
-    assert.deepEqual([...usagePeriods], [(o.allowanceWindow as Window).period], "the window shown is the period every debit landed in");
+    const periods = [...new Set(usage.filter((r) => r.org === label).map((r) => r.period))];
+    assert.deepEqual(periods, [(o.allowanceWindow as Window).period], `${label}: the window shown is the period its debits landed in`);
   }
 });

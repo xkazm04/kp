@@ -668,12 +668,13 @@ bars or the estimated-cost figure changes; a metered install renders exactly as 
 
 A meter used to say "180 of 300 used" and nothing else, and the only date on the tab
 was the plan card's "Current period ends", which is the provider's **paid** period. The
-allowance does not reset then: it is keyed on `currentPeriod(now)`, a UTC **calendar**
-month, and the two coincide only for a subscription anchored on the 1st
-(`period-anchor.test.ts` measures 9 of 10 anchors diverging). An owner deciding
+allowance used to reset on the UTC **calendar** month (`currentPeriod(now)`), which
+coincides with the paid period only for a subscription anchored on the 1st (9 of 10
+anchors diverged). Since ADR 0023 it is keyed on the subscription anchor
+(`allowancePeriod(state, now)`); an org with no `billing_state` row keeps the calendar month. An owner deciding
 whether to upgrade or buy a minutes pack was deciding without the date it hinges on.
 
-- **`allowanceWindow(now)`** (`app/_lib/billing/plans.ts`, pure) returns
+- **`allowanceWindow(now, state)`** (`app/_lib/billing/plans.ts`, pure) returns
   `{ period, start, resetsAt, asOf }`: `period` IS `currentPeriod(now)` and the bounds
   are that UTC month, half-open (the reset instant belongs to the next window).
   `billingOverview` carries it as one additive key, `allowanceWindow`, so GET
@@ -698,15 +699,18 @@ whether to upgrade or buy a minutes pack was deciding without the date it hinges
 - The orphaned `billing.usage.intro` said meters reset "with the billing period"; it now
   states the UTC month and that pack credits carry over.
 
-**Naming hazard, on purpose:** `.ai/tasks/2026-09-07-allowance-period-anchor.md` plans
-the charge-changing re-key onto the subscription anchor as `allowancePeriod(state, now)`.
-When that lands, `allowanceWindow` must take the subscription state too (one function,
-so every date on the tab follows); until then it is exactly the calendar key the ledger
-debits under. The charge-parity GUARD in `app/_lib/billing/allowance-window.test.ts`
+**The re-key (ADR 0023).** The ledger key is the window's start date `YYYY-MM-DD`
+(anniversary day clamped to the month's length), so it cannot collide with a calendar
+`YYYY-MM` key. Usage already debited under a calendar key inside the first anchored window
+is carried in at read time from `billing_usage_journal.from_included` (credit-pack debits
+and pre-journal debits are not), so the switch grants no extra allowance. `allowanceWindow`
+takes the subscription state, so every date on the tab follows. The charge-parity GUARD in `app/_lib/billing/allowance-window.test.ts`
 replays the shared three-org money history
 (`app/_lib/billing/__fixtures__/charge-parity-replay.ts`, the same replay and golden the
 alert reader is guarded by) and asserts it still reproduces `charge-parity.json`
-byte-for-byte, with `allowanceWindow` the only key `billingOverview` gained.
+byte-for-byte, with `allowanceWindow` the only key `billingOverview` gained; the golden's
+`billing_usage.period` is the one value re-keyed (orgs with a `billing_state` row move from
+`2026-08` to their window start date, quantities and credits unchanged).
 
 Why it moved: "how much allowance is left" and "what did the AI actually cost"
 are one question, and they were being answered by a meters card here and a Usage

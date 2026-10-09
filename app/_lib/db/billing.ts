@@ -394,6 +394,23 @@ export function billingUsageFor(meter: string, period: string, orgId: string = D
   return row?.qty ?? 0;
 }
 
+/** Allowance already debited under the old CALENDAR key ('YYYY-MM') inside [from, to):
+ *  the carry-over into the first anchored window (ADR 0023). Read from the journal's
+ *  `from_included`, so a credit-pack debit is never counted as allowance. Debits made
+ *  before the journal existed carry no timestamp and cannot be placed in a window, so
+ *  they are not carried. After the switch every debit lands under an anchored key, so
+ *  later windows find nothing here. */
+export function calendarUsageCarried(meter: string, fromIso: string, toIso: string, orgId: string = DEFAULT_ORG_ID): number {
+  const row = ensureDb()
+    .prepare(
+      `SELECT COALESCE(SUM(from_included), 0) AS n FROM billing_usage_journal
+       WHERE org_id = ? AND meter = ? AND period GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]'
+         AND occurred_at >= ? AND occurred_at < ?`
+    )
+    .get(orgId, meter, fromIso, toIso) as { n: number };
+  return row.n;
+}
+
 // ---- Usage journal (docs/features/billing/README.md) --------------------------------------
 // One row per meter debit beside the billing_usage counter, written by recordMeterUsage in
 // the counter's transaction. Write-only evidence: no gate or charge reads it.

@@ -11,13 +11,13 @@
 // monthly allowance is exhausted (a negative ledger row per unit), so the
 // balance survives month boundaries without double counting.
 
-import { appendUsageJournal, billingUsageFor, creditBalance, getBillingState, grantBillingCredits, incrementBillingUsage, type BillingStateRow } from "../db/billing";
+import { appendUsageJournal, billingUsageFor, calendarUsageCarried, creditBalance, getBillingState, grantBillingCredits, incrementBillingUsage, type BillingStateRow } from "../db/billing";
 import { ensureDb } from "../db/core";
 import { listProviderKeys } from "../db/llm";
 import { DEFAULT_ORG_ID } from "../db/organizations";
 import { getWorkspaceOrgId, DEFAULT_WORKSPACE_ID } from "../db/workspaces";
 import { billingProviderConfigured } from "./mode";
-import { allowanceWindow, currentPeriod, PLANS, type AllowanceWindow, type Meter, type PlanDef, type PlanId } from "./plans";
+import { allowancePeriod, allowanceWindow, isAnchoredPeriodKey, PLANS, type AllowanceWindow, type Meter, type PlanDef, type PlanId } from "./plans";
 
 /** The billing scope a workspace's spend belongs to: its ORG (org-plan Phase 3 —
  *  a subscription is per customer company, shared across its teams). The seams
@@ -213,9 +213,19 @@ function resolvedLimit(plan: PlanDef, meter: Meter, orgId: string): number | nul
   return meteringActive(orgId) ? effectiveLimit(plan, meter) : null;
 }
 
+/** Allowance used in the window `now` falls in: the anchored counter plus whatever was
+ *  already debited under the old calendar key inside that window (ADR 0023), so the
+ *  re-key never hands an org a second allowance. No anchor → the calendar counter. */
+function allowanceUsed(meter: Meter, orgId: string, now: Date): number {
+  const state = getBillingState(orgId);
+  const w = allowanceWindow(now, state);
+  const counted = billingUsageFor(meter, w.period, orgId);
+  return isAnchoredPeriodKey(w.period) ? counted + calendarUsageCarried(meter, w.start, w.resetsAt, orgId) : counted;
+}
+
 export function meterOverview(meter: Meter, plan: PlanDef, now: Date = new Date(), orgId: string = DEFAULT_ORG_ID): MeterOverview {
   const limit = resolvedLimit(plan, meter, orgId);
-  const used = billingUsageFor(meter, currentPeriod(now), orgId);
+  const used = allowanceUsed(meter, orgId, now);
   // Clamp the spendable/displayed balance at >=0: a refund claw-back (a negative
   // ledger row) that exceeds the minutes still on hand drives the raw SUM negative,
   // but a customer can never have "less than zero" credits to show or spend. The
@@ -249,7 +259,7 @@ export function billingOverview(now: Date = new Date(), workspace?: string): Bil
     provider: state?.provider ?? null,
     metered: meteringActive(orgId),
     meters: (Object.keys(plan.limits) as Meter[]).map((meter) => meterOverview(meter, plan, now, orgId)),
-    allowanceWindow: allowanceWindow(now),
+    allowanceWindow: allowanceWindow(now, state),
   };
 }
 
@@ -314,7 +324,7 @@ export function recordMeterUsage(meter: Meter, qty: number = 1, now: Date = new 
   // the ledger entirely — and an unmetered self-hosted install consumes no prepaid
   // credits, because there are none to consume.
   const limit = resolvedLimit(plan, meter, orgId);
-  const period = currentPeriod(now);
+  const period = allowancePeriod(getBillingState(orgId), now);
   const db = ensureDb();
   const sourceKind: UsageSourceKind = isUsageSourceKind(source?.kind) ? source.kind : "unattributed";
   const sourceRef = sourceKind === "unattributed" ? null : (source?.ref ?? null);
@@ -323,7 +333,7 @@ export function recordMeterUsage(meter: Meter, qty: number = 1, now: Date = new 
     let fromIncluded = qty;
     let debit = 0;
     if (limit !== null) {
-      const used = billingUsageFor(meter, period, orgId);
+      const used = allowanceUsed(meter, orgId, now);
       const balance = creditBalance(meter, orgId);
       const split = splitSpend(limit, used, balance, qty);
       fromIncluded = split.fromIncluded;

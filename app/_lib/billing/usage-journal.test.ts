@@ -63,6 +63,8 @@ const duplicateUsageSources = (orgId: string, period: string): unknown[] =>
 
 const NOW = parity.CHARGE_PARITY_NOW;
 const PERIOD = "2026-08";
+// freshOrg() anchors its subscription on 2026-08-01, so its debits key on the window start (ADR 0023).
+const ANCHORED_PERIOD = "2026-08-01";
 const rawJournal = (orgId: string) =>
   ensureDb()
     .prepare(
@@ -164,7 +166,7 @@ test("case 1: an attributed debit writes exactly one journal row with its split 
     {
       org_id: orgId,
       meter: "interview_minutes",
-      period: PERIOD,
+      period: ANCHORED_PERIOD,
       qty: 35,
       from_included: 30,
       from_credits: 5,
@@ -172,8 +174,8 @@ test("case 1: an attributed debit writes exactly one journal row with its split 
       source_ref: "sess_1",
     },
   ]);
-  assert.deepEqual(usageRows(orgId), [{ meter: "interview_minutes", period: PERIOD, qty: 35 }]);
-  const listed = listUsageJournalForOrg(orgId, PERIOD);
+  assert.deepEqual(usageRows(orgId), [{ meter: "interview_minutes", period: ANCHORED_PERIOD, qty: 35 }]);
+  const listed = listUsageJournalForOrg(orgId, ANCHORED_PERIOD);
   assert.equal(listed.length, 1);
   assert.equal(listed[0].sourceKind, "interview_session");
   assert.equal(listed[0].sourceRef, "sess_1");
@@ -188,15 +190,15 @@ test("case 5: the same source debited twice counts twice (the charge is unchange
   recordMeterUsage("ai_candidates", 1, NOW, ws, { kind: "analysis", ref: "an_1" });
   recordMeterUsage("ai_candidates", 1, NOW, ws, { kind: "analysis", ref: "an_1" });
   recordMeterUsage("ai_candidates", 1, NOW, ws, { kind: "analysis", ref: "an_2" });
-  assert.deepEqual(usageRows(orgId), [{ meter: "ai_candidates", period: PERIOD, qty: 3 }], "both debits still count");
-  assert.deepEqual(duplicateUsageSources(orgId, PERIOD), [
+  assert.deepEqual(usageRows(orgId), [{ meter: "ai_candidates", period: ANCHORED_PERIOD, qty: 3 }], "both debits still count");
+  assert.deepEqual(duplicateUsageSources(orgId, ANCHORED_PERIOD), [
     { meter: "ai_candidates", source_kind: "analysis", source_ref: "an_1", count: 2 },
   ]);
   assert.deepEqual(journalIntegrity(orgId), []);
   // Unattributed debits have no identity to collide on — they are never "duplicates".
   recordMeterUsage("ai_candidates", 1, NOW, ws);
   recordMeterUsage("ai_candidates", 1, NOW, ws);
-  assert.equal(duplicateUsageSources(orgId, PERIOD).length, 1);
+  assert.equal(duplicateUsageSources(orgId, ANCHORED_PERIOD).length, 1);
 });
 
 // ---- 6. a non-debit writes nothing -------------------------------------------------

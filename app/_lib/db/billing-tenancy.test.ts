@@ -120,7 +120,7 @@ test("every SQL on billing_usage_journal BINDS org_id — the journal is org dat
   const journal = sqlByOwner(src).filter(({ sql }) => /\bbilling_usage_journal\b/i.test(sql) && /^\s*(select|insert|update|delete)\b/i.test(sql));
   assert.deepEqual(
     [...new Set(journal.map((s) => s.owner))].sort(),
-    ["appendUsageJournal", "duplicateUsageSources", "journalIntegrity", "listUsageJournalForOrg"],
+    ["appendUsageJournal", "calendarUsageCarried", "duplicateUsageSources", "journalIntegrity", "listUsageJournalForOrg"],
     "a new statement on the usage journal needs its own look here"
   );
   for (const { owner, sql } of journal) {

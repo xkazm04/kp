@@ -227,13 +227,13 @@
       {
         "org": "org-A",
         "meter": "ai_candidates",
-        "period": "2026-08",
+        "period": "2026-08-01",
         "qty": 7
       },
       {
         "org": "org-A",
         "meter": "interview_minutes",
-        "period": "2026-08",
+        "period": "2026-08-01",
         "qty": 35
       },
       {
@@ -251,19 +251,19 @@
       {
         "org": "org-C",
         "meter": "case_designs",
-        "period": "2026-08",
+        "period": "2026-08-10",
         "qty": 1
       },
       {
         "org": "org-C",
         "meter": "hires",
-        "period": "2026-08",
+        "period": "2026-08-10",
         "qty": 1
       },
       {
         "org": "org-C",
         "meter": "job_posts",
-        "period": "2026-08",
+        "period": "2026-08-10",
         "qty": 2
       }
     ],

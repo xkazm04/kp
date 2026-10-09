@@ -60,6 +60,7 @@ to be true for it to change?*
 | [0020](0020-an-ats-decision-releases-a-reason-only-when-the-server-built-it.md) | An ATS decision block releases a rationale only when the server built it, and the POST re-asserts its destination | accepted | 2026-10-08 |
 | [0021](0021-an-erasure-revokes-every-live-capability-link-the-candidate-holds.md) | An erasure revokes every live capability link the candidate holds | accepted | 2026-10-08 |
 | [0022](0022-a-client-module-never-reaches-the-database.md) | A client module never reaches the database | accepted | 2026-10-08 |
+| [0023](0023-the-allowance-is-keyed-on-the-subscription-anchor.md) | The allowance is keyed on the subscription anchor, not the calendar month | accepted | 2026-10-09 |
 
 ## Writing a new one
 

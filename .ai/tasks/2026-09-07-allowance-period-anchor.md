@@ -1,6 +1,6 @@
 ---
 kind: task
-status: first-step-landed
+status: delivered
 opened: 2026-09-07
 run: intake-lago-0907
 registry_subject: software-engineering/operations/metered-billing/subscription-billing-periods
@@ -91,3 +91,12 @@ way, but the *impact* is zero if no real customer is anchored off the 1st.
 Prepaid credit packs. Those live in the `billing_credits` ledger and are
 deliberately period-independent (they survive month boundaries by design) — the
 re-key must not touch them.
+
+## Delivered 2026-10-09 (ADR 0023)
+
+Test-first. On base, `period-anchor.test.ts` failed to load:
+`SyntaxError: The requested module './plans.ts' does not provide an export named 'allowancePeriod'`.
+After the fix: period-anchor, allowance-carry, allowance-window, billing-gate and reduce
+tests, 56 pass / 0 fail; over-grants 9/10 -> 0/10. The golden changed only in
+`billing_usage.period` (orgs A, C). `billing-gate.test.ts` now expects 30 + 92 remaining
+after the upgrade: the 8 earlier minutes were credit-funded, and a pack debit is not carried.
