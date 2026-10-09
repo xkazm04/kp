@@ -1862,6 +1862,399 @@ qualifies the count. `pipeline-board-1` counts for what survives of it: 13 of it
 sources are gone, and their successors under `kit/`, `orbit/` and `candidate/` are in no
 143-map context. 31 thread contexts remain. At five per round that is seven more rounds.
 
+## Recorded per-context coverage — 2026-10-09, ROUND 6, READ-ONLY (branch `autopilot/codebase-static-analysis-sweep-8f4055cb`)
+
+**The denominator is round 3's, unchanged:** the 55 thread contexts of the retired 143-map
+(`git show 9c20a787:context-map.json`), decided and re-counted in the round-3 section above.
+Every id below is a 143-map id, and each file list was resolved from `9c20a787`.
+
+Sixth five-lens round of dev_goal `081c3e5a`. **Read-only:** every feature span was under an
+open operator Approval until 09:00, so nothing in `app/`, `pipeline/`, `scripts/` or
+`messages/` changed. Every finding is recorded here, not fixed. Round 5 named Hiring Decisions
+and Voice Interviews (3/8 each), then Interview Scheduling (2/5), as the thinnest groups by
+share, so the batch takes two contexts from each of the first two and one from the third:
+
+- `lib-decisions-1` and `lib-automation`: Hiring Decisions. The first carries the key goal
+  that no scorecard, ranking or rejection is produced without a reason the candidate can be
+  given; the second, that one role runs end to end without a human step.
+- `api-voice-interview` and `lib-voice-interview-11`: Voice Interviews.
+- `calendar-integration`: Interview Scheduling.
+
+`messages/{en,cs,de,fr}.json`, `app/features/insights/about/chapters.test.ts` and
+`app/landing/spark/market/data.ts` were neither read nor judged: another builder was changing
+them. Every finding that would need a catalog read says so.
+
+### The round
+
+`✓` = read through that lens and judged; *clean* = judged with nothing found, which IS
+coverage; *n/a* = the lens has no surface here (no `.tsx` in the context). Counts are new
+findings; S/M/L as in round 2.
+
+| context | cat | files read | bug-hunter | ui-perfectionist | security-auditor | performance | ambiguity | fixed |
+|---|---|---|---|---|---|---|---|---|
+| `lib-decisions-1` | test | 5 / 5 map-src | ✓ 4 S (1 U) | n/a | ✓ 1 S, 1 M | ✓ clean | ✓ 2 S | - (read-only round) |
+| `lib-automation` | lib | 9 / 8 map-src | ✓ 3 S | n/a | ✓ 1 S, 1 M | ✓ 1 S | ✓ 1 S | - (read-only round) |
+| `api-voice-interview` | api | 20 / 12 map-src | ✓ 2 S | n/a | ✓ 2 S | ✓ 1 S, 1 M | ✓ 1 S | - (read-only round) |
+| `lib-voice-interview-11` | lib | 11 / 9 map-src | ✓ 2 S | n/a | ✓ 1 S | ✓ clean | ✓ 2 S | - (read-only round) |
+| `calendar-integration` | lib | 14 / 11 map-src | ✓ 3 M | n/a | ✓ 2 M | ✓ clean | ✓ 2 S | - (read-only round) |
+
+### Declared cuts, stated rather than rounded away
+
+- **"Files read" counts SOURCE files, read in full.** It is map source plus new source in the
+  same directories that is in no 143-map context:
+  - `lib-decisions-1` +0. `git ls-files 'app/_lib/decision*' 'app/_lib/approval*'` also
+    lists `decision-record-store.ts`, which belongs to `lib-decisions-2` and was traced, not
+    judged.
+  - `lib-automation` +1: `automation-commit-plan.ts` (the preview-to-commit reconciliation).
+  - `api-voice-interview` +8, all unmapped siblings in `app/api/interview/`:
+    `director/route.ts`, `entry-id.ts`, `recording/route.ts`, `recording/[sessionId]/route.ts`,
+    `sessions/[id]/route.ts`, `sessions/[id]/evidence/route.ts`,
+    `sessions/[id]/recording/route.ts` and `sessions/[id]/rescore/route.ts`.
+  - `lib-voice-interview-11` +2: `interview-prep-kit.ts` and `interview-duration.d.mts`
+    (checked against the `.mjs`: the same six numeric exports). `app/_lib/` holds 46 more
+    unmapped `interview-*` sources, 24 at the top level (kit, letter, recording, agenda,
+    evidence) and 22 under `interview-sim/`, plus `interview-sim/situations.json`; they
+    belong to other subjects and were neither read nor judged.
+  - `calendar-integration` +3: `calendar/constants.ts`, `calendar/edge-fetch.ts` and
+    `calendar/erasure-events.ts`. Nothing else non-test exists in `app/_lib/calendar/` or
+    `app/api/calendar/`.
+- **No listed file is gone.** All 73 `file_paths` of the five contexts exist on this tree.
+- **The `cat` column follows the map.** The 143-map labels `lib-decisions-1` `test` because
+  most of its listed paths are tests; its source is `lib`. No context in this batch has a
+  `.tsx`, so `ui-perfectionist` is n/a on all five.
+- **Colocated `*.test.ts` files were read only for what they already assert**, so a covered
+  case is not reported as a gap. They were never audited as code. Same gap as rounds 1-5.
+- **The four message catalogs were not read** (another builder). So whether a
+  `decisions.pass.reasons.applyFailed` template interpolates `{detail}`
+  (R6-lib-automation-6), whether calendar event copy has catalog keys
+  (R6-calendar-integration-5), and whether `INTERVIEW_CREATE_FAILED` is the right copy for a
+  revoke are all unverified on the catalog side.
+- **`lib-decisions-1`:**
+  - Traced, not judged: `app/api/decisions/config/route.ts`, `interview-plan.ts`,
+    `decision-record-store.ts` (`:300-360`, `:565-582`), `pipeline-stages.ts`, `tenancy.ts`,
+    `auth/roles.ts`, `auth/current-user.ts`, `DecisionsRulesModal.tsx`,
+    `decisionsComplianceState.ts`, `useHiringComposer.ts`, the calibration apply-threshold
+    and stage-sla routes, `thread-autonomy.ts:139`.
+  - The isolation tests cover rows that fail to PARSE, never two organizations; that is why
+    R6-lib-decisions-1-1 and -3 are not covered cases.
+- **`lib-automation`:**
+  - Traced, not judged: `db/pipeline.ts` (`setApproval` `:3220-3300`, `actOnPipelineEntry`
+    `:3461-3595`), `pipeline-stages.ts` (`screenStageOutcome`),
+    `pipeline/jobfit/automation.py:1005-1035`, `pipeline-entry-action.ts:245-305`,
+    `comms-dispatch.ts:708-728`, `recruiter-run.ts`, `scheduler-store.ts`,
+    `simControlCenterKit.ts:105-154`, `passReasonText.ts`, `stage-hooks.ts` (outline only).
+  - Not read: `getOrCreateOpenOffer` and the body of `sendCandidateComm`. So
+    R6-lib-automation-3 is CONFIRMED as far as `extendDraftedOffer` being called on a
+    rejected row, and UNVERIFIED that the letter then leaves.
+- **`api-voice-interview`:**
+  - Traced, not judged: `db/interviews.ts`, `interview-session-status.ts`,
+    `interview-scorecard-commit.ts`, `interview-scoring-state.ts`,
+    `interview-recording.ts:136-141`, `voice/self-hosted.ts`, `voice/connect-failover.ts`,
+    `voice/index.ts:41-55`, `devcase-identity.ts`, `consent.ts:102-106`,
+    `auth/public-routes.ts`, `interview-invite.ts` (gate lines), `VoiceInterview.tsx`,
+    `InterviewSimTab.tsx`, `app/interview/[token]/page.tsx`.
+  - Not filed, recorded elsewhere: `create`, `revoke`, `simulate` and `attach` have no
+    `pipeline:write` check; they sit on `route-capability-coverage.test.ts:144,150-152` as
+    known debt.
+- **`lib-voice-interview-11`:**
+  - Traced, not judged: `app/api/interview-prep/route.ts` and `scorecard/route.ts`,
+    `db/interviews.ts`, `db/pipeline.ts` (`anonymizeEntry`, the prep scrub), `db/jobs.ts`,
+    `automation-run.ts`, `tasks.ts`, `interview-invite.ts`, `interview-kit-booking.ts`,
+    `run-of-show.ts`, `useDecisionsQueue.ts`, `useScheduleInterviewPrep.ts`,
+    `pipeline/jobfit/automation.py:358-395`.
+  - Checked against the group goal: `interview-recommendation.ts` never produces `reject`
+    on its own; an unknown value falls back to `hold`, which routes to the human gate, and
+    Python (`automation.py:358,363,394-395`) agrees on the set, the lower-casing and the
+    fallback. Clean.
+  - Checked for R5-lib-profile-1's shape (task params missing `lang`): not present. The
+    prep run narrows `lang` with a default (`interview-prep-run.ts:37`) and `--lang` is
+    pushed only when set (`automation-run.ts:334-335`).
+- **`calendar-integration`:**
+  - Traced, not judged: `schedule-store.ts` (`recordCalendarEvent` `:523-543`,
+    `invitesWithCalendarEvent`, `erasedInvitesWithCalendarEvent`), `app/api/schedule/route.ts`,
+    `app/api/schedule/[token]/route.ts`, `db/pipeline.ts:2532-2537`, `tenancy.ts`,
+    `auth/require-operator.ts`, `auth/roles.ts`, `app/api/ats/connections/route.ts`,
+    `route-capability-coverage.test.ts`, `IntegrationsCalendarPanel.tsx`,
+    `instrumentation-node.ts` (the sweep), `export-utils.ts` (`buildIcs` lives there, outside
+    this context), `docs/features/scheduling/README.md:368-385`.
+  - Clean on: OAuth state compared in constant time, PKCE S256, the state cookie
+    path-scoped and deleted once, redirects built from `publicBaseUrl`, tokens encrypted at
+    rest and absent from the client view, every `calendar_connections` statement filtered by
+    `workspace_id`, revoke at Google before the row is deleted, typed codes only on the
+    callback. Timezone and slot arithmetic are UTC instants and millisecond overlap; the
+    wall-clock maths lives in `schedule-slots.ts`, outside this context.
+  - Google's answer to a DELETE of a foreign event id (assumed 404) was not exercised; that
+    is the open side of R6-calendar-integration-3.
+- **Observed out of lane, not counted:**
+  - `app/api/intake/[id]/message/route.ts:33` writes `human:${userId}`, an id, where the
+    decision log expects a name.
+  - The prep GET returns the full payload of a lapsed-consent entry (the R5-lib-profile-4
+    class on another surface), and the `interview_prep` task label keeps the candidate's
+    name in `tasks` past erasure (`tasks.ts:328,352`; UNVERIFIED).
+  - `rescore` and `by-entry` return the session with `token` and `instructions`, which
+    `sessions/[id]` strips. Recruiters already receive the link from `/create`.
+  - `readStoredToken` (calendar) marks any throw, SQLITE_BUSY included, as
+    "undecryptable"; it heals on the next good read.
+  - `/api/calendar/google/start`'s 503 returns an English `error` with no code.
+- **Line anchors were taken one file at a time** (`grep -n` on one file, or a Read of one
+  file). Every reviewer was told never to use `cat -n` over several files.
+  - Re-read: before this table was written, 70 per-file `sed -n` / `grep -n` reads on this
+    worktree covered at least one anchor of every one of the 34 findings, plus five
+    duplicate pointers below. All held. The reviewers' own per-file re-reads covered about
+    233 more anchor sites.
+  - The reviewers corrected six anchors in their own pass: `schedule/route.ts`
+    `cancelAttendance` `:307` → `:309` and `baseUrl` `:544` → `:543`; `[token]/route.ts`
+    `baseUrl` `:495` → `:496`; `recordCalendarEvent`'s `WHERE token = ?` is `:535`;
+    `VoiceInterview.tsx` `provider` `:1018` → `:1019`; R3-pipeline-board-5-5's coded catch
+    is now `schedule/route.ts:177-181`.
+  - R6-api-voice-interview-1 was traced a second time by hand: `connect/route.ts:180-181`
+    lets `body.provider` override the session's, `:436-447` passes it as `preferred`, the
+    served provider is written back only inside `if (failedOver)` (`:460-469`), and
+    `complete/route.ts:378` debits only when `session.provider` is not self-hosted.
+
+### Findings
+
+**34 new findings: 26 S, 8 M, 0 L.** Seven duplicates were not counted, and four more
+recorded findings got pointer updates (below). Nothing was fixed (read-only round). "C" = CONFIRMED, traced end to end;
+"U" = UNVERIFIED, with what was not read. Path roots: lib = `app/_lib/`; iv =
+`app/api/interview/`; cal = `app/_lib/calendar/`; anything else is rooted.
+
+| id | lens | sev | file:line | what is wrong | path read | |
+|---|---|---|---|---|---|---|
+| R6-lib-decisions-1-1 | security | M | `lib/decision-config-store.ts:306-310`, `:296-298`, `:334`; `app/api/decisions/config/route.ts:69` | a save with no scope resolves to `"shown"`, and `shownTier` picks `"org"` for any team without its own override, so `writeConfigRow` replaces the single `workspace_id IS NULL` row. That row is deployment-wide (`uq_decision_config_org` is unique on `phase` alone), and the only check is `pipeline:write`, which `recruiter` and `hiring_manager` hold. One recruiter in org B who saves the screening rules or picks a jurisdiction changes the auto-reject policy and the candidate-facing legal disclosure of every team in org A with no override. The route comment "today operator-gated, single-tenant" is out of date. M: key the default tier by org, or make `"shown"` resolve to `"team"` and ask `org:manage` for org writes | `DecisionsRulesModal.tsx:77-79`, `decisionsComplianceState.ts:80` (no scope) → `route.ts:69` → `store.ts:334` → `:308-309` → `:296-298` → another team's cascade `:134` → `getActiveRegimeId` `:445-446` | C |
+| R6-lib-decisions-1-2 | bug | S | `lib/decision-config-store.ts:150-152`; `lib/decision-config-schema.ts:596-600` | a legacy (pre-steps) interview plan is migrated with `DEFAULT_STAGE_AXIS`, and the comment says `getInterviewPlan` "re-runs the migration against the real axis"; it does not, it only prunes (`interview-plan.ts:22-25`). Custom boards (`7a2d3c146`, 2026-08-14) predate the migration (`00aec5392`, 2026-08-22). On a board with no `Interview` column id (e.g. `Tech` + `Panel`), every round lands on `Interview`, is pruned, and the AI round silently disappears, against the migration's own promise (`schema.ts:236-237`) | `interview-plan.ts:23` → `store.ts:150-152` → `schema.ts:603` → `:678` → `:249` → `interview-plan.ts:24` → `prunePlanToAxis` | C (code); U: whether a deployed DB holds that combination |
+| R6-lib-decisions-1-3 | bug | S | `lib/decision-config-store.ts:150-154` | the corrupt-row ledger (`:39-53`) promises an unreadable row is never silent, but only catches `JSON.parse`. A legacy plan that parses but fails validation returns the default at `:152`; a stored `null` merges to the default at `:154`; an array merges junk keys onto it. None calls `recordConfigIssue`: the "auto-reject policy reverting unseen" event the ledger exists for | `store.ts:140` → `:151` (not ok) → `:152` | C |
+| R6-lib-decisions-1-4 | security | S | `lib/decision-config-schema.ts:607-620` | `validateInterviewPlan` caps rounds at 3 but not the number of steps, and `stageId` only has to be a non-empty string, with no length or identifier rule like `validateStage` (`:445`). A `pipeline:write` seat can store any number of steps with multi-KB ids, at 60 writes per 10 min; every `getInterviewPlan` reader parses the row before pruning drops them | `route.ts:54` → `schema.ts:428` → `:612`, `:619` → `store.ts:286` | C; U: no body cap found on the route |
+| R6-lib-decisions-1-5 | bug | S | `lib/decision-hash.ts:16-28` | sealing hashes the in-memory payload, verification hashes `JSON.parse(payload_json)`, and `sortValue` ignores `toJSON`: a `Date` anywhere in `inputs` is `{}` at seal and an ISO string at verify, so the record reads as tampered for good. `inputs` is typed `unknown` | `decision-record-store.ts:311-312,356-358` → `decision-hash.ts:18-25`; verify `:565,574` | U: no live seal passing a `Date` was found |
+| R6-lib-decisions-1-6 | bug | S | `lib/decision-attribution.ts:240-243`, `:261`, `:328` | `DECISION_META` is a plain object, so `Object.prototype` names count as kinds: `decisionAttribution("constructor")` is `"human"`, not `"unknown"` (against `:237-239`); `?kind=toString` filters to an empty page instead of being ignored (`:256-257`); `kindLabel` asks the catalog for `kinds.constructor` | `app/api/analytics/decisions/route.ts:161` → `:261`; `thread-autonomy.ts:139` → `:241` | C (no real kind collides today) |
+| R6-lib-decisions-1-7 | ambiguity | S | `lib/approval-kinds.ts:3-7`, `:24-26` | the header says PipelineTab "treats ANY non-null kind as needs a human" and that the registry records which surface raises each kind and how it resolves; PipelineTab calls `needsHumanDecision` (`usePipelineTabState.ts:99`) and the registry lists names only. There are six kinds, not the five the context description states | — | C |
+| R6-lib-decisions-1-8 | ambiguity | S | `lib/decision-config-schema.ts:413-414`, `:775-776`, `:156-160` | two comments say "the three known fields" (screening has five; there are four phases), and two `/** */` blocks are stacked on `PLANNABLE_ROLES`, the first ("Columns a plan may govern…") orphaned | — | C |
+| R6-lib-automation-1 | bug | S | `lib/automation-pass.ts:517-526` | the reject branch queues `rejection_review` with a bare `setApproval`: no stage, status or approval re-check after a Python hop of seconds, and its return is ignored. A recruiter's advance, reject or fresh review during the hop gets a rejection card parked on top of it. The advance branch beside it is CAS'd on stage and approval (`:471`), and `markStaleSkip`'s comment (`:48-52`) claims both branches share it; only advance calls it (`:476`) | `:602` snapshot → `:620-621` hop → `:483` → `:517` → `db/pipeline.ts:3244` (`WHERE id=? AND workspace_id=?`) | C |
+| R6-lib-automation-2 | bug | S | `lib/automation-run.ts:632-634`, `:625` | from a non-entry screening stage with route `hold`, `setApproval(screening_review)` runs unconditionally after the model call against the pre-hop `entry`. If a recruiter moved the candidate to Interview meanwhile, the review overwrites its `calendar` approval; with screening gate `auto` and an `advance` recommendation the ratify (`:654-660`) passes its CAS on the approval this function just wrote, and `actOnPipelineEntry` advances from the CURRENT stage: Interview → Offer with no human step. `:625` passes `expectedStage` but not `expectedApprovalKind`, so a `rejection_review` queued during the hop is cleared by the accept. The comment at `:627-628` holds only when `advance` is true | `:362` → `:565-566` → `:619` → `:633` → `db/pipeline.ts:3244` → `:654` → `db/pipeline.ts:3587-3595` | C |
+| R6-lib-automation-3 | bug | S | `lib/automation-run.ts:690`, `:716-720` | the offer path writes `offer_review` unconditionally after the drafting hop (no stage or status check), and the "fresh" re-read only tests `approvalKind === "offer_review"`, always true because this function just wrote it; the comment at `:699-700` ("a concurrent decision can't be clobbered") does not hold. A reject during the hop (status `rejected`, approval NULL) gets the approval re-raised, and with offer gate `auto` and a priced draft `extendDraftedOffer` runs for a rejected candidate. Related to R3-api-pipeline-3 (same overwrite-then-extend shape, other site) | `:362` → `:565` → `:690` → `:717-718` → `pipeline-entry-action.ts:286` → `dispatchOffer` (`comms-dispatch.ts:708-728`, no status check) | C to the extend call; U: that the letter is sent (`getOrCreateOpenOffer`, `sendCandidateComm` not read) |
+| R6-lib-automation-4 | security | S | `app/api/automation/run/route.ts:17-63` | POST `/api/automation/run` has no `rateLimit()`, and never had one (`git log -S rateLimit`). A dry run skips the single-flight (`automation-pass.ts:219`) and spawns the policy interpreter plus up to `scoringSpawnBudget()` `recruiter_cli` children, persisting nothing, so every click spends again. `rate-limit-contract.test.ts:1336-1340` says this route "already throttle[s]" the sweep; its two siblings (the schedule tick and the `run policy` command) are throttled and pinned, and it has no contract row | route `:63` → `automation-pass.ts:219` → `:608` → `:325` (`rankPoolForJob` → `spawnPython`) → `:620` | C |
+| R6-lib-automation-5 | perf | S | `lib/automation-pass.ts:219`, `:602`; `app/api/automation/run/route.ts:63` | the preview the board modal posts (`{dryRun:true}`) runs with no workspace: the global sweep scores every tenant's unscored job groups and decides every tenant's entries, then the route drops the other tenants' rows. The commit from the same modal is team-scoped (`:602`). On a multi-tenant install the preview's scoring budget is spent in global order, so the team's own groups can preview as "awaiting match score" and then be scored and decided in the commit, where `planCommit` counts them `declined`: rows the recruiter was never shown. Breaks "the preview must forecast exactly what the commit produces" (`:25-27`, `:82-85`) | `simControlCenterKit.ts:113-116` → route `:63` → `:219` → `executeAutomationPass(true)`; commit `:151-154` → `:602` | C (path); cost not measured |
+| R6-lib-automation-6 | security | M | `lib/automation-pass.ts:536-547` | a per-decision apply failure writes the raw `applyError.message` (better-sqlite3 text) into `d.reasonParams.detail` and `d.reason`. The decisions go to the browser in the POST response (`route.ts:65-72`) and to `scheduler_runs`, served unprojected by GET `/api/automation/schedule` (`scheduler-store.ts:373-395`); the route's own catch keeps this class out of the browser. M: `reason` is the sealed English audit record, so whether the record keeps the detail is a design choice. Distinct from R3-pipeline-board-5-5 (tick.error) and R5-pipeline-board-1-7 (run.error) | as listed; `passReasonText.ts:32` falls back to the raw `reason` | C (wire); U: whether the catalog template interpolates `{detail}` (catalogs not read) |
+| R6-lib-automation-7 | ambiguity | S | `lib/automation-pass.ts:48-52`, `:449`, `:25-33`; `lib/automation-fairness.ts:10-15` | comments the code contradicts: `markStaleSkip` "shared by the advance and reject apply branches" (advance only, `:476`); "a comm throw from dispatchRejection" (the pass dispatches nothing); `applyFairnessVerdict`'s doc sits above `PassReasonCode`, ~65 lines from the function (`:99`); the fairness header names `stage == "Screened"` (Python decides by role now, `automation.py:1016`) and says it "re-derives exactly that gate", but checks only archetype and score (`:47-69`), not the role or the no-pending-approval precondition (`automation.py:1022`) | grep | C |
+| R6-api-voice-interview-1 | bug | S | `iv/connect/route.ts:180-181`, `:460-469`; `iv/complete/route.ts:372-379` | `body.provider` overrides the session's stored provider, but the provider that served is written back only on a failover, so `session.provider` can name a provider that never served, and `/complete` debits and prices from it. A session minted on the free self-hosted provider (which skipped `meterGate` at `/simulate` `:91`) and dialed on OpenAI is neither debited nor priced; the reverse prices a free call as paid. The honest simulator sends a different provider (`InterviewSimTab.tsx:141-145` passes no `lockSettings`, so the picker shows), and so can any token holder. `complete:374-375` ("set to whoever actually served") is false. Whether the reservation should be re-gated or the body's provider ignored is a design choice; the S fix makes billing truthful | `InterviewSimTab.tsx:141` → `VoiceInterview.tsx:211,1015-1019` → `connect:181` → `:436-447` → `:460` (failover only) → `interviews.ts:805-818` → `complete:378,389` | C (re-traced by hand) |
+| R6-api-voice-interview-2 | bug | S | `iv/complete/route.ts:169`, `:256`, `:276`; `lib/interview-session-status.ts:85-90` | only `completed` short-circuits; a `revoked` row stays in the completion write's from-set (`finalizeFromGuard` appends it), so every later POST from the revoked token overwrites `transcript_json`, bounded only by 10 per 10 min per token+IP. `latestInterviewByEntry` (`interviews.ts:639`) ranks transcript-bearing rows first, so the recruiter's modal shows the rewritten text: the holder of a link revoked as "shared too widely" can keep rewriting the evidence | `complete:169` → `:197,204` → `:256` → `:276` → `interviews.ts:782` → `interview-session-status.ts:89` | C |
+| R6-api-voice-interview-3 | security | S | `iv/recording/[sessionId]/route.ts:28-36` | playback serves candidate audio with no consent check; its siblings withhold verbatim data when `consentWithholdsPii` is true (`sessions/[id]/route.ts:23-27`, `sessions/[id]/evidence/route.ts:41-44`). `recordingRetentionDue` reads only the decision and call dates (`interview-recording.ts:139-141`), and the row it reads has no consent columns (`interviews.ts:1123`). The voice stays playable after consent expires, and after an erasure whose best-effort delete failed | `:34` → `:36` | C |
+| R6-api-voice-interview-4 | security | S | `iv/compare/route.ts:83-88`, `:99-105` | compare returns the candidate's name, the AI summary and `ratings[].evidence` (verbatim quotes) with no consent check, in both the voice and the human-only branch; `by-entry` (`:65-72`) and `sessions/[id]` mask the name and drop the scorecard for the same entry | `interviewedForJob` (`interviews.ts:56-80`); `listEntriesForJob` | C |
+| R6-api-voice-interview-5 | perf (+bug) | S | `iv/compare/route.ts:22-26`, `:86` | `telemetryForEntry` re-reads `latestInterviewByEntry` (`SELECT *`, transcript JSON included) per candidate: an N+1 over a scorecard the first query already parsed. That query ranks by transcript then `created_at` with no status filter, while the grid row is the latest COMPLETED session by `ended_at` (`interviews.ts:78`), so a newer failed or revoked session with a transcript supplies the telemetry shown beside another session's scorecard | `:86` → `:22-26` → `interviews.ts:635-643` | C (path); frequency not measured |
+| R6-api-voice-interview-6 | perf | M | `iv/complete/route.ts:166-170`, `:199-204` | the "free forever" replay for an already-completed session answers before the limiter, but after a body read of up to 1 MB and a ledger read (limit 20 000), so an unthrottled public loop costs real work per request, and the comment at `:201` ("cost nothing") is false. M: `rate-limit-contract.test.ts:697` pins that ordering, so the fix is a second, higher pre-parse ceiling or a contract change | `:90` → `:141` → `:169-190` → `:204` | C |
+| R6-api-voice-interview-7 | ambiguity | S | `lib/student-interview.ts:19`, `:21`, `:281-295` | `devCaseIdFromJobId` and `submissionIdFromCandidateId` have no non-test caller (grep over app, scripts, packages, edge, pipeline). Their doc says `devCaseIdForEntry` / `submissionIdForEntry` "fall back to these"; they don't, `devcase-identity.ts:131-149` re-implements them and the two already drift (`|| null` there, `""` for a bare `dc-` here). The runtime import at `:19` exists only for them and contradicts `:21` ("stays free of runtime imports") | grep | C |
+| R6-lib-voice-interview-11-1 | security (GDPR) | S | `lib/interview-prep-run.ts:27`, `:95-106`; `lib/interview-prep.ts:91-97` | a prep task queued or running when the candidate erases writes their real name and CV-derived plan back into the erased row. The label comes from the task params captured at enqueue (`:27`) into the scenario and `candidate_label`; the upsert never checks `anonymized_at`; erasure cancels no task (`app/api/data/[token]/route.ts:86`); and `anonymizeEntry`'s `anonymized_at` guard (`db/pipeline.ts:2745-2750`) means the row is never scrubbed again. The slow work outside a transaction does not re-check the row before writing | `useDecisionsQueue.ts:441` → `tasks.ts:326` → `:27` → `:52` → `run-of-show.ts:146-148` → `:78` → `:95` → `:101` → `:106` → `interview-prep.ts:96`; scrub undone: `db/pipeline.ts:2559-2560` | C (static trace) |
+| R6-lib-voice-interview-11-2 | bug | S | `lib/interview-prep-kit.ts:52-55` (claim `:39-42`) | `prepKitForEntry` finds the "open link" with `latestInterviewByEntry`, which ranks any session with a transcript above newer ones (`interviews.ts:639`). After a reissue following a completed interview (allowed: `interview-invite.ts:112-115` refuses only a live call), the old completed session wins, its status is not open, and the pin is lost: the modal shows the latest published kit with `pinned: false` while the candidate's link is pinned to the older version and `/connect` builds from that pin (`connect/route.ts:302-307`). The case `:39-42` says it prevents. `liveInterviewByEntry` exists for this (`interviews.ts:664-665`) | prep GET → `:52` → `interviews.ts:635-643` → `:53-55` → `latestPublishedKit` | C |
+| R6-lib-voice-interview-11-3 | bug | S | `lib/interview-prep.ts:230-235` (also `:205-215`) | accepting a staged plan stamps `created_at` with the time of the accept, not of the generation. A JD edited between staging and accept clears the "JD edited since" chip though the accepted plan was built from the old JD (the prep task is fed the job, `automation-run.ts:317-319`): the defect `:66-72` describes for imports, in another door. `pending-plan.test.ts:176` pins "moved", not "moved to the generation time" | `useScheduleInterviewPrep.ts:201` → `interview-prep-run.ts:96-98` → `stageInterviewPrepPlan` `:205-215` (no time stored) → `route.ts:236` → `:235` → `isPrepStale` `:324-325` | C |
+| R6-lib-voice-interview-11-4 | ambiguity | S | `lib/interview-prep.ts:282-285`, `:155-156` | `getHumanScorecard` is "read by single-card surfaces", but has no production caller (only `panel-scorecards.test.ts` and a comment at `scorecard/route.ts:206`); `:155-156` names it first among the key's readers | grep over app, scripts, packages, edge | C |
+| R6-lib-voice-interview-11-5 | ambiguity | S | `lib/interview-recommendation.ts:27` | the header points to `docs/features/pipeline/README.md §2.5`; the doc has no numbered 2.5, and the contract is under the unnumbered `## Recommendation / route vocabulary` (`:1597`) | — | C |
+| R6-calendar-integration-1 | security | M | `app/api/calendar/google/route.ts:33-35`; `start/route.ts:17-19`, `:41-43`; `callback/route.ts:38-40`, `:85` | all three calendar routes are gated only by `requireOperator`, which admits any live member session, a viewer seat included. A viewer can disconnect and revoke the team's grant, or run start + callback to replace it with their own Google account (`saveCalendarConnection` upserts on `(workspace_id, provider)`); every interview event, candidate email as attendee, then lands on the viewer's calendar, and the viewer's free/busy filters what candidates are offered. Schedule routes ask `pipeline:write`, the ATS credential routes `org:manage`; the comment "OPERATOR-only, like the ATS credential routes" is false. The callback binds the grant to whichever workspace is current at callback time (the state carries none). `route-capability-coverage.test.ts:101` lists only `route.ts` as "not yet judged"; start and callback are GETs that write, which that ratchet cannot see. M: a capability choice across three routes and the ratchet | `require-operator.ts:23-47` → `roles.ts:36` → `callback:85` → `token-store.ts:174-182`; cf. `ats/connections/route.ts:45`, `schedule/route.ts:133` | C |
+| R6-calendar-integration-2 | bug | M | `cal/event-sync.ts:91-99`, `:122`; `lib/schedule-store.ts:523-536` | the write-back is read → network → write with no re-check: create-vs-update is decided from the caller's snapshot, then `recordCalendarEvent` writes by token alone through `COALESCE`. A cancel during an in-flight create sees no event id and removes nothing, then the create lands and records "written" on a cancelled invite (permanent after a withdraw); two overlapping syncs both POST and the first event loses its handle; an erasure during a create rewrites the token (`db/pipeline.ts:2532-2536`), so `record(oldToken)` matches nothing and an event with the erased person as attendee has no handle `erasedInvitesWithCalendarEvent` can find. M: a CAS on the invite's state plus a compensating delete | `[token]/route.ts:485-497` → `event-sync.ts:91-93` → `google-calendar.ts:259-268` → `:99` → `:67-70` → `schedule-store.ts:535` | C (window: one Google round trip, up to ~18 s with retry) |
+| R6-calendar-integration-3 | bug | M | `cal/google-calendar.ts:330-337`, `:299`; `cal/event-sync.ts:96-98`, `:122-125`; `cal/token-store.ts:186-187` | an event id is not bound to the grant that wrote it: `calendar_id` stays "primary" across a reconnect, `account_email` is never written, and the invite records no owner. After a reconnect to another Google account, a cancel deletes the old id against the new account; line 337 treats 404 as success, records "removed" and clears the handle while the event stays on the old calendar; a reschedule gets "gone" and re-creates, leaving a ghost. Contradicts "Deletes exactly the event kp created" (`event-sync.ts:112`) and "Nothing is orphaned" (`free-busy.ts:63-64`). M: a grant id on the invite | `callback:85` (no `accountEmail`) → `token-store.ts:186-187` → `event-sync.ts:124-125` → `google-calendar.ts:330-337` → `schedule-store.ts:527` | C (code); U: Google's 404 for a foreign id assumed, not exercised |
+| R6-calendar-integration-4 | security | M | `lib/calendar-links.ts:95`, `:103`; `cal/event-sync.ts:54` | the server write-back passes `baseUrl` (`schedule/route.ts:160,543`; `[token]/route.ts:496`), so the Google event on the team's shared hiring calendar carries "Confirm, reschedule, or cancel: `<base>/schedule/<candidate token>`". That token alone authorises withdraw, propose, reschedule and cancel (`[token]/route.ts:236-244`), so anyone with event-detail access holds the candidate's capability link. `docs/features/scheduling/README.md:373-376` presents the body as intended, so the fix is a design choice. R4-schedule-ui-2-8 is the same builder through the "Add to calendar" button; its fix does not reach this path | as listed | C |
+| R6-calendar-integration-5 | bug (locale) | M | `lib/calendar-links.ts:81`, `:93-104` | `interviewCalendarEvent` hardcodes English ("Interview · …", "Candidate", "Interview with … for …", "Stage:", "Match score:", "Join:", "Confirm, reschedule, or cancel:", "Scheduled with KP.", "Online interview"), and since event-sync (`event-sync.ts:54`) this copy is written into the real Google event in every locale, not only into the client-side template link. Round 4 observed it out of lane and did not count it; it is counted here for the first time. M: a server-side translator plus 4 catalogs | `event-sync.ts:54` → `calendar-links.ts:93-104` | C (literals); U: catalog keys (catalogs not read) |
+| R6-calendar-integration-6 | ambiguity | S | `app/api/calendar/google/route.ts:29`; `start/route.ts:60` | both routes retype `/api/calendar/google/callback`, which is declared once as `GOOGLE_OAUTH_CALLBACK_PATH` (`cal/google-oauth.ts:30-32`, "Registered verbatim"); a change to the constant would leave the panel telling operators to register the wrong redirect URI | grep: no importer of the constant outside `google-oauth.ts` | C |
+| R6-calendar-integration-7 | ambiguity | S | `cal/token-store.ts:17-20`, `:25-27`; `lib/calendar-links.ts:6` | "the row is already keyed by workspace + account email": the key is `PRIMARY KEY (workspace_id, provider)` (`:78`); `accountEmail` is "shown so an operator can tell whose calendar", but nothing writes it (`google-calendar.ts:342-348` says so on purpose); `calendar-links.ts:6` still calls OAuth sync "a later Solution Ⓐ", shipped in `event-sync.ts` | — | C |
+
+### Duplicates, not counted
+
+Seven recorded findings whose defect site or live path is in this round's files. Every one is
+**still present** on this tree:
+
+- **R5-db-pipeline-6** (machine-raised `approval_set` counted as human).
+  `decision-attribution.ts:35` is still `approval_set: { auto: false, … }`; the machine
+  raisers are still `automation-run.ts:633,686,690` and `automation-pass.ts:517`.
+- **R5-db-pipeline-7** (`pipeline_events` has no `entry_id` index). The per-alert dedupe still
+  runs at `automation-pass.ts:401-403`.
+- **R5-db-pipeline-9** (`pipeline-core.ts` has outside importers). `automation-pass.ts:15`
+  still imports `nextStageOnAxis` from it.
+- **R3-pipeline-board-5-5** (the tick's `e.message` forwarded). `schedule/route.ts:175-176`
+  still returns `tick` unprojected; the coded catch beside it is now `:177-181`.
+- **R5-db-pipeline-1** (erasure leaves the AI-interview link live). `connect/route.ts:173-176`
+  still refuses only terminal entries; `recording/route.ts:77,84` unchanged.
+- **R4-interview-ui-4** (a long live call reads as expired). `connect/route.ts:141` still
+  runs the expiry check before the live check at `:162`; the fix site
+  (`interviews.ts:497-506`) was not re-read.
+- **R4-voice-runtime-1-5** (`resumeAddendum` does not neutralise quotes). The live path is
+  `director/route.ts:78-84`; the fix site in `director-brief.ts` was not re-read.
+
+Pointer updates, not findings of this round:
+
+- **R4-interview-ui-2.** Still at `interviews.ts:957-958` (`{ ...existing }` keeps
+  `deletedAt`). The recruiter's delete route `sessions/[id]/recording/route.ts:46` is a
+  second door to the same root.
+- **R4-interview-ui-3.** Still at `interviews.ts:360`.
+- **R4-interview-ui-10.** The cost subquery is still at `interviews.ts:74`.
+- **R4-interview-ui-13.** `app/interview/[token]/page.tsx:157` still passes the raw
+  `runOfShow`.
+- **R4-schedule-ui-2-8.** Related to R6-calendar-integration-4: same builder, a different
+  door, and its fix does not close this one. Both are counted.
+- **R3-api-pipeline-3.** Related to R6-lib-automation-3: the same overwrite-then-extend
+  shape at another site. Both are counted.
+- **Nothing else matched** rounds 1-5 or "Known gaps" in
+  `docs/architecture/engine-and-prompt-coordination.md`. None of its four gaps (JD ingest,
+  `weight-proposal-v2`, the voice transport, judge independence) touches these contexts; the
+  voice-transport gap is about the LLM matrix placing the transport, not about these routes.
+
+### Confirmed S findings NOT fixed this round — carry-over, written to be taken as-is
+
+Each line is the fix, then the test that fails today and passes after it. One commit per
+line, test-first, as round 2 did.
+
+- **R6-lib-decisions-1-2.** Fix: in the `interviewPlan` branch of `getDecisionConfig`, read
+  the workspace's `pipelineStages` and migrate with
+  `migrateLegacyInterviewPlan(legacy, thatAxis)`; correct `schema.ts:596-600`. Test
+  (`decision-config-isolation.test.ts`): a board `[Accepted, Screened, Tech interview, Panel
+  interview, Offer, Hired]` and a raw legacy plan `[ai, human topN 3]`; `getInterviewPlan(ws)`
+  has the ai round on `Tech` and the human round on `Panel` (today: no rounds).
+- **R6-lib-decisions-1-3.** Fix: on `!migrated.ok` call `recordConfigIssue(phase, tier,
+  workspaceId, new Error(migrated.error))`, and refuse a parsed value that is not a plain
+  object through the same ledger. Test (same file): a raw row
+  `{"screeningGate":"maybe","rounds":[],"offerGate":"human"}` read once gives
+  `getDecisionConfigHealth().total === 1`; a raw `"null"` screening row does the same.
+- **R6-lib-decisions-1-4.** Fix: refuse `raw.steps.length > PIPELINE_STAGES_MAX` and apply
+  `validateStage`'s id pattern to `stageId`. Test (`decision-config-schema.test.ts`): 13
+  distinct steps, and one step with `stageId: "x".repeat(41)`, both give `ok: false`.
+- **R6-lib-decisions-1-5** is S but UNVERIFIED. Fix: `sortValue` honours a `toJSON` function
+  first, or the seal hashes `JSON.parse(payloadJson)`. Test (`decision-hash.test.ts`):
+  `decisionContentHash("", p) === decisionContentHash("", JSON.parse(JSON.stringify(p)))` for
+  `p = { inputs: { at: new Date(0) } }`.
+- **R6-lib-decisions-1-6.** Fix: `Object.hasOwn(DECISION_META, k)` at `:241`, `:261` and
+  `:328` (or a null-prototype map). Test (`decision-attribution.test.ts`):
+  `decisionAttribution("constructor") === "unknown"` and
+  `resolveDecisionKindFilter("toString", null)` deep-equals `{ matchesNothing: false }`.
+- **R6-lib-decisions-1-7.** Fix: rewrite the header and JSDoc (PipelineTab uses
+  `needsHumanDecision`; the registry lists names). Test: none (comment only).
+- **R6-lib-decisions-1-8.** Fix: "five screening fields" at both sites; merge the two doc
+  blocks at `:156-160`. Test: none (comment only).
+- **R6-lib-automation-1.** Fix: give `setApproval` an `expectedStage` option (`AND stage = ?`,
+  and `status = 'active'` when raising) and pass `{ expectedStage: snapshotStage,
+  expectedApprovalKind: entrySnap?.approvalKind ?? null }` in the reject branch; on false call
+  `markStaleSkip(d)` and skip `markQueuedForApproval`. Test (`automation-pass.test.ts`): a bau
+  entry at Screened with score 20, snapshot taken, then a human `accept`;
+  `applyPassDecisions([reject], staleSnap, s)` leaves `approval_kind` not
+  `rejection_review`, `d.reasonCode === "staleSkip"`, `s.held === 0`.
+- **R6-lib-automation-2.** Fix: `setApproval(…, { expectedStage: entry.stage,
+  expectedApprovalKind: entry.approvalKind ?? null })` at `:633` (with the -1 extension),
+  returning `skipped_stage_changed` on false; add `expectedApprovalKind` at `:625`. Test
+  (`automation-run.test.ts`): a screening-stage fixture, gate `auto`, a fake LLM answering
+  route hold / recommendation advance; `const p = runAutomationTask(…)`, then a synchronous
+  human accept, then `await p`; the stage is exactly one step past screening (not Offer) and
+  `applied === "skipped_stage_changed"`.
+- **R6-lib-automation-3.** Fix: guard `:690` the same way, and at `:718` also require
+  `fresh.status === "active" && fresh.stage === entry.stage`. Test
+  (`automation-run.test.ts`): an Offer-stage fixture, offer gate `auto`, a priced draft;
+  start the task, reject synchronously, await; no open offer exists for the entry,
+  `applied !== "offer_sent"`, and `approval_kind` is null.
+- **R6-lib-automation-4.** Fix: `RUN_PASS_RATE_LIMIT = { limit: 10, windowMs: 10 * 60_000 }`
+  keyed `automation-run:${clientIpFrom(request.headers)}`, after the
+  `AUTOMATION_SELECTION_INVALID` 400 and before `await currentWorkspace()` (it is synchronous,
+  so it stays out of the pinned `isPassInFlight()` gap); correct the contract comment at
+  `:1336-1340`. Test (`rate-limit-contract.test.ts`): a new row for
+  `./automation/run/route.ts` with `expensive: "await runAutomationPass({ dryRun, selection })"`
+  and `servedBefore: 'jsonRefusal("AUTOMATION_SELECTION_INVALID", 400)'`; red until the
+  limiter lands.
+- **R6-lib-automation-5.** Fix: `runAutomationPass({ dryRun, workspace })`, so a dry run runs
+  `executeAutomationPass(true, undefined, workspace)` over `entriesForPass(…, workspace)`, and
+  relabel the preview `summary` as team-scoped. Test: extract a pure
+  `passEntries(entries, { dryRun, selection, workspace })`; a dry run for workspace A
+  excludes workspace B's entries (or a source pin in `run/route.test.ts` that the dry-run
+  call carries `workspace`).
+- **R6-lib-automation-7.** Fix: rewrite the four comments (for the fairness header, amend it
+  or add the role check). Test: none (comment only).
+- **R6-api-voice-interview-1.** Fix: after `connectWithFailover`, when `failedOver` or
+  `served !== session.provider`, call `setInterviewSessionProvider(session.id, served,
+  failedOver ? provider : null)` and refuse with `refuseLeftLive` on false; correct
+  `complete/route.ts:374-375`. Test (new
+  `app/api/interview/connect/connect-provider-persist.test.ts`, on the
+  `connect-response-contract` mocked-fetch harness): a candidate session on `elevenlabs`,
+  POST `{ token, consent: true, provider: "openai" }`;
+  `getInterviewSessionById(id).provider === "openai"` (today `"elevenlabs"`).
+- **R6-api-voice-interview-2.** Fix: accept a revoked row in `completeInterviewSession` once
+  per attempt (`status='revoked' AND (ended_at IS NULL OR ended_at < updated_at)`). Test
+  (beside `complete-usage-attribution.test.ts:115`): complete, revoke, POST again with
+  different turns; the second answer is not `ok` and the stored transcript equals the first.
+- **R6-api-voice-interview-3.** Fix: load `getPipelineEntry(row.entryId, ws)` and answer the
+  same 404 when `consentWithholdsPii`. Test (`recording-door.test.ts`): upload a chunk with
+  `recordedCall()`, give the entry a past `consent_expires_at`; GET playback is 404 (today
+  200).
+- **R6-api-voice-interview-4.** Fix: index `listEntriesForJob` by id and, for a withheld
+  entry, mask the label with `maskCandidateName` and null `summary` and `ratings[].evidence`
+  in both branches. Test (compare route test): a scored session on a consent-expired entry
+  has `summary === null`, no evidence, and a masked label.
+- **R6-api-voice-interview-5.** Fix: parse `telemetry` from `scorecard_json` inside
+  `interviewedForJob` and delete `telemetryForEntry`. Test: a completed session with
+  telemetry plus a newer failed session with a transcript on the same entry;
+  `candidates[0].telemetry` equals the first session's (today null).
+- **R6-api-voice-interview-7.** Fix: delete both functions and the `:19` import; move their
+  cases onto `devCaseIdForEntry` / `submissionIdForEntry`. Test: none (deletion; typecheck
+  stays green).
+- **R6-lib-voice-interview-11-1.** Fix: in `commitGeneratedPrep`, do the read, merge and
+  write in one `db().transaction(…).immediate()` with no await; re-read
+  `pipeline_entries.anonymized_at` and write nothing when set; take `candidate_label` from
+  the entry row, not the task params. Test (new unit-db file shaped like
+  `interview-prep-staleness.test.ts`): create an entry labelled "Jana Novakova", save a prep,
+  `anonymizeEntry(id, "erasure", WS)`, then `commitGeneratedPrep(id, "Jana Novakova", …)`;
+  `getInterviewPrep(id, WS).candidateLabel !== "Jana Novakova"` and the payload deep-equals
+  `{}`.
+- **R6-lib-voice-interview-11-2.** Fix: choose the pinned session with a status-filtered
+  query (newest `created` / `in_progress` / `failed` by `created_at` DESC, like
+  `liveInterviewByEntry`). Test (`interview-prep-overlay.test.ts:279`): before the v1-pinned
+  link, complete a session A with one transcript turn; `pinned?.kitId === v1.id` and
+  `pinned === true` (today v2 and false).
+- **R6-lib-voice-interview-11-3.** Fix: store the generation time beside the staged plan
+  (`pendingPlanGeneratedAt`) and use it at `:235`. Test (`pending-plan.test.ts`): stage,
+  tick, `updateJd`, tick, accept; `isPrepStale(after.createdAt, prepJdEditedAt(id, WS)) ===
+  true`. `:176` still passes.
+- **R6-lib-voice-interview-11-4.** Fix: delete `getHumanScorecard`, move
+  `panel-scorecards.test.ts` onto `getHumanScorecards`' headline, fix `:155-156`. Test: none
+  (typecheck stays green).
+- **R6-lib-voice-interview-11-5.** Fix: cite the heading by name. Test: none (comment only).
+- **R6-calendar-integration-6.** Fix: build `redirectUriToRegister` from
+  `GOOGLE_OAUTH_CALLBACK_PATH` in both routes. Test (`start/route.test.ts`, source contract):
+  neither route file contains the literal `"/api/calendar/google/callback"`;
+  `start/route.test.ts:119` keeps the value pinned.
+- **R6-calendar-integration-7.** Fix: rewrite `token-store.ts:19-20` (the key is
+  `(workspace_id, provider)`) and `:25-27` (always null today), and name `event-sync.ts` at
+  `calendar-links.ts:6`. Test: none (comment only).
+
+The 8 M findings (R6-lib-decisions-1-1, R6-lib-automation-6, R6-api-voice-interview-6,
+R6-calendar-integration-1/2/3/4/5) need a design choice or a multi-file change. They are
+anchored in the findings table and escalated, not carried as S. Five of them are in
+`calendar-integration`, where every defect found crosses the Google boundary or the route
+capability model.
+
+### Gate output
+
+This round changed no source, so the code gates were run once, on the branch base
+`876b7300e`:
+
+- `npm run typecheck` clean. It rewrote the three `app/_lib/*.generated.ts` files with CRLF
+  only (`git diff --ignore-all-space` empty); they were restored.
+- `npm run lint`: 0 errors / 49 warnings (pre-existing).
+- `npm run test:unit`: 13019 / 13019.
+- `node scripts/run-unit-tests.mjs "scripts/kpi/**/*.test.mjs"`: 85 / 85.
+- `npm run test:docs` and `npm run docs:check` ran on the tree WITH this section: both exit 0
+  (`test:docs`: 6 suites, 29 / 29; `docs:check`: 22 decision records valid). `test:docs` also
+  rewrote the three `*.generated.ts` files with CRLF only; restored.
+
+### Coverage after this round
+
+| | |
+|---|---|
+| thread contexts read through all five lenses | **29 / 55** (52.7%) — was 24 / 55 |
+| of the whole 143-map | **29 / 143** (20.3%) — was 24 / 143 |
+| contexts where `ui-perfectionist` had a surface and ran | 10 (unchanged: all five of this round are n/a) |
+| thread groups with no five-lens context | **0 / 7** — unchanged. Per group: CV Analysis 4/8, Candidate Matching 3/7, Developer Assessment 4/9, Hiring Decisions 5/8, Hiring Pipeline 5/10, Interview Scheduling 3/5, Voice Interviews 5/8. Thinnest by share now: Candidate Matching (3/7), then Developer Assessment (4/9), then CV Analysis (4/8) and Hiring Pipeline (5/10) |
+| S findings fixed | 0 (read-only round) — round 2: 8 |
+| new findings recorded | 34 (26 S, 8 M) + 7 duplicates |
+| S carried over, written fix-and-test-ready | 26 (25 CONFIRMED, four of them with a named unverified side; 1 UNVERIFIED) |
+
+All five contexts count: every applicable lens ran on each, and the five n/a cells are the
+five contexts' `ui-perfectionist`, none of which has a `.tsx`. No context lost sources, so
+no caveat qualifies the count this round. 26 thread contexts remain. At five per round that
+is six more rounds.
+
 ## What to do with this file
 
 A `/scan-sweep` run should **write this file itself**, per context, at the moment it picks
