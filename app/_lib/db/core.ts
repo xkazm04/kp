@@ -1774,6 +1774,24 @@ export function ensureDb(): Database.Database {
     );
 
     CREATE INDEX IF NOT EXISTS idx_gig_plans_ws_gig ON gig_plans (workspace_id, gig_id, created_at);
+
+    -- Cohort Studio (db/analysis-cohorts.ts). Labels are names: the erasure scrub masks them.
+    CREATE TABLE IF NOT EXISTS analysis_cohorts (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      jd_slug TEXT NOT NULL,
+      status TEXT NOT NULL,
+      blind INTEGER NOT NULL,
+      report_lang TEXT NOT NULL,
+      order_seed TEXT NOT NULL,
+      members_json TEXT NOT NULL,
+      comments_json TEXT,
+      task_id TEXT,
+      created_at TEXT NOT NULL,
+      finished_at TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_analysis_cohorts_ws_created ON analysis_cohorts (workspace_id, created_at);
   `);
   // Run a DDL migration LOUDLY. An `ALTER TABLE … ADD COLUMN` goes through addColumns
   // (db/add-columns.ts): probe PRAGMA table_info, ALTER only a column that is missing, and

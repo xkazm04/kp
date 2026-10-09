@@ -145,7 +145,12 @@
         "pipeline/jobfit/gemini.py",
         "app/history/**",
         "app/skill/**",
-        "app/api/analyses/**"
+        "app/api/analyses/**",
+        "app/api/analyze/cohort/**",
+        "app/_lib/analyze-cohort-*.ts",
+        "app/_lib/db/analysis-cohorts.ts",
+        "pipeline/jobfit/cohort_compare.py",
+        "pipeline/jobfit/cohort_compare_cli.py"
       ]
     },
     {
@@ -421,6 +426,10 @@
         "pipeline/jobfit/gemini.py",
         "app/_lib/db/analyses.ts",
         "app/_lib/db/profiles.ts",
+        "app/_lib/analyze-cohort-*.ts",
+        "app/_lib/db/analysis-cohorts.ts",
+        "pipeline/jobfit/cohort_compare.py",
+        "pipeline/jobfit/cohort_compare_cli.py",
         "app/_lib/data-held.ts",
         "app/api/data/**",
         "instrumentation.ts",

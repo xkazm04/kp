@@ -227,6 +227,13 @@ export function registerLateBoundImplementations(): void {
     const outcomes = await pollGigOutcomes(ctx.workspaceId);
     return { ...sync, outcomes };
   });
+  // Cohort Studio (tasks.ts `analyze_cohort`, analyze-cohort-run.ts): the cohort id names a
+  // row the route created; the runner re-reads it inside ctx.workspaceId, so a replayed or
+  // foreign id resolves to nothing.
+  registerTaskRunner("analyze_cohort", async (ctx) => {
+    const { runAnalyzeCohortTask } = await import("./analyze-cohort-run");
+    return runAnalyzeCohortTask(ctx);
+  });
   // The stage hook's AI-interview mint (stage-hooks.ts): the same door
   // POST /api/interview/create calls, unchanged.
   registerStageHookInvite(async (input) => {

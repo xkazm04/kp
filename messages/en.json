@@ -1873,7 +1873,13 @@
     "GIG_STORE_FAILED": "Could not save or load your gigs right now. Please try again.",
     "JOBSEEKER_CV_NOT_FOUND": "That CV is not among yours.",
     "JOBSEEKER_REQUEST_INVALID": "That change was not in the expected shape, so nothing was saved.",
-    "DEVCASE_SOURCE_SELECTION_INVALID": "That candidate selection could not be read. Preview the matches again and re-apply."
+    "DEVCASE_SOURCE_SELECTION_INVALID": "That candidate selection could not be read. Preview the matches again and re-apply.",
+    "COHORT_LOAD_FAILED": "Could not load this comparison. Please try again.",
+    "COHORT_START_FAILED": "Could not start the comparison. Please try again.",
+    "COHORT_PROPOSAL_FAILED": "Could not put the comparison together for this role. Please try again.",
+    "COHORT_NOT_FOUND": "That comparison is not in this workspace.",
+    "COHORT_REQUEST_INVALID": "That comparison cannot start. Choose between 2 and 20 candidates for one role, then try again.",
+    "COHORT_MEMBER_NOT_FOUND": "One of the chosen candidates has no readable CV in this workspace any more."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -11738,7 +11744,8 @@
       "gigResearch": "Gig research",
       "gigPlans": "Gig plans · {count, plural, one {# gig} other {# gigs}}",
       "gigReport": "Gig report",
-      "gigProposal": "Client proposal"
+      "gigProposal": "Client proposal",
+      "analyzeCohort": "Compare candidates · {role}"
     },
     "filter": {
       "clear": "Clear"

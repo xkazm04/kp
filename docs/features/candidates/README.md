@@ -1713,6 +1713,115 @@ absence has to survive the CV.
   `concrete_ownership` to a man and the `vague_delivery` antipattern to a woman for the
   same sentence.
 
+## Cohort Studio (Analyze v2)
+
+One JD, up to `COHORT_CAP` (20) candidates, every one analysed against it, and the
+field compared dimension by dimension (fit, skills, experience, signals, trust, salary,
+public work). The wire contract is `app/features/tools/analyze/cohort/cohortTypes.ts`;
+the comparison itself — cells, bands, ranks, decoys and the CLAIMS (who leads, whether
+the lead clears the noise, whether it survives a reweighting) — is the pure engine in
+`cohortProject.ts` / `cohortClaims.ts`, decided by code. The language model only writes
+the rare cell comment, the per-dimension note and the top-`NARRATIVE_TOP` (6) narrative,
+and it never changes a claim.
+
+### Entry points
+
+| Surface | What it is |
+| --- | --- |
+| `GET /api/analyze/cohort/proposal?jd=<slug>` | who the comparison would hold and what it would spend (`CohortProposal`) |
+| `POST /api/analyze/cohort` | start a cohort (`CohortRunRequest` → `CohortRunResponse`); the run is an `analyze_cohort` task |
+| `GET /api/analyze/cohort/[id]` | the whole comparison (`CohortView`), assembled at read time; a running cohort answers its partial view |
+| `GET /api/analyze/cohort` | the recent-cohorts strip (`CohortSummary[]`, newest 12) |
+| `app/_lib/analyze-cohort-proposal.ts` | membership, reuse rule, company text, POST body parse |
+| `app/_lib/analyze-cohort-run.ts` | the runner (late-bound, `late-bound-boot.ts` registers `analyze_cohort`) |
+| `app/_lib/analyze-cohort-view.ts` | stored run sheet → `CohortView` (consent scrub, blind labels, effective status) |
+| `app/_lib/db/analysis-cohorts.ts` | the `analysis_cohorts` store + narrow reads over `analyses` / `profiles` |
+| `pipeline/jobfit/cohort_compare.py` + `cohort_compare_cli.py` | the comparative pass and its keyless floor |
+
+### Flow
+
+1. **Proposal.** Applicants first: every pipeline entry under the JD's job (`jd-<slug>`)
+   whose candidate resolves (`resolveCandidatePoolEntry`) to a CV with text — an
+   analysis slug, or a profile through its source analysis (member id `profile:<id>`).
+   Then a **matched** top-up from the workspace pool, ranked against the job by the
+   deterministic `recruiter_cli` ranker (KO-passed rows, rank order), until the cap.
+   Two ids for the same CV (same `cv_hash`, else same source slug) are one member; a
+   person whose consent expired or who was erased is not offered. `leftOut` counts the
+   eligible candidates of each rule the cap excluded. An un-ingested JD (no `jd-` job)
+   offers no applicants and no top-up. `companyText` composes the organisation (name +
+   domain), the job's company and the JD build intent's company.
+2. **Reuse rule.** A member is `reusable` when an analysis of the same CV is already filed
+   against THIS JD: `cv_hash` equality when both sides carry one, otherwise the member's
+   own source slug or an exact candidate-label match. `freshCount` = members − reusable.
+3. **Start.** `pipeline:write`, a per-IP limiter (`analyze-cohort:<ip>`, 10/10 min), the
+   body checked (`COHORT_MIN` ≤ members ≤ `COHORT_CAP`, membership in `MEMBERSHIPS`, no
+   repeated CV), every member re-resolved inside the workspace through the proposal's
+   resolver, then the `ai_candidates` reservation for `freshCount` units on top of the
+   in-flight analyze tasks (1 each) and in-flight cohorts (their declared `freshCount`) —
+   the same `meterGate` as `/api/analyze`, so an unmetered self-hosted install stays
+   unmetered. The row is inserted `queued`, the task started, its id stored.
+4. **Run** (three members at a time, the task's abort honoured between schedules):
+   - *reused* → `runState "reused"`, `analysisSlug` set, **no debit**;
+   - *fresh* → the source's `candidate.rawText` is written to a per-run workdir and goes
+     through the existing single-variant `runAnalyze` (same CLI args as `/api/analyze`:
+     JD text from `loadJd`, `--blind`, `--lang`, the company text; spilled to a file past
+     8 KB), persisted with `jd_slug` = the cohort's JD (History shows it under the JD)
+     and debited **one unit** exactly as `/api/analyze` does (delivered, non-cached);
+   - *GitHub* — not blind, a technical family (`TECHNICAL_FAMILIES`), a `github.com` link
+     on the CV, no deep-dive stored yet → the existing `analyze_github` stage, charged to
+     the starting IP's `github-analysis` bucket (10/10 min, shared with `/api/analyze`);
+   - one member failing is `failed` with a code (`ENGINE_FAILED`, `ANALYZE_TIMEOUT`,
+     `COHORT_MEMBER_NOT_FOUND`, …) and the cohort continues; all failing fails it.
+5. **Comparative pass.** The view is projected, the claims computed, and
+   `cohort_compare_cli` runs under TWO presentation orders (neutral, reversed). A cell
+   comment survives only when both orders commented the same (member, dimension) — run
+   one's text; a note only when both wrote one; the narrative is run one's. The input
+   carries compact per-dimension facts — never the CV text, and in a blind cohort never a
+   name. The model use case is `group_compare` (one Models-tab pin governs both comparison
+   surfaces). A failed pass leaves the claims standing with no comments.
+6. **Read.** `GET /api/analyze/cohort/[id]` assembles the view from the run sheet, each
+   member's saved analysis under the same consent scrub as `/api/analyses/[slug]` (an
+   expired-consent member is projected from the scrubbed payload with a masked label),
+   the stored GitHub deep-dive, and the stored comments. A blind cohort is labelled
+   "Candidate A".."T" by neutral order before the engine sees it. A queued/running row
+   whose task ended without closing it (cancelled while queued, a restart) reads `failed`.
+
+### Data model — `analysis_cohorts`
+
+| Column | |
+| --- | --- |
+| `id` | `coh-…`, also the `order_seed` the neutral order keys on |
+| `workspace_id` | every statement binds it, point reads included (`analysis-cohorts-tenancy.test.ts`) |
+| `jd_slug`, `blind`, `report_lang` | the run's settings |
+| `status` | `COHORT_STATUSES` (`queued` / `running` / `done` / `failed`) |
+| `members_json` | `[{memberId, label, membership, source, runState, analysisSlug, error}]`; member updates are a compare-and-swap on the whole column |
+| `comments_json` | the reorder-surviving `CohortComments`, or NULL |
+| `task_id`, `created_at`, `finished_at` | |
+
+Erasure: the entry-keyed scrub (`db/pipeline.ts`) masks the erased person's member label
+and their name inside the stored comments; the numbers stay as the record.
+
+### Keyless
+
+Nothing in the cohort needs a key beyond what `/api/analyze` already degrades: the
+ranker is deterministic, the analyses fall back as they always do, and
+`cohort_compare.py`'s floor writes no cell comments, a templated note per dimension from
+the claims and a templated narrative naming what it covers and how many it leaves out —
+in the report language (en/cs/de/fr) — with `engine: "keyless"`.
+
+### Known gaps (cohort)
+
+- The proposal logs, but does not return, how many applicants it skipped for having no
+  readable CV: the wire contract has no field for it.
+- A reused analysis keeps the language and blind setting it was made with.
+- `/api/analyze`'s own reservation count does not yet include in-flight cohorts' fresh
+  units (the cohort door counts both), so the two doors racing can overrun a hard cap by
+  the cohort's size.
+- The recent strip assembles each finished cohort's view to name its leader (up to
+  12 × 20 payload reads).
+- The claim guard on model prose is a conservative word list in four languages: it can
+  drop a faithful note that says "no leader", and falls back to the template when it does.
+
 ## Known gaps
 
 - Salary anchoring still uses the job's band rather than a candidate-seniority
@@ -1786,6 +1895,9 @@ absence has to survive the CV.
     "app/features/tools/profile/ProfileTabTypes.ts",
     "pipeline/jobfit/profile.py", "pipeline/jobfit/registry.py",
     "pipeline/jobfit/archetypes.json", "pipeline/jobfit/gemini.py",
-    "app/history/**", "app/skill/**"
+    "app/history/**", "app/skill/**",
+    "app/api/analyze/cohort/**", "app/_lib/analyze-cohort-*.ts",
+    "app/_lib/db/analysis-cohorts.ts",
+    "pipeline/jobfit/cohort_compare.py", "pipeline/jobfit/cohort_compare_cli.py"
   ] }
 ```

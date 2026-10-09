@@ -169,6 +169,30 @@ const ROUTES: RouteSpec[] = [
     expensive: "startTask(",
   },
   {
+    // ADDED spark analyze-v2-cohort (Cohort Studio). POST starts an `analyze_cohort` task:
+    // up to COHORT_CAP paid CV analyses plus a comparative pass run under two orders. Per
+    // IP, 10/10min — one start is a whole screening session, not a click. Ahead of the
+    // body parse, the member resolution, the billing reservation and the row insert, so a
+    // flood is refused before it costs a read. GET (the recent strip) spends nothing.
+    rel: "./analyze/cohort/route.ts",
+    key: "`analyze-cohort:${clientIpFrom(request.headers)}`",
+    limit: 10,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: 'startTask("analyze_cohort"',
+  },
+  {
+    // ADDED spark analyze-v2-cohort. The proposal ranks the workspace pool against the
+    // role through the recruiter_cli child (rankPoolForJob) — the same spawn and the same
+    // 30/10min shape as ./jobs/[id]/candidates. The unknown/foreign-JD 404 answers first
+    // and free.
+    rel: "./analyze/cohort/proposal/route.ts",
+    key: "`analyze-cohort-proposal:${clientIpFrom(request.headers)}`",
+    limit: 30,
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "await buildCohortProposal(",
+    servedBefore: "!loadJd(jd, ws)",
+  },
+  {
     // ADDED scan-sweep 2026-08-22. This route reaches the SAME startTask that
     // ./analyze throttles and ./jds/generate operator-gates — it had neither, so an
     // anonymous /api/demo session could spend unbounded LLM credit through it.

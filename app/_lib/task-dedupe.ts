@@ -216,6 +216,9 @@ export const DEDUPE_BUILDERS: Record<TaskKind, DedupeBuilder | null> = {
   // ONE proposal run per tenant + gig: an accept and an operator's "write the proposal" in
   // the same moment fold onto the run in flight (gigs/proposal/run.ts).
   gig_proposal: (p) => stableKey("gig_proposal", p.workspaceId, p.gigId),
+  // ONE run per cohort row: the route mints a fresh cohort per POST, so a double-click is
+  // two cohorts, and a retry of the same cohort folds onto the run in flight.
+  analyze_cohort: (p) => stableKey("analyze_cohort", p.cohortId),
 };
 
 /** A set of gig ids as one identity part: the string ids, de-duplicated and sorted, so the

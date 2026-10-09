@@ -70,6 +70,8 @@ test("the quota code the routes name is the registered one", () => {
   // empty tree is not a guard.
   const users = MODULES.filter((m) => /jsonRefusal\(\s*"BILLING_QUOTA_EXCEEDED"/.test(m.src)).map((m) => m.rel);
   assert.deepEqual(users.sort(), [
+    // spark analyze-v2-cohort: a cohort reserves one ai_candidates unit per FRESH member.
+    "analyze/cohort/route.ts",
     "analyze/route.ts",
     "devcase/lifecycle/[id]/redesign/route.ts",
     "devcase/lifecycle/route.ts",

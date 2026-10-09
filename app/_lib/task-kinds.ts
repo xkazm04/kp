@@ -40,6 +40,7 @@ export const TASK_KINDS = [
   "gig_plans",
   "gig_report",
   "gig_proposal",
+  "analyze_cohort",
 ] as const;
 
 export type TaskKind = (typeof TASK_KINDS)[number];

@@ -77,6 +77,12 @@ export const STORE_ERRORS = {
   // plus a JSON.parse of the persisted payload, so the thrown message carries the db path
   // or parser detail. The Decisions modal shows it verbatim, hence the code.
   GROUP_EVAL_READ_FAILED: "Could not load the saved comparison. Please try again.",
+  // Cohort Studio (Analyze v2, /api/analyze/cohort*): better-sqlite3 + the payload parse
+  // (the read), the row insert + task start (the start), the pool ranking spawn (the
+  // proposal). The thrown message carries a db path or a child's stderr.
+  COHORT_LOAD_FAILED: "Could not load this comparison. Please try again.",
+  COHORT_START_FAILED: "Could not start the comparison. Please try again.",
+  COHORT_PROPOSAL_FAILED: "Could not put the comparison together for this role. Please try again.",
   // GET /api/decisions/records: verify + listPipeline can throw SQLITE text and
   // the db path onto an operator JSON body. The sealed Art. 22 dossier.
   DECISION_RECORDS_READ_FAILED: "Could not load decision records. Please try again.",
@@ -1871,6 +1877,16 @@ export const REFUSAL_ERRORS = {
    *  existed" and "belongs to another team": the two are indistinguishable to a caller
    *  who does not hold the row, which is the tenancy property the read enforces. */
   ANALYSIS_NOT_FOUND: "That analysis is not in this workspace.",
+  // ---- Cohort Studio (Analyze v2, /api/analyze/cohort*).
+  /** No cohort with this id in the caller's workspace (404) — one code for "never
+   *  existed" and "another team's", like ANALYSIS_NOT_FOUND. */
+  COHORT_NOT_FOUND: "That comparison is not in this workspace.",
+  /** The start body is malformed: a missing JD, a membership outside the vocabulary, a
+   *  repeated member, or a size outside [min, max] — both ride as data (400). */
+  COHORT_REQUEST_INVALID: "That comparison cannot start. Choose between 2 and 20 candidates for one role, then try again.",
+  /** A chosen member does not resolve to a readable CV in this workspace — gone, erased,
+   *  consent expired, or another team's (400). `memberId` rides as data. */
+  COHORT_MEMBER_NOT_FOUND: "One of the chosen candidates has no readable CV in this workspace any more.",
   /** The attached GitHub deep-dive failed githubAnalysisSchema (400). The client that
    *  posts it built it itself, so this is a bug report, not recruiter advice. */
   ANALYSIS_GITHUB_INVALID: "That GitHub analysis could not be read and was not attached.",

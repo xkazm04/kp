@@ -258,6 +258,12 @@ const TABLE: Record<MappedKind, Mapper> = {
   // The proposal is a file (the gig's Summary links it) and, for a qualified gig, its draft;
   // the run's fact is who wrote it.
   gig_proposal: (r) => sourceLine(r.source),
+  // The comparison itself is the cohort view (/api/analyze/cohort/[id]); the run's facts
+  // are how many candidates it compared, how many failed, and who wrote the comments.
+  analyze_cohort: (r) => {
+    const failed = num(r.failed);
+    return [...fact("candidates", num(r.members)), ...(failed ? fact("failures", failed) : []), ...sourceLine(r.source)];
+  },
 };
 
 /** Kinds deliberately WITHOUT a table mapper, each with the reason. TABLE is typed

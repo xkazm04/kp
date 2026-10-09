@@ -230,6 +230,9 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // Holds candidate personal data, so the erasure scrub blanks it
   // (interview-letters-tenancy.test.ts, exemption list empty).
   "interview_letters",
+  // Cohort Studio (db/analysis-cohorts.ts): NO by-id carve-out — every statement binds
+  // workspace_id (analysis-cohorts-tenancy.test.ts); erasure masks member labels.
+  "analysis_cohorts",
   // Phase 1 — tasks (background-task queue): the recruiter poll/history reads + dedup +
   // create filter/stamp workspace_id; the by-id runner ops and the `-- tenancy:global`
   // boot-recovery / readiness probes stay cross-tenant by design (tasks-tenancy.test.ts).

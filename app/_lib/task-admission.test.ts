@@ -32,6 +32,8 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", ".
 const SERVER_KINDS = [
   "agent_fit",
   "analyze",
+  // spark analyze-v2-cohort: /api/analyze/cohort creates the cohort row, then enqueues.
+  "analyze_cohort",
   "companion_digest",
   "gig_plans",
   "gig_proposal",

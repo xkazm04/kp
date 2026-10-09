@@ -1873,7 +1873,13 @@
     "GIG_STORE_FAILED": "Impossible d’enregistrer ou de charger vos missions pour le moment. Veuillez réessayer.",
     "JOBSEEKER_CV_NOT_FOUND": "Ce CV ne fait pas partie des vôtres.",
     "JOBSEEKER_REQUEST_INVALID": "Cette modification n’avait pas la forme attendue, rien n’a été enregistré.",
-    "DEVCASE_SOURCE_SELECTION_INVALID": "Cette sélection de candidats n’a pas pu être lue. Affichez à nouveau l’aperçu et réessayez."
+    "DEVCASE_SOURCE_SELECTION_INVALID": "Cette sélection de candidats n’a pas pu être lue. Affichez à nouveau l’aperçu et réessayez.",
+    "COHORT_LOAD_FAILED": "Impossible de charger cette comparaison. Veuillez réessayer.",
+    "COHORT_START_FAILED": "Impossible de lancer la comparaison. Veuillez réessayer.",
+    "COHORT_PROPOSAL_FAILED": "Impossible de constituer la comparaison pour ce poste. Veuillez réessayer.",
+    "COHORT_NOT_FOUND": "Cette comparaison ne se trouve pas dans cet espace de travail.",
+    "COHORT_REQUEST_INVALID": "Impossible de lancer la comparaison. Choisissez entre 2 et 20 candidats pour un même poste, puis réessayez.",
+    "COHORT_MEMBER_NOT_FOUND": "L’un des candidats choisis n’a plus de CV lisible dans cet espace de travail."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -11738,7 +11744,8 @@
       "gigResearch": "Recherche de mission",
       "gigPlans": "Plans de mission · {count, plural, one {# mission} other {# missions}}",
       "gigReport": "Rapport de mission",
-      "gigProposal": "Proposition client"
+      "gigProposal": "Proposition client",
+      "analyzeCohort": "Comparaison des candidats · {role}"
     },
     "filter": {
       "clear": "Effacer"

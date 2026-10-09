@@ -60,6 +60,7 @@ export const TASK_KIND_ADMISSION: Record<TaskKind, TaskAdmission> = {
   gig_plans: RECRUITER_SERVER, // /api/gigs/[id]/plans, /api/gigs/plans (+ the runner's continuation)
   gig_report: RECRUITER_SERVER, // /api/gigs/[id]/report + the stage triggers (gigs/report/trigger.ts)
   gig_proposal: RECRUITER_SERVER, // /api/gigs/[id]/proposal + plan accept (gigs/proposal/trigger.ts)
+  analyze_cohort: RECRUITER_SERVER, // /api/analyze/cohort — params name a cohort row the route created
 };
 
 /** May the dock (POST /api/tasks) start this kind with client params? Unknown kinds,

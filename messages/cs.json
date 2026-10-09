@@ -1873,7 +1873,13 @@
     "GIG_STORE_FAILED": "Zakázky se teď nepodařilo uložit ani načíst. Zkuste to prosím znovu.",
     "JOBSEEKER_CV_NOT_FOUND": "Toto CV mezi vašimi není.",
     "JOBSEEKER_REQUEST_INVALID": "Změna neměla očekávaný tvar, nic se neuložilo.",
-    "DEVCASE_SOURCE_SELECTION_INVALID": "Tento výběr kandidátů se nepodařilo načíst. Zkontrolujte náhled a zkuste to znovu."
+    "DEVCASE_SOURCE_SELECTION_INVALID": "Tento výběr kandidátů se nepodařilo načíst. Zkontrolujte náhled a zkuste to znovu.",
+    "COHORT_LOAD_FAILED": "Toto srovnání se nepodařilo načíst. Zkuste to prosím znovu.",
+    "COHORT_START_FAILED": "Srovnání se nepodařilo spustit. Zkuste to prosím znovu.",
+    "COHORT_PROPOSAL_FAILED": "Srovnání pro tuto pozici se nepodařilo sestavit. Zkuste to prosím znovu.",
+    "COHORT_NOT_FOUND": "Toto srovnání v tomto pracovním prostoru není.",
+    "COHORT_REQUEST_INVALID": "Srovnání nelze spustit. Vyberte 2 až 20 kandidátů pro jednu pozici a zkuste to znovu.",
+    "COHORT_MEMBER_NOT_FOUND": "U jednoho z vybraných kandidátů už v tomto pracovním prostoru není čitelný životopis."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -11738,7 +11744,8 @@
       "gigResearch": "Rešerše zakázky",
       "gigPlans": "Plány zakázek · {count, plural, one {# zakázka} few {# zakázky} many {# zakázky} other {# zakázek}}",
       "gigReport": "Zpráva o zakázce",
-      "gigProposal": "Návrh pro klienta"
+      "gigProposal": "Návrh pro klienta",
+      "analyzeCohort": "Srovnání kandidátů · {role}"
     },
     "filter": {
       "clear": "Zrušit filtry"

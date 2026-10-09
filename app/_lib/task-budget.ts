@@ -125,6 +125,10 @@ export const TASK_BUDGET_CLASS: Record<TaskKind, TaskBudgetClass> = {
   // A freelance gig's client proposal (gigs/proposal/run.ts): one pinned model call per
   // accepted plan or operator request, behind its door's own 20/10min limiter.
   gig_proposal: "agent",
+  // Cohort Studio (analyze-cohort-run.ts): up to COHORT_CAP CV analyses (each a paid
+  // multimodal call) plus a comparative pass run twice — the same fan-out shape as
+  // group_eval. Server-only; its door (/api/analyze/cohort) carries its own limiter.
+  analyze_cohort: "agent",
 };
 
 /** The class a kind is budgeted under. A string outside the vocabulary (a row an

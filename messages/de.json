@@ -1873,7 +1873,13 @@
     "GIG_STORE_FAILED": "Ihre Aufträge konnten gerade nicht gespeichert oder geladen werden. Bitte versuchen Sie es erneut.",
     "JOBSEEKER_CV_NOT_FOUND": "Dieser Lebenslauf gehört nicht zu Ihren.",
     "JOBSEEKER_REQUEST_INVALID": "Diese Änderung hatte nicht die erwartete Form, es wurde nichts gespeichert.",
-    "DEVCASE_SOURCE_SELECTION_INVALID": "Diese Kandidatenauswahl konnte nicht gelesen werden. Zeigen Sie die Vorschau erneut an und wiederholen Sie den Vorgang."
+    "DEVCASE_SOURCE_SELECTION_INVALID": "Diese Kandidatenauswahl konnte nicht gelesen werden. Zeigen Sie die Vorschau erneut an und wiederholen Sie den Vorgang.",
+    "COHORT_LOAD_FAILED": "Dieser Vergleich konnte nicht geladen werden. Bitte erneut versuchen.",
+    "COHORT_START_FAILED": "Der Vergleich konnte nicht gestartet werden. Bitte erneut versuchen.",
+    "COHORT_PROPOSAL_FAILED": "Der Vergleich für diese Stelle konnte nicht zusammengestellt werden. Bitte erneut versuchen.",
+    "COHORT_NOT_FOUND": "Dieser Vergleich liegt nicht in diesem Arbeitsbereich.",
+    "COHORT_REQUEST_INVALID": "Der Vergleich kann nicht starten. Wählen Sie 2 bis 20 Kandidaten für eine Stelle aus und versuchen Sie es dann erneut.",
+    "COHORT_MEMBER_NOT_FOUND": "Für einen der ausgewählten Kandidaten gibt es in diesem Arbeitsbereich keinen lesbaren Lebenslauf mehr."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -11738,7 +11744,8 @@
       "gigResearch": "Auftragsrecherche",
       "gigPlans": "Auftragspläne · {count, plural, one {# Auftrag} other {# Aufträge}}",
       "gigReport": "Auftragsbericht",
-      "gigProposal": "Kundenangebot"
+      "gigProposal": "Kundenangebot",
+      "analyzeCohort": "Kandidatenvergleich · {role}"
     },
     "filter": {
       "clear": "Zurücksetzen"

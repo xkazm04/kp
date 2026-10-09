@@ -504,6 +504,17 @@ const HANDLERS: Record<TaskKind, Spec> = {
     tenancy: "scoped",
     label: () => encodeTaskLabel("gigProposal"),
   },
+  // Cohort Studio (Analyze v2, analyze-cohort-run.ts): up to COHORT_CAP CV analyses against
+  // one JD, then the comparative pass. The durable result is the analysis_cohorts row the
+  // route created (params.cohortId), which the runner re-reads inside the enqueuing team.
+  // Late-bound like `interview_kit`: runAnalyze, the GitHub stage and the cohort engine stay
+  // off this hub's path.
+  analyze_cohort: {
+    run: (ctx) =>
+      externalRunner("analyze_cohort")({ workspaceId: ctx.workspaceId, signal: ctx.signal, progress: ctx.progress, params: ctx.params }),
+    tenancy: "scoped",
+    label: (p) => encodeTaskLabel("analyzeCohort", { role: detail(p.jdTitle, p.jdSlug) ?? "" }),
+  },
 };
 
 let booted = false;

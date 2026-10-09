@@ -41,6 +41,8 @@ const LLM_SPAWN_MODULES: Record<string, string> = {
   "_lib/job-ingest.ts": "jd_ingest",
   "_lib/recruiter-run.ts": "weight_proposal",
   "_lib/group-eval-run.ts": "group_compare",
+  // The Cohort Studio comparative pass (cohort_compare_cli) reuses the group_compare use case.
+  "_lib/analyze-cohort-run.ts": "group_compare",
   "_lib/jd-build-run.ts": "grounded_salary (env inert today — direct gemini.py path)",
   // Background-mode round (2026-08-12): campaign + profile-draft spawns moved out
   // of their route bodies into shared runners so the task kinds reuse them; the

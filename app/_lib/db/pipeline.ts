@@ -2705,6 +2705,48 @@ function scrubEntryLinkedPii(
       `DELETE FROM match_run_results WHERE candidate_id = ? AND workspace_id = (SELECT workspace_id FROM pipeline_entries WHERE id = ?)`
     ).run(candidateId, entryId);
   }
+  // Cohort Studio (db/analysis-cohorts.ts): mask this person's member label and their
+  // name in the stored comments (JSON-escaped form); the numbers stay.
+  if (tables.has("analysis_cohorts")) {
+    const name = (label ?? "").trim();
+    const ids = candidateId ? [candidateId, `profile:${candidateId}`] : [];
+    const cohorts = db
+      .prepare(`SELECT id, members_json, comments_json FROM analysis_cohorts WHERE workspace_id = ?`)
+      .all(linkWorkspaceId) as { id: string; members_json: string; comments_json: string | null }[];
+    const escapedName = JSON.stringify(name).slice(1, -1);
+    const escapedMask = JSON.stringify(masked).slice(1, -1);
+    for (const cohort of cohorts) {
+      let members: Array<{ memberId?: unknown; label?: unknown }>;
+      try {
+        members = JSON.parse(cohort.members_json);
+      } catch {
+        continue; // corrupt run sheet: no readable label to mask
+      }
+      if (!Array.isArray(members)) continue;
+      let changed = false;
+      for (const m of members) {
+        const own = typeof m?.memberId === "string" && ids.includes(m.memberId);
+        const named = Boolean(name) && typeof m?.label === "string" && m.label.trim() === name;
+        if ((own || named) && m.label !== masked) {
+          m.label = masked;
+          changed = true;
+        }
+      }
+      let comments = cohort.comments_json;
+      if (name && comments && comments.includes(escapedName)) {
+        comments = comments.split(escapedName).join(escapedMask);
+        changed = true;
+      }
+      if (changed) {
+        db.prepare(`UPDATE analysis_cohorts SET members_json = ?, comments_json = ? WHERE id = ? AND workspace_id = ?`).run(
+          JSON.stringify(members),
+          comments,
+          cohort.id,
+          linkWorkspaceId
+        );
+      }
+    }
+  }
 }
 
 /** Anonymize one entry in place: mask the candidate label to "First L.", null the
