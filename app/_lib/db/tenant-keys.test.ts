@@ -117,6 +117,7 @@ export const IDENTITY_KEYS: ReadonlyMap<string, string> = new Map([
   ["companion_brain_index(node_id)", "the Python brain indexer mints node ids globally"],
   ["agent_activity(id)", MINTED],
   ["agent_fit_specs(id)", MINTED],
+  ["analysis_cohorts(id)", MINTED],
   ["companion_proposals(id)", MINTED],
   ["companion_threads(id)", MINTED],
   ["companion_turns(id)", MINTED],

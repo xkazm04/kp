@@ -22,6 +22,8 @@ const APP_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 
 // Path (POSIX, relative to app/) -> why that file's "CZK" is a fact, not a default.
 const ALLOWED: Record<string, string> = {
+  "features/tools/analyze/cohort/fixture/buildFixture.ts":
+    "a dev fixture generator over the Czech seed corpus (Česká spořitelna roles): the CZK role band and salaries are the seed data's own currency, and two members are deliberately EUR to exercise the refused cross-currency partition",
   "_lib/format.ts": "the definition of APP_CURRENCY itself",
   "_lib/db/salary-benchmark.ts":
     "the org-benchmark corpus is a CZK-only reference set (Česká spořitelna); the type says so and multi-currency is a later tier",
