@@ -456,3 +456,65 @@ test("the /about HowTo graph is locked to ABOUT_STEP_KEYS and the catalog titles
     "do not emit a hidden FAQPage — there is no FAQ UI on /about"
   );
 });
+
+/* ── The offer figure ────────────────────────────────────────────────────────
+ *
+ * landing.features.offer.body, aboutPage.steps.offer.body and
+ * siteFeatures.items.offer.pin1 all say the figure is "role band × fit, no model
+ * in the number". The number is `recommended` in `draft_offer`
+ * (pipeline/jobfit/automation.py). The model writes the LETTER around it; it never
+ * produces the figure. The narrowest faithful pin is structural: the statements
+ * that compute `recommended` come before the model call, take only the job's band
+ * and the fit total, and the structured result carries the computed value, not
+ * anything parsed out of the model's reply. It does not prove the letter text
+ * repeats the figure unchanged — the prompt instructs the model to state it. */
+
+test("the offer figure is computed from the role band and the fit total before any model call", () => {
+  const py = source("pipeline", "jobfit", "automation.py");
+  const start = py.indexOf("\ndef draft_offer(");
+  assert.ok(start >= 0, "automation.py no longer defines draft_offer — re-trace the offer copy");
+  const next = py.indexOf("\ndef ", start + 1);
+  const fn = py.slice(start, next === -1 ? undefined : next);
+  const body = fn.slice(fn.indexOf("):\n"));
+
+  const call = body.indexOf("_generate(");
+  assert.ok(call > 0, "draft_offer no longer calls _generate — re-trace where the letter is written");
+  const beforeCall = body.slice(0, call);
+
+  const computed = beforeCall.match(/^\s*recommended = (.+)$/m);
+  assert.ok(computed, "the figure `recommended` is no longer computed before the model call");
+  assert.match(computed[1], /_round_k\(lo \+ \(hi - lo\) \* f\)/, "the figure must be band position × fit factor");
+  assert.match(beforeCall, /f = max\(0\.1, min\(0\.9, \(m\.total - 55\) \/ 40\.0\)\)/, "the fit factor must come from the fit total m.total");
+  assert.doesNotMatch(
+    beforeCall.slice(beforeCall.indexOf("recommended")),
+    /\bprovider\b|_generate\(|\.complete\(/,
+    "the figure's computation reaches a model"
+  );
+  // The result carries the computed value; the model's reply only fills subject/body.
+  assert.match(body.slice(call), /"recommended": recommended,/, "the structured figure must be the computed one");
+  assert.match(body.slice(call), /"salaryMin": lo,[\s\S]*"salaryMax": hi,/, "the band bounds must be the computed ones");
+});
+
+test("every locale's offer copy still says the figure is deterministic", () => {
+  const DETERMINISTIC: Record<string, RegExp> = {
+    en: /\bdeterministic\b/i,
+    cs: /deterministick/i,
+    de: /deterministisch/i,
+    fr: /d[ée]terministe/i,
+  };
+  assert.deepEqual(Object.keys(DETERMINISTIC).sort(), [...LOCALES].sort(), "a locale has no 'deterministic' pattern");
+  for (const locale of LOCALES) {
+    const c = CATALOGS[locale] as unknown as {
+      landing: { features: { offer: { body: string } } };
+      aboutPage: { steps: { offer: { body: string } } };
+      siteFeatures: { items: { offer: { pin1: string } } };
+    };
+    for (const [key, text] of [
+      ["landing.features.offer.body", c.landing.features.offer.body],
+      ["aboutPage.steps.offer.body", c.aboutPage.steps.offer.body],
+      ["siteFeatures.items.offer.pin1", c.siteFeatures.items.offer.pin1],
+    ] as const) {
+      assert.match(text, DETERMINISTIC[locale], `${locale}: ${key} no longer states the figure is deterministic`);
+    }
+  }
+});
