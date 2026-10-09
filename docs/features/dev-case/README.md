@@ -729,6 +729,8 @@ Regenerate with note, the button beside Approve. Dead-probe reasons are catalog 
 banner in all four locales. The test pins the issue codes against `auditProbe` and the
 catalogs, so a rename cannot silently restore English.
 
+**The designed case is one flat 1.0h box at every seniority** (`CASE_TIMEBOX_HOURS` in `design.py`; the model may propose less, never more) — the instrument is ambiguity plus a visible decision log, not volume, and a longer take-home drives drop-off among strong seniors; seniority scales depth and ambiguity, not hours.
+
 **The timebox the reviewer approves is the timebox the candidate receives.** The
 cap on a candidate's unpaid work is policy, generated from
 `pipeline/jobfit/devcase/models.py` into `app/_lib/devcase-timebox.ts` — and the UI kept
