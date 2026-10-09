@@ -367,9 +367,14 @@ export interface Reason {
   phrase: Phrase;
   source: ReasonSource;
   /**
-   * The exact signed contribution to THIS dimension's rating, in rating points — present ONLY
-   * when the rating is a code formula over parts (skills, experience, signals, trust, salary,
-   * publicWork). Fit's rating is model-given: its reasons never carry points.
+   * Rating points, present ONLY when the rating is a code formula over parts (skills,
+   * experience, signals, trust, salary, publicWork); fit is model-given and never carries them.
+   * A PRO's or NOTE's points are what that part earned (it matches its anatomy term). A CON's
+   * points are NEGATIVE and say what the part FAILED to earn against its full value (a missing
+   * skill: -17 while its anatomy term is 0; "Experience 8/25": -35 while its term is +16).
+   * So reason points do NOT sum to the rating — ScoreAnatomy is the exact source for sums.
+   * Measured by all four round-2 layer builders; a `pointsKind: "term" | "forgone"` field is the
+   * proposed fix for the consolidation round.
    */
   points?: number;
   /** Supporting lines from the analysis (verbatim), for the expand. Omitted when none. */
