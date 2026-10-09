@@ -18,7 +18,9 @@ const MODES = [
 // bundle, and vice versa. The loading gap is a quiet reserved-height box, never
 // a skeleton; it is normally invisible since the sibling chunk is already
 // warm by the time anyone switches.
-const AnalyzeTab = dynamic(() => import("./AnalyzeTab").then((m) => ({ default: m.AnalyzeTab })), {
+// The "new" pane is the Cohort Studio (spark analyze-v2-cohort); its v1 variant — the
+// default, and the only one production shows during the prototype round — is AnalyzeTab.
+const CohortStudio = dynamic(() => import("./cohort/CohortStudio").then((m) => ({ default: m.CohortStudio })), {
   loading: () => <div className="reveal-quiet min-h-[24rem]" aria-hidden />,
 });
 const HistoryTab = dynamic(
@@ -73,7 +75,7 @@ export function AnalyzeWorkspace({ initialMode = "new" }: { initialMode?: "new" 
           exit={{ opacity: 0 }}
           transition={{ duration: reduced ? 0.12 : 0.18, ease: "easeOut" }}
         >
-          {mode === "new" ? <AnalyzeTab /> : <HistoryTab />}
+          {mode === "new" ? <CohortStudio /> : <HistoryTab />}
         </motion.div>
       </AnimatePresence>
     </div>
