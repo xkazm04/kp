@@ -51,6 +51,16 @@ function deadLetter(ref: string | null) {
   });
 }
 
+/**
+ * Spin until the clock has left the millisecond the original was stamped in, so the
+ * recovery row is strictly newer (route.ts:124 compares createdAt with `>`, and
+ * recordOutbox stamps ms-precision ISO strings — a same-ms pair is not "newer").
+ */
+function awaitNextTick(original: { createdAt: string }): void {
+  const stamped = Date.parse(original.createdAt);
+  while (Date.now() <= stamped) { /* busy-wait: at most one millisecond */ }
+}
+
 before(() => {
   getDevCase("__init__"); // force the full ensureDb() init
 });
@@ -58,6 +68,7 @@ after(() => cleanupUnitDb());
 
 test("a REFLESS dead letter re-sends ONCE, then is refused with a code", async () => {
   const original = deadLetter(null);
+  awaitNextTick(original);
 
   const first = await resend(original.id);
   assert.equal(first.status, 200, "the first recovery is the whole point of the door");
@@ -80,6 +91,7 @@ test("a REFLESS dead letter re-sends ONCE, then is refused with a code", async (
 
 test("a REF'D dead letter keeps its existing semantics — dedup on the entry's own key", async () => {
   const original = deadLetter("ent_123");
+  awaitNextTick(original);
   const first = await resend(original.id);
   assert.equal(first.status, 200);
   // The ref is UNCHANGED for a message that already had one: the recovery must land
