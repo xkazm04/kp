@@ -16853,5 +16853,23 @@
         "noBeat": "No heartbeat yet"
       }
     }
+  },
+  "analyzeCohort": {
+    "dims": {
+      "fit": "Fit",
+      "skills": "Skills",
+      "experience": "Experience",
+      "signals": "Signals",
+      "trust": "Trust",
+      "salary": "Salary",
+      "publicWork": "Public work"
+    },
+    "variants": {
+      "label": "Prototype",
+      "v1": "v1 form",
+      "lineup": "Line-up",
+      "loom": "Loom",
+      "console": "Console"
+    }
   }
 }

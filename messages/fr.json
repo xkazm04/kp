@@ -16853,5 +16853,23 @@
         "noBeat": "Aucun signal pour l’instant"
       }
     }
+  },
+  "analyzeCohort": {
+    "dims": {
+      "fit": "Adéquation",
+      "skills": "Compétences",
+      "experience": "Expérience",
+      "signals": "Signaux",
+      "trust": "Fiabilité",
+      "salary": "Salaire",
+      "publicWork": "Travaux publics"
+    },
+    "variants": {
+      "label": "Prototype",
+      "v1": "Formulaire v1",
+      "lineup": "Alignement",
+      "loom": "Métier à tisser",
+      "console": "Console de mixage"
+    }
   }
 }

@@ -16853,5 +16853,23 @@
         "noBeat": "Zatím žádný signál"
       }
     }
+  },
+  "analyzeCohort": {
+    "dims": {
+      "fit": "Shoda",
+      "skills": "Dovednosti",
+      "experience": "Praxe",
+      "signals": "Signály",
+      "trust": "Důvěryhodnost",
+      "salary": "Mzda",
+      "publicWork": "Veřejná práce"
+    },
+    "variants": {
+      "label": "Prototyp",
+      "v1": "Formulář v1",
+      "lineup": "Sestava",
+      "loom": "Tkalcovský stav",
+      "console": "Mixážní pult"
+    }
   }
 }

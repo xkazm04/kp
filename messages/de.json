@@ -16853,5 +16853,23 @@
         "noBeat": "Noch kein Lebenszeichen"
       }
     }
+  },
+  "analyzeCohort": {
+    "dims": {
+      "fit": "Passung",
+      "skills": "Fähigkeiten",
+      "experience": "Erfahrung",
+      "signals": "Signale",
+      "trust": "Vertrauen",
+      "salary": "Gehalt",
+      "publicWork": "Öffentliche Arbeit"
+    },
+    "variants": {
+      "label": "Prototyp",
+      "v1": "Formular v1",
+      "lineup": "Aufstellung",
+      "loom": "Webstuhl",
+      "console": "Mischpult"
+    }
   }
 }
