@@ -299,3 +299,23 @@ export interface DimensionPageProps {
   onFocusMember: (memberId: string | null) => void;
   onOpenReport: (analysisSlug: string) => void;
 }
+
+// ---- Engine inputs the server supplies -------------------------------------------
+
+/** The role's salary band (jobs.salary_min/max + the payload's currency/period); every field nullable. */
+export interface RoleBand {
+  currency: string | null;
+  period: string | null;
+  min: number | null;
+  max: number | null;
+}
+
+/**
+ * What the comparative pass (pipeline/jobfit/cohort_compare.py) returns, already filtered to
+ * reorder-surviving claims. Merged into the view by assembleCohortView (cohortProject.ts).
+ */
+export interface CohortComments {
+  cells: Array<{ memberId: string; dimension: CohortDimension; comment: string }>;
+  notes: Partial<Record<CohortDimension, string>>;
+  narrative: CohortNarrative | null;
+}
