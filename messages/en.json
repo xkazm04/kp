@@ -17554,6 +17554,107 @@
         "salaryInside": "In band",
         "salaryOutside": "{pct}% {direction, select, above {above} other {below}}"
       }
+    },
+    "layerMatrix": {
+      "region": "{dimension}: every candidate against the role's criteria",
+      "grid": "{dimension}: criteria by candidate",
+      "corner": "The role's criteria",
+      "order": "Candidates by {dimension} rating, highest first",
+      "orderSalary": "Candidates by stated figure, lowest first. Never ranked.",
+      "headClears": "{name} leads: the gap clears both bands",
+      "headNoise": "Hatched: the first {count} sit within each other's noise. An order, not a lead.",
+      "leadMark": "Leads, and the gap clears.",
+      "noiseMark": "Within the noise of the first column.",
+      "kind": {
+        "must": "Must-haves",
+        "target": "Targets",
+        "nice": "Nice to have",
+        "signal": "Observed"
+      },
+      "groupOrder": "most splitting first",
+      "status": {
+        "req": {
+          "meets": "meets",
+          "partial": "partly",
+          "misses": "misses",
+          "unknown": "not known"
+        },
+        "signal": {
+          "meets": "shown",
+          "partial": "both ways",
+          "misses": "flagged",
+          "unknown": "not seen"
+        },
+        "trust": {
+          "meets": "clear",
+          "partial": "warning",
+          "misses": "blocker",
+          "unknown": "not read"
+        }
+      },
+      "summary": {
+        "req": "{n} of {rated} meet",
+        "signal": "{n} of {rated} show it",
+        "trust": "{n} of {rated} clear"
+      },
+      "alike": "everyone alike",
+      "cell": "{name}, {criterion}: {status}",
+      "cellNote": "{name}, {criterion}: {status}. {note}",
+      "cellPending": "{name}, {criterion}: still analyzing",
+      "differs": "{a} and {b} differ here",
+      "col": "{name}, rated {rating}. Press to read why.",
+      "colPending": "{name}: still analyzing",
+      "rows": {
+        "pros": "Pros",
+        "cons": "Cons",
+        "rating": "Rating"
+      },
+      "count": {
+        "pros": "{name}: {n, plural, =0 {no pros} one {# pro} other {# pros}}",
+        "cons": "{name}: {n, plural, =0 {no cons} one {# con} other {# cons}}"
+      },
+      "rating": "{name}: {rating}, {tier}. {why}",
+      "ratingComment": "{name}: {rating}, {tier}. {why} Model comment: {comment}",
+      "tier": {
+        "strong": "strong",
+        "solid": "solid",
+        "thin": "thin",
+        "weak": "weak",
+        "absent": "no rating"
+      },
+      "keys": "Keys in the matrix",
+      "keyCells": "Move across cells",
+      "keyEnds": "First or last candidate",
+      "keyRead": "Read this candidate",
+      "keyNames": {
+        "arrows": "Arrows",
+        "home": "Home",
+        "end": "End",
+        "enter": "Enter"
+      },
+      "readout": {
+        "label": "Why {name} sits at {rating}",
+        "kicker": "Why this rating",
+        "kickerFirst": "The first column, until you press another",
+        "kickerPending": "{name} is still analyzing. Showing the first column.",
+        "model": "Model judgement: no point breakdown",
+        "built": "How it adds up",
+        "base": "base {n}",
+        "clamped": "{raw} before the 0 to 100 limit",
+        "pros": "Pros",
+        "cons": "Cons",
+        "notes": "Notes",
+        "none": "None stated",
+        "evidence": "Evidence",
+        "against": "Against {name}",
+        "againstRating": "{mine} here, {theirs} for {name}",
+        "same": "Same status on every criterion: the difference is in the reasons, not the checklist.",
+        "diffMine": "{status} here",
+        "diffTheirs": "{status} for {name}",
+        "nobody": "Nobody is rated here yet: the matrix fills as analyses land.",
+        "forgone": "{n} not earned"
+      },
+      "colWith": "{name}, rated {rating} ({label}). Press to read why."
     }
   }
 }

@@ -17554,6 +17554,107 @@
         "salaryInside": "Dans la fourchette",
         "salaryOutside": "{pct} % {direction, select, above {au-dessus} other {en dessous}}"
       }
+    },
+    "layerMatrix": {
+      "region": "{dimension} : chaque candidat face aux critères du poste",
+      "grid": "{dimension} : critères par candidat",
+      "corner": "Critères du poste",
+      "order": "Candidats par note ({dimension}), la plus haute d'abord",
+      "orderSalary": "Candidats par montant indiqué, le plus bas d'abord. Jamais classés.",
+      "headClears": "{name} est en tête : l'écart dépasse les deux marges d'incertitude",
+      "headNoise": "Hachuré : {count, plural, one {le premier se situe} other {les # premiers se situent}} dans le bruit des autres. Un ordre, pas une avance.",
+      "leadMark": "En tête, avec un écart net.",
+      "noiseMark": "Dans le bruit de la première colonne.",
+      "kind": {
+        "must": "Indispensables",
+        "target": "Cibles",
+        "nice": "Appréciés",
+        "signal": "Observés"
+      },
+      "groupOrder": "les plus discriminants d'abord",
+      "status": {
+        "req": {
+          "meets": "satisfait",
+          "partial": "en partie",
+          "misses": "manque",
+          "unknown": "inconnu"
+        },
+        "signal": {
+          "meets": "démontré",
+          "partial": "dans les deux sens",
+          "misses": "signalé",
+          "unknown": "non relevé"
+        },
+        "trust": {
+          "meets": "sans réserve",
+          "partial": "alerte",
+          "misses": "bloquant",
+          "unknown": "non lu"
+        }
+      },
+      "summary": {
+        "req": "{n} sur {rated} satisfont",
+        "signal": "{n} sur {rated} le montrent",
+        "trust": "{n} sur {rated} sans réserve"
+      },
+      "alike": "tous identiques",
+      "cell": "{name}, {criterion} : {status}",
+      "cellNote": "{name}, {criterion} : {status}. {note}",
+      "cellPending": "{name}, {criterion} : analyse en cours",
+      "differs": "{a} et {b} diffèrent ici",
+      "col": "{name}, note {rating}. Appuyez pour lire pourquoi.",
+      "colPending": "{name} : analyse en cours",
+      "rows": {
+        "pros": "Atouts",
+        "cons": "Réserves",
+        "rating": "Note"
+      },
+      "count": {
+        "pros": "{name} : {n, plural, =0 {aucun atout} one {# atout} other {# atouts}}",
+        "cons": "{name} : {n, plural, =0 {aucune réserve} one {# réserve} other {# réserves}}"
+      },
+      "rating": "{name} : {rating}, {tier}. {why}",
+      "ratingComment": "{name} : {rating}, {tier}. {why} Commentaire du modèle : {comment}",
+      "tier": {
+        "strong": "fort",
+        "solid": "solide",
+        "thin": "mince",
+        "weak": "faible",
+        "absent": "sans note"
+      },
+      "keys": "Touches de la matrice",
+      "keyCells": "Se déplacer entre les cellules",
+      "keyEnds": "Premier ou dernier candidat",
+      "keyRead": "Lire ce candidat",
+      "keyNames": {
+        "arrows": "Flèches",
+        "home": "Début",
+        "end": "Fin",
+        "enter": "Entrée"
+      },
+      "readout": {
+        "label": "Pourquoi {name} obtient {rating}",
+        "kicker": "Pourquoi cette note",
+        "kickerFirst": "La première colonne, jusqu'à ce que vous en choisissiez une autre",
+        "kickerPending": "{name} est encore en cours d'analyse. La première colonne est affichée.",
+        "model": "Jugement du modèle : pas de décomposition en points",
+        "built": "Comment elle se compose",
+        "base": "base {n}",
+        "clamped": "{raw} avant la limite de 0 à 100",
+        "pros": "Atouts",
+        "cons": "Réserves",
+        "notes": "Remarques",
+        "none": "Rien d'indiqué",
+        "evidence": "Éléments",
+        "against": "Face à {name}",
+        "againstRating": "{mine} ici, {theirs} pour {name}",
+        "same": "Même statut sur chaque critère : la différence tient aux raisons, pas à la liste.",
+        "diffMine": "ici : {status}",
+        "diffTheirs": "{name} : {status}",
+        "nobody": "Personne n'est encore noté ici : la matrice se remplit à mesure que les analyses arrivent.",
+        "forgone": "{n} non obtenus"
+      },
+      "colWith": "{name}, note {rating} ({label}). Appuyez pour lire pourquoi."
     }
   }
 }

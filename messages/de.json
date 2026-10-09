@@ -17554,6 +17554,107 @@
         "salaryInside": "In der Spanne",
         "salaryOutside": "{pct} % {direction, select, above {darüber} other {darunter}}"
       }
+    },
+    "layerMatrix": {
+      "region": "{dimension}: alle Kandidaten gegen die Kriterien der Rolle",
+      "grid": "{dimension}: Kriterien je Kandidat",
+      "corner": "Kriterien der Rolle",
+      "order": "Kandidaten nach Bewertung ({dimension}), höchste zuerst",
+      "orderSalary": "Kandidaten nach genanntem Betrag, niedrigster zuerst. Nie gereiht.",
+      "headClears": "{name} führt: der Abstand übersteigt beide Unsicherheitsbänder",
+      "headNoise": "Schraffiert: {count, plural, one {der Erste liegt} other {die ersten # liegen}} im Rauschen der anderen. Eine Reihenfolge, kein Vorsprung.",
+      "leadMark": "Führt, und der Abstand ist klar.",
+      "noiseMark": "Im Rauschen der ersten Spalte.",
+      "kind": {
+        "must": "Pflichtanforderungen",
+        "target": "Zielwerte",
+        "nice": "Wünschenswert",
+        "signal": "Beobachtet"
+      },
+      "groupOrder": "am stärksten trennende zuerst",
+      "status": {
+        "req": {
+          "meets": "erfüllt",
+          "partial": "teilweise",
+          "misses": "fehlt",
+          "unknown": "unbekannt"
+        },
+        "signal": {
+          "meets": "belegt",
+          "partial": "beides",
+          "misses": "auffällig",
+          "unknown": "nicht gesehen"
+        },
+        "trust": {
+          "meets": "unauffällig",
+          "partial": "Warnung",
+          "misses": "Blocker",
+          "unknown": "nicht gelesen"
+        }
+      },
+      "summary": {
+        "req": "{n} von {rated} erfüllen",
+        "signal": "{n} von {rated} zeigen es",
+        "trust": "{n} von {rated} unauffällig"
+      },
+      "alike": "alle gleich",
+      "cell": "{name}, {criterion}: {status}",
+      "cellNote": "{name}, {criterion}: {status}. {note}",
+      "cellPending": "{name}, {criterion}: Analyse läuft noch",
+      "differs": "{a} und {b} unterscheiden sich hier",
+      "col": "{name}, Bewertung {rating}. Drücken, um die Begründung zu lesen.",
+      "colPending": "{name}: Analyse läuft noch",
+      "rows": {
+        "pros": "Stärken",
+        "cons": "Schwächen",
+        "rating": "Bewertung"
+      },
+      "count": {
+        "pros": "{name}: {n, plural, =0 {keine Stärken} one {# Stärke} other {# Stärken}}",
+        "cons": "{name}: {n, plural, =0 {keine Schwächen} one {# Schwäche} other {# Schwächen}}"
+      },
+      "rating": "{name}: {rating}, {tier}. {why}",
+      "ratingComment": "{name}: {rating}, {tier}. {why} Modellkommentar: {comment}",
+      "tier": {
+        "strong": "stark",
+        "solid": "solide",
+        "thin": "dünn",
+        "weak": "schwach",
+        "absent": "keine Bewertung"
+      },
+      "keys": "Tasten in der Matrix",
+      "keyCells": "Zwischen Zellen wechseln",
+      "keyEnds": "Erster oder letzter Kandidat",
+      "keyRead": "Diesen Kandidaten lesen",
+      "keyNames": {
+        "arrows": "Pfeile",
+        "home": "Pos1",
+        "end": "Ende",
+        "enter": "Eingabe"
+      },
+      "readout": {
+        "label": "Warum {name} bei {rating} steht",
+        "kicker": "Warum diese Bewertung",
+        "kickerFirst": "Die erste Spalte, bis Sie eine andere wählen",
+        "kickerPending": "{name} wird noch analysiert. Die erste Spalte wird gezeigt.",
+        "model": "Modellurteil: keine Aufschlüsselung in Punkte",
+        "built": "So setzt es sich zusammen",
+        "base": "Basis {n}",
+        "clamped": "{raw} vor der Begrenzung auf 0 bis 100",
+        "pros": "Stärken",
+        "cons": "Schwächen",
+        "notes": "Hinweise",
+        "none": "Nichts angegeben",
+        "evidence": "Belege",
+        "against": "Im Vergleich zu {name}",
+        "againstRating": "{mine} hier, {theirs} bei {name}",
+        "same": "Bei jedem Kriterium derselbe Stand: der Unterschied liegt in den Gründen, nicht in der Checkliste.",
+        "diffMine": "hier {status}",
+        "diffTheirs": "{name}: {status}",
+        "nobody": "Noch niemand ist hier bewertet: die Matrix füllt sich, sobald Analysen eintreffen.",
+        "forgone": "{n} nicht erreicht"
+      },
+      "colWith": "{name}, Bewertung {rating} ({label}). Drücken, um die Begründung zu lesen."
     }
   }
 }

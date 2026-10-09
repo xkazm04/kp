@@ -17554,6 +17554,107 @@
         "salaryInside": "V rozpětí",
         "salaryOutside": "{pct} % {direction, select, above {nad} other {pod}}"
       }
+    },
+    "layerMatrix": {
+      "region": "{dimension}: každý kandidát proti kritériím role",
+      "grid": "{dimension}: kritéria podle kandidátů",
+      "corner": "Kritéria role",
+      "order": "Kandidáti podle hodnocení ({dimension}), od nejvyššího",
+      "orderSalary": "Kandidáti podle uvedené částky, od nejnižší. Nikdy se nepořadí.",
+      "headClears": "{name} vede: odstup přesahuje obě pásma nejistoty",
+      "headNoise": "Šrafování: {count, plural, one {první # leží} few {první # leží} many {prvních # leží} other {prvních # leží}} v pásmu nejistoty ostatních. Pořadí, ne náskok.",
+      "leadMark": "Vede a odstup je jasný.",
+      "noiseMark": "V pásmu nejistoty prvního sloupce.",
+      "kind": {
+        "must": "Nutné požadavky",
+        "target": "Cíle role",
+        "nice": "Výhodou",
+        "signal": "Zjištěné signály"
+      },
+      "groupOrder": "nejvíce rozlišující nahoře",
+      "status": {
+        "req": {
+          "meets": "splňuje",
+          "partial": "částečně",
+          "misses": "nesplňuje",
+          "unknown": "nezjištěno"
+        },
+        "signal": {
+          "meets": "prokázáno",
+          "partial": "obojí",
+          "misses": "varování",
+          "unknown": "nezaznamenáno"
+        },
+        "trust": {
+          "meets": "v pořádku",
+          "partial": "upozornění",
+          "misses": "blokující",
+          "unknown": "nenačteno"
+        }
+      },
+      "summary": {
+        "req": "{n} z {rated} splňuje",
+        "signal": "{n} z {rated} vykazuje",
+        "trust": "{n} z {rated} v pořádku"
+      },
+      "alike": "všichni stejně",
+      "cell": "{name}, {criterion}: {status}",
+      "cellNote": "{name}, {criterion}: {status}. {note}",
+      "cellPending": "{name}, {criterion}: analýza ještě probíhá",
+      "differs": "{a} a {b} se zde liší",
+      "col": "{name}, hodnocení {rating}. Stiskněte pro zdůvodnění.",
+      "colPending": "{name}: analýza ještě probíhá",
+      "rows": {
+        "pros": "Klady",
+        "cons": "Zápory",
+        "rating": "Hodnocení"
+      },
+      "count": {
+        "pros": "{name}: {n, plural, =0 {žádné klady} one {# klad} few {# klady} many {# kladu} other {# kladů}}",
+        "cons": "{name}: {n, plural, =0 {žádné zápory} one {# zápor} few {# zápory} many {# záporu} other {# záporů}}"
+      },
+      "rating": "{name}: {rating}, {tier}. {why}",
+      "ratingComment": "{name}: {rating}, {tier}. {why} Komentář modelu: {comment}",
+      "tier": {
+        "strong": "silné",
+        "solid": "solidní",
+        "thin": "slabší",
+        "weak": "slabé",
+        "absent": "bez hodnocení"
+      },
+      "keys": "Klávesy v matici",
+      "keyCells": "Pohyb mezi buňkami",
+      "keyEnds": "První nebo poslední kandidát",
+      "keyRead": "Zobrazit tohoto kandidáta",
+      "keyNames": {
+        "arrows": "Šipky",
+        "home": "Home",
+        "end": "End",
+        "enter": "Enter"
+      },
+      "readout": {
+        "label": "Proč má {name} hodnocení {rating}",
+        "kicker": "Proč toto hodnocení",
+        "kickerFirst": "První sloupec, dokud nevyberete jiný",
+        "kickerPending": "{name} se ještě analyzuje. Zobrazuje se první sloupec.",
+        "model": "Úsudek modelu: bez rozpadu na body",
+        "built": "Jak se skládá",
+        "base": "základ {n}",
+        "clamped": "{raw} před omezením na 0 až 100",
+        "pros": "Klady",
+        "cons": "Zápory",
+        "notes": "Poznámky",
+        "none": "Nic uvedeno",
+        "evidence": "Doklady",
+        "against": "Ve srovnání s: {name}",
+        "againstRating": "{mine} zde, {theirs} u kandidáta {name}",
+        "same": "U všech kritérií stejný stav: rozdíl je v důvodech, ne v kontrolním seznamu.",
+        "diffMine": "zde {status}",
+        "diffTheirs": "{name}: {status}",
+        "nobody": "Zatím nikdo nemá hodnocení: matice se doplní, jakmile analýzy doběhnou.",
+        "forgone": "nezískáno {n}"
+      },
+      "colWith": "{name}, hodnocení {rating} ({label}). Stiskněte pro zdůvodnění."
     }
   }
 }
