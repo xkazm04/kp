@@ -1,0 +1,3698 @@
+{
+  "cohortId": "cohort-fixture-20",
+  "jdSlug": "senior-java-backend-engineer",
+  "jdTitle": "Senior Java Backend Engineer",
+  "orgName": "Česká spořitelna",
+  "blind": false,
+  "reportLang": "en",
+  "createdAt": "2026-10-08T09:12:00.000Z",
+  "status": "done",
+  "finishedAt": "2026-10-08T09:19:41.000Z",
+  "members": [
+    {
+      "memberId": "analysis-cand-000",
+      "label": "Klára Blažková",
+      "membership": "applicant",
+      "runState": "done",
+      "analysisSlug": "cohort-cand-000",
+      "roleFamily": "software_engineering",
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": 96,
+          "tier": "strong",
+          "label": {
+            "key": "cells.fit",
+            "params": {
+              "score": 96
+            }
+          },
+          "band": {
+            "lo": 88,
+            "hi": 100,
+            "drivers": [
+              {
+                "key": "drivers.trustWarn",
+                "params": {
+                  "n": 1
+                }
+              }
+            ]
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": 100,
+          "tier": "strong",
+          "label": {
+            "key": "cells.skills",
+            "params": {
+              "matched": 6,
+              "total": 6
+            }
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": 94,
+          "tier": "strong",
+          "label": {
+            "key": "cells.experience",
+            "params": {
+              "years": 9,
+              "seniority": "senior"
+            }
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": 66,
+          "tier": "solid",
+          "label": {
+            "key": "cells.signals",
+            "params": {
+              "strengths": 2,
+              "flags": 0
+            }
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": 85,
+          "tier": "strong",
+          "label": {
+            "key": "cells.trustFlags",
+            "params": {
+              "n": 1
+            }
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": 100,
+          "tier": "strong",
+          "label": {
+            "key": "cells.salaryBand",
+            "params": {
+              "midpoint": 155000,
+              "currency": "CZK",
+              "period": "month"
+            }
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": 85,
+          "tier": "strong",
+          "label": {
+            "key": "cells.publicWork",
+            "params": {
+              "repos": 34,
+              "language": "Java"
+            }
+          },
+          "comment": "Maintains a Kafka outbox library others depend on."
+        }
+      },
+      "detail": {
+        "fit": {
+          "dimension": "fit",
+          "jobFitScore": 96,
+          "total": 92,
+          "seniorityAlignment": "Senior level matches the role's senior target.",
+          "roleAlignment": "Same role family (software_engineering).",
+          "summary": "Klára Blažková is a strong fit (96/100) for Senior Java Backend Engineer at Česká spořitelna.",
+          "riskFlags": []
+        },
+        "skills": {
+          "dimension": "skills",
+          "matched": [
+            "Java",
+            "Spring Boot",
+            "Oracle",
+            "Kafka",
+            "REST",
+            "Microservices architecture"
+          ],
+          "missing": [],
+          "unproven": [],
+          "extra": [
+            "Microservices",
+            "REST APIs",
+            "Docker"
+          ]
+        },
+        "experience": {
+          "dimension": "experience",
+          "years": 9,
+          "seniority": "senior",
+          "roleFamily": "software_engineering",
+          "educationLevel": "master",
+          "evidence": [
+            "Senior Backend Engineer, Kentico Software",
+            "Backend Engineer, Seznam.cz"
+          ]
+        },
+        "signals": {
+          "dimension": "signals",
+          "strengths": [
+            {
+              "label": "Owns production systems end to end",
+              "detail": "Ran the on-call rota and carried a service rewrite through to measured latency gains.",
+              "probe": "Walk me through the last incident you owned, from the page to the post-mortem.",
+              "confidence": 0.7
+            },
+            {
+              "label": "States outcomes with numbers",
+              "detail": "Results are quantified (latency, throughput, cost) rather than listed as duties.",
+              "probe": "Which of those numbers did you measure yourself, and how?",
+              "confidence": 0.6
+            }
+          ],
+          "antipatterns": []
+        },
+        "trust": {
+          "dimension": "trust",
+          "findings": [
+            {
+              "code": "title_unverified",
+              "severity": "warn",
+              "scope": "input",
+              "text": "The tech-lead title appears in the summary but in no listed role."
+            }
+          ]
+        },
+        "salary": {
+          "dimension": "salary",
+          "currency": "CZK",
+          "period": "month",
+          "minimum": 131750,
+          "maximum": 178250,
+          "midpoint": 155000,
+          "confidence": "medium"
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "username": "klara-blazkova",
+          "profileUrl": "https://github.com/klara-blazkova",
+          "publicRepos": 34,
+          "totalStars": 412,
+          "activeRepos": 9,
+          "languages": [
+            {
+              "name": "Java",
+              "percent": 61
+            },
+            {
+              "name": "Kotlin",
+              "percent": 14
+            },
+            {
+              "name": "Go",
+              "percent": 12
+            },
+            {
+              "name": "Shell",
+              "percent": 8
+            },
+            {
+              "name": "Dockerfile",
+              "percent": 5
+            }
+          ],
+          "topRepos": [
+            {
+              "name": "kafka-outbox-relay",
+              "url": "https://github.com/klara-blazkova/kafka-outbox-relay",
+              "language": "Java",
+              "stars": 287
+            },
+            {
+              "name": "spring-idempotency-starter",
+              "url": "https://github.com/klara-blazkova/spring-idempotency-starter",
+              "language": "Java",
+              "stars": 96
+            },
+            {
+              "name": "latency-budget",
+              "url": "https://github.com/klara-blazkova/latency-budget",
+              "language": "Go",
+              "stars": 21
+            }
+          ],
+          "matchedSkills": [
+            "Java",
+            "Spring Boot",
+            "Kafka",
+            "REST"
+          ],
+          "potentialGaps": [
+            "Oracle"
+          ]
+        }
+      },
+      "neutralIndex": 2,
+      "fitRank": 1,
+      "decoyOf": null
+    },
+    {
+      "memberId": "analysis-cand-040",
+      "label": "David Kříž",
+      "membership": "applicant",
+      "runState": "done",
+      "analysisSlug": "cohort-cand-040",
+      "roleFamily": "software_engineering",
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": 93,
+          "tier": "strong",
+          "label": {
+            "key": "cells.fit",
+            "params": {
+              "score": 93
+            }
+          },
+          "band": {
+            "lo": 85,
+            "hi": 100,
+            "drivers": [
+              {
+                "key": "drivers.trustWarn",
+                "params": {
+                  "n": 1
+                }
+              }
+            ]
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": 100,
+          "tier": "strong",
+          "label": {
+            "key": "cells.skills",
+            "params": {
+              "matched": 6,
+              "total": 6
+            }
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": 96,
+          "tier": "strong",
+          "label": {
+            "key": "cells.experience",
+            "params": {
+              "years": 11,
+              "seniority": "senior"
+            }
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": 60,
+          "tier": "solid",
+          "label": {
+            "key": "cells.signals",
+            "params": {
+              "strengths": 2,
+              "flags": 1
+            }
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": 85,
+          "tier": "strong",
+          "label": {
+            "key": "cells.trustFlags",
+            "params": {
+              "n": 1
+            }
+          },
+          "comment": "Overlap is likely a notice period; confirm the dates."
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": 93,
+          "tier": "strong",
+          "label": {
+            "key": "cells.salaryBand",
+            "params": {
+              "midpoint": 168000,
+              "currency": "CZK",
+              "period": "month"
+            }
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": 55,
+          "tier": "solid",
+          "label": {
+            "key": "cells.publicWork",
+            "params": {
+              "repos": 18,
+              "language": "Java"
+            }
+          }
+        }
+      },
+      "detail": {
+        "fit": {
+          "dimension": "fit",
+          "jobFitScore": 93,
+          "total": 93,
+          "seniorityAlignment": "Senior level matches the role's senior target.",
+          "roleAlignment": "Same role family (software_engineering).",
+          "summary": "David Kříž is a strong fit (93/100) for Senior Java Backend Engineer at Česká spořitelna.",
+          "riskFlags": []
+        },
+        "skills": {
+          "dimension": "skills",
+          "matched": [
+            "Java",
+            "Spring Boot",
+            "Oracle",
+            "Kafka",
+            "REST",
+            "Microservices architecture"
+          ],
+          "missing": [],
+          "unproven": [],
+          "extra": [
+            "REST APIs",
+            "PostgreSQL",
+            "Docker",
+            "Microservices"
+          ]
+        },
+        "experience": {
+          "dimension": "experience",
+          "years": 11,
+          "seniority": "senior",
+          "roleFamily": "software_engineering",
+          "educationLevel": "master",
+          "evidence": [
+            "Senior Backend Engineer, Kentico Software",
+            "Backend Engineer, Y Soft"
+          ]
+        },
+        "signals": {
+          "dimension": "signals",
+          "strengths": [
+            {
+              "label": "Regulated-banking delivery",
+              "detail": "Shipped payment and core-banking integrations under audit and change-control rules.",
+              "probe": "How did a regulatory constraint change a design decision you made?",
+              "confidence": 0.7
+            },
+            {
+              "label": "Owns production systems end to end",
+              "detail": "Ran the on-call rota and carried a service rewrite through to measured latency gains.",
+              "probe": "Walk me through the last incident you owned, from the page to the post-mortem.",
+              "confidence": 0.5
+            }
+          ],
+          "antipatterns": [
+            {
+              "label": "Short tenures",
+              "detail": "Three employers in four years; each role ended before a full delivery cycle.",
+              "probe": "What did you leave unfinished at your last role, and why did you move?",
+              "confidence": 0.4
+            }
+          ]
+        },
+        "trust": {
+          "dimension": "trust",
+          "findings": [
+            {
+              "code": "employment_overlap",
+              "severity": "warn",
+              "scope": "identity",
+              "text": "Two full-time roles overlap for 9 months (2021–2022)."
+            }
+          ]
+        },
+        "salary": {
+          "dimension": "salary",
+          "currency": "CZK",
+          "period": "month",
+          "minimum": 142800,
+          "maximum": 193200,
+          "midpoint": 168000,
+          "confidence": "medium"
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "username": "david-kriz",
+          "profileUrl": "https://github.com/david-kriz",
+          "publicRepos": 18,
+          "totalStars": 37,
+          "activeRepos": 5,
+          "languages": [
+            {
+              "name": "Java",
+              "percent": 72
+            },
+            {
+              "name": "SQL",
+              "percent": 15
+            },
+            {
+              "name": "Python",
+              "percent": 13
+            }
+          ],
+          "topRepos": [
+            {
+              "name": "oracle-flyway-demo",
+              "url": "https://github.com/david-kriz/oracle-flyway-demo",
+              "language": "Java",
+              "stars": 22
+            },
+            {
+              "name": "spring-batch-recipes",
+              "url": "https://github.com/david-kriz/spring-batch-recipes",
+              "language": "Java",
+              "stars": 11
+            },
+            {
+              "name": "kata",
+              "url": "https://github.com/david-kriz/kata",
+              "language": "Python",
+              "stars": 4
+            }
+          ],
+          "matchedSkills": [
+            "Java",
+            "Spring Boot",
+            "Oracle"
+          ],
+          "potentialGaps": [
+            "Kafka",
+            "REST"
+          ]
+        }
+      },
+      "neutralIndex": 18,
+      "fitRank": 2,
+      "decoyOf": null
+    },
+    {
+      "memberId": "analysis-cand-007",
+      "label": "Vít Malý",
+      "membership": "applicant",
+      "runState": "done",
+      "analysisSlug": "cohort-cand-007",
+      "roleFamily": "software_engineering",
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": 82,
+          "tier": "strong",
+          "label": {
+            "key": "cells.fit",
+            "params": {
+              "score": 82
+            }
+          },
+          "band": {
+            "lo": 77,
+            "hi": 87,
+            "drivers": []
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": 75,
+          "tier": "strong",
+          "label": {
+            "key": "cells.skillsUnproven",
+            "params": {
+              "matched": 4,
+              "total": 6,
+              "unproven": 1
+            }
+          },
+          "comment": "Microservices claimed, not shown in any role."
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": 94,
+          "tier": "strong",
+          "label": {
+            "key": "cells.experience",
+            "params": {
+              "years": 9,
+              "seniority": "senior"
+            }
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": 62,
+          "tier": "solid",
+          "label": {
+            "key": "cells.signals",
+            "params": {
+              "strengths": 2,
+              "flags": 1
+            }
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": 100,
+          "tier": "strong",
+          "label": {
+            "key": "cells.trustClean"
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": 100,
+          "tier": "strong",
+          "label": {
+            "key": "cells.salaryBand",
+            "params": {
+              "midpoint": 145000,
+              "currency": "CZK",
+              "period": "month"
+            }
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": 22,
+          "tier": "weak",
+          "label": {
+            "key": "cells.publicWork",
+            "params": {
+              "repos": 9,
+              "language": "Java"
+            }
+          }
+        }
+      },
+      "detail": {
+        "fit": {
+          "dimension": "fit",
+          "jobFitScore": 82,
+          "total": 92,
+          "seniorityAlignment": "Senior level matches the role's senior target.",
+          "roleAlignment": "Same role family (software_engineering).",
+          "summary": "Vít Malý is a strong fit (82/100) for Senior Java Backend Engineer at Česká spořitelna.",
+          "riskFlags": []
+        },
+        "skills": {
+          "dimension": "skills",
+          "matched": [
+            "Java",
+            "Spring Boot",
+            "Kafka",
+            "REST"
+          ],
+          "missing": [
+            "Oracle"
+          ],
+          "unproven": [
+            "Microservices architecture"
+          ],
+          "extra": [
+            "REST APIs",
+            "ISO 20022",
+            "SQL"
+          ]
+        },
+        "experience": {
+          "dimension": "experience",
+          "years": 9,
+          "seniority": "senior",
+          "roleFamily": "software_engineering",
+          "educationLevel": "master",
+          "evidence": [
+            "Senior Backend Engineer — Skelet Logistics s.r.o.",
+            "Backend Engineer — Modravá Apps a.s."
+          ]
+        },
+        "signals": {
+          "dimension": "signals",
+          "strengths": [
+            {
+              "label": "Regulated-banking delivery",
+              "detail": "Shipped payment and core-banking integrations under audit and change-control rules.",
+              "probe": "How did a regulatory constraint change a design decision you made?",
+              "confidence": 0.8
+            },
+            {
+              "label": "States outcomes with numbers",
+              "detail": "Results are quantified (latency, throughput, cost) rather than listed as duties.",
+              "probe": "Which of those numbers did you measure yourself, and how?",
+              "confidence": 0.5
+            }
+          ],
+          "antipatterns": [
+            {
+              "label": "Team results written as personal ones",
+              "detail": "Outcomes are stated for the team; the candidate's own share is not separated out.",
+              "probe": "Which part of that migration would not have happened without you?",
+              "confidence": 0.3
+            }
+          ]
+        },
+        "trust": {
+          "dimension": "trust",
+          "findings": []
+        },
+        "salary": {
+          "dimension": "salary",
+          "currency": "CZK",
+          "period": "month",
+          "minimum": 123250,
+          "maximum": 166750,
+          "midpoint": 145000,
+          "confidence": "medium"
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "username": "vit-maly",
+          "profileUrl": "https://github.com/vit-maly",
+          "publicRepos": 9,
+          "totalStars": 3,
+          "activeRepos": 2,
+          "languages": [
+            {
+              "name": "Java",
+              "percent": 80
+            },
+            {
+              "name": "Shell",
+              "percent": 20
+            }
+          ],
+          "topRepos": [
+            {
+              "name": "iso20022-parser",
+              "url": "https://github.com/vit-maly/iso20022-parser",
+              "language": "Java",
+              "stars": 3
+            },
+            {
+              "name": "dotfiles",
+              "url": "https://github.com/vit-maly/dotfiles",
+              "language": "Shell",
+              "stars": 0
+            }
+          ],
+          "matchedSkills": [
+            "Java"
+          ],
+          "potentialGaps": [
+            "Kafka",
+            "Spring Boot",
+            "Oracle"
+          ]
+        }
+      },
+      "neutralIndex": 15,
+      "fitRank": 3,
+      "decoyOf": null
+    },
+    {
+      "memberId": "analysis-cand-047",
+      "label": "Jan Mareš",
+      "membership": "applicant",
+      "runState": "done",
+      "analysisSlug": "cohort-cand-047",
+      "roleFamily": "software_engineering",
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": 74,
+          "tier": "solid",
+          "label": {
+            "key": "cells.fit",
+            "params": {
+              "score": 74
+            }
+          },
+          "band": {
+            "lo": 66,
+            "hi": 82,
+            "drivers": [
+              {
+                "key": "drivers.trustWarn",
+                "params": {
+                  "n": 1
+                }
+              }
+            ]
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": 67,
+          "tier": "solid",
+          "label": {
+            "key": "cells.skills",
+            "params": {
+              "matched": 4,
+              "total": 6
+            }
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": 94,
+          "tier": "strong",
+          "label": {
+            "key": "cells.experience",
+            "params": {
+              "years": 9,
+              "seniority": "senior"
+            }
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": 50,
+          "tier": "thin",
+          "label": {
+            "key": "cells.signals",
+            "params": {
+              "strengths": 1,
+              "flags": 1
+            }
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": 85,
+          "tier": "strong",
+          "label": {
+            "key": "cells.trustFlags",
+            "params": {
+              "n": 1
+            }
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": 100,
+          "tier": "strong",
+          "label": {
+            "key": "cells.salaryBand",
+            "params": {
+              "midpoint": 150000,
+              "currency": "CZK",
+              "period": "month"
+            }
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "noLink",
+          "label": {
+            "key": "none"
+          }
+        }
+      },
+      "detail": {
+        "fit": {
+          "dimension": "fit",
+          "jobFitScore": 74,
+          "total": 92,
+          "seniorityAlignment": "Senior level matches the role's senior target.",
+          "roleAlignment": "Same role family (software_engineering).",
+          "summary": "Jan Mareš is a solid fit (74/100) for Senior Java Backend Engineer at Česká spořitelna.",
+          "riskFlags": []
+        },
+        "skills": {
+          "dimension": "skills",
+          "matched": [
+            "Java",
+            "Spring Boot",
+            "Kafka",
+            "REST"
+          ],
+          "missing": [
+            "Oracle",
+            "Microservices architecture"
+          ],
+          "unproven": [],
+          "extra": [
+            "REST APIs",
+            "ISO 20022",
+            "SQL"
+          ]
+        },
+        "experience": {
+          "dimension": "experience",
+          "years": 9,
+          "seniority": "senior",
+          "roleFamily": "software_engineering",
+          "educationLevel": "master",
+          "evidence": [
+            "Senior Backend Engineer, Payments Platform — Kentico Software",
+            "Backend Engineer — Y Soft Corporation"
+          ]
+        },
+        "signals": {
+          "dimension": "signals",
+          "strengths": [
+            {
+              "label": "Regulated-banking delivery",
+              "detail": "Shipped payment and core-banking integrations under audit and change-control rules.",
+              "probe": "How did a regulatory constraint change a design decision you made?",
+              "confidence": 0.5
+            }
+          ],
+          "antipatterns": [
+            {
+              "label": "Team results written as personal ones",
+              "detail": "Outcomes are stated for the team; the candidate's own share is not separated out.",
+              "probe": "Which part of that migration would not have happened without you?",
+              "confidence": 0.5
+            }
+          ]
+        },
+        "trust": {
+          "dimension": "trust",
+          "findings": [
+            {
+              "code": "date_gap",
+              "severity": "warn",
+              "scope": "input",
+              "text": "An 18-month gap between roles is not explained."
+            }
+          ]
+        },
+        "salary": {
+          "dimension": "salary",
+          "currency": "CZK",
+          "period": "month",
+          "minimum": 127500,
+          "maximum": 172500,
+          "midpoint": 150000,
+          "confidence": "medium"
+        },
+        "publicWork": null
+      },
+      "neutralIndex": 8,
+      "fitRank": 6,
+      "decoyOf": "analysis-cand-007"
+    },
+    {
+      "memberId": "analysis-cand-016",
+      "label": "Adam Malý",
+      "membership": "applicant",
+      "runState": "done",
+      "analysisSlug": "cohort-cand-016",
+      "roleFamily": "software_engineering",
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": 81,
+          "tier": "strong",
+          "label": {
+            "key": "cells.fit",
+            "params": {
+              "score": 81
+            }
+          },
+          "band": {
+            "lo": 76,
+            "hi": 86,
+            "drivers": []
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": 100,
+          "tier": "strong",
+          "label": {
+            "key": "cells.skills",
+            "params": {
+              "matched": 6,
+              "total": 6
+            }
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": 35,
+          "tier": "thin",
+          "label": {
+            "key": "cells.experience",
+            "params": {
+              "years": 0,
+              "seniority": "junior"
+            }
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": 57,
+          "tier": "solid",
+          "label": {
+            "key": "cells.signals",
+            "params": {
+              "strengths": 1,
+              "flags": 0
+            }
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": 100,
+          "tier": "strong",
+          "label": {
+            "key": "cells.trustClean"
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": 32,
+          "tier": "weak",
+          "label": {
+            "key": "cells.salaryBand",
+            "params": {
+              "midpoint": 60000,
+              "currency": "CZK",
+              "period": "month"
+            }
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "notRead",
+          "label": {
+            "key": "none"
+          }
+        }
+      },
+      "detail": {
+        "fit": {
+          "dimension": "fit",
+          "jobFitScore": 81,
+          "total": 64,
+          "seniorityAlignment": "Two levels below the role's senior target.",
+          "roleAlignment": "Same role family (software_engineering).",
+          "summary": "Adam Malý is a strong fit (81/100) for Senior Java Backend Engineer at Česká spořitelna.",
+          "riskFlags": []
+        },
+        "skills": {
+          "dimension": "skills",
+          "matched": [
+            "Java",
+            "Spring Boot",
+            "Oracle",
+            "Kafka",
+            "REST",
+            "Microservices architecture"
+          ],
+          "missing": [],
+          "unproven": [],
+          "extra": [
+            "Microservices",
+            "REST APIs",
+            "Docker"
+          ]
+        },
+        "experience": {
+          "dimension": "experience",
+          "years": 0,
+          "seniority": "junior",
+          "roleFamily": "software_engineering",
+          "educationLevel": "master",
+          "evidence": [
+            "Bakalářská práce: Detekce anomálií v provozních logech pomocí strojového učení",
+            "Semestrální projekt: Webová aplikace pro rezervaci studijních místností",
+            "Mentor v studentském spolku Bytubytu (úvod do programování)"
+          ]
+        },
+        "signals": {
+          "dimension": "signals",
+          "strengths": [
+            {
+              "label": "Picks up a stack quickly",
+              "detail": "Moved from coursework to a production Spring service within one internship.",
+              "probe": "What did you have to unlearn when you moved to production code?",
+              "confidence": 0.6
+            }
+          ],
+          "antipatterns": []
+        },
+        "trust": {
+          "dimension": "trust",
+          "findings": []
+        },
+        "salary": {
+          "dimension": "salary",
+          "currency": "CZK",
+          "period": "month",
+          "minimum": 51000,
+          "maximum": 69000,
+          "midpoint": 60000,
+          "confidence": "medium"
+        },
+        "publicWork": null
+      },
+      "neutralIndex": 6,
+      "fitRank": 5,
+      "decoyOf": null
+    },
+    {
+      "memberId": "analysis-cand-030",
+      "label": "Filip Sýkora",
+      "membership": "applicant",
+      "runState": "done",
+      "analysisSlug": "cohort-cand-030",
+      "roleFamily": "software_engineering",
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": 40,
+          "tier": "thin",
+          "label": {
+            "key": "cells.fit",
+            "params": {
+              "score": 40
+            }
+          },
+          "band": {
+            "lo": 28,
+            "hi": 52,
+            "drivers": [
+              {
+                "key": "drivers.educationUnknown"
+              },
+              {
+                "key": "drivers.manyMissing",
+                "params": {
+                  "n": 5
+                }
+              }
+            ]
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": 17,
+          "tier": "weak",
+          "label": {
+            "key": "cells.skills",
+            "params": {
+              "matched": 1,
+              "total": 6
+            }
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": 56,
+          "tier": "solid",
+          "label": {
+            "key": "cells.experience",
+            "params": {
+              "years": 5,
+              "seniority": "junior"
+            }
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": 51,
+          "tier": "thin",
+          "label": {
+            "key": "cells.signals",
+            "params": {
+              "strengths": 1,
+              "flags": 1
+            }
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": 100,
+          "tier": "strong",
+          "label": {
+            "key": "cells.trustClean"
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "currencyMismatch",
+          "label": {
+            "key": "cells.salaryBand",
+            "params": {
+              "midpoint": 3600,
+              "currency": "EUR",
+              "period": "month"
+            }
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "notRead",
+          "label": {
+            "key": "none"
+          }
+        }
+      },
+      "detail": {
+        "fit": {
+          "dimension": "fit",
+          "jobFitScore": 40,
+          "total": 74,
+          "seniorityAlignment": "Two levels below the role's senior target.",
+          "roleAlignment": "Same role family (software_engineering).",
+          "summary": "Filip Sýkora is a partial fit (40/100) for Senior Java Backend Engineer at Česká spořitelna.",
+          "riskFlags": []
+        },
+        "skills": {
+          "dimension": "skills",
+          "matched": [
+            "Java"
+          ],
+          "missing": [
+            "Spring Boot",
+            "Oracle",
+            "Kafka",
+            "REST",
+            "Microservices architecture"
+          ],
+          "unproven": [],
+          "extra": [
+            "CI/CD",
+            "Selenium",
+            "Playwright",
+            "test automation",
+            "Appium",
+            "teamwork",
+            "communication",
+            "ownership",
+            "delivery"
+          ]
+        },
+        "experience": {
+          "dimension": "experience",
+          "years": 5,
+          "seniority": "junior",
+          "roleFamily": "software_engineering",
+          "educationLevel": "unknown",
+          "evidence": [
+            "Physiotherapist — Rehabilitační centrum Lužánky",
+            "Physiotherapist (junior) — Nemocnice Milosrdných bratří",
+            "RehabTrack — patient exercise tracker (React + PostgreSQL)",
+            "Czechitas Full-Stack Web Development — completion certificate"
+          ]
+        },
+        "signals": {
+          "dimension": "signals",
+          "strengths": [
+            {
+              "label": "Picks up a stack quickly",
+              "detail": "Moved from coursework to a production Spring service within one internship.",
+              "probe": "What did you have to unlearn when you moved to production code?",
+              "confidence": 0.5
+            }
+          ],
+          "antipatterns": [
+            {
+              "label": "Skills listed without evidence",
+              "detail": "Several listed technologies appear in no project or role description.",
+              "probe": "Pick two listed skills and describe where you used them last.",
+              "confidence": 0.4
+            }
+          ]
+        },
+        "trust": {
+          "dimension": "trust",
+          "findings": []
+        },
+        "salary": {
+          "dimension": "salary",
+          "currency": "EUR",
+          "period": "month",
+          "minimum": 3060,
+          "maximum": 4140,
+          "midpoint": 3600,
+          "confidence": "medium"
+        },
+        "publicWork": null
+      },
+      "neutralIndex": 19,
+      "fitRank": 15,
+      "decoyOf": null
+    },
+    {
+      "memberId": "analysis-cand-013",
+      "label": "Karolína Hájková",
+      "membership": "applicant",
+      "runState": "done",
+      "analysisSlug": "cohort-cand-013",
+      "roleFamily": "product_project",
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": 34,
+          "tier": "weak",
+          "label": {
+            "key": "cells.fit",
+            "params": {
+              "score": 34
+            }
+          },
+          "band": {
+            "lo": 25,
+            "hi": 43,
+            "drivers": [
+              {
+                "key": "drivers.manyMissing",
+                "params": {
+                  "n": 6
+                }
+              }
+            ]
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": 0,
+          "tier": "weak",
+          "label": {
+            "key": "cells.skills",
+            "params": {
+              "matched": 0,
+              "total": 6
+            }
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": 94,
+          "tier": "strong",
+          "label": {
+            "key": "cells.experience",
+            "params": {
+              "years": 9,
+              "seniority": "senior"
+            }
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": 64,
+          "tier": "solid",
+          "label": {
+            "key": "cells.signals",
+            "params": {
+              "strengths": 2,
+              "flags": 0
+            }
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": 100,
+          "tier": "strong",
+          "label": {
+            "key": "cells.trustClean"
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": 100,
+          "tier": "strong",
+          "label": {
+            "key": "cells.salaryBand",
+            "params": {
+              "midpoint": 115000,
+              "currency": "CZK",
+              "period": "month"
+            }
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "notTechnical",
+          "label": {
+            "key": "none"
+          }
+        }
+      },
+      "detail": {
+        "fit": {
+          "dimension": "fit",
+          "jobFitScore": 34,
+          "total": 92,
+          "seniorityAlignment": "Senior level matches the role's senior target.",
+          "roleAlignment": "Different role family (product_project).",
+          "summary": "Karolína Hájková is a weak fit (34/100) for Senior Java Backend Engineer at Česká spořitelna.",
+          "riskFlags": []
+        },
+        "skills": {
+          "dimension": "skills",
+          "matched": [],
+          "missing": [
+            "Java",
+            "Spring Boot",
+            "Oracle",
+            "Kafka",
+            "REST",
+            "Microservices architecture"
+          ],
+          "unproven": [],
+          "extra": [
+            "SQL",
+            "BPMN",
+            "requirements analysis",
+            "process mapping",
+            "stakeholder management",
+            "Jira"
+          ]
+        },
+        "experience": {
+          "dimension": "experience",
+          "years": 9,
+          "seniority": "senior",
+          "roleFamily": "product_project",
+          "educationLevel": "master",
+          "evidence": [
+            "Senior Product Manager, Productboard (Prague)",
+            "Project Manager / Product Owner, Kiwi.com (Brno)"
+          ]
+        },
+        "signals": {
+          "dimension": "signals",
+          "strengths": [
+            {
+              "label": "Regulated-banking delivery",
+              "detail": "Shipped payment and core-banking integrations under audit and change-control rules.",
+              "probe": "How did a regulatory constraint change a design decision you made?",
+              "confidence": 0.6
+            },
+            {
+              "label": "States outcomes with numbers",
+              "detail": "Results are quantified (latency, throughput, cost) rather than listed as duties.",
+              "probe": "Which of those numbers did you measure yourself, and how?",
+              "confidence": 0.6
+            }
+          ],
+          "antipatterns": []
+        },
+        "trust": {
+          "dimension": "trust",
+          "findings": []
+        },
+        "salary": {
+          "dimension": "salary",
+          "currency": "CZK",
+          "period": "month",
+          "minimum": 97750,
+          "maximum": 132250,
+          "midpoint": 115000,
+          "confidence": "medium"
+        },
+        "publicWork": null
+      },
+      "neutralIndex": 17,
+      "fitRank": 16,
+      "decoyOf": null
+    },
+    {
+      "memberId": "analysis-cand-004",
+      "label": "Hana Černá",
+      "membership": "applicant",
+      "runState": "failed",
+      "analysisSlug": null,
+      "roleFamily": null,
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "failed",
+          "label": {
+            "key": "none"
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "failed",
+          "label": {
+            "key": "none"
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "failed",
+          "label": {
+            "key": "none"
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "failed",
+          "label": {
+            "key": "none"
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "failed",
+          "label": {
+            "key": "none"
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "failed",
+          "label": {
+            "key": "none"
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "failed",
+          "label": {
+            "key": "none"
+          }
+        }
+      },
+      "detail": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
+      "neutralIndex": 7,
+      "fitRank": null,
+      "decoyOf": null
+    },
+    {
+      "memberId": "profile:cand-039",
+      "label": "Klára Kovářová",
+      "membership": "matched",
+      "runState": "done",
+      "analysisSlug": "cohort-cand-039",
+      "roleFamily": "software_engineering",
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": 82,
+          "tier": "strong",
+          "label": {
+            "key": "cells.fit",
+            "params": {
+              "score": 82
+            }
+          },
+          "band": {
+            "lo": 77,
+            "hi": 87,
+            "drivers": []
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": 75,
+          "tier": "strong",
+          "label": {
+            "key": "cells.skillsUnproven",
+            "params": {
+              "matched": 4,
+              "total": 6,
+              "unproven": 1
+            }
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": 96,
+          "tier": "strong",
+          "label": {
+            "key": "cells.experience",
+            "params": {
+              "years": 11,
+              "seniority": "senior"
+            }
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": 61,
+          "tier": "solid",
+          "label": {
+            "key": "cells.signals",
+            "params": {
+              "strengths": 2,
+              "flags": 1
+            }
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": 100,
+          "tier": "strong",
+          "label": {
+            "key": "cells.trustClean"
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": 100,
+          "tier": "strong",
+          "label": {
+            "key": "cells.salaryBand",
+            "params": {
+              "midpoint": 150000,
+              "currency": "CZK",
+              "period": "month"
+            }
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "notRead",
+          "label": {
+            "key": "none"
+          }
+        }
+      },
+      "detail": {
+        "fit": {
+          "dimension": "fit",
+          "jobFitScore": 82,
+          "total": 93,
+          "seniorityAlignment": "Senior level matches the role's senior target.",
+          "roleAlignment": "Same role family (software_engineering).",
+          "summary": "Klára Kovářová is a strong fit (82/100) for Senior Java Backend Engineer at Česká spořitelna.",
+          "riskFlags": []
+        },
+        "skills": {
+          "dimension": "skills",
+          "matched": [
+            "Java",
+            "Spring Boot",
+            "Kafka",
+            "REST"
+          ],
+          "missing": [
+            "Microservices architecture"
+          ],
+          "unproven": [
+            "Oracle"
+          ],
+          "extra": [
+            "SQL",
+            "REST APIs",
+            "ISO 20022"
+          ]
+        },
+        "experience": {
+          "dimension": "experience",
+          "years": 11,
+          "seniority": "senior",
+          "roleFamily": "software_engineering",
+          "educationLevel": "master",
+          "evidence": [
+            "Senior Backend Engineer, Kentico Software (Brno)",
+            "Backend Engineer, Seznam.cz (Prague)"
+          ]
+        },
+        "signals": {
+          "dimension": "signals",
+          "strengths": [
+            {
+              "label": "Regulated-banking delivery",
+              "detail": "Shipped payment and core-banking integrations under audit and change-control rules.",
+              "probe": "How did a regulatory constraint change a design decision you made?",
+              "confidence": 0.7
+            },
+            {
+              "label": "Grows other engineers",
+              "detail": "Mentored two engineers through a promotion cycle and ran the team's code-review guild.",
+              "probe": "Tell me about someone you mentored who outgrew you on a topic.",
+              "confidence": 0.5
+            }
+          ],
+          "antipatterns": [
+            {
+              "label": "Same scope for many years",
+              "detail": "The last six years show the same service and the same responsibilities.",
+              "probe": "What is the biggest change in what you own since you joined?",
+              "confidence": 0.3
+            }
+          ]
+        },
+        "trust": {
+          "dimension": "trust",
+          "findings": []
+        },
+        "salary": {
+          "dimension": "salary",
+          "currency": "CZK",
+          "period": "month",
+          "minimum": 127500,
+          "maximum": 172500,
+          "midpoint": 150000,
+          "confidence": "medium"
+        },
+        "publicWork": null
+      },
+      "neutralIndex": 3,
+      "fitRank": 3,
+      "decoyOf": null
+    },
+    {
+      "memberId": "profile:cand-032",
+      "label": "Radek Čermák",
+      "membership": "matched",
+      "runState": "done",
+      "analysisSlug": "cohort-cand-032",
+      "roleFamily": "software_engineering",
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": 73,
+          "tier": "solid",
+          "label": {
+            "key": "cells.fit",
+            "params": {
+              "score": 73
+            }
+          },
+          "band": {
+            "lo": 68,
+            "hi": 78,
+            "drivers": []
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": 83,
+          "tier": "strong",
+          "label": {
+            "key": "cells.skills",
+            "params": {
+              "matched": 5,
+              "total": 6
+            }
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": 35,
+          "tier": "thin",
+          "label": {
+            "key": "cells.experience",
+            "params": {
+              "years": 0,
+              "seniority": "junior"
+            }
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": 58,
+          "tier": "solid",
+          "label": {
+            "key": "cells.signals",
+            "params": {
+              "strengths": 1,
+              "flags": 0
+            }
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": 100,
+          "tier": "strong",
+          "label": {
+            "key": "cells.trustClean"
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": 35,
+          "tier": "thin",
+          "label": {
+            "key": "cells.salaryBand",
+            "params": {
+              "midpoint": 62000,
+              "currency": "CZK",
+              "period": "month"
+            }
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "notRead",
+          "label": {
+            "key": "none"
+          }
+        }
+      },
+      "detail": {
+        "fit": {
+          "dimension": "fit",
+          "jobFitScore": 73,
+          "total": 64,
+          "seniorityAlignment": "Two levels below the role's senior target.",
+          "roleAlignment": "Same role family (software_engineering).",
+          "summary": "Radek Čermák is a solid fit (73/100) for Senior Java Backend Engineer at Česká spořitelna.",
+          "riskFlags": []
+        },
+        "skills": {
+          "dimension": "skills",
+          "matched": [
+            "Java",
+            "Spring Boot",
+            "Oracle",
+            "Kafka",
+            "Microservices architecture"
+          ],
+          "missing": [
+            "REST"
+          ],
+          "unproven": [],
+          "extra": [
+            "Microservices",
+            "Docker",
+            "PostgreSQL"
+          ]
+        },
+        "experience": {
+          "dimension": "experience",
+          "years": 0,
+          "seniority": "junior",
+          "roleFamily": "software_engineering",
+          "educationLevel": "master",
+          "evidence": [
+            "Bachelor Thesis: Scheduling Heuristics for Container Orchestration",
+            "StudyGroup Matcher (semester team project)",
+            "Mentor, Introductory Programming Tutoring Club"
+          ]
+        },
+        "signals": {
+          "dimension": "signals",
+          "strengths": [
+            {
+              "label": "Picks up a stack quickly",
+              "detail": "Moved from coursework to a production Spring service within one internship.",
+              "probe": "What did you have to unlearn when you moved to production code?",
+              "confidence": 0.7
+            }
+          ],
+          "antipatterns": []
+        },
+        "trust": {
+          "dimension": "trust",
+          "findings": []
+        },
+        "salary": {
+          "dimension": "salary",
+          "currency": "CZK",
+          "period": "month",
+          "minimum": 52700,
+          "maximum": 71300,
+          "midpoint": 62000,
+          "confidence": "medium"
+        },
+        "publicWork": null
+      },
+      "neutralIndex": 12,
+      "fitRank": 7,
+      "decoyOf": null
+    },
+    {
+      "memberId": "profile:cand-024",
+      "label": "Gabriela Černá",
+      "membership": "matched",
+      "runState": "done",
+      "analysisSlug": "cohort-cand-024",
+      "roleFamily": "software_engineering",
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": 73,
+          "tier": "solid",
+          "label": {
+            "key": "cells.fit",
+            "params": {
+              "score": 73
+            }
+          },
+          "band": {
+            "lo": 68,
+            "hi": 78,
+            "drivers": []
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": 83,
+          "tier": "strong",
+          "label": {
+            "key": "cells.skills",
+            "params": {
+              "matched": 5,
+              "total": 6
+            }
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": 35,
+          "tier": "thin",
+          "label": {
+            "key": "cells.experience",
+            "params": {
+              "years": 0,
+              "seniority": "junior"
+            }
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": 52,
+          "tier": "thin",
+          "label": {
+            "key": "cells.signals",
+            "params": {
+              "strengths": 1,
+              "flags": 1
+            }
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": 100,
+          "tier": "strong",
+          "label": {
+            "key": "cells.trustClean"
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": 29,
+          "tier": "weak",
+          "label": {
+            "key": "cells.salaryBand",
+            "params": {
+              "midpoint": 58000,
+              "currency": "CZK",
+              "period": "month"
+            }
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "failed",
+          "label": {
+            "key": "none"
+          }
+        }
+      },
+      "detail": {
+        "fit": {
+          "dimension": "fit",
+          "jobFitScore": 73,
+          "total": 64,
+          "seniorityAlignment": "Two levels below the role's senior target.",
+          "roleAlignment": "Same role family (software_engineering).",
+          "summary": "Gabriela Černá is a solid fit (73/100) for Senior Java Backend Engineer at Česká spořitelna.",
+          "riskFlags": []
+        },
+        "skills": {
+          "dimension": "skills",
+          "matched": [
+            "Java",
+            "Spring Boot",
+            "Oracle",
+            "Kafka",
+            "Microservices architecture"
+          ],
+          "missing": [
+            "REST"
+          ],
+          "unproven": [],
+          "extra": [
+            "Docker",
+            "Microservices"
+          ]
+        },
+        "experience": {
+          "dimension": "experience",
+          "years": 0,
+          "seniority": "junior",
+          "roleFamily": "software_engineering",
+          "educationLevel": "master",
+          "evidence": [
+            "Bachelor thesis: A Static Analyzer for Detecting Concurrency Bugs in Java",
+            "Distributed URL Shortener (semester project)",
+            "Teaching assistant for Introduction to Programming"
+          ]
+        },
+        "signals": {
+          "dimension": "signals",
+          "strengths": [
+            {
+              "label": "Picks up a stack quickly",
+              "detail": "Moved from coursework to a production Spring service within one internship.",
+              "probe": "What did you have to unlearn when you moved to production code?",
+              "confidence": 0.5
+            }
+          ],
+          "antipatterns": [
+            {
+              "label": "Skills listed without evidence",
+              "detail": "Several listed technologies appear in no project or role description.",
+              "probe": "Pick two listed skills and describe where you used them last.",
+              "confidence": 0.3
+            }
+          ]
+        },
+        "trust": {
+          "dimension": "trust",
+          "findings": []
+        },
+        "salary": {
+          "dimension": "salary",
+          "currency": "CZK",
+          "period": "month",
+          "minimum": 49300,
+          "maximum": 66700,
+          "midpoint": 58000,
+          "confidence": "medium"
+        },
+        "publicWork": null
+      },
+      "neutralIndex": 5,
+      "fitRank": 7,
+      "decoyOf": "analysis-cand-016"
+    },
+    {
+      "memberId": "profile:cand-015",
+      "label": "Tadeáš Jelínek",
+      "membership": "matched",
+      "runState": "done",
+      "analysisSlug": "cohort-cand-015",
+      "roleFamily": "software_engineering",
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": 65,
+          "tier": "solid",
+          "label": {
+            "key": "cells.fit",
+            "params": {
+              "score": 65
+            }
+          },
+          "band": {
+            "lo": 52,
+            "hi": 78,
+            "drivers": [
+              {
+                "key": "drivers.trustBlocker"
+              }
+            ]
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": 67,
+          "tier": "solid",
+          "label": {
+            "key": "cells.skills",
+            "params": {
+              "matched": 4,
+              "total": 6
+            }
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": 35,
+          "tier": "thin",
+          "label": {
+            "key": "cells.experience",
+            "params": {
+              "years": 0,
+              "seniority": "junior"
+            }
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": 72,
+          "tier": "solid",
+          "label": {
+            "key": "cells.signals",
+            "params": {
+              "strengths": 3,
+              "flags": 1
+            }
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": 60,
+          "tier": "solid",
+          "label": {
+            "key": "cells.trustFlags",
+            "params": {
+              "n": 1
+            }
+          },
+          "comment": "Verify authorship before any further step."
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": 25,
+          "tier": "weak",
+          "label": {
+            "key": "cells.salaryBand",
+            "params": {
+              "midpoint": 55000,
+              "currency": "CZK",
+              "period": "month"
+            }
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "notRead",
+          "label": {
+            "key": "none"
+          }
+        }
+      },
+      "detail": {
+        "fit": {
+          "dimension": "fit",
+          "jobFitScore": 65,
+          "total": 58,
+          "seniorityAlignment": "Two levels below the role's senior target.",
+          "roleAlignment": "Same role family (software_engineering).",
+          "summary": "Tadeáš Jelínek is a solid fit (65/100) for Senior Java Backend Engineer at Česká spořitelna.",
+          "riskFlags": [
+            "CV text closely matches another applicant's CV."
+          ]
+        },
+        "skills": {
+          "dimension": "skills",
+          "matched": [
+            "Java",
+            "Spring Boot",
+            "Kafka",
+            "REST"
+          ],
+          "missing": [
+            "Oracle",
+            "Microservices architecture"
+          ],
+          "unproven": [],
+          "extra": [
+            "REST APIs",
+            "ISO 20022"
+          ]
+        },
+        "experience": {
+          "dimension": "experience",
+          "years": 0,
+          "seniority": "junior",
+          "roleFamily": "software_engineering",
+          "educationLevel": "master",
+          "evidence": [
+            "Bachelor's thesis: Anomaly detection in public-transport sensor streams",
+            "Semester project: Self-hosted study-group scheduler",
+            "Volunteer mentor, university intro-to-programming workshops"
+          ]
+        },
+        "signals": {
+          "dimension": "signals",
+          "strengths": [
+            {
+              "label": "Picks up a stack quickly",
+              "detail": "Moved from coursework to a production Spring service within one internship.",
+              "probe": "What did you have to unlearn when you moved to production code?",
+              "confidence": 0.9
+            },
+            {
+              "label": "States outcomes with numbers",
+              "detail": "Results are quantified (latency, throughput, cost) rather than listed as duties.",
+              "probe": "Which of those numbers did you measure yourself, and how?",
+              "confidence": 0.8
+            },
+            {
+              "label": "Grows other engineers",
+              "detail": "Mentored two engineers through a promotion cycle and ran the team's code-review guild.",
+              "probe": "Tell me about someone you mentored who outgrew you on a topic.",
+              "confidence": 0.5
+            }
+          ],
+          "antipatterns": [
+            {
+              "label": "Skills listed without evidence",
+              "detail": "Several listed technologies appear in no project or role description.",
+              "probe": "Pick two listed skills and describe where you used them last.",
+              "confidence": 0.4
+            }
+          ]
+        },
+        "trust": {
+          "dimension": "trust",
+          "findings": [
+            {
+              "code": "duplicate_text",
+              "severity": "blocker",
+              "scope": "authenticity",
+              "text": "Most of the experience section matches another applicant's CV word for word."
+            }
+          ]
+        },
+        "salary": {
+          "dimension": "salary",
+          "currency": "CZK",
+          "period": "month",
+          "minimum": 46750,
+          "maximum": 63250,
+          "midpoint": 55000,
+          "confidence": "medium"
+        },
+        "publicWork": null
+      },
+      "neutralIndex": 16,
+      "fitRank": 9,
+      "decoyOf": null
+    },
+    {
+      "memberId": "profile:cand-022",
+      "label": "Petr Navrátil",
+      "membership": "matched",
+      "runState": "done",
+      "analysisSlug": "cohort-cand-022",
+      "roleFamily": "data_ai",
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": 48,
+          "tier": "thin",
+          "label": {
+            "key": "cells.fit",
+            "params": {
+              "score": 48
+            }
+          },
+          "band": {
+            "lo": 39,
+            "hi": 57,
+            "drivers": [
+              {
+                "key": "drivers.manyMissing",
+                "params": {
+                  "n": 5
+                }
+              }
+            ]
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": 17,
+          "tier": "weak",
+          "label": {
+            "key": "cells.skills",
+            "params": {
+              "matched": 1,
+              "total": 6
+            }
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": 92,
+          "tier": "strong",
+          "label": {
+            "key": "cells.experience",
+            "params": {
+              "years": 8,
+              "seniority": "senior"
+            }
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": 63,
+          "tier": "solid",
+          "label": {
+            "key": "cells.signals",
+            "params": {
+              "strengths": 2,
+              "flags": 0
+            }
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": 100,
+          "tier": "strong",
+          "label": {
+            "key": "cells.trustClean"
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": 100,
+          "tier": "strong",
+          "label": {
+            "key": "cells.salaryBand",
+            "params": {
+              "midpoint": 150000,
+              "currency": "CZK",
+              "period": "month"
+            }
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "notRead",
+          "label": {
+            "key": "none"
+          }
+        }
+      },
+      "detail": {
+        "fit": {
+          "dimension": "fit",
+          "jobFitScore": 48,
+          "total": 91,
+          "seniorityAlignment": "Senior level matches the role's senior target.",
+          "roleAlignment": "Adjacent role family (data_ai).",
+          "summary": "Petr Navrátil is a partial fit (48/100) for Senior Java Backend Engineer at Česká spořitelna.",
+          "riskFlags": []
+        },
+        "skills": {
+          "dimension": "skills",
+          "matched": [
+            "Kafka"
+          ],
+          "missing": [
+            "Java",
+            "Spring Boot",
+            "Oracle",
+            "REST",
+            "Microservices architecture"
+          ],
+          "unproven": [],
+          "extra": [
+            "Airflow",
+            "Snowflake",
+            "SQL",
+            "Python",
+            "Spark"
+          ]
+        },
+        "experience": {
+          "dimension": "experience",
+          "years": 8,
+          "seniority": "senior",
+          "roleFamily": "data_ai",
+          "educationLevel": "master",
+          "evidence": [
+            "Senior Machine Learning Engineer — Kentico Software",
+            "Data Scientist — Seznam.cz"
+          ]
+        },
+        "signals": {
+          "dimension": "signals",
+          "strengths": [
+            {
+              "label": "States outcomes with numbers",
+              "detail": "Results are quantified (latency, throughput, cost) rather than listed as duties.",
+              "probe": "Which of those numbers did you measure yourself, and how?",
+              "confidence": 0.6
+            },
+            {
+              "label": "Owns production systems end to end",
+              "detail": "Ran the on-call rota and carried a service rewrite through to measured latency gains.",
+              "probe": "Walk me through the last incident you owned, from the page to the post-mortem.",
+              "confidence": 0.5
+            }
+          ],
+          "antipatterns": []
+        },
+        "trust": {
+          "dimension": "trust",
+          "findings": []
+        },
+        "salary": {
+          "dimension": "salary",
+          "currency": "CZK",
+          "period": "month",
+          "minimum": 127500,
+          "maximum": 172500,
+          "midpoint": 150000,
+          "confidence": "medium"
+        },
+        "publicWork": null
+      },
+      "neutralIndex": 4,
+      "fitRank": 12,
+      "decoyOf": null
+    },
+    {
+      "memberId": "profile:cand-012",
+      "label": "Matěj Pospíšil",
+      "membership": "matched",
+      "runState": "reused",
+      "analysisSlug": "cohort-cand-012",
+      "roleFamily": "software_engineering",
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": 44,
+          "tier": "thin",
+          "label": {
+            "key": "cells.fit",
+            "params": {
+              "score": 44
+            }
+          },
+          "band": {
+            "lo": 30,
+            "hi": 58,
+            "drivers": [
+              {
+                "key": "drivers.manyMissing",
+                "params": {
+                  "n": 6
+                }
+              },
+              {
+                "key": "drivers.keylessEngine"
+              }
+            ]
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": 0,
+          "tier": "weak",
+          "label": {
+            "key": "cells.skills",
+            "params": {
+              "matched": 0,
+              "total": 6
+            }
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": 94,
+          "tier": "strong",
+          "label": {
+            "key": "cells.experience",
+            "params": {
+              "years": 10,
+              "seniority": "senior"
+            }
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": 78,
+          "tier": "strong",
+          "label": {
+            "key": "cells.signals",
+            "params": {
+              "strengths": 3,
+              "flags": 0
+            }
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "notRead",
+          "label": {
+            "key": "none"
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": 100,
+          "tier": "strong",
+          "label": {
+            "key": "cells.salaryBand",
+            "params": {
+              "midpoint": 140000,
+              "currency": "CZK",
+              "period": "month"
+            }
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "notRead",
+          "label": {
+            "key": "none"
+          }
+        }
+      },
+      "detail": {
+        "fit": {
+          "dimension": "fit",
+          "jobFitScore": 44,
+          "total": 92,
+          "seniorityAlignment": "Senior level matches the role's senior target.",
+          "roleAlignment": "Same role family (software_engineering).",
+          "summary": "Matěj Pospíšil is a partial fit (44/100) for Senior Java Backend Engineer at Česká spořitelna.",
+          "riskFlags": []
+        },
+        "skills": {
+          "dimension": "skills",
+          "matched": [],
+          "missing": [
+            "Java",
+            "Spring Boot",
+            "Oracle",
+            "Kafka",
+            "REST",
+            "Microservices architecture"
+          ],
+          "unproven": [],
+          "extra": [
+            "Kubernetes",
+            "Ansible",
+            "Docker",
+            "Linux",
+            "Terraform",
+            "AWS",
+            "GitLab CI"
+          ]
+        },
+        "experience": {
+          "dimension": "experience",
+          "years": 10,
+          "seniority": "senior",
+          "roleFamily": "software_engineering",
+          "educationLevel": "master",
+          "evidence": [
+            "Senior Backend Engineer — Platform Team, Kentico Software",
+            "Software Engineer — Payments, Mews Systems"
+          ]
+        },
+        "signals": {
+          "dimension": "signals",
+          "strengths": [
+            {
+              "label": "Owns production systems end to end",
+              "detail": "Ran the on-call rota and carried a service rewrite through to measured latency gains.",
+              "probe": "Walk me through the last incident you owned, from the page to the post-mortem.",
+              "confidence": 0.9
+            },
+            {
+              "label": "Grows other engineers",
+              "detail": "Mentored two engineers through a promotion cycle and ran the team's code-review guild.",
+              "probe": "Tell me about someone you mentored who outgrew you on a topic.",
+              "confidence": 0.8
+            },
+            {
+              "label": "Regulated-banking delivery",
+              "detail": "Shipped payment and core-banking integrations under audit and change-control rules.",
+              "probe": "How did a regulatory constraint change a design decision you made?",
+              "confidence": 0.6
+            }
+          ],
+          "antipatterns": []
+        },
+        "trust": null,
+        "salary": {
+          "dimension": "salary",
+          "currency": "CZK",
+          "period": "month",
+          "minimum": 119000,
+          "maximum": 161000,
+          "midpoint": 140000,
+          "confidence": "medium"
+        },
+        "publicWork": null
+      },
+      "neutralIndex": 11,
+      "fitRank": 13,
+      "decoyOf": null
+    },
+    {
+      "memberId": "profile:cand-042",
+      "label": "Jan Procházka",
+      "membership": "matched",
+      "runState": "done",
+      "analysisSlug": "cohort-cand-042",
+      "roleFamily": "software_engineering",
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": 52,
+          "tier": "thin",
+          "label": {
+            "key": "cells.fit",
+            "params": {
+              "score": 52
+            }
+          },
+          "band": {
+            "lo": 43,
+            "hi": 61,
+            "drivers": [
+              {
+                "key": "drivers.manyMissing",
+                "params": {
+                  "n": 5
+                }
+              }
+            ]
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": 17,
+          "tier": "weak",
+          "label": {
+            "key": "cells.skills",
+            "params": {
+              "matched": 1,
+              "total": 6
+            }
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": 94,
+          "tier": "strong",
+          "label": {
+            "key": "cells.experience",
+            "params": {
+              "years": 9,
+              "seniority": "senior"
+            }
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": 51,
+          "tier": "thin",
+          "label": {
+            "key": "cells.signals",
+            "params": {
+              "strengths": 1,
+              "flags": 1
+            }
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": 100,
+          "tier": "strong",
+          "label": {
+            "key": "cells.trustClean"
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "currencyMismatch",
+          "label": {
+            "key": "cells.salaryBand",
+            "params": {
+              "midpoint": 6200,
+              "currency": "EUR",
+              "period": "month"
+            }
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "notRead",
+          "label": {
+            "key": "none"
+          }
+        }
+      },
+      "detail": {
+        "fit": {
+          "dimension": "fit",
+          "jobFitScore": 52,
+          "total": 92,
+          "seniorityAlignment": "Senior level matches the role's senior target.",
+          "roleAlignment": "Same role family (software_engineering).",
+          "summary": "Jan Procházka is a partial fit (52/100) for Senior Java Backend Engineer at Česká spořitelna.",
+          "riskFlags": []
+        },
+        "skills": {
+          "dimension": "skills",
+          "matched": [
+            "REST"
+          ],
+          "missing": [
+            "Java",
+            "Spring Boot",
+            "Oracle",
+            "Kafka",
+            "Microservices architecture"
+          ],
+          "unproven": [],
+          "extra": [
+            "Android",
+            "Jetpack Compose",
+            "Kotlin",
+            "Git",
+            "REST APIs",
+            "Coroutines"
+          ]
+        },
+        "experience": {
+          "dimension": "experience",
+          "years": 9,
+          "seniority": "senior",
+          "roleFamily": "software_engineering",
+          "educationLevel": "master",
+          "evidence": [
+            "Senior Backend Engineer, Platform Team — Kentico Software",
+            "Backend Engineer — Y Soft"
+          ]
+        },
+        "signals": {
+          "dimension": "signals",
+          "strengths": [
+            {
+              "label": "Owns production systems end to end",
+              "detail": "Ran the on-call rota and carried a service rewrite through to measured latency gains.",
+              "probe": "Walk me through the last incident you owned, from the page to the post-mortem.",
+              "confidence": 0.6
+            }
+          ],
+          "antipatterns": [
+            {
+              "label": "Short tenures",
+              "detail": "Three employers in four years; each role ended before a full delivery cycle.",
+              "probe": "What did you leave unfinished at your last role, and why did you move?",
+              "confidence": 0.5
+            }
+          ]
+        },
+        "trust": {
+          "dimension": "trust",
+          "findings": []
+        },
+        "salary": {
+          "dimension": "salary",
+          "currency": "EUR",
+          "period": "month",
+          "minimum": 5270,
+          "maximum": 7130,
+          "midpoint": 6200,
+          "confidence": "medium"
+        },
+        "publicWork": null
+      },
+      "neutralIndex": 10,
+      "fitRank": 10,
+      "decoyOf": null
+    },
+    {
+      "memberId": "profile:cand-003",
+      "label": "Martin Novotný",
+      "membership": "matched",
+      "runState": "done",
+      "analysisSlug": "cohort-cand-003",
+      "roleFamily": "software_engineering",
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": 52,
+          "tier": "thin",
+          "label": {
+            "key": "cells.fit",
+            "params": {
+              "score": 52
+            }
+          },
+          "band": {
+            "lo": 40,
+            "hi": 64,
+            "drivers": [
+              {
+                "key": "drivers.manyMissing",
+                "params": {
+                  "n": 5
+                }
+              },
+              {
+                "key": "drivers.trustWarn",
+                "params": {
+                  "n": 1
+                }
+              }
+            ]
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": 17,
+          "tier": "weak",
+          "label": {
+            "key": "cells.skills",
+            "params": {
+              "matched": 1,
+              "total": 6
+            }
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": 94,
+          "tier": "strong",
+          "label": {
+            "key": "cells.experience",
+            "params": {
+              "years": 9,
+              "seniority": "senior"
+            }
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": 70,
+          "tier": "solid",
+          "label": {
+            "key": "cells.signals",
+            "params": {
+              "strengths": 3,
+              "flags": 1
+            }
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": 85,
+          "tier": "strong",
+          "label": {
+            "key": "cells.trustFlags",
+            "params": {
+              "n": 1
+            }
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": 100,
+          "tier": "strong",
+          "label": {
+            "key": "cells.salaryBand",
+            "params": {
+              "midpoint": 135000,
+              "currency": "CZK",
+              "period": "month"
+            }
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "notRead",
+          "label": {
+            "key": "none"
+          }
+        }
+      },
+      "detail": {
+        "fit": {
+          "dimension": "fit",
+          "jobFitScore": 52,
+          "total": 92,
+          "seniorityAlignment": "Senior level matches the role's senior target.",
+          "roleAlignment": "Same role family (software_engineering).",
+          "summary": "Martin Novotný is a partial fit (52/100) for Senior Java Backend Engineer at Česká spořitelna.",
+          "riskFlags": []
+        },
+        "skills": {
+          "dimension": "skills",
+          "matched": [
+            "REST"
+          ],
+          "missing": [
+            "Java",
+            "Spring Boot",
+            "Oracle",
+            "Kafka",
+            "Microservices architecture"
+          ],
+          "unproven": [],
+          "extra": [
+            "RxJS",
+            "React",
+            "Angular",
+            "JavaScript",
+            "REST APIs",
+            "CSS",
+            "TypeScript"
+          ]
+        },
+        "experience": {
+          "dimension": "experience",
+          "years": 9,
+          "seniority": "senior",
+          "roleFamily": "software_engineering",
+          "educationLevel": "master",
+          "evidence": [
+            "Senior Backend Engineer — payments platform, fintech scale-up (Brno)",
+            "Backend Engineer — search & recommendations, Czech tech company (Prague)"
+          ]
+        },
+        "signals": {
+          "dimension": "signals",
+          "strengths": [
+            {
+              "label": "States outcomes with numbers",
+              "detail": "Results are quantified (latency, throughput, cost) rather than listed as duties.",
+              "probe": "Which of those numbers did you measure yourself, and how?",
+              "confidence": 0.8
+            },
+            {
+              "label": "Grows other engineers",
+              "detail": "Mentored two engineers through a promotion cycle and ran the team's code-review guild.",
+              "probe": "Tell me about someone you mentored who outgrew you on a topic.",
+              "confidence": 0.8
+            },
+            {
+              "label": "Owns production systems end to end",
+              "detail": "Ran the on-call rota and carried a service rewrite through to measured latency gains.",
+              "probe": "Walk me through the last incident you owned, from the page to the post-mortem.",
+              "confidence": 0.5
+            }
+          ],
+          "antipatterns": [
+            {
+              "label": "Skills listed without evidence",
+              "detail": "Several listed technologies appear in no project or role description.",
+              "probe": "Pick two listed skills and describe where you used them last.",
+              "confidence": 0.4
+            }
+          ]
+        },
+        "trust": {
+          "dimension": "trust",
+          "findings": [
+            {
+              "code": "skills_unevidenced",
+              "severity": "warn",
+              "scope": "skills",
+              "text": "Four listed skills appear in no role description."
+            }
+          ]
+        },
+        "salary": {
+          "dimension": "salary",
+          "currency": "CZK",
+          "period": "month",
+          "minimum": 114750,
+          "maximum": 155250,
+          "midpoint": 135000,
+          "confidence": "medium"
+        },
+        "publicWork": null
+      },
+      "neutralIndex": 1,
+      "fitRank": 10,
+      "decoyOf": null
+    },
+    {
+      "memberId": "profile:cand-048",
+      "label": "Vít Dvořák",
+      "membership": "matched",
+      "runState": "reused",
+      "analysisSlug": "cohort-cand-048",
+      "roleFamily": "product_project",
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": 34,
+          "tier": "weak",
+          "label": {
+            "key": "cells.fit",
+            "params": {
+              "score": 34
+            }
+          },
+          "band": {
+            "lo": 21,
+            "hi": 47,
+            "drivers": [
+              {
+                "key": "drivers.fewSkills",
+                "params": {
+                  "n": 2
+                }
+              },
+              {
+                "key": "drivers.manyMissing",
+                "params": {
+                  "n": 6
+                }
+              }
+            ]
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": 0,
+          "tier": "weak",
+          "label": {
+            "key": "cells.skills",
+            "params": {
+              "matched": 0,
+              "total": 6
+            }
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": 94,
+          "tier": "strong",
+          "label": {
+            "key": "cells.experience",
+            "params": {
+              "years": 9,
+              "seniority": "senior"
+            }
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": 55,
+          "tier": "solid",
+          "label": {
+            "key": "cells.signals",
+            "params": {
+              "strengths": 1,
+              "flags": 0
+            }
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": 100,
+          "tier": "strong",
+          "label": {
+            "key": "cells.trustClean"
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": 100,
+          "tier": "strong",
+          "label": {
+            "key": "cells.salaryBand",
+            "params": {
+              "midpoint": 125000,
+              "currency": "CZK",
+              "period": "month"
+            }
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "notTechnical",
+          "label": {
+            "key": "none"
+          }
+        }
+      },
+      "detail": {
+        "fit": {
+          "dimension": "fit",
+          "jobFitScore": 34,
+          "total": 92,
+          "seniorityAlignment": "Senior level matches the role's senior target.",
+          "roleAlignment": "Different role family (product_project).",
+          "summary": "Vít Dvořák is a weak fit (34/100) for Senior Java Backend Engineer at Česká spořitelna.",
+          "riskFlags": []
+        },
+        "skills": {
+          "dimension": "skills",
+          "matched": [],
+          "missing": [
+            "Java",
+            "Spring Boot",
+            "Oracle",
+            "Kafka",
+            "REST",
+            "Microservices architecture"
+          ],
+          "unproven": [],
+          "extra": [
+            "Scrum",
+            "Jira"
+          ]
+        },
+        "experience": {
+          "dimension": "experience",
+          "years": 9,
+          "seniority": "senior",
+          "roleFamily": "product_project",
+          "educationLevel": "master",
+          "evidence": [
+            "Senior Product Manager, Kentico Software",
+            "Product Owner, Y Soft"
+          ]
+        },
+        "signals": {
+          "dimension": "signals",
+          "strengths": [
+            {
+              "label": "Regulated-banking delivery",
+              "detail": "Shipped payment and core-banking integrations under audit and change-control rules.",
+              "probe": "How did a regulatory constraint change a design decision you made?",
+              "confidence": 0.4
+            }
+          ],
+          "antipatterns": []
+        },
+        "trust": {
+          "dimension": "trust",
+          "findings": []
+        },
+        "salary": {
+          "dimension": "salary",
+          "currency": "CZK",
+          "period": "month",
+          "minimum": 106250,
+          "maximum": 143750,
+          "midpoint": 125000,
+          "confidence": "medium"
+        },
+        "publicWork": null
+      },
+      "neutralIndex": 0,
+      "fitRank": 16,
+      "decoyOf": null
+    },
+    {
+      "memberId": "profile:cand-037",
+      "label": "Štěpán Procházka",
+      "membership": "matched",
+      "runState": "failed",
+      "analysisSlug": null,
+      "roleFamily": null,
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "failed",
+          "label": {
+            "key": "none"
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "failed",
+          "label": {
+            "key": "none"
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "failed",
+          "label": {
+            "key": "none"
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "failed",
+          "label": {
+            "key": "none"
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "failed",
+          "label": {
+            "key": "none"
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "failed",
+          "label": {
+            "key": "none"
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "failed",
+          "label": {
+            "key": "none"
+          }
+        }
+      },
+      "detail": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
+      "neutralIndex": 9,
+      "fitRank": null,
+      "decoyOf": null
+    },
+    {
+      "memberId": "analysis-cand-005",
+      "label": "Aneta Kovářová",
+      "membership": "added",
+      "runState": "done",
+      "analysisSlug": "cohort-cand-005",
+      "roleFamily": "software_engineering",
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": 44,
+          "tier": "thin",
+          "label": {
+            "key": "cells.fit",
+            "params": {
+              "score": 44
+            }
+          },
+          "band": {
+            "lo": 35,
+            "hi": 53,
+            "drivers": [
+              {
+                "key": "drivers.manyMissing",
+                "params": {
+                  "n": 6
+                }
+              }
+            ]
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": 0,
+          "tier": "weak",
+          "label": {
+            "key": "cells.skills",
+            "params": {
+              "matched": 0,
+              "total": 6
+            }
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": 94,
+          "tier": "strong",
+          "label": {
+            "key": "cells.experience",
+            "params": {
+              "years": 9,
+              "seniority": "senior"
+            }
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "notRead",
+          "label": {
+            "key": "none"
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": 100,
+          "tier": "strong",
+          "label": {
+            "key": "cells.trustClean"
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": 100,
+          "tier": "strong",
+          "label": {
+            "key": "cells.salaryBand",
+            "params": {
+              "midpoint": 160000,
+              "currency": "CZK",
+              "period": "month"
+            }
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "notRead",
+          "label": {
+            "key": "none"
+          }
+        }
+      },
+      "detail": {
+        "fit": {
+          "dimension": "fit",
+          "jobFitScore": 44,
+          "total": 92,
+          "seniorityAlignment": "Senior level matches the role's senior target.",
+          "roleAlignment": "Same role family (software_engineering).",
+          "summary": "Aneta Kovářová is a partial fit (44/100) for Senior Java Backend Engineer at Česká spořitelna.",
+          "riskFlags": []
+        },
+        "skills": {
+          "dimension": "skills",
+          "matched": [],
+          "missing": [
+            "Java",
+            "Spring Boot",
+            "Oracle",
+            "Kafka",
+            "REST",
+            "Microservices architecture"
+          ],
+          "unproven": [],
+          "extra": [
+            "Observability",
+            "Go",
+            "Linux",
+            "Docker",
+            "Grafana",
+            "Prometheus",
+            "Kubernetes"
+          ]
+        },
+        "experience": {
+          "dimension": "experience",
+          "years": 9,
+          "seniority": "senior",
+          "roleFamily": "software_engineering",
+          "educationLevel": "master",
+          "evidence": [
+            "Senior Backend Engineer — Payments Platform, Skytale Systems s.r.o.",
+            "Backend Engineer — Logistics Optimization, Vltava Mobility a.s."
+          ]
+        },
+        "signals": null,
+        "trust": {
+          "dimension": "trust",
+          "findings": []
+        },
+        "salary": {
+          "dimension": "salary",
+          "currency": "CZK",
+          "period": "month",
+          "minimum": 136000,
+          "maximum": 184000,
+          "midpoint": 160000,
+          "confidence": "medium"
+        },
+        "publicWork": null
+      },
+      "neutralIndex": 14,
+      "fitRank": 13,
+      "decoyOf": null
+    },
+    {
+      "memberId": "analysis-cand-033",
+      "label": "Zuzana Čermáková",
+      "membership": "added",
+      "runState": "reused",
+      "analysisSlug": "cohort-cand-033",
+      "roleFamily": "product_project",
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": 21,
+          "tier": "weak",
+          "label": {
+            "key": "cells.fit",
+            "params": {
+              "score": 21
+            }
+          },
+          "band": {
+            "lo": 7,
+            "hi": 35,
+            "drivers": [
+              {
+                "key": "drivers.manyMissing",
+                "params": {
+                  "n": 6
+                }
+              },
+              {
+                "key": "drivers.keylessEngine"
+              }
+            ]
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": 0,
+          "tier": "weak",
+          "label": {
+            "key": "cells.skills",
+            "params": {
+              "matched": 0,
+              "total": 6
+            }
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": 69,
+          "tier": "solid",
+          "label": {
+            "key": "cells.experience",
+            "params": {
+              "years": 8,
+              "seniority": "junior"
+            }
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": 81,
+          "tier": "strong",
+          "label": {
+            "key": "cells.signals",
+            "params": {
+              "strengths": 4,
+              "flags": 0
+            }
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "notRead",
+          "label": {
+            "key": "none"
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": 48,
+          "tier": "thin",
+          "label": {
+            "key": "cells.salaryBand",
+            "params": {
+              "midpoint": 72000,
+              "currency": "CZK",
+              "period": "month"
+            }
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "notTechnical",
+          "label": {
+            "key": "none"
+          }
+        }
+      },
+      "detail": {
+        "fit": {
+          "dimension": "fit",
+          "jobFitScore": 21,
+          "total": 80,
+          "seniorityAlignment": "Two levels below the role's senior target.",
+          "roleAlignment": "Different role family (product_project).",
+          "summary": "Zuzana Čermáková is a weak fit (21/100) for Senior Java Backend Engineer at Česká spořitelna.",
+          "riskFlags": []
+        },
+        "skills": {
+          "dimension": "skills",
+          "matched": [],
+          "missing": [
+            "Java",
+            "Spring Boot",
+            "Oracle",
+            "Kafka",
+            "REST",
+            "Microservices architecture"
+          ],
+          "unproven": [],
+          "extra": [
+            "BPMN",
+            "SQL",
+            "stakeholder management",
+            "requirements analysis",
+            "process mapping",
+            "Jira",
+            "leadership",
+            "delivery",
+            "prioritization",
+            "communication",
+            "problem solving",
+            "customer focus",
+            "teamwork",
+            "ownership"
+          ]
+        },
+        "experience": {
+          "dimension": "experience",
+          "years": 8,
+          "seniority": "junior",
+          "roleFamily": "product_project",
+          "educationLevel": "master",
+          "evidence": [
+            "Lead Pharmacist, BENU Lékárna (Brno)",
+            "Clinical Pharmacist, Fakultní nemocnice Brno",
+            "Capstone: 'LekarnaGo' medication-reminder app concept",
+            "Professional Scrum Master I (Scrum.org)"
+          ]
+        },
+        "signals": {
+          "dimension": "signals",
+          "strengths": [
+            {
+              "label": "States outcomes with numbers",
+              "detail": "Results are quantified (latency, throughput, cost) rather than listed as duties.",
+              "probe": "Which of those numbers did you measure yourself, and how?",
+              "confidence": 0.8
+            },
+            {
+              "label": "Grows other engineers",
+              "detail": "Mentored two engineers through a promotion cycle and ran the team's code-review guild.",
+              "probe": "Tell me about someone you mentored who outgrew you on a topic.",
+              "confidence": 0.7
+            },
+            {
+              "label": "Regulated-banking delivery",
+              "detail": "Shipped payment and core-banking integrations under audit and change-control rules.",
+              "probe": "How did a regulatory constraint change a design decision you made?",
+              "confidence": 0.6
+            },
+            {
+              "label": "Picks up a stack quickly",
+              "detail": "Moved from coursework to a production Spring service within one internship.",
+              "probe": "What did you have to unlearn when you moved to production code?",
+              "confidence": 0.5
+            }
+          ],
+          "antipatterns": []
+        },
+        "trust": null,
+        "salary": {
+          "dimension": "salary",
+          "currency": "CZK",
+          "period": "month",
+          "minimum": 61200,
+          "maximum": 82800,
+          "midpoint": 72000,
+          "confidence": "medium"
+        },
+        "publicWork": null
+      },
+      "neutralIndex": 13,
+      "fitRank": 18,
+      "decoyOf": null
+    }
+  ],
+  "claims": {
+    "overall": {
+      "leader": null,
+      "separation": "insideNoise",
+      "robustness": "stable"
+    },
+    "byDimension": {
+      "fit": {
+        "dimension": "fit",
+        "leader": null,
+        "separation": "insideNoise",
+        "rated": 18,
+        "note": "The top two are close on fit; the band, not the order, is the finding."
+      },
+      "skills": {
+        "dimension": "skills",
+        "leader": null,
+        "separation": "insideNoise",
+        "rated": 18
+      },
+      "experience": {
+        "dimension": "experience",
+        "leader": null,
+        "separation": "insideNoise",
+        "rated": 18
+      },
+      "signals": {
+        "dimension": "signals",
+        "leader": null,
+        "separation": "insideNoise",
+        "rated": 17
+      },
+      "trust": {
+        "dimension": "trust",
+        "leader": null,
+        "separation": "insideNoise",
+        "rated": 16
+      },
+      "salary": {
+        "dimension": "salary",
+        "leader": null,
+        "separation": "insideNoise",
+        "rated": 16,
+        "partitions": [
+          {
+            "key": "CZK/month",
+            "memberIds": [
+              "analysis-cand-000",
+              "analysis-cand-040",
+              "analysis-cand-007",
+              "analysis-cand-047",
+              "analysis-cand-016",
+              "analysis-cand-013",
+              "profile:cand-039",
+              "profile:cand-032",
+              "profile:cand-024",
+              "profile:cand-015",
+              "profile:cand-022",
+              "profile:cand-012",
+              "profile:cand-003",
+              "profile:cand-048",
+              "analysis-cand-005",
+              "analysis-cand-033"
+            ]
+          },
+          {
+            "key": "EUR/month",
+            "memberIds": [
+              "analysis-cand-030",
+              "profile:cand-042"
+            ]
+          }
+        ],
+        "note": "Two expectations are in EUR and are shown on their own records, not compared."
+      },
+      "publicWork": {
+        "dimension": "publicWork",
+        "leader": "analysis-cand-000",
+        "separation": "clears",
+        "rated": 3
+      }
+    }
+  },
+  "narrative": {
+    "covers": [
+      "analysis-cand-000",
+      "analysis-cand-040",
+      "analysis-cand-007",
+      "profile:cand-039",
+      "analysis-cand-016",
+      "analysis-cand-047"
+    ],
+    "leavesOut": 14,
+    "text": "Klára Blažková and David Kříž both cover every must-have for the backend role, and their fit bands overlap, so the order between them is not a finding. Klára's public Kafka and Spring work corroborates her CV; David's overlapping roles need a date check before the interview. Klára Kovářová and Vít Malý match the Java and Kafka core but each has one skill that is claimed rather than shown (Oracle, microservices). Adam Malý covers every must-have at junior level; his experience, not his skills, is the gap. Jan Mareš matches Vít Malý's skills but trails him on every compared dimension. Fourteen members are not discussed here; their cells stand on their own.",
+    "engine": "model"
+  },
+  "progress": {
+    "total": 20,
+    "done": 18,
+    "reused": 3,
+    "failed": 2
+  }
+}

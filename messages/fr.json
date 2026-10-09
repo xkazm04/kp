@@ -16870,6 +16870,40 @@
       "lineup": "Alignement",
       "loom": "Métier à tisser",
       "console": "Console de mixage"
+    },
+    "labels": {
+      "none": "Non évalué",
+      "cells": {
+        "fit": "Adéquation {score}/100",
+        "skills": "{matched}/{total} requises",
+        "skillsUnproven": "{matched}/{total} requises · {unproven, plural, one {# non prouvée} other {# non prouvées}}",
+        "experience": "{years, plural, one {# an} other {# ans}} · {seniority, select, junior {junior} medior {confirmé} senior {senior} lead {lead} other {niveau inconnu}}",
+        "signals": "{strengths, plural, one {# point fort} other {# points forts}} · {flags, plural, one {# signal d’alerte} other {# signaux d’alerte}}",
+        "trustClean": "Aucun signalement",
+        "trustFlags": "{n, plural, one {# signalement} other {# signalements}}",
+        "salaryBand": "{midpoint, number} {currency}/{period, select, month {mois} year {an} hour {h} day {jour} other {{period}}}",
+        "salaryCohort": "{midpoint, number} {currency}/{period, select, month {mois} year {an} hour {h} day {jour} other {{period}}} · comparé au groupe",
+        "publicWork": "{repos, plural, one {# dépôt} other {# dépôts}} · {language}",
+        "publicWorkNoLanguage": "{repos, plural, one {# dépôt} other {# dépôts}}"
+      },
+      "drivers": {
+        "fewSkills": "{n, plural, =0 {Aucune compétence indiquée} one {Seulement # compétence indiquée} other {Seulement # compétences indiquées}}",
+        "educationUnknown": "Formation inconnue",
+        "manyMissing": "{n, plural, one {# compétence requise manquante} other {# compétences requises manquantes}}",
+        "trustWarn": "{n, plural, one {# alerte de fiabilité} other {# alertes de fiabilité}}",
+        "trustBlocker": "Problème de fiabilité bloquant",
+        "keylessEngine": "Évalué sans modèle de langage"
+      }
+    },
+    "absent": {
+      "pending": "Analyse en cours…",
+      "notRead": "Non lu",
+      "notTechnical": "Poste non technique",
+      "noLink": "Pas de GitHub dans le CV",
+      "currencyMismatch": "Autre devise",
+      "noJdFit": "Pas d’adéquation au poste",
+      "failed": "Échec de l’analyse",
+      "blind": "Masqué (anonyme)"
     }
   }
 }

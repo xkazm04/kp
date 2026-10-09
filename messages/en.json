@@ -16870,6 +16870,40 @@
       "lineup": "Line-up",
       "loom": "Loom",
       "console": "Console"
+    },
+    "labels": {
+      "none": "No rating",
+      "cells": {
+        "fit": "{score}/100 fit",
+        "skills": "{matched}/{total} required",
+        "skillsUnproven": "{matched}/{total} required · {unproven} unproven",
+        "experience": "{years, plural, one {# yr} other {# yrs}} · {seniority, select, junior {junior} medior {mid-level} senior {senior} lead {lead} other {level unknown}}",
+        "signals": "{strengths, plural, one {# strength} other {# strengths}} · {flags, plural, one {# flag} other {# flags}}",
+        "trustClean": "Clean",
+        "trustFlags": "{n, plural, one {# flag} other {# flags}}",
+        "salaryBand": "{midpoint, number} {currency}/{period, select, month {mo} year {yr} hour {hr} day {day} other {{period}}}",
+        "salaryCohort": "{midpoint, number} {currency}/{period, select, month {mo} year {yr} hour {hr} day {day} other {{period}}} · vs cohort",
+        "publicWork": "{repos, plural, one {# repo} other {# repos}} · {language}",
+        "publicWorkNoLanguage": "{repos, plural, one {# repo} other {# repos}}"
+      },
+      "drivers": {
+        "fewSkills": "{n, plural, =0 {No skills listed} one {Only # skill listed} other {Only # skills listed}}",
+        "educationUnknown": "Education unknown",
+        "manyMissing": "{n, plural, one {# required skill missing} other {# required skills missing}}",
+        "trustWarn": "{n, plural, one {# trust warning} other {# trust warnings}}",
+        "trustBlocker": "Trust blocker",
+        "keylessEngine": "Scored without a language model"
+      }
+    },
+    "absent": {
+      "pending": "Analyzing…",
+      "notRead": "Not read",
+      "notTechnical": "Not a technical role",
+      "noLink": "No GitHub in CV",
+      "currencyMismatch": "Other currency",
+      "noJdFit": "No job fit",
+      "failed": "Analysis failed",
+      "blind": "Hidden (blind)"
     }
   }
 }

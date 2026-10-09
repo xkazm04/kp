@@ -1,0 +1,2595 @@
+{
+  "cohortId": "cohort-fixture-20",
+  "jdSlug": "senior-java-backend-engineer",
+  "jdTitle": "Senior Java Backend Engineer",
+  "orgName": "Česká spořitelna",
+  "blind": false,
+  "reportLang": "en",
+  "createdAt": "2026-10-08T09:12:00.000Z",
+  "status": "running",
+  "finishedAt": null,
+  "members": [
+    {
+      "memberId": "analysis-cand-000",
+      "label": "Klára Blažková",
+      "membership": "applicant",
+      "runState": "done",
+      "analysisSlug": "cohort-cand-000",
+      "roleFamily": "software_engineering",
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": 96,
+          "tier": "strong",
+          "label": {
+            "key": "cells.fit",
+            "params": {
+              "score": 96
+            }
+          },
+          "band": {
+            "lo": 88,
+            "hi": 100,
+            "drivers": [
+              {
+                "key": "drivers.trustWarn",
+                "params": {
+                  "n": 1
+                }
+              }
+            ]
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": 100,
+          "tier": "strong",
+          "label": {
+            "key": "cells.skills",
+            "params": {
+              "matched": 6,
+              "total": 6
+            }
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": 94,
+          "tier": "strong",
+          "label": {
+            "key": "cells.experience",
+            "params": {
+              "years": 9,
+              "seniority": "senior"
+            }
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": 66,
+          "tier": "solid",
+          "label": {
+            "key": "cells.signals",
+            "params": {
+              "strengths": 2,
+              "flags": 0
+            }
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": 85,
+          "tier": "strong",
+          "label": {
+            "key": "cells.trustFlags",
+            "params": {
+              "n": 1
+            }
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": 100,
+          "tier": "strong",
+          "label": {
+            "key": "cells.salaryBand",
+            "params": {
+              "midpoint": 155000,
+              "currency": "CZK",
+              "period": "month"
+            }
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": 85,
+          "tier": "strong",
+          "label": {
+            "key": "cells.publicWork",
+            "params": {
+              "repos": 34,
+              "language": "Java"
+            }
+          }
+        }
+      },
+      "detail": {
+        "fit": {
+          "dimension": "fit",
+          "jobFitScore": 96,
+          "total": 92,
+          "seniorityAlignment": "Senior level matches the role's senior target.",
+          "roleAlignment": "Same role family (software_engineering).",
+          "summary": "Klára Blažková is a strong fit (96/100) for Senior Java Backend Engineer at Česká spořitelna.",
+          "riskFlags": []
+        },
+        "skills": {
+          "dimension": "skills",
+          "matched": [
+            "Java",
+            "Spring Boot",
+            "Oracle",
+            "Kafka",
+            "REST",
+            "Microservices architecture"
+          ],
+          "missing": [],
+          "unproven": [],
+          "extra": [
+            "Microservices",
+            "REST APIs",
+            "Docker"
+          ]
+        },
+        "experience": {
+          "dimension": "experience",
+          "years": 9,
+          "seniority": "senior",
+          "roleFamily": "software_engineering",
+          "educationLevel": "master",
+          "evidence": [
+            "Senior Backend Engineer, Kentico Software",
+            "Backend Engineer, Seznam.cz"
+          ]
+        },
+        "signals": {
+          "dimension": "signals",
+          "strengths": [
+            {
+              "label": "Owns production systems end to end",
+              "detail": "Ran the on-call rota and carried a service rewrite through to measured latency gains.",
+              "probe": "Walk me through the last incident you owned, from the page to the post-mortem.",
+              "confidence": 0.7
+            },
+            {
+              "label": "States outcomes with numbers",
+              "detail": "Results are quantified (latency, throughput, cost) rather than listed as duties.",
+              "probe": "Which of those numbers did you measure yourself, and how?",
+              "confidence": 0.6
+            }
+          ],
+          "antipatterns": []
+        },
+        "trust": {
+          "dimension": "trust",
+          "findings": [
+            {
+              "code": "title_unverified",
+              "severity": "warn",
+              "scope": "input",
+              "text": "The tech-lead title appears in the summary but in no listed role."
+            }
+          ]
+        },
+        "salary": {
+          "dimension": "salary",
+          "currency": "CZK",
+          "period": "month",
+          "minimum": 131750,
+          "maximum": 178250,
+          "midpoint": 155000,
+          "confidence": "medium"
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "username": "klara-blazkova",
+          "profileUrl": "https://github.com/klara-blazkova",
+          "publicRepos": 34,
+          "totalStars": 412,
+          "activeRepos": 9,
+          "languages": [
+            {
+              "name": "Java",
+              "percent": 61
+            },
+            {
+              "name": "Kotlin",
+              "percent": 14
+            },
+            {
+              "name": "Go",
+              "percent": 12
+            },
+            {
+              "name": "Shell",
+              "percent": 8
+            },
+            {
+              "name": "Dockerfile",
+              "percent": 5
+            }
+          ],
+          "topRepos": [
+            {
+              "name": "kafka-outbox-relay",
+              "url": "https://github.com/klara-blazkova/kafka-outbox-relay",
+              "language": "Java",
+              "stars": 287
+            },
+            {
+              "name": "spring-idempotency-starter",
+              "url": "https://github.com/klara-blazkova/spring-idempotency-starter",
+              "language": "Java",
+              "stars": 96
+            },
+            {
+              "name": "latency-budget",
+              "url": "https://github.com/klara-blazkova/latency-budget",
+              "language": "Go",
+              "stars": 21
+            }
+          ],
+          "matchedSkills": [
+            "Java",
+            "Spring Boot",
+            "Kafka",
+            "REST"
+          ],
+          "potentialGaps": [
+            "Oracle"
+          ]
+        }
+      },
+      "neutralIndex": 2,
+      "fitRank": 1,
+      "decoyOf": null
+    },
+    {
+      "memberId": "analysis-cand-040",
+      "label": "David Kříž",
+      "membership": "applicant",
+      "runState": "done",
+      "analysisSlug": "cohort-cand-040",
+      "roleFamily": "software_engineering",
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": 93,
+          "tier": "strong",
+          "label": {
+            "key": "cells.fit",
+            "params": {
+              "score": 93
+            }
+          },
+          "band": {
+            "lo": 85,
+            "hi": 100,
+            "drivers": [
+              {
+                "key": "drivers.trustWarn",
+                "params": {
+                  "n": 1
+                }
+              }
+            ]
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": 100,
+          "tier": "strong",
+          "label": {
+            "key": "cells.skills",
+            "params": {
+              "matched": 6,
+              "total": 6
+            }
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": 96,
+          "tier": "strong",
+          "label": {
+            "key": "cells.experience",
+            "params": {
+              "years": 11,
+              "seniority": "senior"
+            }
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": 60,
+          "tier": "solid",
+          "label": {
+            "key": "cells.signals",
+            "params": {
+              "strengths": 2,
+              "flags": 1
+            }
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": 85,
+          "tier": "strong",
+          "label": {
+            "key": "cells.trustFlags",
+            "params": {
+              "n": 1
+            }
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": 93,
+          "tier": "strong",
+          "label": {
+            "key": "cells.salaryBand",
+            "params": {
+              "midpoint": 168000,
+              "currency": "CZK",
+              "period": "month"
+            }
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": 55,
+          "tier": "solid",
+          "label": {
+            "key": "cells.publicWork",
+            "params": {
+              "repos": 18,
+              "language": "Java"
+            }
+          }
+        }
+      },
+      "detail": {
+        "fit": {
+          "dimension": "fit",
+          "jobFitScore": 93,
+          "total": 93,
+          "seniorityAlignment": "Senior level matches the role's senior target.",
+          "roleAlignment": "Same role family (software_engineering).",
+          "summary": "David Kříž is a strong fit (93/100) for Senior Java Backend Engineer at Česká spořitelna.",
+          "riskFlags": []
+        },
+        "skills": {
+          "dimension": "skills",
+          "matched": [
+            "Java",
+            "Spring Boot",
+            "Oracle",
+            "Kafka",
+            "REST",
+            "Microservices architecture"
+          ],
+          "missing": [],
+          "unproven": [],
+          "extra": [
+            "REST APIs",
+            "PostgreSQL",
+            "Docker",
+            "Microservices"
+          ]
+        },
+        "experience": {
+          "dimension": "experience",
+          "years": 11,
+          "seniority": "senior",
+          "roleFamily": "software_engineering",
+          "educationLevel": "master",
+          "evidence": [
+            "Senior Backend Engineer, Kentico Software",
+            "Backend Engineer, Y Soft"
+          ]
+        },
+        "signals": {
+          "dimension": "signals",
+          "strengths": [
+            {
+              "label": "Regulated-banking delivery",
+              "detail": "Shipped payment and core-banking integrations under audit and change-control rules.",
+              "probe": "How did a regulatory constraint change a design decision you made?",
+              "confidence": 0.7
+            },
+            {
+              "label": "Owns production systems end to end",
+              "detail": "Ran the on-call rota and carried a service rewrite through to measured latency gains.",
+              "probe": "Walk me through the last incident you owned, from the page to the post-mortem.",
+              "confidence": 0.5
+            }
+          ],
+          "antipatterns": [
+            {
+              "label": "Short tenures",
+              "detail": "Three employers in four years; each role ended before a full delivery cycle.",
+              "probe": "What did you leave unfinished at your last role, and why did you move?",
+              "confidence": 0.4
+            }
+          ]
+        },
+        "trust": {
+          "dimension": "trust",
+          "findings": [
+            {
+              "code": "employment_overlap",
+              "severity": "warn",
+              "scope": "identity",
+              "text": "Two full-time roles overlap for 9 months (2021–2022)."
+            }
+          ]
+        },
+        "salary": {
+          "dimension": "salary",
+          "currency": "CZK",
+          "period": "month",
+          "minimum": 142800,
+          "maximum": 193200,
+          "midpoint": 168000,
+          "confidence": "medium"
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "username": "david-kriz",
+          "profileUrl": "https://github.com/david-kriz",
+          "publicRepos": 18,
+          "totalStars": 37,
+          "activeRepos": 5,
+          "languages": [
+            {
+              "name": "Java",
+              "percent": 72
+            },
+            {
+              "name": "SQL",
+              "percent": 15
+            },
+            {
+              "name": "Python",
+              "percent": 13
+            }
+          ],
+          "topRepos": [
+            {
+              "name": "oracle-flyway-demo",
+              "url": "https://github.com/david-kriz/oracle-flyway-demo",
+              "language": "Java",
+              "stars": 22
+            },
+            {
+              "name": "spring-batch-recipes",
+              "url": "https://github.com/david-kriz/spring-batch-recipes",
+              "language": "Java",
+              "stars": 11
+            },
+            {
+              "name": "kata",
+              "url": "https://github.com/david-kriz/kata",
+              "language": "Python",
+              "stars": 4
+            }
+          ],
+          "matchedSkills": [
+            "Java",
+            "Spring Boot",
+            "Oracle"
+          ],
+          "potentialGaps": [
+            "Kafka",
+            "REST"
+          ]
+        }
+      },
+      "neutralIndex": 18,
+      "fitRank": 2,
+      "decoyOf": null
+    },
+    {
+      "memberId": "analysis-cand-007",
+      "label": "Vít Malý",
+      "membership": "applicant",
+      "runState": "done",
+      "analysisSlug": "cohort-cand-007",
+      "roleFamily": "software_engineering",
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": 82,
+          "tier": "strong",
+          "label": {
+            "key": "cells.fit",
+            "params": {
+              "score": 82
+            }
+          },
+          "band": {
+            "lo": 77,
+            "hi": 87,
+            "drivers": []
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": 75,
+          "tier": "strong",
+          "label": {
+            "key": "cells.skillsUnproven",
+            "params": {
+              "matched": 4,
+              "total": 6,
+              "unproven": 1
+            }
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": 94,
+          "tier": "strong",
+          "label": {
+            "key": "cells.experience",
+            "params": {
+              "years": 9,
+              "seniority": "senior"
+            }
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": 62,
+          "tier": "solid",
+          "label": {
+            "key": "cells.signals",
+            "params": {
+              "strengths": 2,
+              "flags": 1
+            }
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": 100,
+          "tier": "strong",
+          "label": {
+            "key": "cells.trustClean"
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": 100,
+          "tier": "strong",
+          "label": {
+            "key": "cells.salaryBand",
+            "params": {
+              "midpoint": 145000,
+              "currency": "CZK",
+              "period": "month"
+            }
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": 22,
+          "tier": "weak",
+          "label": {
+            "key": "cells.publicWork",
+            "params": {
+              "repos": 9,
+              "language": "Java"
+            }
+          }
+        }
+      },
+      "detail": {
+        "fit": {
+          "dimension": "fit",
+          "jobFitScore": 82,
+          "total": 92,
+          "seniorityAlignment": "Senior level matches the role's senior target.",
+          "roleAlignment": "Same role family (software_engineering).",
+          "summary": "Vít Malý is a strong fit (82/100) for Senior Java Backend Engineer at Česká spořitelna.",
+          "riskFlags": []
+        },
+        "skills": {
+          "dimension": "skills",
+          "matched": [
+            "Java",
+            "Spring Boot",
+            "Kafka",
+            "REST"
+          ],
+          "missing": [
+            "Oracle"
+          ],
+          "unproven": [
+            "Microservices architecture"
+          ],
+          "extra": [
+            "REST APIs",
+            "ISO 20022",
+            "SQL"
+          ]
+        },
+        "experience": {
+          "dimension": "experience",
+          "years": 9,
+          "seniority": "senior",
+          "roleFamily": "software_engineering",
+          "educationLevel": "master",
+          "evidence": [
+            "Senior Backend Engineer — Skelet Logistics s.r.o.",
+            "Backend Engineer — Modravá Apps a.s."
+          ]
+        },
+        "signals": {
+          "dimension": "signals",
+          "strengths": [
+            {
+              "label": "Regulated-banking delivery",
+              "detail": "Shipped payment and core-banking integrations under audit and change-control rules.",
+              "probe": "How did a regulatory constraint change a design decision you made?",
+              "confidence": 0.8
+            },
+            {
+              "label": "States outcomes with numbers",
+              "detail": "Results are quantified (latency, throughput, cost) rather than listed as duties.",
+              "probe": "Which of those numbers did you measure yourself, and how?",
+              "confidence": 0.5
+            }
+          ],
+          "antipatterns": [
+            {
+              "label": "Team results written as personal ones",
+              "detail": "Outcomes are stated for the team; the candidate's own share is not separated out.",
+              "probe": "Which part of that migration would not have happened without you?",
+              "confidence": 0.3
+            }
+          ]
+        },
+        "trust": {
+          "dimension": "trust",
+          "findings": []
+        },
+        "salary": {
+          "dimension": "salary",
+          "currency": "CZK",
+          "period": "month",
+          "minimum": 123250,
+          "maximum": 166750,
+          "midpoint": 145000,
+          "confidence": "medium"
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "username": "vit-maly",
+          "profileUrl": "https://github.com/vit-maly",
+          "publicRepos": 9,
+          "totalStars": 3,
+          "activeRepos": 2,
+          "languages": [
+            {
+              "name": "Java",
+              "percent": 80
+            },
+            {
+              "name": "Shell",
+              "percent": 20
+            }
+          ],
+          "topRepos": [
+            {
+              "name": "iso20022-parser",
+              "url": "https://github.com/vit-maly/iso20022-parser",
+              "language": "Java",
+              "stars": 3
+            },
+            {
+              "name": "dotfiles",
+              "url": "https://github.com/vit-maly/dotfiles",
+              "language": "Shell",
+              "stars": 0
+            }
+          ],
+          "matchedSkills": [
+            "Java"
+          ],
+          "potentialGaps": [
+            "Kafka",
+            "Spring Boot",
+            "Oracle"
+          ]
+        }
+      },
+      "neutralIndex": 15,
+      "fitRank": 3,
+      "decoyOf": null
+    },
+    {
+      "memberId": "analysis-cand-047",
+      "label": "Jan Mareš",
+      "membership": "applicant",
+      "runState": "done",
+      "analysisSlug": "cohort-cand-047",
+      "roleFamily": "software_engineering",
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": 74,
+          "tier": "solid",
+          "label": {
+            "key": "cells.fit",
+            "params": {
+              "score": 74
+            }
+          },
+          "band": {
+            "lo": 66,
+            "hi": 82,
+            "drivers": [
+              {
+                "key": "drivers.trustWarn",
+                "params": {
+                  "n": 1
+                }
+              }
+            ]
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": 67,
+          "tier": "solid",
+          "label": {
+            "key": "cells.skills",
+            "params": {
+              "matched": 4,
+              "total": 6
+            }
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": 94,
+          "tier": "strong",
+          "label": {
+            "key": "cells.experience",
+            "params": {
+              "years": 9,
+              "seniority": "senior"
+            }
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": 50,
+          "tier": "thin",
+          "label": {
+            "key": "cells.signals",
+            "params": {
+              "strengths": 1,
+              "flags": 1
+            }
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": 85,
+          "tier": "strong",
+          "label": {
+            "key": "cells.trustFlags",
+            "params": {
+              "n": 1
+            }
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": 100,
+          "tier": "strong",
+          "label": {
+            "key": "cells.salaryBand",
+            "params": {
+              "midpoint": 150000,
+              "currency": "CZK",
+              "period": "month"
+            }
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "noLink",
+          "label": {
+            "key": "none"
+          }
+        }
+      },
+      "detail": {
+        "fit": {
+          "dimension": "fit",
+          "jobFitScore": 74,
+          "total": 92,
+          "seniorityAlignment": "Senior level matches the role's senior target.",
+          "roleAlignment": "Same role family (software_engineering).",
+          "summary": "Jan Mareš is a solid fit (74/100) for Senior Java Backend Engineer at Česká spořitelna.",
+          "riskFlags": []
+        },
+        "skills": {
+          "dimension": "skills",
+          "matched": [
+            "Java",
+            "Spring Boot",
+            "Kafka",
+            "REST"
+          ],
+          "missing": [
+            "Oracle",
+            "Microservices architecture"
+          ],
+          "unproven": [],
+          "extra": [
+            "REST APIs",
+            "ISO 20022",
+            "SQL"
+          ]
+        },
+        "experience": {
+          "dimension": "experience",
+          "years": 9,
+          "seniority": "senior",
+          "roleFamily": "software_engineering",
+          "educationLevel": "master",
+          "evidence": [
+            "Senior Backend Engineer, Payments Platform — Kentico Software",
+            "Backend Engineer — Y Soft Corporation"
+          ]
+        },
+        "signals": {
+          "dimension": "signals",
+          "strengths": [
+            {
+              "label": "Regulated-banking delivery",
+              "detail": "Shipped payment and core-banking integrations under audit and change-control rules.",
+              "probe": "How did a regulatory constraint change a design decision you made?",
+              "confidence": 0.5
+            }
+          ],
+          "antipatterns": [
+            {
+              "label": "Team results written as personal ones",
+              "detail": "Outcomes are stated for the team; the candidate's own share is not separated out.",
+              "probe": "Which part of that migration would not have happened without you?",
+              "confidence": 0.5
+            }
+          ]
+        },
+        "trust": {
+          "dimension": "trust",
+          "findings": [
+            {
+              "code": "date_gap",
+              "severity": "warn",
+              "scope": "input",
+              "text": "An 18-month gap between roles is not explained."
+            }
+          ]
+        },
+        "salary": {
+          "dimension": "salary",
+          "currency": "CZK",
+          "period": "month",
+          "minimum": 127500,
+          "maximum": 172500,
+          "midpoint": 150000,
+          "confidence": "medium"
+        },
+        "publicWork": null
+      },
+      "neutralIndex": 8,
+      "fitRank": 5,
+      "decoyOf": "analysis-cand-007"
+    },
+    {
+      "memberId": "analysis-cand-016",
+      "label": "Adam Malý",
+      "membership": "applicant",
+      "runState": "done",
+      "analysisSlug": "cohort-cand-016",
+      "roleFamily": "software_engineering",
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": 81,
+          "tier": "strong",
+          "label": {
+            "key": "cells.fit",
+            "params": {
+              "score": 81
+            }
+          },
+          "band": {
+            "lo": 76,
+            "hi": 86,
+            "drivers": []
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": 100,
+          "tier": "strong",
+          "label": {
+            "key": "cells.skills",
+            "params": {
+              "matched": 6,
+              "total": 6
+            }
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": 35,
+          "tier": "thin",
+          "label": {
+            "key": "cells.experience",
+            "params": {
+              "years": 0,
+              "seniority": "junior"
+            }
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": 57,
+          "tier": "solid",
+          "label": {
+            "key": "cells.signals",
+            "params": {
+              "strengths": 1,
+              "flags": 0
+            }
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": 100,
+          "tier": "strong",
+          "label": {
+            "key": "cells.trustClean"
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": 32,
+          "tier": "weak",
+          "label": {
+            "key": "cells.salaryBand",
+            "params": {
+              "midpoint": 60000,
+              "currency": "CZK",
+              "period": "month"
+            }
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "notRead",
+          "label": {
+            "key": "none"
+          }
+        }
+      },
+      "detail": {
+        "fit": {
+          "dimension": "fit",
+          "jobFitScore": 81,
+          "total": 64,
+          "seniorityAlignment": "Two levels below the role's senior target.",
+          "roleAlignment": "Same role family (software_engineering).",
+          "summary": "Adam Malý is a strong fit (81/100) for Senior Java Backend Engineer at Česká spořitelna.",
+          "riskFlags": []
+        },
+        "skills": {
+          "dimension": "skills",
+          "matched": [
+            "Java",
+            "Spring Boot",
+            "Oracle",
+            "Kafka",
+            "REST",
+            "Microservices architecture"
+          ],
+          "missing": [],
+          "unproven": [],
+          "extra": [
+            "Microservices",
+            "REST APIs",
+            "Docker"
+          ]
+        },
+        "experience": {
+          "dimension": "experience",
+          "years": 0,
+          "seniority": "junior",
+          "roleFamily": "software_engineering",
+          "educationLevel": "master",
+          "evidence": [
+            "Bakalářská práce: Detekce anomálií v provozních logech pomocí strojového učení",
+            "Semestrální projekt: Webová aplikace pro rezervaci studijních místností",
+            "Mentor v studentském spolku Bytubytu (úvod do programování)"
+          ]
+        },
+        "signals": {
+          "dimension": "signals",
+          "strengths": [
+            {
+              "label": "Picks up a stack quickly",
+              "detail": "Moved from coursework to a production Spring service within one internship.",
+              "probe": "What did you have to unlearn when you moved to production code?",
+              "confidence": 0.6
+            }
+          ],
+          "antipatterns": []
+        },
+        "trust": {
+          "dimension": "trust",
+          "findings": []
+        },
+        "salary": {
+          "dimension": "salary",
+          "currency": "CZK",
+          "period": "month",
+          "minimum": 51000,
+          "maximum": 69000,
+          "midpoint": 60000,
+          "confidence": "medium"
+        },
+        "publicWork": null
+      },
+      "neutralIndex": 6,
+      "fitRank": 4,
+      "decoyOf": null
+    },
+    {
+      "memberId": "analysis-cand-030",
+      "label": "Filip Sýkora",
+      "membership": "applicant",
+      "runState": "analyzing",
+      "analysisSlug": null,
+      "roleFamily": null,
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        }
+      },
+      "detail": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
+      "neutralIndex": 19,
+      "fitRank": null,
+      "decoyOf": null
+    },
+    {
+      "memberId": "analysis-cand-013",
+      "label": "Karolína Hájková",
+      "membership": "applicant",
+      "runState": "done",
+      "analysisSlug": "cohort-cand-013",
+      "roleFamily": "product_project",
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": 34,
+          "tier": "weak",
+          "label": {
+            "key": "cells.fit",
+            "params": {
+              "score": 34
+            }
+          },
+          "band": {
+            "lo": 25,
+            "hi": 43,
+            "drivers": [
+              {
+                "key": "drivers.manyMissing",
+                "params": {
+                  "n": 6
+                }
+              }
+            ]
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": 0,
+          "tier": "weak",
+          "label": {
+            "key": "cells.skills",
+            "params": {
+              "matched": 0,
+              "total": 6
+            }
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": 94,
+          "tier": "strong",
+          "label": {
+            "key": "cells.experience",
+            "params": {
+              "years": 9,
+              "seniority": "senior"
+            }
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": 64,
+          "tier": "solid",
+          "label": {
+            "key": "cells.signals",
+            "params": {
+              "strengths": 2,
+              "flags": 0
+            }
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": 100,
+          "tier": "strong",
+          "label": {
+            "key": "cells.trustClean"
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": 100,
+          "tier": "strong",
+          "label": {
+            "key": "cells.salaryBand",
+            "params": {
+              "midpoint": 115000,
+              "currency": "CZK",
+              "period": "month"
+            }
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "notTechnical",
+          "label": {
+            "key": "none"
+          }
+        }
+      },
+      "detail": {
+        "fit": {
+          "dimension": "fit",
+          "jobFitScore": 34,
+          "total": 92,
+          "seniorityAlignment": "Senior level matches the role's senior target.",
+          "roleAlignment": "Different role family (product_project).",
+          "summary": "Karolína Hájková is a weak fit (34/100) for Senior Java Backend Engineer at Česká spořitelna.",
+          "riskFlags": []
+        },
+        "skills": {
+          "dimension": "skills",
+          "matched": [],
+          "missing": [
+            "Java",
+            "Spring Boot",
+            "Oracle",
+            "Kafka",
+            "REST",
+            "Microservices architecture"
+          ],
+          "unproven": [],
+          "extra": [
+            "SQL",
+            "BPMN",
+            "requirements analysis",
+            "process mapping",
+            "stakeholder management",
+            "Jira"
+          ]
+        },
+        "experience": {
+          "dimension": "experience",
+          "years": 9,
+          "seniority": "senior",
+          "roleFamily": "product_project",
+          "educationLevel": "master",
+          "evidence": [
+            "Senior Product Manager, Productboard (Prague)",
+            "Project Manager / Product Owner, Kiwi.com (Brno)"
+          ]
+        },
+        "signals": {
+          "dimension": "signals",
+          "strengths": [
+            {
+              "label": "Regulated-banking delivery",
+              "detail": "Shipped payment and core-banking integrations under audit and change-control rules.",
+              "probe": "How did a regulatory constraint change a design decision you made?",
+              "confidence": 0.6
+            },
+            {
+              "label": "States outcomes with numbers",
+              "detail": "Results are quantified (latency, throughput, cost) rather than listed as duties.",
+              "probe": "Which of those numbers did you measure yourself, and how?",
+              "confidence": 0.6
+            }
+          ],
+          "antipatterns": []
+        },
+        "trust": {
+          "dimension": "trust",
+          "findings": []
+        },
+        "salary": {
+          "dimension": "salary",
+          "currency": "CZK",
+          "period": "month",
+          "minimum": 97750,
+          "maximum": 132250,
+          "midpoint": 115000,
+          "confidence": "medium"
+        },
+        "publicWork": null
+      },
+      "neutralIndex": 17,
+      "fitRank": 7,
+      "decoyOf": "profile:cand-012"
+    },
+    {
+      "memberId": "analysis-cand-004",
+      "label": "Hana Černá",
+      "membership": "applicant",
+      "runState": "failed",
+      "analysisSlug": null,
+      "roleFamily": null,
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "failed",
+          "label": {
+            "key": "none"
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "failed",
+          "label": {
+            "key": "none"
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "failed",
+          "label": {
+            "key": "none"
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "failed",
+          "label": {
+            "key": "none"
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "failed",
+          "label": {
+            "key": "none"
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "failed",
+          "label": {
+            "key": "none"
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "failed",
+          "label": {
+            "key": "none"
+          }
+        }
+      },
+      "detail": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
+      "neutralIndex": 7,
+      "fitRank": null,
+      "decoyOf": null
+    },
+    {
+      "memberId": "profile:cand-039",
+      "label": "Klára Kovářová",
+      "membership": "matched",
+      "runState": "analyzing",
+      "analysisSlug": null,
+      "roleFamily": null,
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        }
+      },
+      "detail": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
+      "neutralIndex": 3,
+      "fitRank": null,
+      "decoyOf": null
+    },
+    {
+      "memberId": "profile:cand-032",
+      "label": "Radek Čermák",
+      "membership": "matched",
+      "runState": "analyzing",
+      "analysisSlug": null,
+      "roleFamily": null,
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        }
+      },
+      "detail": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
+      "neutralIndex": 12,
+      "fitRank": null,
+      "decoyOf": null
+    },
+    {
+      "memberId": "profile:cand-024",
+      "label": "Gabriela Černá",
+      "membership": "matched",
+      "runState": "queued",
+      "analysisSlug": null,
+      "roleFamily": null,
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        }
+      },
+      "detail": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
+      "neutralIndex": 5,
+      "fitRank": null,
+      "decoyOf": null
+    },
+    {
+      "memberId": "profile:cand-015",
+      "label": "Tadeáš Jelínek",
+      "membership": "matched",
+      "runState": "queued",
+      "analysisSlug": null,
+      "roleFamily": null,
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        }
+      },
+      "detail": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
+      "neutralIndex": 16,
+      "fitRank": null,
+      "decoyOf": null
+    },
+    {
+      "memberId": "profile:cand-022",
+      "label": "Petr Navrátil",
+      "membership": "matched",
+      "runState": "queued",
+      "analysisSlug": null,
+      "roleFamily": null,
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        }
+      },
+      "detail": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
+      "neutralIndex": 4,
+      "fitRank": null,
+      "decoyOf": null
+    },
+    {
+      "memberId": "profile:cand-012",
+      "label": "Matěj Pospíšil",
+      "membership": "matched",
+      "runState": "reused",
+      "analysisSlug": "cohort-cand-012",
+      "roleFamily": "software_engineering",
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": 44,
+          "tier": "thin",
+          "label": {
+            "key": "cells.fit",
+            "params": {
+              "score": 44
+            }
+          },
+          "band": {
+            "lo": 30,
+            "hi": 58,
+            "drivers": [
+              {
+                "key": "drivers.manyMissing",
+                "params": {
+                  "n": 6
+                }
+              },
+              {
+                "key": "drivers.keylessEngine"
+              }
+            ]
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": 0,
+          "tier": "weak",
+          "label": {
+            "key": "cells.skills",
+            "params": {
+              "matched": 0,
+              "total": 6
+            }
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": 94,
+          "tier": "strong",
+          "label": {
+            "key": "cells.experience",
+            "params": {
+              "years": 10,
+              "seniority": "senior"
+            }
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": 78,
+          "tier": "strong",
+          "label": {
+            "key": "cells.signals",
+            "params": {
+              "strengths": 3,
+              "flags": 0
+            }
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "notRead",
+          "label": {
+            "key": "none"
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": 100,
+          "tier": "strong",
+          "label": {
+            "key": "cells.salaryBand",
+            "params": {
+              "midpoint": 140000,
+              "currency": "CZK",
+              "period": "month"
+            }
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "notRead",
+          "label": {
+            "key": "none"
+          }
+        }
+      },
+      "detail": {
+        "fit": {
+          "dimension": "fit",
+          "jobFitScore": 44,
+          "total": 92,
+          "seniorityAlignment": "Senior level matches the role's senior target.",
+          "roleAlignment": "Same role family (software_engineering).",
+          "summary": "Matěj Pospíšil is a partial fit (44/100) for Senior Java Backend Engineer at Česká spořitelna.",
+          "riskFlags": []
+        },
+        "skills": {
+          "dimension": "skills",
+          "matched": [],
+          "missing": [
+            "Java",
+            "Spring Boot",
+            "Oracle",
+            "Kafka",
+            "REST",
+            "Microservices architecture"
+          ],
+          "unproven": [],
+          "extra": [
+            "Kubernetes",
+            "Ansible",
+            "Docker",
+            "Linux",
+            "Terraform",
+            "AWS",
+            "GitLab CI"
+          ]
+        },
+        "experience": {
+          "dimension": "experience",
+          "years": 10,
+          "seniority": "senior",
+          "roleFamily": "software_engineering",
+          "educationLevel": "master",
+          "evidence": [
+            "Senior Backend Engineer — Platform Team, Kentico Software",
+            "Software Engineer — Payments, Mews Systems"
+          ]
+        },
+        "signals": {
+          "dimension": "signals",
+          "strengths": [
+            {
+              "label": "Owns production systems end to end",
+              "detail": "Ran the on-call rota and carried a service rewrite through to measured latency gains.",
+              "probe": "Walk me through the last incident you owned, from the page to the post-mortem.",
+              "confidence": 0.9
+            },
+            {
+              "label": "Grows other engineers",
+              "detail": "Mentored two engineers through a promotion cycle and ran the team's code-review guild.",
+              "probe": "Tell me about someone you mentored who outgrew you on a topic.",
+              "confidence": 0.8
+            },
+            {
+              "label": "Regulated-banking delivery",
+              "detail": "Shipped payment and core-banking integrations under audit and change-control rules.",
+              "probe": "How did a regulatory constraint change a design decision you made?",
+              "confidence": 0.6
+            }
+          ],
+          "antipatterns": []
+        },
+        "trust": null,
+        "salary": {
+          "dimension": "salary",
+          "currency": "CZK",
+          "period": "month",
+          "minimum": 119000,
+          "maximum": 161000,
+          "midpoint": 140000,
+          "confidence": "medium"
+        },
+        "publicWork": null
+      },
+      "neutralIndex": 11,
+      "fitRank": 6,
+      "decoyOf": null
+    },
+    {
+      "memberId": "profile:cand-042",
+      "label": "Jan Procházka",
+      "membership": "matched",
+      "runState": "queued",
+      "analysisSlug": null,
+      "roleFamily": null,
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        }
+      },
+      "detail": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
+      "neutralIndex": 10,
+      "fitRank": null,
+      "decoyOf": null
+    },
+    {
+      "memberId": "profile:cand-003",
+      "label": "Martin Novotný",
+      "membership": "matched",
+      "runState": "queued",
+      "analysisSlug": null,
+      "roleFamily": null,
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        }
+      },
+      "detail": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
+      "neutralIndex": 1,
+      "fitRank": null,
+      "decoyOf": null
+    },
+    {
+      "memberId": "profile:cand-048",
+      "label": "Vít Dvořák",
+      "membership": "matched",
+      "runState": "queued",
+      "analysisSlug": null,
+      "roleFamily": null,
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        }
+      },
+      "detail": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
+      "neutralIndex": 0,
+      "fitRank": null,
+      "decoyOf": null
+    },
+    {
+      "memberId": "profile:cand-037",
+      "label": "Štěpán Procházka",
+      "membership": "matched",
+      "runState": "queued",
+      "analysisSlug": null,
+      "roleFamily": null,
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        }
+      },
+      "detail": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
+      "neutralIndex": 9,
+      "fitRank": null,
+      "decoyOf": null
+    },
+    {
+      "memberId": "analysis-cand-005",
+      "label": "Aneta Kovářová",
+      "membership": "added",
+      "runState": "queued",
+      "analysisSlug": null,
+      "roleFamily": null,
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        }
+      },
+      "detail": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
+      "neutralIndex": 14,
+      "fitRank": null,
+      "decoyOf": null
+    },
+    {
+      "memberId": "analysis-cand-033",
+      "label": "Zuzana Čermáková",
+      "membership": "added",
+      "runState": "queued",
+      "analysisSlug": null,
+      "roleFamily": null,
+      "cells": {
+        "fit": {
+          "dimension": "fit",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "skills": {
+          "dimension": "skills",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "experience": {
+          "dimension": "experience",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "signals": {
+          "dimension": "signals",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "trust": {
+          "dimension": "trust",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "salary": {
+          "dimension": "salary",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        },
+        "publicWork": {
+          "dimension": "publicWork",
+          "rating": null,
+          "tier": "absent",
+          "absentReason": "pending",
+          "label": {
+            "key": "none"
+          }
+        }
+      },
+      "detail": {
+        "fit": null,
+        "skills": null,
+        "experience": null,
+        "signals": null,
+        "trust": null,
+        "salary": null,
+        "publicWork": null
+      },
+      "neutralIndex": 13,
+      "fitRank": null,
+      "decoyOf": null
+    }
+  ],
+  "claims": {
+    "overall": {
+      "leader": null,
+      "separation": "insideNoise",
+      "robustness": "stable"
+    },
+    "byDimension": {
+      "fit": {
+        "dimension": "fit",
+        "leader": null,
+        "separation": "insideNoise",
+        "rated": 7
+      },
+      "skills": {
+        "dimension": "skills",
+        "leader": null,
+        "separation": "insideNoise",
+        "rated": 7
+      },
+      "experience": {
+        "dimension": "experience",
+        "leader": null,
+        "separation": "insideNoise",
+        "rated": 7
+      },
+      "signals": {
+        "dimension": "signals",
+        "leader": null,
+        "separation": "insideNoise",
+        "rated": 7
+      },
+      "trust": {
+        "dimension": "trust",
+        "leader": null,
+        "separation": "insideNoise",
+        "rated": 6
+      },
+      "salary": {
+        "dimension": "salary",
+        "leader": null,
+        "separation": "insideNoise",
+        "rated": 7
+      },
+      "publicWork": {
+        "dimension": "publicWork",
+        "leader": "analysis-cand-000",
+        "separation": "clears",
+        "rated": 3
+      }
+    }
+  },
+  "narrative": null,
+  "progress": {
+    "total": 20,
+    "done": 7,
+    "reused": 1,
+    "failed": 1
+  }
+}

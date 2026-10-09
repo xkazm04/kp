@@ -16870,6 +16870,40 @@
       "lineup": "Sestava",
       "loom": "Tkalcovský stav",
       "console": "Mixážní pult"
+    },
+    "labels": {
+      "none": "Bez hodnocení",
+      "cells": {
+        "fit": "shoda {score}/100",
+        "skills": "{matched}/{total} požadovaných",
+        "skillsUnproven": "{matched}/{total} požadovaných · {unproven, plural, one {# neověřená} few {# neověřené} many {# neověřené} other {# neověřených}}",
+        "experience": "{years, plural, one {# rok} few {# roky} many {# roku} other {# let}} · {seniority, select, junior {junior} medior {medior} senior {senior} lead {lead} other {úroveň neuvedena}}",
+        "signals": "{strengths, plural, one {# silná stránka} few {# silné stránky} many {# silné stránky} other {# silných stránek}} · {flags, plural, one {# riziko} few {# rizika} many {# rizika} other {# rizik}}",
+        "trustClean": "Bez nálezů",
+        "trustFlags": "{n, plural, one {# nález} few {# nálezy} many {# nálezu} other {# nálezů}}",
+        "salaryBand": "{midpoint, number} {currency}/{period, select, month {měs.} year {rok} hour {hod.} day {den} other {{period}}}",
+        "salaryCohort": "{midpoint, number} {currency}/{period, select, month {měs.} year {rok} hour {hod.} day {den} other {{period}}} · vůči skupině",
+        "publicWork": "{repos, plural, one {# repozitář} few {# repozitáře} many {# repozitáře} other {# repozitářů}} · {language}",
+        "publicWorkNoLanguage": "{repos, plural, one {# repozitář} few {# repozitáře} many {# repozitáře} other {# repozitářů}}"
+      },
+      "drivers": {
+        "fewSkills": "{n, plural, =0 {Neuvádí žádné dovednosti} one {Uvádí jen # dovednost} few {Uvádí jen # dovednosti} many {Uvádí jen # dovednosti} other {Uvádí jen # dovedností}}",
+        "educationUnknown": "Vzdělání neuvedeno",
+        "manyMissing": "{n, plural, one {Chybí # požadovaná dovednost} few {Chybí # požadované dovednosti} many {Chybí # požadované dovednosti} other {Chybí # požadovaných dovedností}}",
+        "trustWarn": "Varování k důvěryhodnosti: {n}",
+        "trustBlocker": "Závažný nález k důvěryhodnosti",
+        "keylessEngine": "Hodnoceno bez jazykového modelu"
+      }
+    },
+    "absent": {
+      "pending": "Analyzuje se…",
+      "notRead": "Nenačteno",
+      "notTechnical": "Netechnická role",
+      "noLink": "V životopisu chybí GitHub",
+      "currencyMismatch": "Jiná měna",
+      "noJdFit": "Bez shody s pozicí",
+      "failed": "Analýza selhala",
+      "blind": "Skryto (naslepo)"
     }
   }
 }

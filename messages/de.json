@@ -16870,6 +16870,40 @@
       "lineup": "Aufstellung",
       "loom": "Webstuhl",
       "console": "Mischpult"
+    },
+    "labels": {
+      "none": "Keine Bewertung",
+      "cells": {
+        "fit": "{score}/100 Passung",
+        "skills": "{matched}/{total} gefordert",
+        "skillsUnproven": "{matched}/{total} gefordert · {unproven} unbelegt",
+        "experience": "{years, plural, one {# Jahr} other {# Jahre}} · {seniority, select, junior {Junior} medior {Mid-Level} senior {Senior} lead {Lead} other {Level unbekannt}}",
+        "signals": "{strengths, plural, one {# Stärke} other {# Stärken}} · {flags, plural, one {# Warnsignal} other {# Warnsignale}}",
+        "trustClean": "Unauffällig",
+        "trustFlags": "{n, plural, one {# Befund} other {# Befunde}}",
+        "salaryBand": "{midpoint, number} {currency}/{period, select, month {Monat} year {Jahr} hour {Std.} day {Tag} other {{period}}}",
+        "salaryCohort": "{midpoint, number} {currency}/{period, select, month {Monat} year {Jahr} hour {Std.} day {Tag} other {{period}}} · im Gruppenvergleich",
+        "publicWork": "{repos, plural, one {# Repo} other {# Repos}} · {language}",
+        "publicWorkNoLanguage": "{repos, plural, one {# Repo} other {# Repos}}"
+      },
+      "drivers": {
+        "fewSkills": "{n, plural, =0 {Keine Kenntnisse angegeben} one {Nur # Kenntnis angegeben} other {Nur # Kenntnisse angegeben}}",
+        "educationUnknown": "Ausbildung unbekannt",
+        "manyMissing": "{n, plural, one {# geforderte Kenntnis fehlt} other {# geforderte Kenntnisse fehlen}}",
+        "trustWarn": "{n, plural, one {# Vertrauenswarnung} other {# Vertrauenswarnungen}}",
+        "trustBlocker": "Schwerwiegender Vertrauensbefund",
+        "keylessEngine": "Ohne Sprachmodell bewertet"
+      }
+    },
+    "absent": {
+      "pending": "Wird analysiert…",
+      "notRead": "Nicht gelesen",
+      "notTechnical": "Keine technische Rolle",
+      "noLink": "Kein GitHub im Lebenslauf",
+      "currencyMismatch": "Andere Währung",
+      "noJdFit": "Keine Stellenpassung",
+      "failed": "Analyse fehlgeschlagen",
+      "blind": "Verborgen (anonym)"
     }
   }
 }
