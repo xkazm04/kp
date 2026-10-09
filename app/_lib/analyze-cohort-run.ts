@@ -152,11 +152,18 @@ export type CohortCommentDrops = { total: number; byReason: Record<string, numbe
 
 export type StoredCohortComments = CohortComments & { dropped: CohortCommentDrops };
 
+/** The shown comment cap — cohort_compare.comment_cap: ~1 per 4 members, at least one.
+ *  Each order may SUGGEST twice this (suggestion_cap); the cap binds after the intersection. */
+export function cohortCommentCap(memberCount: number): number {
+  return memberCount > 0 ? Math.max(1, Math.floor(memberCount / 4)) : 0;
+}
+
 /** How many drop items are kept verbatim on the row (the counts are always complete). */
 const DROP_ITEMS_KEPT = 60;
 
 /** Keep only what BOTH presentation orders produced: a cell comment for the same
- *  (memberId, dimension) — run one's text; a note for the same dimension — run one's;
+ *  (memberId, dimension) — run one's text, then the shown cap (cohortCommentCap) in run
+ *  one's order; a note for the same dimension — run one's;
  *  the narrative is run one's, its `covers` restricted to the code-decided top. Every
  *  item that does not survive — refused inside a run, or produced by one order only —
  *  is counted in `dropped`. */
@@ -178,6 +185,7 @@ export function intersectCompareRuns(a: CompareOutput, b: CompareOutput, input: 
     else if (!isCohortDimension(c.dimension)) drops.push({ run: 1, item, reason: "unknown-dimension" });
     else if (seen.has(key)) drops.push({ run: 1, item, reason: "duplicate" });
     else if (!inB.has(key)) drops.push({ run: 1, item, reason: "order-disagreement" });
+    else if (cells.length >= cohortCommentCap(input.members.length)) drops.push({ run: 1, item, reason: "over-cap" });
     else {
       const comment = c.comment.trim().slice(0, 90);
       if (!comment) {
@@ -239,6 +247,8 @@ export type CohortRunDeps = {
   runGithub: (slug: string, profileUrl: string) => Promise<void>;
   parseGithubUsername: (link: string) => string | null;
   buildView: () => CohortView;
+  /** Persist the names handed to the model (memberId -> label) for the erasure scrub. */
+  recordShownNames: (names: Record<string, string>) => void;
   compare: (input: CompareInput) => Promise<CompareOutput>;
 };
 
@@ -357,6 +367,7 @@ export async function runCohortCore(deps: CohortRunDeps): Promise<CohortRunSumma
   try {
     const view = deps.buildView();
     const neutral = buildCompareInput(view, "neutral");
+    if (!rec.blind) deps.recordShownNames(Object.fromEntries(neutral.members.map((m) => [m.memberId, m.label])));
     if (neutral.members.length >= 2) {
       const reversed = buildCompareInput(view, "reversed");
       const [a, b] = await Promise.all([deps.compare(neutral), deps.compare(reversed)]);
@@ -521,6 +532,9 @@ export async function runAnalyzeCohortTask(ctx: ExternalTaskCtx): Promise<Cohort
       });
     },
     parseGithubUsername: handle.parseGithubUsername,
+    recordShownNames: (names) => {
+      store.recordAnalysisCohortShownNames(cohortId, names, ws);
+    },
     buildView: () => {
       const rec = store.getAnalysisCohort(cohortId, ws);
       if (!rec) throw new CohortMemberError("COHORT_NOT_FOUND");

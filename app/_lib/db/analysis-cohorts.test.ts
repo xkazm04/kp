@@ -134,3 +134,47 @@ test("an erasure masks the member's name on the run sheet and inside the stored 
   assert.equal(after?.comments?.narrative?.text, "Zdenka P. leads overall.");
   assert.doesNotMatch(JSON.stringify(after), /Procházková/);
 });
+
+test("erasure masks the CV's own name too, where it differs from the row label (seeded shape)", () => {
+  const rowLabel = "Martin Novotný → Senior Java Backend Engineer";
+  const cvName = "Markéta Šťastná";
+  const slug = saveAnalysis(
+    { candidateLabel: rowLabel, jdSlug: null, score: 70, roleFamily: "software_engineering", seniority: "senior", payload: { candidate: { name: cvName, rawText: `${cvName} CV` } } },
+    WS
+  ).slug;
+  const other = analysisFor("Kept Person", "Other CV");
+  const rec = store.createAnalysisCohort(
+    {
+      jdSlug: "role-x",
+      blind: false,
+      reportLang: "en",
+      members: [
+        { memberId: slug, label: cvName, rowLabel, membership: "matched", source: { kind: "analysis", slug } },
+        { memberId: other, label: "Kept Person", rowLabel: "Kept Person", membership: "matched", source: { kind: "analysis", slug: other } },
+      ],
+    },
+    WS
+  );
+  store.recordAnalysisCohortShownNames(rec.id, { [slug]: "Markéta Š. (shown)", [other]: "Kept Person" }, WS);
+  store.setAnalysisCohortComments(
+    rec.id,
+    {
+      cells: [{ memberId: slug, dimension: "trust", comment: `${cvName}'s trust check is clean.` }],
+      notes: { fit: `${cvName} and Kept Person are close.` },
+      narrative: { covers: [slug], leavesOut: 0, text: `${cvName} has strong fit; Markéta Š. (shown) too.`, engine: "model" },
+    },
+    WS
+  );
+  // The pipeline entry points at a DIFFERENT analysis of the same person (a re-run), so
+  // only the row label links them — the shape that leaked before.
+  const { entry } = createPipelineEntry({ candidateId: "some-other-run", candidateLabel: rowLabel, jobId: "jd-role-x", jobTitle: "Role X", workspaceId: WS });
+  anonymizeEntry(entry.id, "erasure", WS);
+  const raw = ensureDb().prepare(`SELECT members_json, comments_json FROM analysis_cohorts WHERE id = ?`).get(rec.id) as { members_json: string; comments_json: string };
+  assert.doesNotMatch(raw.comments_json, /Šťastná/, "the CV name is gone from the comments");
+  assert.doesNotMatch(raw.comments_json, /\(shown\)/, "…and so is every name the pass was handed");
+  assert.doesNotMatch(raw.members_json, /Šťastná|Novotný/, "…and from the run sheet");
+  assert.match(raw.comments_json, /Kept Person/, "another member's name stays");
+  const after = store.getAnalysisCohort(rec.id, WS);
+  assert.equal(after?.members[0].label, "Markéta Š.");
+  assert.equal(after?.members[1].label, "Kept Person");
+});

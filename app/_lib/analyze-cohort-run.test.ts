@@ -12,6 +12,7 @@ import assert from "node:assert/strict";
 import {
   COHORT_MEMBER_CONCURRENCY,
   CohortMemberError,
+  cohortCommentCap,
   buildCompareInput,
   intersectCompareRuns,
   parseCompareOutput,
@@ -44,6 +45,8 @@ function record(ids: string[], opts: { blind?: boolean } = {}): AnalysisCohortRe
         runState: "queued",
         analysisSlug: null,
         error: null,
+        rowLabel: `Row ${id}`,
+        shownNames: [`Label ${id}`],
       })
     ),
     comments: null,
@@ -100,7 +103,7 @@ function harness(
   } = {}
 ) {
   const sheet = rec.members.map((m) => ({ ...m }));
-  const calls = { analyzeFresh: [] as string[], github: [] as string[], status: [] as string[], compare: 0, comments: null as unknown };
+  const calls = { analyzeFresh: [] as string[], github: [] as string[], status: [] as string[], compare: 0, comments: null as unknown, shown: [] as Array<Record<string, string>> };
   const deps: CohortRunDeps = {
     signal: opts.signal ?? new AbortController().signal,
     progress: () => {},
@@ -138,6 +141,7 @@ function harness(
     },
     githubAllowed: () => opts.githubBudget ?? true,
     runGithub: async (slug) => void calls.github.push(slug),
+    recordShownNames: (names) => void calls.shown.push(names),
     parseGithubUsername: (link) => /github\.com\/([A-Za-z0-9-]+)/.exec(link)?.[1] ?? null,
     buildView: () =>
       ({
@@ -329,4 +333,41 @@ test("an abort stops scheduling: no member starts after it, and the cohort is cl
   assert.ok(h.sheet.filter((m) => m.runState === "queued").length >= ids.length - COHORT_MEMBER_CONCURRENCY);
   assert.equal(h.calls.compare, 0);
   assert.equal(h.calls.status.at(-1), "failed");
+});
+
+test("each order may suggest twice the cap: the cells BOTH flagged survive, then the cap binds", () => {
+  const view = harness(record(["a", "b", "c", "d", "e"])).deps.buildView();
+  view.members.forEach((m) => (m.runState = "done"));
+  const input = buildCompareInput(view, "neutral");
+  assert.equal(cohortCommentCap(5), 1);
+  assert.equal(cohortCommentCap(8), 2);
+  assert.equal(cohortCommentCap(3), 1);
+  const c = (memberId: string, dimension: string, comment = `${memberId} ${dimension}`) => ({ memberId, dimension, comment });
+  const empty: CompareOutput = { cells: [], notes: {}, narrative: null, engine: "model", dropped: [], trimmed: [] };
+  // Order one suggests a/fit then b/skills; order two b/skills then a/fit. Both agree on both.
+  const out = intersectCompareRuns(
+    { ...empty, cells: [c("a", "fit", "first"), c("b", "skills")] },
+    { ...empty, cells: [c("b", "skills", "other words"), c("a", "fit")] },
+    input
+  );
+  assert.deepEqual(out.cells, [{ memberId: "a", dimension: "fit", comment: "first" }], "order one's first agreed cell, order one's text");
+  assert.deepEqual(out.dropped.byReason, { "over-cap": 1 });
+  // With the old one-per-order budget the two picks differed and nothing survived; now the
+  // shared pick survives even when each order's FIRST choice differs.
+  const out2 = intersectCompareRuns(
+    { ...empty, cells: [c("a", "fit"), c("c", "trust")] },
+    { ...empty, cells: [c("d", "salary"), c("c", "trust")] },
+    input
+  );
+  assert.deepEqual(out2.cells.map((x) => `${x.memberId}/${x.dimension}`), ["c/trust"]);
+  assert.deepEqual(out2.dropped.byReason, { "order-disagreement": 2 });
+});
+
+test("the names handed to the comparative pass are recorded for erasure — not in a blind cohort", async () => {
+  const h = harness(record(["a", "b"]));
+  await runCohortCore(h.deps);
+  assert.deepEqual(h.calls.shown, [{ a: "Label a", b: "Label b" }]);
+  const blind = harness(record(["a", "b"], { blind: true }));
+  await runCohortCore(blind.deps);
+  assert.deepEqual(blind.calls.shown, []);
 });

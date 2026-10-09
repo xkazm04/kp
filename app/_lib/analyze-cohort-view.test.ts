@@ -21,6 +21,8 @@ function rec(blind = false): AnalysisCohortRecord {
     runState: "done" as const,
     analysisSlug: `an-${id}`,
     error: null,
+    rowLabel: label,
+    shownNames: [],
   });
   return {
     id: "coh-1",

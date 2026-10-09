@@ -41,8 +41,17 @@ FACTS_MAX_CHARS = 24_000
 
 
 def comment_cap(member_count: int) -> int:
-    """At most ~1 comment per 4 members (and at least one when there are members)."""
+    """At most ~1 comment per 4 members (and at least one when there are members) — the
+    cap on what is SHOWN, applied by the caller after the two orders are intersected."""
     return max(1, member_count // 4) if member_count > 0 else 0
+
+
+def suggestion_cap(member_count: int) -> int:
+    """How many comments ONE order may suggest: twice the shown cap. With the cap alone each
+    order spent its single comment on a different cell and the intersection kept none
+    (measured 2026-10-09: 4 of 4 dropped across a 3- and a 5-member cohort); suggesting
+    more lets the cells both orders flag surface, and the cap still binds what is shown."""
+    return 2 * comment_cap(member_count)
 
 
 # ---- localized templates (the keyless floor) -----------------------------------------
@@ -282,22 +291,33 @@ def mentioned_members(sentence: str, labels: dict[str, str]) -> set[str]:
     return found
 
 
+def _crown_is_negated(sentence: str, start: int, labels: dict[str, str]) -> bool:
+    """Is THIS crown word governed by a negation — "no overall leader", "nobody leads",
+    "žádný lídr", "aucun candidat n'est en tête"? The negation must be one of the three
+    words before it, with no member named in between: "Alice, not Bob, leads" and "nobody
+    but Alice leads" are crowns, not negations."""
+    words = list(re.finditer(r"[^\W\d_][\w'’-]*", sentence[:start]))[-3:]
+    for w in reversed(words):
+        if _NEGATION.fullmatch(w.group(0)):
+            return not mentioned_members(sentence[w.end() : start], labels)
+    return False
+
+
 def contradicts_claim(text: str, claim: dict[str, Any], labels: dict[str, str]) -> bool:
     """True when prose crowns someone the claim does not name, or ranks the field.
 
     A crowning sentence may name ONLY the claimed leader (a lead that clears the noise).
-    A sentence that negates a lead and names nobody ("no overall leader") restates the
-    claim and passes; a negated sentence that names someone ("nobody but Alice leads")
-    does not."""
+    A crown word that is itself negated ("no overall leader clears the noise") restates the
+    claim and is not a crown, whoever else the sentence names — measured 2026-10-09: "X, Y
+    and Z form a closely matched field, and no overall leader clears the noise" was refused
+    by the sentence-level rule. A sentence keeping ANY un-negated crown is judged as before."""
     if _RANKING.search(text):
         return True
     leader = _named_leader(claim)
     for sentence in _sentences(text):
-        if not _CROWN.search(sentence):
+        if not any(not _crown_is_negated(sentence, m.start(), labels) for m in _CROWN.finditer(sentence)):
             continue
         named = mentioned_members(sentence, labels)
-        if not named and _NEGATION.search(sentence):
-            continue
         if leader is None or named - {leader}:
             return True
     return False
@@ -357,7 +377,7 @@ def build_prompt(context: dict[str, Any], lang: str) -> str:
         "Rules:\n"
         "- In every text, refer to a candidate by their label exactly as given, never by memberId "
         "(memberId is only for the JSON keys).\n"
-        f"- cells: RARE. At most {comment_cap(len(members))} in total. Comment on a cell ONLY where its "
+        f"- cells: RARE. At most {suggestion_cap(len(members))} in total. Comment on a cell ONLY where its "
         f"number on its own would mislead a recruiter (e.g. a high rating resting on thin evidence). "
         f"Each comment at most {COMMENT_MAX_CHARS - 10} characters. memberId and dimension must be ones given. "
         f"Dimensions: {', '.join(DIMENSIONS)}.\n"
@@ -440,7 +460,7 @@ def _coerce(payload: Any, context: dict[str, Any], lang: str) -> tuple[dict[str,
         if (mid, dim) in seen:
             dropped.append({"item": item, "reason": "duplicate"})
             continue
-        if len(cells) >= comment_cap(len(labels)):
+        if len(cells) >= suggestion_cap(len(labels)):
             dropped.append({"item": item, "reason": "over-cap"})
             continue
         kept = fit(item, text, COMMENT_MAX_CHARS, by_dim.get(dim, {}))

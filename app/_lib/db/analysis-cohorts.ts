@@ -44,6 +44,10 @@ export type AnalysisCohortMemberRecord = {
   analysisSlug: string | null;
   /** A failure CODE (never engine text) when runState is "failed". */
   error: string | null;
+  /** The stored candidate label (matching key); `label` is the display name. */
+  rowLabel: string | null;
+  /** Every name shown or handed to the model for the member — the erasure scrub masks them. */
+  shownNames: string[];
 };
 
 export type AnalysisCohortRecord = {
@@ -110,6 +114,8 @@ export function parseAnalysisCohortMembers(json: string, cohortId: string): Anal
       runState: isRunState(m.runState) ? m.runState : "queued",
       analysisSlug: typeof m.analysisSlug === "string" ? m.analysisSlug : null,
       error: typeof m.error === "string" ? m.error : null,
+      rowLabel: typeof m.rowLabel === "string" ? m.rowLabel : null,
+      shownNames: Array.isArray(m.shownNames) ? m.shownNames.filter((n): n is string => typeof n === "string") : [],
     });
   }
   return out;
@@ -148,7 +154,7 @@ export type CreateAnalysisCohortInput = {
   jdSlug: string;
   blind: boolean;
   reportLang: string;
-  members: Array<Pick<AnalysisCohortMemberRecord, "memberId" | "label" | "membership" | "source">>;
+  members: Array<Pick<AnalysisCohortMemberRecord, "memberId" | "label" | "membership" | "source"> & { rowLabel?: string | null }>;
 };
 
 /** Insert a queued cohort. The order seed IS the id (neutralOrder keys on it). */
@@ -164,6 +170,8 @@ export function createAnalysisCohort(input: CreateAnalysisCohortInput, workspace
     runState: "queued",
     analysisSlug: null,
     error: null,
+    rowLabel: m.rowLabel ?? null,
+    shownNames: [m.label],
   }));
   db.prepare(
     `INSERT INTO analysis_cohorts
@@ -239,6 +247,27 @@ export function updateAnalysisCohortMember(
   patch: Partial<Pick<AnalysisCohortMemberRecord, "runState" | "analysisSlug" | "error">>,
   workspaceId: string
 ): boolean {
+  return casAnalysisCohortMembers(id, workspaceId, (members) => {
+    const i = members.findIndex((m) => m.memberId === memberId);
+    if (i < 0) return false;
+    members[i] = { ...members[i], ...patch };
+    return true;
+  });
+}
+
+/** Record the names the comparative pass was handed (memberId -> label). */
+export function recordAnalysisCohortShownNames(id: string, names: Record<string, string>, workspaceId: string): boolean {
+  return casAnalysisCohortMembers(id, workspaceId, (members) => {
+    for (const m of members) {
+      const n = names[m.memberId]?.trim();
+      if (n && !m.shownNames.includes(n)) m.shownNames = [...m.shownNames, n].slice(-8);
+    }
+    return true;
+  });
+}
+
+/** The compare-and-swap every members_json write goes through. */
+function casAnalysisCohortMembers(id: string, workspaceId: string, mutate: (members: AnalysisCohortMemberRecord[]) => boolean): boolean {
   const db = ensureDb();
   for (let attempt = 0; attempt < MEMBER_CAS_ATTEMPTS; attempt += 1) {
     const row = db
@@ -246,15 +275,13 @@ export function updateAnalysisCohortMember(
       .get(id, workspaceId) as { members_json: string } | undefined;
     if (!row) return false;
     const members = parseAnalysisCohortMembers(row.members_json, id);
-    const i = members.findIndex((m) => m.memberId === memberId);
-    if (i < 0) return false;
-    members[i] = { ...members[i], ...patch };
+    if (!mutate(members)) return false;
     const res = db
       .prepare(`UPDATE analysis_cohorts SET members_json = ? WHERE id = ? AND workspace_id = ? AND members_json = ?`)
       .run(JSON.stringify(members), id, workspaceId, row.members_json);
     if (res.changes > 0) return true;
   }
-  console.error(`[db:analysis-cohorts] member "${memberId}" of "${id}" kept moving across ${MEMBER_CAS_ATTEMPTS} attempts`);
+  console.error(`[db:analysis-cohorts] run sheet of "${id}" kept moving across ${MEMBER_CAS_ATTEMPTS} attempts`);
   return false;
 }
 

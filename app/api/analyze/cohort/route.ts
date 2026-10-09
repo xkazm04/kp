@@ -124,7 +124,7 @@ export async function POST(request: Request) {
         jdSlug: body.jdSlug,
         blind: body.blind,
         reportLang,
-        members: members.map(({ memberId, label, membership, source }) => ({ memberId, label, membership, source })),
+        members: members.map(({ memberId, label, membership, source, resolved }) => ({ memberId, label, membership, source, rowLabel: resolved.label })),
       },
       ws
     );

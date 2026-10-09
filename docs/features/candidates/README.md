@@ -1773,17 +1773,39 @@ and it never changes a claim.
    - one member failing is `failed` with a code (`ENGINE_FAILED`, `ANALYZE_TIMEOUT`,
      `COHORT_MEMBER_NOT_FOUND`, …) and the cohort continues; all failing fails it.
 5. **Comparative pass.** The view is projected, the claims computed, and
-   `cohort_compare_cli` runs under TWO presentation orders (neutral, reversed). A cell
-   comment survives only when both orders commented the same (member, dimension) — run
-   one's text; a note only when both wrote one; the narrative is run one's. The input
-   carries compact per-dimension facts — never the CV text, and in a blind cohort never a
-   name. The model use case is `group_compare` (one Models-tab pin governs both comparison
+   `cohort_compare_cli` runs under TWO presentation orders (neutral, reversed). Each order
+   may suggest up to twice the shown comment cap (`suggestion_cap`); a cell comment
+   survives only when both orders commented the same (member, dimension), then the cap
+   (~1 per 4 members, `cohortCommentCap`) binds in run one's order, with run one's text. A
+   note survives only when both wrote one; the narrative is run one's. The input carries
+   compact per-dimension facts — never the CV text, and in a blind cohort never a name.
+   The model use case is `group_compare` (one Models-tab pin governs both comparison
    surfaces). A failed pass leaves the claims standing with no comments.
+   - **The claim guard** (`contradicts_claim`): a sentence with a crown word ("leads",
+     "strongest", "vede", "führt", "en tête", …) may name only the claimed leader, and only
+     a lead that clears the noise. A crown word that is itself negated ("no overall
+     leader", "žádný lídr", "aucun candidat n'est en tête": a negation within the three
+     words before it, no member named in between) restates the claim and passes; "Alice,
+     not Bob, leads" and "nobody but Alice leads" do not. A first name alone is a mention;
+     a numbered list is a ranking.
+   - **Length:** over-length text is cut back to its last whole sentence (kept if that
+     holds at least half the cap) rather than refused; a member id in prose is replaced by
+     the label.
+   - **Nothing is dropped silently.** The CLI returns `dropped` ({item, reason}:
+     `over-length`, `contradicts-claim`, `unknown-member`, `unknown-dimension`, `over-cap`,
+     `duplicate`, `empty`, `malformed`) and `trimmed`; the intersection adds
+     `order-disagreement` for an item only one order produced. The tally
+     (`{total, byReason, trimmed, items}`) is stored with the comments in `comments_json`
+     (server-side; not on the wire contract) and logged. When the model answered but its
+     narrative was refused, the ledger's deterministic row says `unusable_output`.
 6. **Read.** `GET /api/analyze/cohort/[id]` assembles the view from the run sheet, each
    member's saved analysis under the same consent scrub as `/api/analyses/[slug]` (an
    expired-consent member is projected from the scrubbed payload with a masked label),
-   the stored GitHub deep-dive, and the stored comments. A blind cohort is labelled
-   "Candidate A".."T" by neutral order before the engine sees it. A queued/running row
+   the stored GitHub deep-dive, and the stored comments. A member is shown by the CV's own
+   `candidate.name` (`displayMemberLabel`), else the stored label without its " → <role>"
+   suffix; two members with the same name fall back to their bare labels, then " (n)"
+   (`uniqueDisplayLabels`). The stored label stays the matching key. A blind cohort is
+   labelled "Candidate A".."T" by neutral order before the engine sees it. A queued/running row
    whose task ended without closing it (cancelled while queued, a restart) reads `failed`.
 
 ### Data model — `analysis_cohorts`
@@ -1794,12 +1816,15 @@ and it never changes a claim.
 | `workspace_id` | every statement binds it, point reads included (`analysis-cohorts-tenancy.test.ts`) |
 | `jd_slug`, `blind`, `report_lang` | the run's settings |
 | `status` | `COHORT_STATUSES` (`queued` / `running` / `done` / `failed`) |
-| `members_json` | `[{memberId, label, membership, source, runState, analysisSlug, error}]`; member updates are a compare-and-swap on the whole column |
-| `comments_json` | the reorder-surviving `CohortComments`, or NULL |
+| `members_json` | `[{memberId, label, rowLabel, shownNames, membership, source, runState, analysisSlug, error}]` — `label` is the display name, `rowLabel` the stored candidate label, `shownNames` every name shown or handed to the model; writes are a compare-and-swap on the whole column |
+| `comments_json` | the reorder-surviving `CohortComments` plus the `dropped` tally, or NULL |
 | `task_id`, `created_at`, `finished_at` | |
 
-Erasure: the entry-keyed scrub (`db/pipeline.ts`) masks the erased person's member label
-and their name inside the stored comments; the numbers stay as the record.
+Erasure: the entry-keyed scrub (`db/pipeline.ts`) finds the erased person's member by id
+(`<candidateId>` / `profile:<candidateId>`) or by any of its names matching the entry label
+(with or without its role suffix), then masks the display name, the row label and every
+`shownNames` entry — on the run sheet and inside `comments_json` (the CV's own name can
+differ from the row label); the numbers stay as the record.
 
 ### Keyless
 
@@ -1819,8 +1844,10 @@ in the report language (en/cs/de/fr) — with `engine: "keyless"`.
   the cohort's size.
 - The recent strip assembles each finished cohort's view to name its leader (up to
   12 × 20 payload reads).
-- The claim guard on model prose is a conservative word list in four languages: it can
-  drop a faithful note that says "no leader", and falls back to the template when it does.
+- The claim guard is a word list in four languages: a faithful sentence it misreads is
+  dropped (counted as `contradicts-claim`) and the narrative falls back to the template.
+- Rows written before `shownNames` existed carry only `label`: an erasure masks the names
+  the old row stored, not a CV name the model quoted that was never stored.
 
 ## Known gaps
 

@@ -24,6 +24,7 @@ from pipeline.jobfit.cohort_compare import (
     DROP_REASONS,
     NARRATIVE_MAX_CHARS,
     comment_cap,
+    suggestion_cap,
     contradicts_claim,
     deterministic_comparison,
     generate,
@@ -105,7 +106,10 @@ class CommentCapTest(unittest.TestCase):
         self.assertEqual(comment_cap(20), 5)
         cells = [{"memberId": m, "dimension": "skills", "comment": "Rating rests on two listed skills only."} for m in "abcde"]
         out = generate(_context("a"), provider=FakeProvider({"cells": cells, "notes": {}, "narrative": None}))
-        self.assertEqual(len(out["cells"]), 1)
+        # One ORDER may suggest twice the shown cap; the caller intersects, then caps.
+        self.assertEqual(suggestion_cap(5), 2)
+        self.assertEqual(len(out["cells"]), 2)
+        self.assertEqual([d["reason"] for d in out["dropped"] if d["item"].startswith("cell:")], ["over-cap"] * 3)
 
     def test_invalid_cells_are_dropped(self) -> None:
         cells = [
@@ -237,14 +241,16 @@ class DropTallyTest(unittest.TestCase):
             {"memberId": "zz", "dimension": "fit", "comment": "Unknown."},
             {"memberId": "a", "dimension": "charm", "comment": "Unknown dimension."},
             {"memberId": "a", "dimension": "fit", "comment": "Kept."},
-            {"memberId": "b", "dimension": "fit", "comment": "Over the cap of one."},
+            {"memberId": "b", "dimension": "fit", "comment": "Second suggestion, inside the 2x budget."},
+            {"memberId": "c", "dimension": "fit", "comment": "Over the suggestion budget of two."},
         ]
         answer = {"cells": cells, "notes": {"fit": "Alice leads clearly."}, "narrative": {"covers": [], "text": "Bob is the strongest."}}
         out = generate(ctx, provider=FakeProvider(answer))
         reasons = {d["item"]: d["reason"] for d in out["dropped"]}
         self.assertEqual(reasons["cell:zz/fit"], "unknown-member")
         self.assertEqual(reasons["cell:a/charm"], "unknown-dimension")
-        self.assertEqual(reasons["cell:b/fit"], "over-cap")
+        self.assertNotIn("cell:b/fit", reasons)
+        self.assertEqual(reasons["cell:c/fit"], "over-cap")
         self.assertEqual(reasons["note:fit"], "contradicts-claim")
         self.assertEqual(reasons["narrative"], "contradicts-claim")
         self.assertTrue(set(reasons.values()) <= set(DROP_REASONS))
@@ -264,6 +270,19 @@ class NegationGuardTest(unittest.TestCase):
         claim = {"leader": None, "separation": "insideNoise"}
         for text in ("There is no overall leader.", "No clear leader.", "Celkově nevede nikdo, žádný lídr.", "Kein klarer Spitzenreiter, niemand führt.", "Aucun candidat n'est en tête."):
             self.assertFalse(contradicts_claim(text, claim, self.LABELS), text)
+
+    def test_a_negated_crown_word_passes_whoever_the_sentence_names(self) -> None:
+        # Fresh answer, 2026-10-09: the sentence-level rule refused this faithful narrative.
+        text = "Alice Smith and Bob Jones form a closely matched field, and no overall leader clears the noise."
+        self.assertFalse(contradicts_claim(text, {"leader": None, "separation": "insideNoise"}, self.LABELS))
+
+    def test_a_negation_with_a_name_in_between_is_a_crown(self) -> None:
+        claim = {"leader": None, "separation": "insideNoise"}
+        self.assertTrue(contradicts_claim("Alice, not Bob, leads.", claim, self.LABELS))
+        self.assertTrue(contradicts_claim("Alice leads; there is no clear leader otherwise.", claim, self.LABELS))
+        blind = {"x": "Candidate A", "y": "Candidate B"}
+        self.assertTrue(contradicts_claim("Candidate B, not Candidate A, leads.", claim, blind))
+        self.assertFalse(contradicts_claim("No candidate leads.", claim, blind))
 
     def test_an_unnegated_crown_without_a_name_is_still_refused(self) -> None:
         self.assertTrue(contradicts_claim("One candidate clearly leads the field.", {"leader": None, "separation": "insideNoise"}, self.LABELS))

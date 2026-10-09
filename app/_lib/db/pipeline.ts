@@ -2713,29 +2713,38 @@ function scrubEntryLinkedPii(
     const cohorts = db
       .prepare(`SELECT id, members_json, comments_json FROM analysis_cohorts WHERE workspace_id = ?`)
       .all(linkWorkspaceId) as { id: string; members_json: string; comments_json: string | null }[];
-    const escapedName = JSON.stringify(name).slice(1, -1);
-    const escapedMask = JSON.stringify(masked).slice(1, -1);
+    const esc = (s: string) => JSON.stringify(s).slice(1, -1);
     for (const cohort of cohorts) {
-      let members: Array<{ memberId?: unknown; label?: unknown }>;
+      let members: Array<{ memberId?: unknown; label?: unknown; rowLabel?: unknown; shownNames?: unknown }>;
       try {
         members = JSON.parse(cohort.members_json);
       } catch {
         continue; // corrupt run sheet: no readable label to mask
       }
       if (!Array.isArray(members)) continue;
+      // Every name shown for this person (display, row label, shownNames) is masked.
+      const replace = new Map<string, string>(name ? [[name, masked], ...(bareName && bareName !== name ? [[bareName, masked] as [string, string]] : [])] : []);
       let changed = false;
       for (const m of members) {
+        const names = [m.label, m.rowLabel, ...(Array.isArray(m.shownNames) ? m.shownNames : [])]
+          .filter((n): n is string => typeof n === "string" && n.trim() !== "")
+          .map((n) => n.trim());
         const own = typeof m?.memberId === "string" && ids.includes(m.memberId);
-        const named = Boolean(name) && typeof m?.label === "string" && (m.label.trim() === name || m.label.trim() === bareName);
-        if ((own || named) && m.label !== masked) {
-          m.label = masked;
-          changed = true;
-        }
+        const named = Boolean(name) && names.some((n) => n === name || n === bareName);
+        if (!own && !named) continue;
+        for (const n of names) if (!replace.has(n)) replace.set(n, maskCandidateName(n));
+        const shown = typeof m.label === "string" ? maskCandidateName(m.label) : masked;
+        changed = true;
+        m.label = shown;
+        m.rowLabel = masked;
+        m.shownNames = [shown];
       }
       let comments = cohort.comments_json;
-      if (name && comments && comments.includes(escapedName)) {
-        comments = comments.split(escapedName).join(escapedMask);
-        changed = true;
+      for (const [from, to] of [...replace].sort((a, b) => b[0].length - a[0].length)) {
+        if (comments && from && comments.includes(esc(from))) {
+          comments = comments.split(esc(from)).join(esc(to));
+          changed = true;
+        }
       }
       if (changed) {
         db.prepare(`UPDATE analysis_cohorts SET members_json = ?, comments_json = ? WHERE id = ? AND workspace_id = ?`).run(
