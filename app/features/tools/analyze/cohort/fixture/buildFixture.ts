@@ -4,7 +4,8 @@
 //
 //   node --experimental-transform-types app/features/tools/analyze/cohort/fixture/buildFixture.ts
 //
-// Writes cohort20.done.json and cohort20.running.json beside this file. Deterministic:
+// Writes cohort20.done.json and cohort20.running.json to public/dev/cohort/ (static data, not code:
+// kept off every import graph, fetched only by the dev-only prototype switcher). Deterministic:
 // two runs produce byte-identical files (no clock, no randomness, fixed timestamps).
 //
 // The seeds (data/seed_analyses/analyses.json, 66 fictional candidates) were each scored
@@ -21,7 +22,7 @@ import type { CohortComments, CohortView, Membership, MemberRunState, RoleBand }
 import { assembleCohortView, projectCohortMember, type ProjectedMember } from "../cohortProject.ts";
 
 const ROOT = new URL("../../../../../../", import.meta.url);
-const OUT_DIR = new URL("./", import.meta.url);
+const OUT_DIR = new URL("public/dev/cohort/", ROOT);
 
 // ---- the role ------------------------------------------------------------------------
 

@@ -16,9 +16,10 @@ import {
   type ShortLabel,
 } from "../cohortTypes.ts";
 
-const read = (name: string): CohortView => JSON.parse(fs.readFileSync(new URL(name, import.meta.url), "utf8")) as CohortView;
-const done = read("./cohort20.done.json");
-const running = read("./cohort20.running.json");
+const read = (name: string): CohortView =>
+  JSON.parse(fs.readFileSync(new URL(`../../../../../../public/dev/cohort/${name}`, import.meta.url), "utf8")) as CohortView;
+const done = read("cohort20.done.json");
+const running = read("cohort20.running.json");
 const en = JSON.parse(fs.readFileSync(new URL("../../../../../../messages/en.json", import.meta.url), "utf8")) as {
   analyzeCohort: { labels: Record<string, unknown>; absent: Record<string, string> };
 };
