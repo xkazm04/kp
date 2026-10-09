@@ -11,6 +11,7 @@ import { cleanupUnitDb } from "../testing/unit-db.ts";
 import { test, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { actOnPipelineEntry, createPipelineEntry, getPipelineEntry, listPipelineEventsForEntry, setApproval, setPipelineEntryStage } from "./pipeline.ts";
+import { ensureDb } from "./core.ts";
 import { setDecisionConfig } from "../decision-config-store.ts";
 import { registerStageEnteredHook, _resetStageEnteredHookForTests, type StageEnteredNotification } from "../stage-hook-registry.ts";
 
@@ -116,4 +117,29 @@ test("shipped default axis: the offer accept lands on Hired only through the opt
   assert.equal(actOnPipelineEntry(a, "accept", undefined, { actor: "system" }, WS_DEFAULT), null);
   assert.equal(getPipelineEntry(a, WS_DEFAULT)!.stage, "Offer");
   assert.equal(actOnPipelineEntry(a, "accept", undefined, { actor: "system", outcome: "offer_accepted" }, WS_DEFAULT)?.stage, "Hired");
+});
+
+// ---- reject on a CLOSED entry (R3-api-pipeline-1) ---------------------------------
+// The accept above is refused on a terminal status; reject used to be "idempotent",
+// which meant a second reject rewrote the row and wrote another 'rejected' event, and
+// on a candidate's own 'declined' it overwrote their decision with the company's.
+for (const status of ["rejected", "declined", "rematched", "role_closed"] as const) {
+  test(`reject on a '${status}' entry returns null: no event, status unchanged`, () => {
+    const id = entryAt("Screened", WS_DEFAULT);
+    ensureDb().prepare(`UPDATE pipeline_entries SET status=? WHERE id=?`).run(status, id);
+    const before = events(id, WS_DEFAULT).length;
+    assert.equal(actOnPipelineEntry(id, "reject", undefined, undefined, WS_DEFAULT), null);
+    assert.equal(actOnPipelineEntry(id, "reject", "again", { actor: "system" }, WS_DEFAULT), null);
+    assert.equal(getPipelineEntry(id, WS_DEFAULT)!.status, status);
+    assert.equal(events(id, WS_DEFAULT).length, before, "nothing written");
+  });
+}
+
+test("reject on an ACTIVE entry still ratifies a queued rejection_review", () => {
+  const id = entryAt("Screened", WS_DEFAULT);
+  setApproval(id, "rejection_review", "{}", WS_DEFAULT);
+  const r = actOnPipelineEntry(id, "reject", undefined, undefined, WS_DEFAULT);
+  assert.equal(r?.status, "rejected");
+  assert.equal(r?.approvalKind, null);
+  assert.equal(events(id, WS_DEFAULT).filter((e) => e.kind === "rejected").length, 1);
 });

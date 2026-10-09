@@ -557,12 +557,13 @@ export async function runPipelineEntryAction(
     // Re-read the row synchronously and seal against IT: the seal must describe the
     // row the write below is pinned to. Every refusal the write could still answer
     // from this process is answered here first, before anything is sealed — a moved
-    // stage, and an accept on a closed-out entry (actOnPipelineEntry refuses that
-    // one too, and a seal ahead of it would record an advance that never happened).
+    // stage, and an accept or reject on a closed-out entry (actOnPipelineEntry refuses
+    // both too, and a seal ahead of it would record a decision that never happened —
+    // a repeat reject would also queue a second letter and fire a second ATS event).
     const live = getPipelineEntry(id, workspaceId);
     if (!live) return err(404, "PIPELINE_ENTRY_NOT_FOUND");
     if (live.stage !== current.stage) return staleResponse(live);
-    if (action === "accept" && isTerminalEntryStatus(live.status)) return staleResponse(live);
+    if (isTerminalEntryStatus(live.status)) return staleResponse(live);
 
     const trimmedDetail = detail?.trim() ?? "";
     // Read from the pre-write row, never from the write's result — the write clears

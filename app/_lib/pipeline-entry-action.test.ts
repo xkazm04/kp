@@ -24,6 +24,7 @@ import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { createPipelineEntry, getPipelineEntry, listPipelineEventsForEntry, setApproval } from "./db/pipeline.ts";
+import { ensureDb } from "./db/core.ts";
 import { setDecisionConfig } from "./decision-config-store.ts";
 import { listDecisionRecords, sealDecisionSafe } from "./decision-record-store.ts";
 import { runPipelineEntryAction, type EntryActionDeps } from "./pipeline-entry-action.ts";
@@ -442,4 +443,43 @@ test("a plain reject with no note and no machine verdict still seals the templat
   assert.equal(inputs.aiRationale, null);
   assert.equal(inputs.aiReasonCode, null);
   assert.equal(inputs.aiReasonParams, null);
+});
+
+// ---- a reject on a CLOSED entry must not run again (R3-api-pipeline-1) -------------
+// The guard before the seal covered only accept, so a repeat reject sealed another
+// 'rejected' record, queued another letter and fired another ATS event; on a candidate's
+// own 'declined' it overwrote their decision.
+test("closed reject (i): rejecting twice seals, mails, mirrors and logs once; the repeat is a 409", async () => {
+  const entry = entryFixture(WS_SEAL, "Screened");
+  const s = spied();
+  let sealed = 0;
+  const deps = { ...s.deps, seal: ((input, ws) => { sealed += 1; return sealDecisionSafe(input, ws); }) as EntryActionDeps["seal"] };
+  const run = () =>
+    runPipelineEntryAction({ id: entry.id, action: "reject", expectedStage: "Screened", origin: ORIGIN, workspaceId: WS_SEAL }, deps);
+  assert.equal((await run()).status, 200);
+  const second = await run();
+  assert.equal(second.status, 409);
+  assert.equal(second.body.code, "PIPELINE_STAGE_CHANGED");
+  assert.equal(sealed, 1);
+  assert.deepEqual(s.sent, [entry.id]);
+  assert.deepEqual(s.ats, [`candidate.rejected:${entry.id}`]);
+  assert.equal(decisionKinds(entry.id).filter((k) => k === "rejected").length, 1);
+});
+
+test("closed reject (ii): a reject on a 'declined' entry is a 409 and the candidate's decline stands", async () => {
+  const entry = entryFixture(WS_SEAL, "Screened");
+  ensureDb().prepare(`UPDATE pipeline_entries SET status='declined' WHERE id=?`).run(entry.id);
+  const s = spied();
+  let sealed = 0;
+  const deps = { ...s.deps, seal: ((input, ws) => { sealed += 1; return sealDecisionSafe(input, ws); }) as EntryActionDeps["seal"] };
+  const res = await runPipelineEntryAction(
+    { id: entry.id, action: "reject", expectedStage: "Screened", origin: ORIGIN, workspaceId: WS_SEAL },
+    deps
+  );
+  assert.equal(res.status, 409);
+  assert.equal(getPipelineEntry(entry.id, WS_SEAL)!.status, "declined");
+  assert.equal(sealed, 0);
+  assert.deepEqual(s.sent, []);
+  assert.deepEqual(s.ats, []);
+  assert.ok(!decisionKinds(entry.id).includes("rejected"));
 });
