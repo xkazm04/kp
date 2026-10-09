@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireCapability } from "@/app/_lib/auth/current-user";
 import { meterGate, recordMeterUsage } from "@/app/_lib/billing";
 import { updateLifecycle } from "@/app/_lib/db/devcase";
 // The shared by-id owner guard (sibling module - a route file may export only handlers).
@@ -22,6 +24,10 @@ const MAX_FEEDBACK_CHARS = 2000;
 // (devcase_cli --feedback), and keeps the lifecycle at awaiting_approval so
 // the revised case comes back to the same human gate.
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+  const denied = await requireOperator();
+  if (denied) return denied;
+  const forbidden = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (forbidden) return forbidden;
   const { id } = await context.params;
   try {
     const body = (await request.json().catch(() => ({}))) as { feedback?: unknown };

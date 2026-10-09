@@ -4,7 +4,9 @@ import { getPosting, recordOutbox } from "@/app/_lib/db/devcase";
 import { ownedSubmission } from "../devcase-owned-lifecycle";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { buildFeedbackBrief } from "@/app/_lib/devcase-feedback";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireCapability } from "@/app/_lib/auth/current-user";
 
 
 // d142462d — queue a kind, non-adverse strengths/growth feedback brief for a
@@ -13,6 +15,10 @@ import { safeJsonError } from "@/app/_lib/api-response";
 // `queued` row — the recruiter sends it; the adverse decision itself stays
 // human-gated, so this only turns the work they did into respectful feedback.
 export async function POST(request: NextRequest) {
+  const denied = await requireOperator();
+  if (denied) return denied;
+  const forbidden = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (forbidden) return forbidden;
   try {
     const body = (await request.json().catch(() => ({}))) as { submissionId?: string };
     if (!body.submissionId) return NextResponse.json({ error: "submissionId is required." }, { status: 400 });

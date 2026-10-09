@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { safeJsonError } from "@/app/_lib/api-response";
+import { requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireCapability } from "@/app/_lib/auth/current-user";
 import { claimLifecycleClose, listPostings, listSubmissions, setPostingStatus, updateLifecycle } from "@/app/_lib/db/devcase";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 // The shared by-id owner guard (sibling module - a route file may export only handlers).
@@ -17,6 +19,10 @@ import { wrapUpRecipients } from "@/app/_lib/devcase-lifecycle-fence";
 // action, so it is HUMAN-triggered (this route has no automated caller),
 // mirroring the orchestrator's adverse-action policy.
 export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
+  const denied = await requireOperator();
+  if (denied) return denied;
+  const forbidden = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (forbidden) return forbidden;
   const { id } = await context.params;
   try {
     // OWNERSHIP. Closing dispatches a wrap-up rejection to every non-promoted submitter,

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
+import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { requireCapability } from "@/app/_lib/auth/current-user";
 import { meterGate, recordMeterUsage } from "@/app/_lib/billing";
 import { createLifecycle, listLifecycles } from "@/app/_lib/db/devcase";
 import { caseIntakeCounts } from "@/app/_lib/db/devcase-case-postings";
@@ -41,6 +43,10 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await requireOperator();
+  if (denied) return denied;
+  const forbidden = await requireCapabilityCoded("pipeline:write", requireCapability);
+  if (forbidden) return forbidden;
   try {
     const body = (await request.json().catch(() => ({}))) as {
       need?: { title?: string } & Record<string, unknown>;

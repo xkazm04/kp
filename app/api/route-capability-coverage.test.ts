@@ -106,12 +106,11 @@ const ALLOWED = new Map<string, string>([
   ["companion/proposals/[id]/resolve/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["companion/threads/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["data/[token]/route.ts", "public token door — authed by the capability link in the URL, never a seat (public-routes.ts)"],
-  ["devcase/feedback/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
   ["devcase/inbound/route.ts", "webhook — candidate apply intake, token-authed, no session"],
-  ["devcase/lifecycle/[id]/close/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
-  ["devcase/lifecycle/[id]/redesign/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
-  ["devcase/lifecycle/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
-  ["devcase/promote/route.ts", "slice 2 candidate — ungated when this ratchet landed; not yet judged"],
+  // devcase/{feedback,lifecycle,lifecycle/[id]/close,lifecycle/[id]/redesign,promote}/route.ts
+  // were judged and CLOSED (R4-api-devcase-1-8): each POST asks pipeline:write after
+  // requireOperator (close mails a rejection to every non-promoted applicant);
+  // app/api/devcase/devcase-doors-capability.test.ts drives the viewer 403.
   // devcase/publish/route.ts was judged and CLOSED (challenge-r09 devcase-lifecycle/B):
   // minting a live apply token - and reopening a stopped case's intake - asks
   // pipeline:write, like the stop door beside it; app/api/devcase/[id]/intake/route.test.ts
