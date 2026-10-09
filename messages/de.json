@@ -17471,6 +17471,89 @@
         "salaryCohort": "Höchstens {tolerance} % vom {currency}-Median der Gruppe entfernt",
         "salaryNone": "Keine Spanne zum Vergleich"
       }
+    },
+    "layerAnatomy": {
+      "region": "{dimension}: wie jede Bewertung zustande kam",
+      "bar": {
+        "base": "Beginnt bei {base}",
+        "part": "{what}: {points}",
+        "model": "Urteil des Modells",
+        "notEarned": "Nicht erreicht: {names}"
+      },
+      "evidence": {
+        "show": "Belege ({n})",
+        "showFor": "Belege zu {what}: {n, plural, one {# Zeile} other {# Zeilen}}",
+        "from": "Aus {source, select, scoreParts {den Score-Bestandteilen} skills {der Skill-Auswertung} unproven {den unbelegten Angaben} alignment {der Passungsbewertung} strengths {den genannten Stärken} gaps {den genannten Lücken} risk {den Risikohinweisen für Recruiter} mustProve {den noch zu prüfenden Belegen} softSignal {den Soft Signals} trust {der Vertrauensprüfung} salary {der Gehaltseinschätzung} band {der Gehaltsspanne der Stelle} github {der GitHub-Auswertung} evidenceTrace {der Belegspur} other {der Analyse}}"
+      },
+      "steps": {
+        "label": "Wie die Bewertung {rating} entstand, Teil für Teil",
+        "start": "Beginnt bei {base}",
+        "zero": "bringt nichts",
+        "short": "{n} unter dem Höchstwert",
+        "clamped": "Ergibt rechnerisch {raw}; die Skala hält den Wert bei {rating}",
+        "total": "Bewertung",
+        "zeroPro": "kostet nichts"
+      },
+      "gap": {
+        "label": "Worin sich diese Person von der Vergleichsperson unterscheidet",
+        "headline": "{dir, select, behind {{n, plural, one {# Punkt} other {# Punkte}} hinter {name}} ahead {{n, plural, one {# Punkt} other {# Punkte}} vor {name}} other {Gleichauf mit {name}}}",
+        "role": {
+          "leader": "Führt: Der Abstand liegt außerhalb beider Unsicherheitsbänder.",
+          "first": "Erste in der Reihenfolge, aber im Rauschen: eine Reihenfolge, kein Vorsprung.",
+          "next": "Nächste in der Reihenfolge, gemessen an der ersten."
+        },
+        "from": "Woher der Unterschied kommt",
+        "sides": "{name} {other} · diese Person {mine}",
+        "base": "Ausgangswert",
+        "rest": "{n, plural, one {# kleinerer Unterschied} other {# kleinere Unterschiede}}, zusammen {sum}",
+        "same": "Gleiche Bestandteile, gleiche Punkte.",
+        "clamped": "Rohdifferenz {raw}; durch die Grenzen der Skala werden daraus {rating}.",
+        "model": "Die Passung ist ein Urteil des Modells: Der Unterschied lässt sich nicht in Punkte zerlegen.",
+        "salary": "Gehalt wird nie gerankt: Jede Zahl wird an der Spanne gemessen, nicht an einer anderen Person.",
+        "floor": "Hier sind weniger als zwei Personen bewertet, daher wird niemand verglichen."
+      },
+      "sheet": {
+        "label": "{name}, in Einzelteilen",
+        "empty": "Wählen Sie eine Person, um jeden Bestandteil ihrer Bewertung, die Belege und den Unterschied zur ersten zu sehen.",
+        "focused": "Im Fokus",
+        "first": "Erste in der Reihenfolge",
+        "place": "Nr. {place} von {rated}",
+        "byFigure": "{place} von {rated} nach Gehaltswunsch, aufsteigend",
+        "modelTitle": "Urteil des Modells: keine Aufschlüsselung in Punkte",
+        "modelPros": "Vom Modell genannte Stärken",
+        "modelCons": "Vom Modell genannte Schwächen",
+        "otherPros": "Außerdem dafür",
+        "otherCons": "Außerdem dagegen",
+        "notes": "Hinweise"
+      },
+      "row": {
+        "label": "{n, plural, one {# Person} other {# Personen}} auf einer Skala",
+        "place": "Nr. {place}",
+        "press": "{name}: {rating}. {why}",
+        "pending": "{name}: Analyse läuft noch, noch nicht bewertet"
+      },
+      "legend": {
+        "label": "So lesen Sie die Balken",
+        "modelTitle": "Urteil des Modells: keine Aufschlüsselung in Punkte.",
+        "modelLead": "Die Passung bewertet das Modell, nicht eine Formel; jeder Balken zeigt daher nur die Bewertung selbst. Das Fokusblatt listet die vom Modell genannten Stärken, Schwächen und Risikohinweise.",
+        "base": "Ausgangswert",
+        "earn": "Erreicht",
+        "half": "Halb angerechnet: angegeben, nicht belegt",
+        "lose": "Verloren",
+        "rest": "Nicht erreicht",
+        "model": "Bewertung des Modells",
+        "guideLeader": "{name}, führend ({rating})",
+        "guideFirst": "{name}, Erste in der Reihenfolge ({rating}), im Rauschen",
+        "scale": "Eine Skala von 0–100 für alle"
+      },
+      "terse": {
+        "experience": "Erf. {score}/{max}",
+        "roleSeniority": "Stufe {score}/{max}",
+        "ghActive": "{active} aktiv",
+        "ghStars": "{stars, plural, one {# Stern} other {# Sterne}}",
+        "salaryInside": "In der Spanne",
+        "salaryOutside": "{pct} % {direction, select, above {darüber} other {darunter}}"
+      }
     }
   }
 }

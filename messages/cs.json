@@ -17471,6 +17471,89 @@
         "salaryCohort": "Nejvýše {tolerance} % od mediánu skupiny v {currency}",
         "salaryNone": "Není rozpětí k porovnání"
       }
+    },
+    "layerAnatomy": {
+      "region": "{dimension}: jak vzniklo každé hodnocení",
+      "bar": {
+        "base": "Začíná na {base}",
+        "part": "{what}: {points}",
+        "model": "úsudek modelu",
+        "notEarned": "Nezískáno: {names}"
+      },
+      "evidence": {
+        "show": "Doklady ({n})",
+        "showFor": "Doklady k položce {what}: {n, plural, one {# řádek} few {# řádky} many {# řádku} other {# řádků}}",
+        "from": "Zdroj: {source, select, scoreParts {složky skóre} skills {čtení dovedností} unproven {nedoložená tvrzení} alignment {posouzení souladu} strengths {uvedené silné stránky} gaps {uvedené mezery} risk {rizikové signály pro náboráře} mustProve {doklady, které je třeba ověřit} softSignal {měkké signály} trust {kontrola důvěryhodnosti} salary {posouzení mzdy} band {mzdové rozpětí pozice} github {čtení GitHubu} evidenceTrace {stopa důkazů} other {analýza}}"
+      },
+      "steps": {
+        "label": "Jak vzniklo hodnocení {rating}, složku po složce",
+        "start": "Začíná na {base}",
+        "zero": "nic nepřináší",
+        "short": "do plného počtu chybí {n}",
+        "clamped": "Součet dává {raw}; stupnice ho drží na {rating}",
+        "total": "Hodnocení",
+        "zeroPro": "nic nestojí"
+      },
+      "gap": {
+        "label": "Čím se tento kandidát liší od toho, s nímž je srovnáván",
+        "headline": "{dir, select, behind {O {n, plural, one {# bod} few {# body} many {# bodu} other {# bodů}} níže než {name}} ahead {O {n, plural, one {# bod} few {# body} many {# bodu} other {# bodů}} výše než {name}} other {Stejně jako {name}}}",
+        "role": {
+          "leader": "Vede: odstup přesahuje obě pásma nejistoty.",
+          "first": "První v pořadí, ale v mezích šumu: pořadí, ne náskok.",
+          "next": "Další v pořadí, měřeno od prvního."
+        },
+        "from": "Odkud rozdíl pochází",
+        "sides": "{name} {other} · tento kandidát {mine}",
+        "base": "Výchozí bod",
+        "rest": "{n, plural, one {# menší rozdíl} few {# menší rozdíly} many {# menšího rozdílu} other {# menších rozdílů}}, celkem {sum}",
+        "same": "Stejné složky, stejné body.",
+        "clamped": "Hrubý rozdíl {raw}; meze stupnice z něj dělají {rating}.",
+        "model": "Shoda s pozicí je úsudek modelu: rozdíl nemá rozpis na body.",
+        "salary": "Mzda se nikdy neřadí: každá částka se posuzuje vůči rozpětí, ne vůči jinému kandidátovi.",
+        "floor": "Hodnoceni jsou zde méně než dva kandidáti, takže se nikdo s nikým nesrovnává."
+      },
+      "sheet": {
+        "label": "{name} po složkách",
+        "empty": "Vyberte kandidáta a uvidíte každou složku jeho hodnocení, doklady a čím se liší od prvního.",
+        "focused": "Vybraný kandidát",
+        "first": "První v pořadí",
+        "place": "{place}. z {rated}",
+        "byFigure": "{place}. z {rated} podle požadované částky, od nejnižší",
+        "modelTitle": "Úsudek modelu: bez rozpisu na body",
+        "modelPros": "Klady, které model uvedl",
+        "modelCons": "Zápory, které model uvedl",
+        "otherPros": "Dále pro",
+        "otherCons": "Dále proti",
+        "notes": "Poznámky"
+      },
+      "row": {
+        "label": "{n, plural, one {# kandidát} few {# kandidáti} many {# kandidáta} other {# kandidátů}} na jedné stupnici",
+        "place": "{place}.",
+        "press": "{name}: {rating}. {why}",
+        "pending": "{name}: analýza ještě běží, zatím bez hodnocení"
+      },
+      "legend": {
+        "label": "Jak číst pruhy",
+        "modelTitle": "Úsudek modelu: bez rozpisu na body.",
+        "modelLead": "Shodu s pozicí hodnotí model, ne vzorec, takže každý pruh ukazuje jen samotné hodnocení; panel vybraného kandidáta uvádí klady, zápory a rizikové signály tak, jak je uvedl model.",
+        "base": "Výchozí bod",
+        "earn": "Získáno",
+        "half": "Poloviční zápočet: uvedeno, nedoloženo",
+        "lose": "Ztraceno",
+        "rest": "Nezískáno",
+        "model": "Hodnocení modelem",
+        "guideLeader": "{name}, vedoucí ({rating})",
+        "guideFirst": "{name}, první v pořadí ({rating}), v mezích šumu",
+        "scale": "Jedna stupnice 0–100 pro všechny"
+      },
+      "terse": {
+        "experience": "Praxe {score}/{max}",
+        "roleSeniority": "Úroveň {score}/{max}",
+        "ghActive": "{active} aktivní",
+        "ghStars": "{stars, plural, one {# hvězda} few {# hvězdy} many {# hvězdy} other {# hvězd}}",
+        "salaryInside": "V rozpětí",
+        "salaryOutside": "{pct} % {direction, select, above {nad} other {pod}}"
+      }
     }
   }
 }

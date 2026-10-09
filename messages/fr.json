@@ -17471,6 +17471,89 @@
         "salaryCohort": "À {tolerance} % près de la médiane {currency} du groupe",
         "salaryNone": "Aucune fourchette de comparaison"
       }
+    },
+    "layerAnatomy": {
+      "region": "{dimension} : comment chaque note a été construite",
+      "bar": {
+        "base": "Part de {base}",
+        "part": "{what} : {points}",
+        "model": "jugement du modèle",
+        "notEarned": "Non acquis : {names}"
+      },
+      "evidence": {
+        "show": "Preuves ({n})",
+        "showFor": "Preuves pour {what} : {n, plural, one {# ligne} other {# lignes}}",
+        "from": "Source : {source, select, scoreParts {les composantes du score} skills {la lecture des compétences} unproven {les affirmations non démontrées} alignment {l’évaluation de l’adéquation} strengths {les points forts relevés} gaps {les lacunes relevées} risk {les signaux de risque pour le recruteur} mustProve {les preuves à vérifier} softSignal {les signaux comportementaux} trust {le contrôle de fiabilité} salary {l’évaluation du salaire} band {la fourchette du poste} github {la lecture GitHub} evidenceTrace {la trace des preuves} other {l’analyse}}"
+      },
+      "steps": {
+        "label": "Comment la note de {rating} a été construite, composante par composante",
+        "start": "Part de {base}",
+        "zero": "ne rapporte rien",
+        "short": "{n} de moins que le maximum",
+        "clamped": "Le total donne {raw} ; l’échelle le maintient à {rating}",
+        "total": "Note",
+        "zeroPro": "ne coûte rien"
+      },
+      "gap": {
+        "label": "En quoi ce candidat diffère de celui auquel il est comparé",
+        "headline": "{dir, select, behind {{n, plural, one {# point} other {# points}} derrière {name}} ahead {{n, plural, one {# point} other {# points}} devant {name}} other {À égalité avec {name}}}",
+        "role": {
+          "leader": "En tête : l’écart dépasse les deux bandes d’incertitude.",
+          "first": "Premier dans l’ordre, dans le bruit : un ordre, pas une avance.",
+          "next": "Suivant dans l’ordre, mesuré depuis le premier."
+        },
+        "from": "D’où vient la différence",
+        "sides": "{name} {other} · ce candidat {mine}",
+        "base": "Point de départ",
+        "rest": "{n, plural, one {# différence plus petite} other {# différences plus petites}}, {sum} au total",
+        "same": "Mêmes composantes, mêmes points.",
+        "clamped": "Différence brute {raw} ; les bornes de l’échelle la ramènent à {rating}.",
+        "model": "L’adéquation est un jugement du modèle : la différence ne se décompose pas en points.",
+        "salary": "Le salaire n’est jamais classé : chaque montant est lu par rapport à la fourchette, pas par rapport à un autre candidat.",
+        "floor": "Moins de deux candidats sont notés ici : personne n’est comparé à personne."
+      },
+      "sheet": {
+        "label": "{name}, composante par composante",
+        "empty": "Sélectionnez un candidat pour voir chaque composante de sa note, ses preuves et ce qui le distingue du premier.",
+        "focused": "Candidat sélectionné",
+        "first": "Premier dans l’ordre",
+        "place": "N° {place} sur {rated}",
+        "byFigure": "{place} sur {rated} selon le montant demandé, du plus bas au plus haut",
+        "modelTitle": "Jugement du modèle : pas de détail en points",
+        "modelPros": "Points forts cités par le modèle",
+        "modelCons": "Points faibles cités par le modèle",
+        "otherPros": "Autres éléments pour",
+        "otherCons": "Autres éléments contre",
+        "notes": "Remarques"
+      },
+      "row": {
+        "label": "{n, plural, one {# candidat} other {# candidats}} sur une même échelle",
+        "place": "N° {place}",
+        "press": "{name} : {rating}. {why}",
+        "pending": "{name} : analyse en cours, pas encore noté"
+      },
+      "legend": {
+        "label": "Comment lire les barres",
+        "modelTitle": "Jugement du modèle : pas de détail en points.",
+        "modelLead": "L’adéquation est notée par le modèle, pas par une formule : chaque barre montre donc la note seule. La fiche du candidat sélectionné liste les points forts, points faibles et signaux de risque tels que le modèle les a formulés.",
+        "base": "Point de départ",
+        "earn": "Acquis",
+        "half": "Demi-crédit : affirmé, non démontré",
+        "lose": "Perdu",
+        "rest": "Non acquis",
+        "model": "Note du modèle",
+        "guideLeader": "{name}, en tête ({rating})",
+        "guideFirst": "{name}, premier dans l’ordre ({rating}), dans le bruit",
+        "scale": "Une seule échelle, de 0 à 100, pour tous"
+      },
+      "terse": {
+        "experience": "Exp. {score}/{max}",
+        "roleSeniority": "Niveau {score}/{max}",
+        "ghActive": "{active} actifs",
+        "ghStars": "{stars, plural, one {# étoile} other {# étoiles}}",
+        "salaryInside": "Dans la fourchette",
+        "salaryOutside": "{pct} % {direction, select, above {au-dessus} other {en dessous}}"
+      }
     }
   }
 }

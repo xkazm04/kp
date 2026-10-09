@@ -17471,6 +17471,89 @@
         "salaryCohort": "Within {tolerance}% of the cohort's {currency} median",
         "salaryNone": "No band to compare against"
       }
+    },
+    "layerAnatomy": {
+      "region": "{dimension}: how each score was built",
+      "bar": {
+        "base": "Starts at {base}",
+        "part": "{what}: {points}",
+        "model": "model judgement",
+        "notEarned": "Not earned: {names}"
+      },
+      "evidence": {
+        "show": "Evidence ({n})",
+        "showFor": "Evidence for {what}: {n, plural, one {# line} other {# lines}}",
+        "from": "From {source, select, scoreParts {the score parts} skills {the skills read} unproven {the unproven claims} alignment {the alignment read} strengths {the stated strengths} gaps {the stated gaps} risk {the recruiter risk flags} mustProve {the must-prove evidence} softSignal {the soft signals} trust {the trust check} salary {the salary assessment} band {the role band} github {the GitHub read} evidenceTrace {the evidence trace} other {the analysis}}"
+      },
+      "steps": {
+        "label": "How the rating of {rating} was built, part by part",
+        "start": "Starts at {base}",
+        "zero": "earns nothing",
+        "short": "{n} short of full",
+        "clamped": "Adds up to {raw}; the scale holds it at {rating}",
+        "total": "Rating",
+        "zeroPro": "costs nothing"
+      },
+      "gap": {
+        "label": "How this candidate differs from the one they are measured against",
+        "headline": "{dir, select, behind {{n, plural, one {# point} other {# points}} behind {name}} ahead {{n, plural, one {# point} other {# points}} ahead of {name}} other {Level with {name}}}",
+        "role": {
+          "leader": "The leader: the gap clears both uncertainty bands.",
+          "first": "First in order, within the noise: an order, not a lead.",
+          "next": "Next in order, measured from the first."
+        },
+        "from": "Where the difference comes from",
+        "sides": "{name} {other} · this one {mine}",
+        "base": "Starting point",
+        "rest": "{n, plural, one {# smaller difference} other {# smaller differences}}, {sum} in all",
+        "same": "Same parts, same points.",
+        "clamped": "Raw difference {raw}; the scale's limits make it {rating}.",
+        "model": "Fit is the model's judgement: the difference has no point breakdown.",
+        "salary": "Salary is never ranked: each figure is read against the band, not against another candidate.",
+        "floor": "Fewer than two candidates are rated here, so nobody is measured against anyone."
+      },
+      "sheet": {
+        "label": "{name}, taken apart",
+        "empty": "Press a candidate to see every part of their score, its evidence and how they differ from the first.",
+        "focused": "In focus",
+        "first": "First in order",
+        "place": "#{place} of {rated}",
+        "byFigure": "{place} of {rated} by asked figure, low to high",
+        "modelTitle": "Model judgement: no point breakdown",
+        "modelPros": "Pros the model stated",
+        "modelCons": "Cons the model stated",
+        "otherPros": "Also for",
+        "otherCons": "Also against",
+        "notes": "Notes"
+      },
+      "row": {
+        "label": "{n, plural, one {# candidate} other {# candidates}} on one scale",
+        "place": "#{place}",
+        "press": "{name}: {rating}. {why}",
+        "pending": "{name}: still analyzing, not rated yet"
+      },
+      "legend": {
+        "label": "How to read the bars",
+        "modelTitle": "Model judgement: no point breakdown.",
+        "modelLead": "Fit is rated by the model, not by a formula, so each bar is the rating alone; the focus sheet lists the model's own stated pros, cons and risk flags.",
+        "base": "Starting point",
+        "earn": "Earned",
+        "half": "Half credit: claimed, not shown",
+        "lose": "Lost",
+        "rest": "Not earned",
+        "model": "Model rating",
+        "guideLeader": "{name}, the leader ({rating})",
+        "guideFirst": "{name}, first in order ({rating}), within the noise",
+        "scale": "One scale, 0–100, for everyone"
+      },
+      "terse": {
+        "experience": "Exp. {score}/{max}",
+        "roleSeniority": "Level {score}/{max}",
+        "ghActive": "{active} active",
+        "ghStars": "{stars, plural, one {# star} other {# stars}}",
+        "salaryInside": "In band",
+        "salaryOutside": "{pct}% {direction, select, above {above} other {below}}"
+      }
     }
   }
 }
