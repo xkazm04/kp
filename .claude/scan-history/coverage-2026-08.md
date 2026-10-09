@@ -1373,6 +1373,495 @@ All five contexts count: every applicable lens ran on each, and the two n/a cell
 contexts with no `.tsx` (`voice-runtime-1`, `api-devcase-1`). 36 thread contexts remain. At
 five per round that is eight more rounds.
 
+## Recorded per-context coverage — 2026-10-09, ROUND 5, READ-ONLY (branch `autopilot/codebase-static-analysis-sweep-ffb4bb0f`)
+
+**The denominator is round 3's, unchanged:** the 55 thread contexts of the retired 143-map
+(`git show 9c20a787:context-map.json`), decided and re-counted in the round-3 section above.
+Every id below is a 143-map id, and each file list was resolved from `9c20a787`.
+
+Fifth five-lens round of dev_goal `081c3e5a`. **Read-only:** every feature span was under an
+open operator Approval until 09:00, so nothing in `app/`, `pipeline/`, `scripts/` or
+`messages/` changed. Every finding is recorded here, not fixed. Round 4 named Hiring Pipeline
+(2/10) and CV Analysis (2/8) as the thinnest groups by share, so the batch takes three
+contexts from the first and two from the second:
+
+- `db-pipeline`, `lib-offers` and `pipeline-board-1`: Hiring Pipeline.
+- `lib-profile` and `profile-ui-1`: CV Analysis & Candidate Profiles.
+
+`app/features/insights/about/`, `app/about/` and `app/landing/spark/` were neither read nor
+judged: another builder was changing them.
+
+### The round
+
+`✓` = read through that lens and judged; *clean* = judged with nothing found, which IS
+coverage; *n/a* = the lens has no surface here (no `.tsx` in the context). Counts are new
+findings; S/M/L as in round 2.
+
+| context | cat | files read | bug-hunter | ui-perfectionist | security-auditor | performance | ambiguity | fixed |
+|---|---|---|---|---|---|---|---|---|
+| `db-pipeline` | test | 5 / 1 map-src | ✓ 1 S, 1 M | n/a | ✓ 4 S | ✓ 2 S (1 U) | ✓ 2 S | - (read-only round) |
+| `lib-offers` | test | 5 / 5 map-src | ✓ 6 S, 2 M | n/a | ✓ 1 M | ✓ clean | ✓ 2 S | - (read-only round) |
+| `pipeline-board-1` | ui | 9 / 19 map-src (13 gone) | ✓ 4 S | ✓ 8 S, 1 M | ✓ 1 M | ✓ clean | ✓ 3 S | - (read-only round) |
+| `lib-profile` | test | 15 / 12 map-src | ✓ 5 S, 1 M | n/a | ✓ 2 S, 2 M | ✓ 2 S | ✓ 3 S | - (read-only round) |
+| `profile-ui-1` | ui | 29 / 20 map-src | ✓ 6 S, 1 M | ✓ 5 S, 1 M | ✓ 1 S, 1 M | ✓ 1 S (U) | ✓ 4 S | - (read-only round) |
+
+### Declared cuts, stated rather than rounded away
+
+- **"Files read" counts SOURCE files, read in full.** It is map source plus new source in the
+  same directories that is in no 143-map context:
+  - `db-pipeline` +4: `pipeline-core.ts`, `pipeline-events.ts`, `pipeline-calibration.ts`
+    (split out of `pipeline.ts` in `bbb2f56c6`, 2026-09-08) and `pipeline-locale.ts`
+    (`617e0a197`, "a leaf beside db/pipeline.ts"). `pipeline.ts` itself (3790 lines) was read
+    end to end. `app/_lib/db/` holds 41 unmapped sources; the other 37 belong to other
+    features and were neither read nor judged.
+  - `lib-offers` +0. No unmapped `offer*` source exists in `app/_lib/`.
+  - `pipeline-board-1` +3: `HumanScorecardByline.tsx`, `PipelineEntryNoteThread.tsx` and
+    `SchedulerJobRow.tsx`, the three `.tsx` that round 3 named and left unjudged. The
+    directory's other nine unmapped `.ts` are round 3's `pipeline-board-5` +9, and were not
+    re-judged.
+  - `lib-profile` +3: `archetype-live.ts`, `archetype-registry-file.ts`,
+    `candidate-population.ts`. `app/_lib/` holds 158 unmapped sources; only these three
+    belong to this context's subject.
+  - `profile-ui-1` +9: `ArchetypeArchiveConfirmModal.tsx`, `profileBulkRefresh.ts`,
+    `profileDraftMerge.ts`, `profileEditorBackup.ts`, `profileReadiness.ts`,
+    `profileRebuildMerge.ts`, `ProfileRosterRefreshBar.tsx`, `profileRoutingReasons.ts`,
+    `useCandidatePopulation.ts`.
+- **`pipeline-board-1` lists 13 files that are gone**, from 19 listed sources:
+  - `83f4979fa` (2026-09-16) deleted `PipelineAiActionsGrid.tsx`,
+    `PipelineBoardStageCell.tsx`, `PipelineBoardToolbar.tsx` and
+    `PipelineCandidateDrawer.tsx`.
+  - `b7fde0c32` (2026-09-25, "the composition-kit view is the only Hiring pipeline surface")
+    deleted `PipelineActivityFeed.tsx`, `PipelineAttentionStrip.tsx`, `PipelineBoard.tsx`,
+    `PipelineBoardOffAxisStrip.tsx`, `PipelineBulkActionBar.tsx`,
+    `PipelineBulkDecideRow.tsx` and `PipelineBulkOutreachButton.tsx`.
+  - `8e10b4218` (2026-10-08) deleted `PipelineCandidateMenu.tsx` and
+    `PipelineCandidateRow.tsx`.
+  - Their successors live in subdirectories that are in no 143-map context: `kit/` (6
+    sources), `orbit/` (29), `candidate/` (23), `map/` (4) and `empty/` (5). None was read
+    or judged. **So this context counts as five-lens coverage of what survives of it, not of
+    today's board.** The 67 subdirectory sources are the largest unmapped hole in Hiring
+    Pipeline.
+  - All nine files read have a live importer: CommandBar and PassPreviewModal through the
+    shell's SimControlDock, SchedulerJobRow through SchedulerControl, the drawer parts
+    through `candidate/`, and HumanScorecardByline from `PipelineHumanScorecardCard.tsx` and
+    `JobsCompareInterviewsEvidenceCard.tsx`.
+- **No other listed file is gone.** The other four contexts' `file_paths` all exist.
+- **The `cat` column follows the map.** The 143-map labels `db-pipeline`, `lib-offers` and
+  `lib-profile` `test`, because most of their listed paths are tests. The source judged in
+  each is `lib` + `api`, with no `.tsx`, which is why their `ui-perfectionist` cell is n/a.
+- **Colocated `*.test.ts` files were read only for what they already assert**, so a covered
+  case is not reported as a gap. They were never audited as code. Same gap as rounds 1-4.
+- **`db-pipeline`:**
+  - The following were traced at the cited lines, not judged: `core.ts` (`recordEvent`, the
+    DDL and indexes), `interviews.ts`, `interview-recording.ts`, the interview connect and
+    recording routes, the apply and followup routes, `application-filing.ts`, `consent.ts`,
+    `consent-expiry-reminders.ts`, `decision-attribution.ts`, `thread-autonomy.ts`,
+    `automation-pass.ts`, `automation-run.ts` and `interview-scorecard-commit.ts`.
+  - The director's transcript writes after a fresh connect were not traced. That is the open
+    side of R5-db-pipeline-1.
+  - Round 4 left one question open (R4-interview-ui-2: does `anonymizeEntry` clear the
+    recording consent?). It is now answered:
+    - `anonymizeEntry` does **not** clear `recording_consent_at` and does not revoke the
+      session. Its only `interview_sessions` write is `db/pipeline.ts:2500-2502`.
+    - It does delete the recordings, after the commit and best-effort (`:2850-2856`).
+    - So the erasure variant is open, and it is filed as R5-db-pipeline-1. R4-interview-ui-2's
+      own fix is still needed for the candidate's delete door.
+- **`lib-offers`:**
+  - Traced, not judged: `pipeline-entry-action.ts`, `comms-dispatch.ts`, `app/offer/[token]/`
+    (page, `OfferClient.tsx`, `offer-deadline.ts`) and `instrumentation-node.ts`.
+  - R5-lib-offers-5's fix site is `comms-dispatch.ts`, which belongs to the comms context. It
+    is filed here because the contradiction is offer-finalize's own comment and the offer
+    letter.
+  - The Helm chart's container `TZ` was not checked.
+- **`pipeline-board-1`:**
+  - The shell's `app/features/shell/simulation/simControlCenterKit.ts` (`useAutomationPass`)
+    was traced, not judged. R5-pipeline-board-1-3, -4 and -15 have their fix site there and
+    say so.
+  - Style and recipe drift declared in `style-debt.json` / `recipe-debt.json` (CommandBar's
+    raw button and red-600, PassPreviewModal's amber shades, ResultView's bare `rounded`,
+    SchedulerJobRow's `h-6`) is not filed.
+- **`lib-profile`:**
+  - Mutating `/api/profile`, `/api/profile/draft` and the two archetype routes have no
+    capability gate. They sit on `route-capability-coverage.test.ts`'s ALLOWED list as
+    "slice 2 candidate": known debt, not filed.
+  - The 300-row analyses scan floor in `candidate-timeline.ts:232-238` is a documented
+    trade-off and is not filed.
+  - The workspace-blind `listOffersForEntry` (`offers-store.ts:287`) is defense-in-depth only
+    (the entry id is already resolved inside the tenant) and is not filed.
+- **`profile-ui-1`:** the sibling files (`useArchetypeManagerActions.ts`, `ProfileTab.tsx`,
+  `useProfileEditorFields.ts`, `useProfileEditorSubmit.ts`, `candidateMatrixView.ts`,
+  `ProfileResultPanel.tsx`) were traced, not judged.
+- **Observed out of lane, not counted:**
+  - `useProfileEditorFields.ts:266-274`: `applyDraft` overwrites a restore the user has not
+    decided on, so the next write deletes the offered backup values.
+  - `useArchetypeManagerActions.ts:69,121` and `useProfileEditorSubmit.ts:92,120` parse the
+    body before the `ok` check, so a non-JSON 502 renders `e.message`.
+  - `useProfileEditorSubmit.ts`: `stale` is never reset by a later save.
+  - `SchedulerRunHistory.tsx:60` renders `run.error` like R5-pipeline-board-1-7.
+  - `ScheduleInterviewHumanScorecardSection.tsx:51` leaks the stage id like
+    R5-pipeline-board-1-11.
+  - `/api/comms` has no consent read-gate either (grep only).
+- **Line anchors were taken one file at a time** (`grep -n` on one file, or a Read of one
+  file). Every reviewer was told never to use `cat -n` over several files.
+  - Re-read: every one of the 73 findings had its anchor re-read on this worktree with a
+    per-file `sed -n` or `grep -n` before this table was written, about 100 line sites in
+    all, plus the 13 pointer lines in the duplicates below. All held.
+  - The reviewers' own pass found one anchor off by four lines (`pipeline-entry-action.ts`
+    `:326` → `:330`, in R5-lib-offers-3's path) and corrected it.
+  - R5-lib-profile-1 was traced end to end a second time, by hand: `TasksProvider.tsx:79-85`
+    posts `{kind, params}`, nothing on the path adds `lang`, `tasks.ts:393` casts the params
+    through, `profile-draft-run.ts:64` puts `params.lang` into the args, and
+    `python-runner.ts:490` → `:450` throws on a non-string. The sync `/api/profile/draft`
+    route passes `getServerLocale()` and is unaffected.
+
+### Findings
+
+**73 new findings: 61 S, 12 M, 0 L.** Five duplicates were not counted (below). Nothing was
+fixed (read-only round). "C" = CONFIRMED, traced end to end; "U" = UNVERIFIED, with what was
+not read. Path roots: db = `app/_lib/db/`; board = `app/features/hiring/pipeline/`; profile =
+`app/features/tools/profile/`; anything else is rooted.
+
+| id | lens | sev | file:line | what is wrong | path read | |
+|---|---|---|---|---|---|---|
+| R5-db-pipeline-1 | security | S | `db/pipeline.ts:2500-2502`, `:2850-2856` | erasure leaves the candidate's AI-interview link live. The schedule and offer tokens are revoked (`:2531-2537`, `:2552`), but the session only has its label, transcript and scorecard blanked: status unchanged, `recording_consent_at` kept. `revokeOpenInterviewSessions` runs only after a reject (`:3643`), `/connect` refuses only terminal entries, and an erased entry stays `active`. An erased person's link can start a paid voice call, and audio upload passes its consent and status gates | `:2817` → `:2500-2502` → `app/api/interview/connect/route.ts:173-176` → `app/api/interview/recording/route.ts:77,84` | C (store and gates); U: the director's transcript writes after a fresh connect |
+| R5-db-pipeline-2 | security | S | `db/pipeline.ts:2746-2750`, `:2143` | the erasure claim nulls the erasure, opt-out and applicant tokens but not `lead_token`, and `findEntryByLeadToken` does not filter `anonymized_at`. The emailed "complete your profile" link still resolves to the erased row. A token-proof re-apply backfills `contact` (NULL, so the guard passes), can rebuild the CV into the erased profile, and renews consent: the re-attachment `:1637` and `:1924` forbid. The sweep never sees the row again | `app/api/apply/[id]/route.ts:351` → `app/_lib/application-filing.ts:275,231-232` → `db/pipeline.ts:1974` → `application-filing.ts:261`; `followup/route.ts:72` | C |
+| R5-db-pipeline-3 | security | S | `db/pipeline.ts:2746-2750` | erasure leaves `approval_detail` untouched. For `scorecard_review` it holds the interview scorecard verbatim (`app/_lib/interview-scorecard-commit.ts:61`), the same text `scrubEntryLinkedPii` nulls on `interview_sessions` because it quotes the candidate (`:2497`). `approvalDetail` is on the board allowlist (`:129`), so the copy is served on every board poll | `:61` → `setApproval` `:3244` → claim `:2746-2750` → `BOARD_ENTRY_FIELDS` `:129` | C (store, allowlist); U: the Decisions render |
+| R5-db-pipeline-4 | security | S | `db/pipeline.ts:2799-2801`, `:2764` | the recruiter's free-text decision note survives erasure twice: `scrubAnalysis` does not null `analyses.decision_note`, and the `disposition_set` echo copies the note into `pipeline_events.detail` (`:1888-1897`), where erasure masks only `candidate_label` (`:2764`). The file's own rule (`:2489-2494`) erases recruiter free text about the person | `app/api/analyses/[slug]/route.ts:153` → `:1888` → `anonymizeEntry` `:2764,2799-2801` | C |
+| R5-db-pipeline-5 | bug | S | `db/pipeline.ts:2931-2934`, `:2953-2955` | a renewed consent never gets its pre-expiry reminder. A re-apply renews the grant (new `consent_given_at`, `:2282-2285`), but the old cycle's `expiring_notified` row is permanent, and both the due-list `NOT EXISTS` and the claim's `already` check match any such row ever. The renewed grant is anonymized at expiry with no notice, though the reminder exists so the person can renew or erase first (`consent-expiry-reminders.ts:6-9`) | `application-filing.ts:261` → `recordEntryConsent` `:2285` → `listConsentExpiryNoticeDue` `:2933` → `anonymizeExpiredConsents` `:2865` | C |
+| R5-db-pipeline-6 | bug (attribution) | M | `db/pipeline.ts:3216-3218`, `:3280-3295` | `setApproval` writes `approval_set` with no actor, deliberately, so it invents no human. But `DECISION_META.approval_set` is `auto: false` (`app/_lib/decision-attribution.ts:35`), and the autonomy meter (`thread-autonomy.ts:139`) and `summarizeAutomationImpact` fall back to the kind map. Most raisers are machines (`automation-run.ts:633,686,690`, `automation-pass.ts:517`, `stage-hooks.ts:286,361`), so every machine-raised gate counts as a human act: the misattribution the comment says it avoids. M: actor threading or a kind split | `automation-run.ts:633` → `:3285` (actor NULL) → `thread-autonomy.ts:139` → `decision-attribution.ts:241-242` | C |
+| R5-db-pipeline-7 | perf | S | `app/_lib/db/core.ts:640`, `:2558`, `:2699` | `pipeline_events` has no index on `entry_id` (only `created_at`, `(workspace_id, created_at)`, `workspace_id`), so every per-entry read scans the tenant's event log: drawer history, `hasEvent` / `hasEventToday` / `hasEventSinceStageChange` (`db/pipeline.ts:3376,3401,3419`), the reconsider and rejected-lane subqueries (`:1350-1352,1377-1379`), and the erasure mask (`:2764`). The automation pass runs the dedupe per alert per entry, up to 2000 entries a tick (`automation-pass.ts:401-403`) | `automation-pass.ts:402` → `:3419` | C (DDL); cost reasoned, not measured |
+| R5-db-pipeline-8 | perf | S | `db/pipeline.ts:1925-1929` | `findApplicationByApplicant` runs `SELECT *` over every non-erased entry of the job (github JSON, notes, approval blobs) on each public apply, then matches in JS; `normalizeContact` is trim + lowercase, which `candidateIdByContact` (`:1825-1830`) already does in SQL | public apply → `application-filing.ts:275` → `:1927` | U: per-job volumes not measured |
+| R5-db-pipeline-9 | ambiguity | S | `db/pipeline-calibration.ts:1-142`; `db/pipeline-events.ts:197-213`; `db/pipeline-core.ts:1-2,194-198` | dead and drifting split-outs: `pipeline-calibration.ts` has no importer (all three calibration tests import `./pipeline.ts`) and encodes an older rule (`:82-86`, current stage only). `pipeline-events.ts` keeps a stale `PIPELINE_REASON_CODES` missing `commandWaveReversed` and `readdedByRecruiter`, plus importer-less list helpers. `pipeline-core.ts` says "only from sibling pipeline-*.ts", but `automation-pass.ts:15` and `api/pipeline/outcomes/hire-roster.ts:15` import it, and its `nextStageOnAxis` twins the private one at `pipeline.ts:3438-3442` (the pass decides with one copy, the store commits with the other; identical today) | grep over app, scripts, packages, edge, root | C |
+| R5-db-pipeline-10 | ambiguity | S | `db/pipeline.ts:3265-3279`, `:330-339`, `:571`, `:3516` | four comments the code contradicts: the three `approval_set` registrations are "still owed" (all exist: `pipelineEventCatalog.ts:92,225`, `decision-attribution.ts:35`, 4 catalogs); `listPipelineEventsSince`'s doc sits on `listRecentPipelineEvents` and `:375` has none; `intakeCapturedManually` is credited to `mergeReapplication`, but the writer is `clearIntakeDegraded` (`:2013`); approve_event's terminal guard is "above" but is below (`:3557`) | — | C |
+| R5-lib-offers-1 | bug | S | `app/_lib/offer-reminders.ts:42-43` | `dispatchOfferReminder` returns a `failed` / `refused` outcome rather than throwing (no recipient on an agent-population entry, a relay that records `failed`), and the sweep ignores it and counts `sent += 1`. `offer_comms_failed` is written only in the catch, so a claimed-never-sent reminder is invisible and the heartbeat logs "offer reminders sent: N". `candidate-next-action-server.ts:113` reads the outcome | `:29` → `:42` → `comms-dispatch.ts:1100,1110` → `:346-362` → `:327` `delivered()` → `instrumentation-node.ts:463-464` | C |
+| R5-lib-offers-2 | bug | S | `app/_lib/offer-reminders.ts:37-38`; `app/_lib/offers-store.ts:263-266` | the reminder sweep never checks the entry's status. A reject (`db/pipeline.ts:3551`) or a job close leaves the offer `extended`, so a rejected candidate gets "your offer expires in 48h". The interview reminder filters exactly this with `isEntryReminderEligible` (`schedule-store.ts:897-899`), which `markEntryStatus` (`offers-store.ts:435`) cites as its model | `offers-store.ts:263` → `offer-reminders.ts:20,29,37` → `comms-dispatch.ts:1100`; grep `UPDATE offers`: only erasure | C |
+| R5-lib-offers-3 | bug | S | `app/_lib/offers-store.ts:331` | the material-change guard compares salary, currency and TTL only. A re-extend after the recruiter edits the draft's `startDate` or `notes` is a verbatim re-send, so `payload_json` is not refreshed, while the letter is built from the live draft (`pipeline-entry-action.ts:330`). The binding accept page renders the stored payload (`offer-finalize.ts:236-237`), so it shows the old date, and the `offer_terms` record is not re-sealed: the letter-vs-page divergence `:318-328` says it prevents | `pipeline-entry-action.ts:286-297` → `offers-store.ts:331,347` → `pipeline-entry-action.ts:304,328-330` → `offer-finalize.ts:214,236-237` | C |
+| R5-lib-offers-4 | bug | S | `app/_lib/offers-store.ts:280` | `markOfferReminded` re-checks `reminded_at IS NULL AND status='extended'` but not the deadline the sweep snapshotted (`offer-reminders.ts:20`) before awaiting each dispatch. A re-extend during the loop resets `reminded_at` and moves `expires_at` (`offers-store.ts:357`); the offer is then claimed and nudged with the stale deadline, and the new window's one reminder is spent | `offer-reminders.ts:20,29,42` ‖ `pipeline-entry-action.ts:286` → `offers-store.ts:355-358` | C (likelihood low: two due offers in one tick) |
+| R5-lib-offers-5 | bug | S | `app/_lib/comms-dispatch.ts:1081-1088`; `app/_lib/offer-finalize.ts:229-232` | the server-side `formatOfferDeadline` sets no `timeZone`, so the letter and the reminder state the deadline in the server process zone, while the accept page renders it in `INTERVIEW_TZ`. On a UTC host 22:30Z reads "12 Sept, 22:30 UTC" in the letter and "13 Sept, 00:30 CEST" on the page. The comment at `offer-finalize.ts:230-231` ("formatOfferDeadline already accepts this as its third argument") is true only of the client function of the same name | `offer-finalize.ts:229-232` → `app/offer/[token]/offer-deadline.ts:45-49`; `comms-dispatch.ts:681,1105` → `:1064-1088` → `date-format.ts:25-34` | C (code); U: the chart's container TZ |
+| R5-lib-offers-6 | bug | M | `app/_lib/offer-finalize.ts:76-88`, `:181-193` | the response is claimed first (row set to `accepted` / `declined`), then `getPipelineEntry`, `getPipelineAxis` and `actOnPipelineEntry` run with no try/catch or compensation. If one throws (SQLITE_BUSY past the 5 s timeout `offers-store.ts:22-26` worries about), the route answers 500 and every retry hits the `alreadyResponded` echo (`:39-46`). The entry stays on Offer for good with no `offer_accepted` event, meter or webhook. M: a compensation or reconcile design | `app/api/offer/[token]/route.ts:58` → `:29,39,76` → `:82,88` → retry `:39-46` | C (path); SQLITE_BUSY frequency not measured |
+| R5-lib-offers-7 | bug | M | `app/_lib/offer-finalize.ts:110-113`, `:177` | nothing withdraws an open offer when its entry is rejected or closed. The candidate can still accept: `actOnPipelineEntry` refuses the terminal entry and `offer_accept_blocked` is recorded, but the candidate is answered `{ok: true, status: "accepted", alreadyResponded: false}` and the row is `accepted` for good. They believe they accepted a job they were already turned down for. Adjacent to backlogged "withdraw an extended offer" (`docs/BACKLOG.md` T33); the untruthful success is its own defect | `db/pipeline.ts:3551` → `:29` (still `extended`) → `:76` → `:88` (null) → `:113` → `:177` | C |
+| R5-lib-offers-8 | security | M | `app/offer/[token]/OfferClient.tsx:190`; `app/_lib/offers-store.ts:355-358` | an accept is not bound to the terms the candidate saw. A re-extend rewrites salary, currency and deadline in place on the same token, and the POST carries only `{response}`. A tab showing 100k (refresh 60 s plus focus) can accept after a re-extend at 90k, and the binding accept records 90k. M: a terms version on the client, a CAS in `markOfferResponded`, a new code in 4 catalogs | `OfferClient.tsx:190` → `route.ts:52-58` → `offer-finalize.ts:76` → `offers-store.ts:386-388` | C |
+| R5-lib-offers-9 | bug | S | `app/_lib/offers-store.ts:214` | the lazy lapse decides "expired" in JS, then runs `UPDATE … WHERE token=? AND status='extended'` without re-asserting the deadline; the sibling sweep (`:236`) does carry `expires_at <= ?`. A re-extend from another connection in the gap would be overwritten to `expired`: the read→compute→write that neither locks nor re-checks | `:210-215` vs `:234-237` | C (needs a second process on the file) |
+| R5-lib-offers-10 | ambiguity | S | `app/_lib/offers-store.ts:429`; `app/_lib/offer-finalize.ts:187` | both comments justify the conditional decline with "offer tokens never expire", which the deadline policy (`offer-policy.ts:1-6`, `expireOfferIfDue`, `lapseExpiredOffers`) contradicts. The guard is right; its stated premise is false | grep `never expire` | C |
+| R5-lib-offers-11 | ambiguity | S | `app/_lib/offer-policy.ts:88-101`, `:27`, `:22` | `isOfferReminderDue` has no non-test caller, though its doc says it makes "the heartbeat's reminder policy … unit-testable"; the heartbeat runs a SQL copy (`offers-store.ts:263-266`), so `offer-policy.test.ts:84` pins a function production never runs. `OFFER_TTL_MS` is test-only and frozen at module load. `:22` (and `pipeline-entry-action.ts:300`) name `resolveOfferTtlMs`; production uses `resolveOfferTtlDays` | grep over app, scripts, packages, edge, `instrumentation-node.ts` | C |
+| R5-pipeline-board-1-1 | bug | S | `board/CommandBar.tsx:76`, `:154-160`, `:203` | Confirm sends the CURRENT input `text`, not the previewed text. The input stays editable while a preview is in flight (`busy` blocks only submit), so a reply can paint a preview of A while the input holds B; Confirm then runs B with `confirm: true`, and for reject_below attaches A's `matchedIds`. "Advance the top N" or "run the policy pass" can execute unseen. Distinct from R3-api-pipeline-4 (which ids), this is which command | `:60-99` → `app/api/pipeline/command/route.ts:165-172` | C (needs the in-flight window) |
+| R5-pipeline-board-1-2 | ui (i18n) | M | `board/CommandBar.tsx:97`, `:176`, `:183` | the bar renders the server's `description`, built in English by `describeCommand` (`app/_lib/pipeline-command.ts:66-87`), including the consent sentence "Reject and notify active candidates…" and "Didn't catch that.". The route ships no kind parameters, so the client cannot compose it. M: a parameterised description across route, client and 4 catalogs; `pipeline-command.test.ts:57` pins the English | `command/route.ts:85,104` | C |
+| R5-pipeline-board-1-3 | bug | S | `app/features/shell/simulation/simControlCenterKit.ts:178-180` → `board/PassPreviewModal.tsx:166-170` | a network failure on commit sets only the dock's `error`, behind the modal; `commitError` stays null (cleared at `:148`) and Apply just reverts. The "click simply did nothing" defect the modal's doc (`:37-40`) says was fixed, fixed only for coded refusals. Fix site is the shell kit | `SimControlDock.tsx:113-122`; `PassPreviewModal.test.ts` covers the coded path only | C |
+| R5-pipeline-board-1-4 | bug | S | `simControlCenterKit.ts:109`, `:133-135` → `board/PassPreviewModal.tsx:178`, `:194-209` | `dryRun` clears `report` before fetching; if the re-preview fails, `preview` keeps the old object, so the modal shows the pre-commit rows with a live Apply and the old unticked set, and the failure line is again only on the dock behind it. While in flight, Apply reads "Running the pass…". The server's drift check bounds the damage. Fix site is the shell kit | `:105-141` | C |
+| R5-pipeline-board-1-5 | ui (a11y) | S | `board/PassPreviewModal.tsx:178-209`; `board/CommandBar.tsx:200-209`, `:249-258` | async success unmounts the focused button and drops focus to `<body>`: Apply becomes Re-preview when a report arrives (and `useDialogA11y.ts:133-139` wraps Tab only from first/last/node, so the next Tab escapes the modal); CommandBar's Confirm and Undo unmount the same way | `app/_components/useDialogA11y.ts:124-140` | C |
+| R5-pipeline-board-1-6 | bug | S | `board/SchedulerJobRow.tsx:92-100` | the cadence draft re-mirrors only when the stored `intervalMinutes` changes; a failed or refused `setJob` leaves `jobs` untouched (`useSchedulerControlState.ts:195-200` only sets `error`), so the field keeps showing a cadence that was never saved | `SchedulerControl.tsx:107` → `useSchedulerControlState.ts:166-224` | C |
+| R5-pipeline-board-1-7 | security | M | `board/SchedulerJobRow.tsx:157`, `:184` | `latest.error` / `run.error` is rendered verbatim inside `runFailedMsg`: for registry jobs the clock persists `e.message` (`instrumentation-node.ts:434`), and GET `/api/automation/schedule` forwards it unprojected (`route.ts:60`, `scheduler-store.ts:395`). Same exception class the POST codes as `SCHEDULE_UPDATE_FAILED`; a different data flow from R3-pipeline-board-5-5 (the tick) and R4-schedule-ui-2-7. M: a stored reason code across clock, store, route and catalogs. Operator-only | as listed | C |
+| R5-pipeline-board-1-8 | ui (i18n) | S | `board/SchedulerJobRow.tsx:152-157`, `:184` | the manual jobseeker scan persists a CODE (`app/_lib/tasks.ts:433`, e.g. `ENGINE_FAILED`), and the row renders "Run failed: ENGINE_FAILED" though `errors.ENGINE_FAILED` exists; the comment at `:152-155` ("raw server exception with no machine code") is wrong for this job | `app/_lib/jobseeker/scan.ts:86-97` | C |
+| R5-pipeline-board-1-9 | ui (a11y) | S | `board/SchedulerJobRow.tsx:110`, `:115` | the "why it's locked" reason (`unverified`) lives only in `title=` on a disabled button, out of keyboard, touch and screen-reader reach, though the header (`:10-13`) calls it "a courtesy that says WHY"; the toggle's accessible name is just On/Off, so several rows read "On, pressed" | — | C |
+| R5-pipeline-board-1-10 | ui | S | `board/PipelineCandidateResultView.tsx:130`; `board/PipelineCommsList.tsx:79`; `board/SchedulerJobRow.tsx:171` | `title=` tooltips, which `ui.md` bans; ResultView's `unpricedTitle` carries an instruction ("Set the amount when you approve the offer") only mouse users see. No ratchet covers `title=` | `style-debt.json`, `recipe-debt.json`: no title rule | C |
+| R5-pipeline-board-1-11 | ui (i18n) | S | `board/HumanScorecardByline.tsx:19` | `b.stage` is the pipeline stage id (`app/api/interview-prep/scorecard/route.ts:61,169` → `"Interview"`) interpolated raw, so cs/de/fr read "Kolo: Interview"; the rest of the app uses `enumLabel("stage", …)` (`CandidateModalBody.tsx:62-67`) | `app/_lib/human-scorecard-set.ts:139-142` | C |
+| R5-pipeline-board-1-12 | ui (a11y) | S | `board/CommandBar.tsx:174-176`, `:237-238`, `:260`; `board/PipelineEntryNoteThread.tsx:85`; `board/PipelineCandidateNoteField.tsx:26-36` | failure text without `role="alert"`; in NoteField the save-status span sits INSIDE the `<label>`, so the textarea's accessible name becomes "Candidate notes Couldn't save", and the failure is only `aria-live="polite"` | — | C |
+| R5-pipeline-board-1-13 | ambiguity | S | `board/PipelineCandidateResultView.tsx:17` | every LLM result is labelled `pipeline.result.claudeCli` ("Claude CLI") whatever the provider; `automation.py:515-553` tags any configured provider (Gemini, OpenAI, Azure, OpenRouter, ollama) `"llm"`, so the provenance chip is false on non-Claude installs | catalogs en/cs/de | C |
+| R5-pipeline-board-1-14 | ambiguity | S | `board/PipelineCandidateDrawerTypes.ts:49-63` | the English `APPLIED_LABEL` fallback says "keep the two in step", but `offer_ready` and `advisory` already differ from `messages/en.json` `pipeline.applied`; every key exists in the catalog, so the fallback is unreachable | `PipelineCandidateResultView.tsx:47-52` | C |
+| R5-pipeline-board-1-15 | ambiguity | S | `simControlCenterKit.ts:85-87` | the hook's comment says "the pass auto-rejects AND emails candidates"; the modal it feeds (`board/PassPreviewModal.tsx:31-36`) says the pass does NOT auto-reject and sends zero rejection emails. Fix site is the shell kit | — | C |
+| R5-pipeline-board-1-16 | ui (a11y) | S | `board/CommandBar.tsx:254` | the Undo button's `aria-label` ("Undo the rejection of N candidates") overrides and does not contain its visible text ("Undo these rejections"), so voice-control users cannot say what they see (WCAG 2.5.3) | en catalog | C |
+| R5-pipeline-board-1-17 | ui | S | `board/PassPreviewModal.tsx:108` | `label()` falls back to the raw entry id; when the board read fails (`simControlCenterKit.ts:120-122,132` silently sets `entries=[]`), every row is named by an internal id, with no notice | — | C |
+| R5-lib-profile-1 | bug | S | `app/_lib/profile-draft-run.ts:64` | **every AI profile draft started from the editor fails before Python runs.** The CLI gets `"--lang", params.lang`; the editor starts the task with `{ text: aiText }` only (`profile/ProfileEditorAiDraft.tsx:46`), nothing on the path adds `lang`, so `assertSpawnArgs` (added in `e079f23b3`, 2026-09-15) throws on `undefined`. The unit test mocks the spawn, so the check never runs there. A non-string `text` also throws on `.trim()` at `:52` | `ProfileEditorAiDraft.tsx:46` → `TasksProvider.tsx:79-85` → `app/api/tasks/route.ts:108` → `tasks.ts:393` → `:64` → `python-runner.ts:490` → `:450` | C (static trace, re-traced by hand; not executed) |
+| R5-lib-profile-2 | security (GDPR) | S | `app/_lib/candidate-timeline.ts:476`, `:346-356`, `:523` | the drawer bundle hides interview and human scorecards when consent has lapsed (`:426`: "a panel is no less PII than one card") but returns each letter's `recipient`, `subject` and `body` unfiltered, the three columns erasure blanks (`db/pipeline.ts:2517`); `rematchLinks[].candidateLabel` (`:523`) shows a lapsed counterpart's real name | `candidateDrawerBundle` → `candidateComms` → `listOutboxFiltered` → `toCandidateComm`; `consent.ts:83-92` | C |
+| R5-lib-profile-3 | security (GDPR) | M | `app/_lib/candidate-pool.ts:78-101` | the shared pool builder applies no consent or opt-out gate; only `rediscover.ts:157` filters, and its comment says the gate "belongs before the ranking". `app/api/jobs/[id]/candidates/route.ts:36` and `winnability/route.ts:48` rank erased, lapsed and opted-out people and show their labels. M: where the gate lives is a cross-caller choice | `buildCandidatePool` → both routes | C (candidates); U: winnability output |
+| R5-lib-profile-4 | security (GDPR) | M | `app/api/profile/route.ts:150`, `:178`; `app/api/profile/candidates/route.ts:34-35` | profile reads have no consent read-gate: `GET ?id=` returns the full CV payload of a profile whose entry's consent lapsed, and the list and population routes return profile labels plus `analyses.candidate_label` (`candidate-population.ts:223`) until the deferred sweep runs `anonymizeProfile`. Same class as R3-analyze-ui-1-7, on surfaces it does not name. M: per-row masking and search-on-masked-name, as there | `getProfileRecord`, `cachedProfileRecords`, `listAnalysisRecords`, `anonymizeProfile` | C (profile ↔ entry link via `candidate_id`, from the erasure map) |
+| R5-lib-profile-5 | bug | S | `app/_lib/archetype-registry.ts:301`, `:341` | `fairnessProtected` is never type-checked (`pickEditable` copies it raw, `validateArchetype` ignores it) and the readers disagree on a non-boolean: TS (`archetypes.ts:73`) needs `=== true`, Python (`registry.py:114`) and the manager UI (`ArchetypeManagerList.tsx:49`) treat truthy as on. A PUT of `"true"` on a custom archetype shows a shield and Python protects it, while `screen-wave.ts` treats it unshielded and can auto-reject | PUT `/api/archetypes/[id]` → `updateArchetype` → `writeRegistry`; `readLiveArchetypes` → `shieldsFromAutoReject` | C (reachable by a raw operator PUT or a hand edit) |
+| R5-lib-profile-6 | bug | S | `app/_lib/archetype-registry.ts:133-137` (comment `:122-124`) | the comment says read validation means "what this module will serve is exactly what Python will import", but `validateArchetype` checks only the three slots: a hand-edited fourth weight key passes, Python raises at import (`registry.py:42-46`) and every spawn breaks, while the manager and the live fairness gate call the file fine. Detection reason-kinds are not checked either | `parseRegistryDocument` → `validateRegistry` → `validateArchetype:243` | C |
+| R5-lib-profile-7 | bug | S | `app/api/archetypes/route.ts:35`; `app/api/archetypes/[id]/route.ts:30`, `:46` | bare `request.json()`: invalid JSON, `null` or a non-object body (`'key' in "str"` in `pickEditable`) becomes a 500 `ARCHETYPES_WRITE_FAILED`, the bad-input-as-500 class `validateArchetype:235-237` was written to remove; the body size is unbounded (operator-gated) | route → `createArchetype` / `updateArchetype` → `pickEditable` | C |
+| R5-lib-profile-8 | security | S | `app/_lib/profile-draft-run.ts:52`; `app/api/profile/draft/route.ts:42` | draft `text` has no length cap anywhere: the sync route reads the body with no limit, the task path takes `params.text` from the client, and `profile_draft_cli.py` puts all of it into a paid prompt. Calls are rate-limited, their size is not; the sibling `/api/profile` caps at 128 KB. A `null` body throws a 500 at `body.text` | route / `tasks` → `runProfileDraft` → `profile_draft_cli._extract_llm` | C |
+| R5-lib-profile-9 | bug | S | `app/api/profile/route.ts:294-295` | POST enforces one profile per CV (`:217-219` plus `saveProfileForCv`'s immediate transaction), but PUT re-points lineage to any analysis slug with no ownership check and the hash index is not unique, so a rebuild onto another profile's CV recreates the two-profiles-per-hash state `candidate-population.ts:26-27` calls legacy | PUT → `resolveLineage` → `setProfileLineage` (`db/profiles.ts:283-296`) | C (code); U: whether the UI ever sends another CV's slug |
+| R5-lib-profile-10 | perf | S | `app/api/profile/candidates/route.ts:34` | each Profile-tab load reads and schema-parses 200 full CV-analysis payloads (`safeRowParse` with `analysisResultSchema`, `db/analyses.ts:592-617`) to read one field, `v2Profile.archetype` (`candidate-population.ts:220`) | route → `listAnalysisRecords` → `analysisFromRecord` | C |
+| R5-lib-profile-11 | bug | M | `app/api/profile/candidates/route.ts:34-35` | the population silently caps at 200 analyses and 200 profiles with no `truncated` flag (unlike `CandidatePool`), so the retire dialog's blast radius (`ArchetypeManager.tsx:79` via `routedCount`) undercounts on larger tenants and older same-CV analyses drop out of a profile row. M: paging or a count query plus the dialog's copy | route → `collapsePopulation` → `routedCount` | C; dialog wording not read |
+| R5-lib-profile-12 | perf | S | `app/_lib/candidate-timeline.ts:289`, `:364` | `latestInterviewByEntry` (`SELECT *`, transcript included, `db/interviews.ts:638`) runs twice per drawer open, once for the timeline items and once for the outcome | `candidateDrawerBundle` | C |
+| R5-lib-profile-13 | ambiguity | S | `app/_lib/candidate-timeline.ts:249`; `app/_lib/candidate-nps-store.ts:52`; `app/_lib/archetype-live.ts:130`, `:134`; `app/_lib/archetype-registry-file.ts:18` | exports with no production caller: `candidateTimeline` (none at all), `recentCandidateNpsComments` (none), `liveIsKnownArchetype` and `isFairnessProtectedLive` (tests only), `UNREADABLE_REGISTRY_FILE_DIGEST` (never imported) | grep over app, scripts, packages, edge | C |
+| R5-lib-profile-14 | ambiguity | S | `app/_lib/archetype-registry.ts:23-24` | "no external importer (the two archetype routes use only create/list/updateArchetype)": `[id]/route.ts:3` also imports `setArchetypeArchived`, and `archetype-live.ts:4` imports `parseRegistryDocument` and `registryWriteGeneration` | imports | C |
+| R5-lib-profile-15 | ambiguity | S | `app/_lib/archetype-registry.ts:97-99` vs `app/_lib/archetype-registry-file.ts:28-30` | two registry-path definitions though `archetype-registry-file.ts:9` claims one shared file: the writer and manager use their own `registryPath()`, so `setLiveRegistryPathForTest` moves the live reader and the digest but not the writer, and a test combining the override with `updateArchetype` would rewrite the checked-in `archetypes.json` | both files; the tests' chdir isolation | C |
+| R5-profile-ui-1-1 | bug | S | `profile/ArchetypeManager.tsx:182-201` | the actions hook's `error` reaches only the Edit panel; Archive (View panel) and Unarchive (list) run in view mode, so a failed PATCH sets `error` and nothing renders it: retiring or restoring fails silently. A successful unarchive during an open edit calls `setMode("view")` and drops the edit unprompted | `useArchetypeManagerActions.ts:59-81` | C |
+| R5-profile-ui-1-2 | bug | S | `profile/ArchetypeManager.tsx:79`; `profile/ArchetypeArchiveConfirmModal.tsx:59` | when the first population read fails, `useCandidatePopulation` leaves `rows` null and sets `failed` (`useCandidatePopulation.ts:48-51`), but the manager receives only `rows`, so the retire dialog says "Counting the profiles routed here…" forever; `:61-64` writes this down as intended, but nothing is counting | `ProfileTab.tsx:108` passes only `population.rows` | C |
+| R5-profile-ui-1-3 | bug | M | `profile/CandidateDetailModal.tsx:96` (and sibling `candidateMatrixView.ts:59,64,80`) | `archetypeDisplayKey` checks the build-time archetype list (bau, student, career_switcher), so a candidate routed to a runtime custom archetype shows "Unrouted" in the modal and is filed into the Unrouted lane while the custom lane is dropped as empty, against `ArchetypeArchiveConfirmModal.tsx:9-12` ("the number matches the lane on screen"). `routedCount` avoids this (`candidate-population.ts:244-247`). M: the fix spans the sibling view model | `app/_lib/archetypes.ts:41,95-114` | C |
+| R5-profile-ui-1-4 | bug | S | `profile/ProfileEditor.tsx:185-189` | `build()` stores `savedFields = fields` before the save resolves; if a second save fails (error or 409 stale), `result` still holds the first save's, so `showSaved` holds and the panel shows the earlier routing, completeness and "Match now" as if the current form were saved, beside the error | `useProfileEditorSubmit.ts:63-124` (`result` never cleared) | C |
+| R5-profile-ui-1-5 | bug | S | `profile/ProfileRosterRefreshBar.tsx:58-74` | nothing aborts the bulk refresh on unmount (the file has no `useEffect`): List→Matrix or opening a row's editor unmounts the bar while `runBulkRefresh` keeps PUTting, the report is lost, and the remounted idle bar can offer a second run over rows still in flight | `ProfileRoster.tsx:186`; `ProfileTab.tsx:77,132-140` | C |
+| R5-profile-ui-1-6 | bug | S | `profile/useProfileTabDeepLinks.ts:38-55` (same shape `:63-83`, `:111-135`) | editor openers have no last-request-wins guard; each fetch ends in `setEditor` with a new nonce, which remounts the editor, so Edit then "New profile" before the GET returns replaces the create editor (and what was typed), and two Edit clicks answered out of order open the wrong row | `ProfileTabTypes.ts:47-49`; `ProfileTab.tsx:83,126` | C (path; the window is network latency) |
+| R5-profile-ui-1-7 | bug | S | `profile/useProfileTabDeepLinks.ts:137-145` | `reloadArchetypes` parses without checking `r.ok`, so a 500 (`ARCHETYPES_READ_FAILED`) after a manager edit replaces the loaded registry with `[]`: the manager falls into its create-only panel, the matrix loses its lanes, editor segments fall back to the baseline | `app/api/archetypes/route.ts:14-19` | C |
+| R5-profile-ui-1-8 | security | M | `profile/profileEditorBackup.ts:42-45` | the backup slot key carries no workspace: a create intake is written to `kp.profileEditor.new`, tab navigation does not clear it, and `WorkspaceTab.switchTo` uses `location.reload()`, which keeps sessionStorage. In the next workspace "New profile" finds no versions and an unchanged baseline, `planRestore` takes the `silent` path (`:139-140`), and workspace A's candidate PII fills workspace B's form, ready to save. M: a tenant-keyed slot plus migration of live slots | `useProfileEditorFields.ts:136-171,193-205`; `WorkspaceTab.tsx:94-102` | C |
+| R5-profile-ui-1-9 | security | S | `profile/ProfileEditorAiDraft.tsx:73` | the fallback passed to `resolveError` is `watch.error` itself; for profile_draft `storedFailure` stores the handler's `.message`, which `parseStderrError` fills with trimmed stderr (a Python traceback with paths) or the CLI's English `error`, rendered raw in every locale; `ProfileDraftError.code` is never stored | `app/_lib/tasks.ts:733-736`; `profile-draft-run.ts:68-71`; `python-runner.ts:702-722` | C |
+| R5-profile-ui-1-10 | ui (i18n) | S | `profile/ArchetypeManagerEditPanel.tsx:83`, `:103` | `t("weightFieldLabel", { slot })` / `t("dimFieldLabel", { slot })` interpolate the raw slug, so cs reads "skills váha %", and these strings are the inputs' accessible names; `dimSkills` / `dimCareer` / `dimPersonal` exist (`ArchetypeManager.tsx:70`) | `messages/cs.json` `profile.archetypes.*` | C |
+| R5-profile-ui-1-11 | ui (i18n) | S | `profile/ArchetypeManagerViewPanel.tsx:94` | checklist chips print the registry's English `c.label` ("seniority", "years of experience") in every locale; `profile.result.checks.<check>` exists and `ProfileResultPanel.tsx:62` resolves it through `labelOr` | `archetypes.json:15-17`; cs catalog | C |
+| R5-profile-ui-1-12 | ui (i18n) | S | `profile/CandidateMatrixBoard.tsx:40`; `profile/CandidateMatrixShared.tsx:43`; `profile/ProfileEmptyStates.tsx:167` | for a built-in archetype the lane heading and the empty-state boxes show the registry's English label ("Experienced") — `labelOf` localizes only when `label === id` — while the detail modal shows "Zkušený"; `DistributionBar`'s `aria-label` uses `group.label`, so the Unrouted lane is announced as the slug `unrouted` | `candidateMatrixView.ts:62,65`; cs `enums.archetype` | C |
+| R5-profile-ui-1-13 | ui (a11y) | S | `profile/CandidateMatrix.tsx:125`; `profile/ProfileEditor.tsx:336` | the matrix's population-load failure and the editor's save error have no `role="alert"`; every sibling error in the context has one (EditPanel `:110`, AiDraft `:116`, ProfileEditor `:320`) | — | C |
+| R5-profile-ui-1-14 | ui (a11y) | S | `profile/ProfileRosterRefreshBar.tsx:109-129` | Confirm, Stop and Dismiss each unmount the button just pressed with no focus target (only Cancel has `autoFocus`); Dismiss can make the whole bar return null, so focus drops to `<body>` | — | C |
+| R5-profile-ui-1-15 | ui | M | `profile/ArchetypeManagerList.tsx:81`; `profile/ArchetypeManagerViewPanel.tsx:47`; `profile/CandidateChip.tsx:45,53,89,102`; `profile/CandidateMatrixShared.tsx:66`; `profile/ProfileRosterRefreshBar.tsx:165` | `title=` tooltips (`ui.md` bans them); SeniorityGlyph and RetiredFlag carry theirs on non-focusable spans; the chip's save control (`CandidateChip.tsx:98-106`) is a hand-rolled icon-only button where `IconAction` exists. Not declared debt. M: eight sites across five files and a primitive swap | `style-debt.test.ts`: no title rule | C |
+| R5-profile-ui-1-16 | perf | S | `profile/CandidateMatrix.tsx:86-89` | the `columns` memo depends on `archivedArchetypeIds`, which `ProfileTab.tsx:162` rebuilds as a fresh array every render, so every ProfileTab render re-runs `archetypeColumns` and the Board's `groupByArchetype` re-sorts each lane with `localeCompare` | — | U: cost not profiled |
+| R5-profile-ui-1-17 | ambiguity | S | `profile/ArchetypeManagerTypes.ts:29-32` | the comment says `weight_out_of_range` "has no message-catalog entry yet", so the manager can only say "Save failed (400)."; `profile.archetypes.validation.weight_out_of_range` exists in all four catalogs and `validationLabel` resolves it | en/cs catalogs; `useArchetypeManagerActions.ts:35-37` | C |
+| R5-profile-ui-1-18 | ambiguity | S | `profile/ProfileEmptyStates.tsx:13-24`, `:180` | the header describes two variants behind a local switcher, including "supply"; only the dossier variant exists and there is no switcher; `:180` is a cut-off sentence ("…calling a component factory") | — | C |
+| R5-profile-ui-1-19 | ambiguity | S | `profile/CandidateMatrix.tsx:96-99` | an orphaned comment describes a "promote an analysed CV" function no longer here, above `onSave`, which has its own comment | — | C |
+| R5-profile-ui-1-20 | ambiguity | S | `profile/ProfileForm.ts:66` | `HydratedForm` has no reference in `app/`; `SeniorityGlyph`, `isRefreshable`, `joinList` and `RefreshRequest` are exported but used only in their own files | grep over `app/` | C |
+
+### Duplicates, not counted
+
+Five recorded findings whose defect site is in this round's files. Every one is **still
+present** on this tree:
+
+- **R3-api-pipeline-1** (a reject on a closed entry re-applies). The reject UPDATE with no
+  status predicate is now at `db/pipeline.ts:3551` (was ~3550). The "reject is idempotent"
+  comment is still at `:3515`.
+- **R3-api-pipeline-2** (the live feed's cursor freezes). The store half is unchanged at
+  `db/pipeline.ts:375-380`, and `app/api/pipeline/events/recent/route.ts:30-31` still takes
+  the cursor from the filtered list.
+- **R3-api-pipeline-5** (reinstate re-checks only `status='rejected'`). Still at
+  `db/pipeline.ts:1455,1462`.
+- **R3-api-pipeline-6** (`listPipeline` silently caps at 2000). Still at
+  `db/pipeline.ts:782,823,835`. It also feeds PassPreviewModal's labels.
+- **R3-api-pipeline-4** (the advance_top confirm is not bound to the previewed ids).
+  `CommandBar.tsx:69-72` still binds only reject_below, and `command/route.ts:167` still says
+  "unbound". R5-pipeline-board-1-1 is a different defect: which text is sent, not which ids.
+
+Pointer updates, not findings of this round:
+
+- **R3-analyze-ui-1-7.** The sweep's analyses scrub is now `db/pipeline.ts:2799-2801`.
+  R5-lib-profile-4 is the same class on profile surfaces, and is counted as new.
+- **R3-decisions-ui-2-1.** The store branch is still `db/pipeline.ts:3587-3595`.
+- **R4-interview-ui-2.** Its open half is answered in the cuts above. The erasure variant is
+  R5-db-pipeline-1.
+- **R3-pipeline-board-5-3.** Still at `useSchedulerControlState.ts:179-180,200`.
+- **R3-pipeline-board-5-5.** Still at `schedulerRunState.ts:89`.
+- **R3-api-pipeline-3.** Still at `pipeline-entry-action.ts:453-454`.
+- **R3-decisions-ui-2-5.** Still at `DecisionsTab.tsx:63-64`.
+- **Nothing else matched** rounds 1-4 or "Known gaps" in
+  `docs/architecture/engine-and-prompt-coordination.md`. None of its four gaps (JD ingest,
+  `weight-proposal-v2`, the voice transport, judge independence) touches these contexts.
+
+### Confirmed S findings NOT fixed this round — carry-over, written to be taken as-is
+
+Each line is the fix, then the test that fails today and passes after it. One commit per
+line, test-first, as round 2 did.
+
+- **R5-db-pipeline-1.** Fix: in `anonymizeEntry`, beside `deleteEntryRecordings`, call
+  `revokeOpenInterviewSessions(entryId, workspaceId)` in its own try/catch, and set
+  `recording_consent_at = NULL` in the `:2501` UPDATE. Test
+  (`app/_lib/erasure-full-scrub.test.ts`): erase an entry with an open session; the session
+  is `revoked` and `recordingConsentAt` is null, beside the existing token asserts at
+  `:210-212`.
+- **R5-db-pipeline-2.** Fix: `lead_token = NULL, lead_passed_ko_json = NULL` in the claim
+  at `:2746-2750`; `AND anonymized_at IS NULL` in `findEntryByLeadToken` and in
+  `mergeReapplication`'s three UPDATEs. Test (`pipeline-erasure-once.test.ts`): mint
+  `ensureLeadEnrichToken(id)`, erase; `findEntryByLeadToken(token) === null` and
+  `mergeReapplication(id, { contact })` leaves `contact` null.
+- **R5-db-pipeline-3.** Fix: `approval_detail = NULL` in the claim UPDATE (whether
+  `approval_kind` also clears is the product's call). Test (`erasure-full-scrub.test.ts`):
+  `setApproval(id, "scorecard_review", JSON.stringify({ summary: NAME }))`, erase; the
+  entry's `approvalDetail` does not contain `NAME`.
+- **R5-db-pipeline-4.** Fix: `decision_note = NULL` in `scrubAnalysis`, and
+  `UPDATE pipeline_events SET detail = NULL WHERE entry_id = ? AND workspace_id = ? AND kind = 'disposition_set'`
+  beside `:2764`. Test (`erasure-analyses-scrub.test.ts`): a decision note naming the
+  person, echoed as a disposition, is null in both places after erasure.
+- **R5-db-pipeline-5.** Fix: `AND ce.created_at >= pe.consent_given_at` in the `NOT EXISTS`
+  at `:2933`, and the same bound (binding `row.consent_given_at`) in the claim at `:2954`.
+  Test (`consent-expiry-reminders.test.ts`): notify once (1), renew the consent columns, move
+  the expiry into the window; `notifyExpiringConsents` returns 1 again.
+- **R5-db-pipeline-7.** Fix:
+  `CREATE INDEX IF NOT EXISTS idx_pipeline_events_entry ON pipeline_events (entry_id, kind, created_at)`
+  in the `core.ts` migration. Test (new `app/_lib/db/pipeline-events-index.test.ts`):
+  `EXPLAIN QUERY PLAN` on `hasEventSinceStageChange`'s SQL uses `idx_pipeline_events_entry`.
+- **R5-db-pipeline-8** is S but UNVERIFIED. Fix: do the email branch in SQL
+  (`LOWER(TRIM(contact)) = ? … LIMIT 1`) and select only `id, contact, candidate_label,
+  created_at` for the name fallback. Test: extend the `findApplicationByApplicant` tests with
+  a ~500-entry job and pin the same match (behaviour pin; measure first).
+- **R5-db-pipeline-9.** Fix: delete `pipeline-calibration.ts` and the dead exports in
+  `pipeline-events.ts` / `pipeline-core.ts`; `pipeline.ts` imports `nextStageOnAxis` from
+  `pipeline-core` so one copy exists, and the header admits its two outside importers (mind
+  the import-graph budget). Test (new `app/_lib/db/pipeline-siblings.test.ts`): every
+  non-test `pipeline-*.ts` has an importer, and `PIPELINE_REASON_CODES` is declared only in
+  `pipeline.ts`.
+- **R5-db-pipeline-10.** Fix: correct the four comments. Test: none (comment only).
+- **R5-lib-offers-1.** Fix: `const outcome = await dispatchOfferReminder(…)`; count `sent`
+  only when `delivered(outcome)`, else record `offer_comms_failed`. Test
+  (`offer-lifecycle.test.ts`): an entry at Offer with no deliverable recipient, minted with
+  `ttlDays: 1`; `sendDueOfferReminders()` returns 0 and the entry has an
+  `offer_comms_failed` event.
+- **R5-lib-offers-2.** Fix: skip ineligible entries before the claim
+  (`if (!entry || !isEntryReminderEligible(entry)) continue;` moved above
+  `markOfferReminded`, or a `pipeline_entries` join in `dueOfferReminders`), so a reinstated
+  candidate can still be nudged. Test (`offer-lifecycle.test.ts`): `mintOffer(id, 1)`,
+  `actOnPipelineEntry(id, "reject")`; `sendDueOfferReminders()` returns 0 and no
+  `offer_reminder` outbox row exists.
+- **R5-lib-offers-3.** Fix: include the candidate-visible terms (`notes`, `startDate`, via
+  one exported `publicOfferTerms`) in `termsChanged`. Test (`offer-reextend-terms.test.ts`):
+  re-extend with the same salary, currency and TTL but a new `startDate`; `updated === true`,
+  same token, and `offerView(token).startDate` is the new date.
+- **R5-lib-offers-4.** Fix: `markOfferReminded(token, whenIso, expectedExpiresAt)` with
+  `AND expires_at = ?`; the sweep passes `offer.expiresAt`. Test
+  (`offer-lifecycle.test.ts`): snapshot the due row, re-extend with `ttlDays: 14`;
+  `markOfferReminded(token, now, snap.expiresAt) === false` and `reminded_at` stays NULL.
+- **R5-lib-offers-5.** Fix: `timeZone: INTERVIEW_TZ` in the `dateFormatter` options at
+  `comms-dispatch.ts:1081` (the memo key already includes the options), and correct
+  `offer-finalize.ts:230-231`. Test (`comms-dispatch-locale.test.ts`):
+  `formatOfferDeadline("2026-09-12T22:30:00.000Z", "en")` equals the client
+  `offer-deadline.formatOfferDeadline(iso, "en", INTERVIEW_TZ)`; fails today on a UTC runner.
+- **R5-lib-offers-9.** Fix: bind `nowIso` and add `AND expires_at IS NOT NULL AND
+  expires_at <= ?` to the UPDATE at `:214`. Test: extract `lapseOfferIfDue(token, nowIso)`;
+  on a row with a future `expires_at` it leaves the status `extended` (a sync interleave
+  cannot be driven directly).
+- **R5-lib-offers-10.** Fix: restate the guard's real reasons (several links per entry,
+  recruiter moves). Test: none (comment only).
+- **R5-lib-offers-11.** Fix: delete `isOfferReminderDue` and `OFFER_TTL_MS`, or filter
+  `dueOfferReminders` through the predicate; correct both `resolveOfferTtlMs` comments. Test
+  (if kept, `offer-lifecycle.test.ts`): offers at `ttlDays` 1, 2 and 3; `dueOfferReminders()`
+  equals the rows for which `isOfferReminderDue(expiresAt)` is true.
+- **R5-pipeline-board-1-1.** Fix: store the previewed text on the preview result and send
+  `result.text` on confirm (or drop a reply whose request text differs from the input). Test:
+  a pure `commandRequestBody(result, text, confirm)`; a preview of A with input B gives
+  `body.text === "A"`.
+- **R5-pipeline-board-1-3.** Fix (in the shell kit): the commit catch also calls
+  `setCommitError({ code: null, capability: null })`. Test (`PassPreviewModal.test.ts`,
+  source contract): the kit's commit catch contains `setCommitError(`.
+- **R5-pipeline-board-1-4.** Fix (in the shell kit): `setReport(null)` only in the dry run's
+  success branch, and a failed re-preview surfaces inside the modal. Test (source contract):
+  `setReport(null)` does not precede the fetch in `dryRun`.
+- **R5-pipeline-board-1-5.** Fix: a ref on Re-preview focused in an effect keyed on
+  `report`; CommandBar refocuses the input after done and after undo. Test (source
+  contract): an effect on `report` calls `.focus()`.
+- **R5-pipeline-board-1-6.** Fix: re-mirror the draft on the busy true→false edge when the
+  field is not focused. Test: a pure `nextIntervalDraft({ stored, mirrored, focused, busy,
+  prevBusy, draft })`; a settled write with the stored value unchanged returns the stored
+  value.
+- **R5-pipeline-board-1-8.** Fix: when `run.error` is a catalogued code render
+  `errMsg({ code: run.error }, t("runFailed"))`, else keep the wrapping; correct `:152`.
+  Test: a pure `runErrorText(error, resolve)`; `ENGINE_FAILED` resolves through the catalog.
+- **R5-pipeline-board-1-9.** Fix: the `unverified` reason as visible text tied by
+  `aria-describedby`; the toggle gets `aria-label={copy.toggleTitle}`. Test (source
+  contract): no `title=` in the file, and `t("unverified")` is rendered text.
+- **R5-pipeline-board-1-10.** Fix: `Tooltip` / `IconAction` at the three sites. Test (source
+  contract): `doesNotMatch(/\btitle=\{/)` for the three files.
+- **R5-pipeline-board-1-11.** Fix: `stage: enumLabel("stage", b.stage)` via
+  `useEnumLabel()`. Test (source contract): the byline matches `enumLabel("stage", b.stage)`.
+- **R5-pipeline-board-1-12.** Fix: `role="alert"` on the failure lines; move NoteField's
+  status span out of the `<label>`. Test (source contract): per file.
+- **R5-pipeline-board-1-13.** Fix: a provider-neutral key (e.g. `aiModel`) in all 4
+  catalogs. Test: no `pipeline.result` value matches `/Claude/` in any locale.
+- **R5-pipeline-board-1-14.** Fix: delete `APPLIED_LABEL`, or sync it. Test (if kept): every
+  key's value equals `en.pipeline.applied[key]`; fails today on `offer_ready` and `advisory`.
+- **R5-pipeline-board-1-15.** Fix: rewrite the kit's comment. Test: none (comment only).
+- **R5-pipeline-board-1-16.** Fix: drop the `aria-label`, or start the catalog string with
+  the visible text. Test: in each locale, `undoWaveLabel` starts with `undoWave`'s text.
+- **R5-pipeline-board-1-17.** Fix: fall back to a localized "unknown candidate" label and
+  show a notice when `entries` is empty. Test (source contract): `?? id` is gone from
+  `label`.
+- **R5-lib-profile-1.** Fix: `tasks.ts:393` passes `{ text: String(ctx.params.text ?? ""),
+  lang: String(ctx.params.lang ?? "en") }` (the shape `:370` already uses for repo scans),
+  the editor stamps its locale into the task params, and the arg becomes one
+  `--lang=<value>` element. Test (`profile-draft-run.test.ts`): `runProfileDraft({ text:
+  "notes" } as ProfileDraftParams, undefined, spy)` with a spy that runs
+  `assertSpawnArgs(args)`; it does not throw.
+- **R5-lib-profile-2.** Fix: when `consentWithholdsPii(entry)`, null `recipient`, `subject`
+  and `body` on each comm and mask `rematchLinks[].candidateLabel`. Test
+  (`candidate-timeline.test.ts`): a lapsed-consent entry with one outbox row; the bundle's
+  comm has `body === null` and `recipient === null`, and the verdict is still present.
+- **R5-lib-profile-5.** Fix: refuse a non-boolean `fairnessProtected` in `updateArchetype`
+  (`fairness_invalid`, 4 catalog entries if the client localizes it), and make
+  `shieldsFromAutoReject` read truthy like Python. Test (`archetype-registry.test.ts`): PUT
+  `{ fairnessProtected: "true" }` on a custom archetype gives `fairness_invalid`.
+- **R5-lib-profile-6.** Fix: `validateRegistry` refuses a `weights` key set that is not
+  exactly the three slots. Test (`archetype-registry.test.ts`): a registry with
+  `weights.extra` makes `listArchetypes()` throw `registry_invalid`.
+- **R5-lib-profile-7.** Fix: `readJsonWithLimit(req, N, {})` and a 400 refusal for a
+  non-object body. Test (new `app/api/archetypes/route-body.test.ts`): POST and PUT with
+  `"null"` and `"[]"` answer 400, not 500.
+- **R5-lib-profile-8.** Fix: `MAX_DRAFT_TEXT` (e.g. 32 KB) in `runProfileDraft`, refused
+  400 `invalid_input`, and `readJsonWithLimit` in the route. Test
+  (`profile-draft-run.test.ts`): oversized text rejects with status 400 and the spy spawn is
+  never called.
+- **R5-lib-profile-9.** Fix: before `setProfileLineage`, `findProfileIdBySourceCvHash`; a
+  different id is refused 409 `PROFILE_EXISTS`. Test (new
+  `app/api/profile/profile-lineage-unique.test.ts`): PUT profile B with profile A's analysis
+  slug is 409, and B's `source_cv_hash` is unchanged.
+- **R5-lib-profile-10.** Fix: a projection reader with
+  `json_extract(payload_json, '$.v2Profile.archetype')`, no payload parse. Test
+  (`candidateMatrixContracts.test.ts`, source contract): the route no longer calls
+  `listAnalysisRecords`.
+- **R5-lib-profile-12.** Fix: read the session once and pass it to both helpers. Test
+  (`candidate-timeline.test.ts`, source contract): `latestInterviewByEntry(` appears once.
+- **R5-lib-profile-13.** Fix: delete or un-export the five. Test: none (typecheck stays green).
+- **R5-lib-profile-14.** Fix: correct the comment. Test: none (comment only).
+- **R5-lib-profile-15.** Fix: `registryPath()` returns `archetypeRegistryPath()`. Test
+  (`archetype-registry.test.ts`): `setLiveRegistryPathForTest(tmp)` then `createArchetype`
+  writes `tmp` and leaves the repo file's bytes unchanged.
+- **R5-profile-ui-1-1.** Fix: pass `error` to the View panel and the list with
+  `role="alert"`; skip `setMode("view")` after unarchive while editing. Test (source
+  contract): `ArchetypeManagerViewPanel` takes an `error` prop.
+- **R5-profile-ui-1-2.** Fix: pass `population.failed` through and show a new
+  `archiveConfirmUnavailable` (4 catalogs). Test: a pure `retireDialogState(rows, failed)`;
+  `(null, true)` is `"unavailable"`.
+- **R5-profile-ui-1-4.** Fix: `submit` returns `ok`, and `savedFields` is set only when it is
+  true. Test: a pure `shouldShowSaved(result, savedFields, fields, lastOk)`; a failed second
+  save gives false.
+- **R5-profile-ui-1-5.** Fix: `useEffect(() => () => controllerRef.current?.abort(), [])`.
+  Test (source contract): an unmount cleanup aborts the controller.
+- **R5-profile-ui-1-6.** Fix: a request counter in a ref, bumped by every opener and by "New
+  profile"; `setEditor` only if the token still matches. Test: a pure `latestOnly()` wrapper;
+  two promises resolving out of order apply only the second.
+- **R5-profile-ui-1-7.** Fix: `r.ok ? r.json() : Promise.reject()`, state untouched on
+  failure. Test: a fake-fetch test that a 500 keeps the previous array, or a source contract
+  that `reloadArchetypes` checks `r.ok`.
+- **R5-profile-ui-1-9.** Fix: `resolveError({ code: watch.error }, t("aiDraftFailed"))`.
+  Test (source contract): the second argument is never `watch.error`.
+- **R5-profile-ui-1-10.** Fix: map `slot` through `dimSkills` / `dimCareer` /
+  `dimPersonal`. Test (source contract): no `{ slot })` in the panel.
+- **R5-profile-ui-1-11.** Fix: `labelOr(useTranslations("profile.result"),
+  \`checks.${c.check}\`, c.label)`. Test (source contract): the panel uses `checks.`.
+- **R5-profile-ui-1-12.** Fix: a pure `laneLabel(col, enumLabel)` (enum for built-in and
+  unknown ids, registry label for custom) for the heading, the `aria-label` and the
+  empty-state boxes. Test: `laneLabel({ id: "bau", label: "Experienced" })` is the enum
+  value and `{ id: "unrouted", label: "unrouted" }` the localized label.
+- **R5-profile-ui-1-13.** Fix: `role="alert"` at both lines. Test (source contract): a regex
+  over both files.
+- **R5-profile-ui-1-14.** Fix: focus Stop on start, the result region (`tabIndex={-1}`) on
+  finish, the bar's eyebrow on Dismiss. Test (source contract): each unmounting control has a
+  focus target.
+- **R5-profile-ui-1-16** is S but UNVERIFIED. Fix: derive the archived ids inside the matrix
+  with `useMemo` over `archetypes`. Test (source contract): `ProfileTab` no longer passes
+  `archivedArchetypeIds`; profile first.
+- **R5-profile-ui-1-17, -18, -19.** Fix: rewrite or delete the stale comments. Test: none
+  (comment only).
+- **R5-profile-ui-1-20.** Fix: drop `HydratedForm` and un-export the four. Test: none
+  (typecheck stays green).
+
+The 12 M findings (R5-db-pipeline-6, R5-lib-offers-6/7/8, R5-pipeline-board-1-2/7,
+R5-lib-profile-3/4/11, R5-profile-ui-1-3/8/15) need a design choice or a multi-file change.
+They are anchored in the findings table and escalated, not carried as S.
+
+### Gate output
+
+This round changed no source, so the code gates were run once, on the branch base
+`8338f2dca`:
+
+- `npm run typecheck` clean. It rewrote the three `app/_lib/*.generated.ts` files with CRLF
+  only (`git diff --ignore-all-space` empty); they were restored.
+- `npm run lint`: 0 errors / 49 warnings (pre-existing).
+- `npm run test:unit`: 13015 / 13015.
+- `node scripts/run-unit-tests.mjs "scripts/kpi/**/*.test.mjs"`: 85 / 85.
+- `npm run test:docs` and `npm run docs:check` ran on the tree WITH this section: both exit 0
+  (`docs:check`: 22 decision records valid). `test:docs` also rewrote the three
+  `*.generated.ts` files with CRLF only; restored.
+
+### Coverage after this round
+
+| | |
+|---|---|
+| thread contexts read through all five lenses | **24 / 55** (43.6%) — was 19 / 55 |
+| of the whole 143-map | **24 / 143** (16.8%) — was 19 / 143 |
+| contexts where `ui-perfectionist` had a surface and ran | 10 (was 8) |
+| thread groups with no five-lens context | **0 / 7** — unchanged. Per group: CV Analysis 4/8, Candidate Matching 3/7, Developer Assessment 4/9, Hiring Decisions 3/8, Hiring Pipeline 5/10, Interview Scheduling 2/5, Voice Interviews 3/8. Thinnest by share now: Hiring Decisions and Voice Interviews (3/8 each), then Interview Scheduling (2/5) |
+| S findings fixed | 0 (read-only round) — round 2: 8 |
+| new findings recorded | 73 (61 S, 12 M) + 5 duplicates |
+| S carried over, written fix-and-test-ready | 61 (59 CONFIRMED, eight of them with a named unverified side or timing window; 2 UNVERIFIED) |
+
+All five contexts count: every applicable lens ran on each, and the three n/a cells are the
+three contexts with no `.tsx` (`db-pipeline`, `lib-offers`, `lib-profile`). One caveat
+qualifies the count. `pipeline-board-1` counts for what survives of it: 13 of its 19 listed
+sources are gone, and their successors under `kit/`, `orbit/` and `candidate/` are in no
+143-map context. 31 thread contexts remain. At five per round that is seven more rounds.
+
 ## What to do with this file
 
 A `/scan-sweep` run should **write this file itself**, per context, at the moment it picks
