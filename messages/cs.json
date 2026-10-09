@@ -17655,6 +17655,212 @@
         "forgone": "nezískáno {n}"
       },
       "colWith": "{name}, hodnocení {rating} ({label}). Stiskněte pro zdůvodnění."
+    },
+    "layerHeadToHead": {
+      "region": "{dimension}: přímé srovnání",
+      "board": "{dimension}, {n, plural, one {# kandidát} few {# kandidáti vedle sebe} many {# kandidáta vedle sebe} other {# kandidátů vedle sebe}}",
+      "live": "Vedle sebe ({n}): {names}",
+      "pickMore": "Přidejte z pole druhého kandidáta, ať je máte vedle sebe.",
+      "pointsSr": "body hodnocení: {signed}",
+      "head": {
+        "inFocus": "Ve středu pozornosti",
+        "rank": "{rank}. z {rated} v kategorii {dimension}",
+        "rankTied": "{rank}. z {rated} v kategorii {dimension}, o místo se dělí",
+        "ratingName": "{name}: {rating} ze 100 v kategorii {dimension}",
+        "tier": {
+          "strong": "Silné",
+          "solid": "Solidní",
+          "thin": "Slabší",
+          "weak": "Slabé"
+        },
+        "band": "pásmo {lo}–{hi}",
+        "against": "Ostatní sloupce se čtou vůči tomuto",
+        "delta": "{signed} oproti {name}",
+        "deltaSame": "Stejně jako {name}",
+        "gapClears": "mimo pásma nejistoty obou",
+        "gapOverlaps": "v pásmech nejistoty obou, skutečný rozdíl to není",
+        "absent": "Bez hodnocení v kategorii {dimension}: {reason}",
+        "salary": "Očekává {amount, number} {currency}/{period, select, month {měs.} year {rok} hour {hod.} day {den} other {{period}}}",
+        "salaryNone": "Částku neuvádí",
+        "salaryNever": "Částka, nikdy pořadí",
+        "built": "Základ {base}{earned, plural, =0 {} other { · +# získáno}}{lost, plural, =0 {} other { · −# ztraceno}} = {rating}",
+        "builtClamped": "Základ {base}{earned, plural, =0 {} other { · +# získáno}}{lost, plural, =0 {} other { · −# ztraceno}} = {raw}, omezeno na {rating}",
+        "model": "Úsudek modelu: bez rozpisu bodů",
+        "noBuild": "Rozpis není k dispozici",
+        "remove": "Vyřadit {name} z přímého srovnání",
+        "unfocus": "Zrušit zaměření na {name}",
+        "salaryRating": "blízkost k pásmu"
+      },
+      "status": {
+        "meets": "Splňuje",
+        "partial": "Částečně",
+        "misses": "Nesplňuje",
+        "unknown": "Nečteno"
+      },
+      "kind": {
+        "must": "Povinné",
+        "target": "Cíl",
+        "nice": "Výhodou",
+        "signal": "Pozorováno"
+      },
+      "criteria": {
+        "title": "Podle kritérií role: v čem se liší",
+        "differs": "Liší se",
+        "noneDiffer": "Žádné kritérium je nerozděluje: všechny stavy níže sdílejí.",
+        "none": "Role pro kategorii {dimension} nestanovuje žádná kritéria.",
+        "noReading": "Bez hodnocení",
+        "agreeTitle": "V čem se shodují",
+        "agree": {
+          "meets": "Splňují všichni",
+          "partial": "Všichni částečně",
+          "misses": "Nesplňuje nikdo",
+          "unknown": "U nikoho nečteno"
+        },
+        "show": "Zobrazit {n, plural, one {řádek} few {# řádky} many {# řádku} other {# řádků}}",
+        "hide": "Znovu sbalit"
+      },
+      "loose": {
+        "title": "Klady a zápory mimo kritéria",
+        "pro": "Klad",
+        "con": "Zápor",
+        "note": "Poznámka",
+        "shared": "Společné",
+        "holds": "Má",
+        "notTheirs": "Mezi důvody u {name} není",
+        "own": "Vlastní každého",
+        "ownNone": "Nic mimo kritéria",
+        "pros": "Klady",
+        "cons": "Zápory",
+        "notes": "Poznámky",
+        "allHold": {
+          "pro": "Mají všichni, klady",
+          "con": "Mají všichni, zápory",
+          "note": "Poznámka u všech"
+        }
+      },
+      "evidence": {
+        "show": "Doklady",
+        "label": "Doklady ze zdroje: {source}",
+        "source": {
+          "scoreParts": "složky skóre",
+          "skills": "čtení dovedností",
+          "unproven": "nedoložená tvrzení",
+          "alignment": "soulad s rolí",
+          "strengths": "silné stránky",
+          "gaps": "mezery",
+          "risk": "rizikové signály",
+          "mustProve": "co musí doložit",
+          "softSignal": "měkké signály",
+          "trust": "kontrola důvěryhodnosti",
+          "salary": "posouzení mzdy",
+          "band": "mzdové pásmo role",
+          "github": "čtení GitHubu",
+          "evidenceTrace": "stopa důkazů"
+        }
+      },
+      "field": {
+        "title": "Pole kandidátů",
+        "order": "Podle hodnocení v kategorii {dimension}: pořadí, ne náskok",
+        "orderSalary": "Podle blízkosti k pásmu: nikdy pořadí kvality",
+        "focusRated": "{name}, {figure}: zaměřit",
+        "focusAbsent": "{name}, {reason}: zaměřit",
+        "add": "Přidat {name} do přímého srovnání",
+        "drop": "Vyřadit {name} z přímého srovnání",
+        "unfocus": "Zrušit zaměření na {name}",
+        "full": "Vedle sebe se vejdou nejvýš čtyři: nejdřív někoho vyřaďte",
+        "noReading": "{name} nemá hodnocení ke srovnání: {reason}"
+      },
+      "legend": "Jak je kritérium splněno"
+    },
+    "layerLedger": {
+      "region": "{dimension}: proč má každý kandidát právě takové hodnocení",
+      "list": "Kniha verdiktů: {dimension}, {count, plural, one {# kandidát} few {# kandidáti} many {# kandidáta} other {# kandidátů}}",
+      "count": "Zobrazeno {shown} z {rated} hodnocených · {total} v kohortě",
+      "filter": {
+        "label": "Zobrazit",
+        "all": "Vše",
+        "cons": "Jen zápory",
+        "mustMiss": "Chybějící nutné požadavky"
+      },
+      "col": {
+        "rank": "Pořadí",
+        "order": "Řazení",
+        "candidate": "Kandidát",
+        "rating": "Hodnocení",
+        "why": "Proč toto hodnocení",
+        "pros": "Klady",
+        "cons": "Zápory",
+        "misses": "Chybějící nutné požadavky"
+      },
+      "press": "Zaměřit {name}: {kind, select, rank {pořadí} other {pozice}} {position}{tied, select, yes { (shodně)} other {}}, hodnocení {rating}",
+      "pressRest": "Zaměřit {name}: bez hodnocení, {reason}",
+      "tied": "shodně",
+      "lead": "Vede",
+      "noise": "v mezích šumu",
+      "focused": "zaměřeno",
+      "tier": {
+        "strong": "silné",
+        "solid": "solidní",
+        "thin": "slabší",
+        "weak": "slabé"
+      },
+      "gap": "{gap, plural, =0 {na úrovni nejlepšího} one {o # bod níž než nejlepší} few {o # body níž než nejlepší} many {o # bodu níž než nejlepší} other {o # bodů níž než nejlepší}}",
+      "noPros": "Žádné klady nezaznamenány",
+      "noCons": "Žádné zápory nezaznamenány",
+      "expand": "Zobrazit všechny důvody: {name}",
+      "collapse": "Skrýt důvody: {name}",
+      "notes": "Poznámky",
+      "from": "Zdroj: {source}",
+      "source": {
+        "scoreParts": "složky skóre",
+        "skills": "čtení dovedností",
+        "unproven": "nedoložená tvrzení",
+        "alignment": "posouzení souladu",
+        "strengths": "silné stránky z analýzy",
+        "gaps": "mezery z analýzy",
+        "risk": "rizikové příznaky",
+        "mustProve": "seznam k ověření",
+        "softSignal": "měkké signály",
+        "trust": "kontrola důvěryhodnosti",
+        "salary": "mzdové očekávání",
+        "band": "mzdové pásmo pozice",
+        "github": "čtení GitHubu",
+        "evidenceTrace": "stopa důkazů"
+      },
+      "evidence": "{n, plural, one {Zobrazit doklad} few {Zobrazit # doklady} many {Zobrazit # dokladu} other {Zobrazit # dokladů}}",
+      "evidenceHide": "Skrýt doklady",
+      "detail": {
+        "pro": "Klady",
+        "con": "Zápory",
+        "note": "Poznámky",
+        "none": {
+          "pro": "Nic zde body nepřidalo.",
+          "con": "Nic zde body neubralo.",
+          "note": "Žádný neutrální kontext."
+        },
+        "anatomy": "Jak hodnocení vzniklo",
+        "base": "základ",
+        "rating": "hodnocení",
+        "clamped": "{raw} před oříznutím na 0–100",
+        "inexact": "Tyto složky nedávají dohromady hodnocení; rozpis berte jako nespolehlivý.",
+        "modelGiven": "Úsudek modelu, bez rozpisu na body. Hodnocení shody určuje přímo model, takže klady a zápory výše ho vysvětlují, ale body nenesou.",
+        "noAnatomy": "U tohoto hodnocení nebyl rozpis na body zaznamenán.",
+        "criteriaTitle": "Kritéria pozice",
+        "criteria": "{meets} splněno · {partial} částečně · {misses} nesplněno · {unknown} nenačteno"
+      },
+      "restGroup": "{reason}: {n, plural, one {# kandidát} few {# kandidáti} many {# kandidáta} other {# kandidátů}}",
+      "restWhy": {
+        "pending": "Stále se analyzuje: řádek se vyplní, jakmile analýza doběhne.",
+        "notRead": "Tato část životopisu nebyla načtena, takže není co vysvětlovat.",
+        "notTechnical": "Veřejnou práci čteme jen u technických pozic.",
+        "noLink": "Životopis neodkazuje na žádný profil na GitHubu.",
+        "currencyMismatch": "Uvedeno v jiné měně: zobrazeno, nikdy nepřepočteno ani neporovnáno.",
+        "noJdFit": "Pro tohoto kandidáta neexistuje posouzení shody s pozicí.",
+        "failed": "Analýza selhala, proto zde není hodnocení ani důvody.",
+        "blind": "Skryto v kohortě naslepo."
+      },
+      "shared": "{n, plural, one {# shodný s prvním řádkem} few {# shodné s prvním řádkem} many {# shodného s prvním řádkem} other {# shodných s prvním řádkem}}",
+      "modelGivenBar": "Shodu hodnotí přímo model: klady a zápory ji vysvětlují, ale bez bodů."
     }
   }
 }

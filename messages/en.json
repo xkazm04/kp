@@ -17655,6 +17655,212 @@
         "forgone": "{n} not earned"
       },
       "colWith": "{name}, rated {rating} ({label}). Press to read why."
+    },
+    "layerHeadToHead": {
+      "region": "{dimension}: head-to-head",
+      "board": "{dimension}, {n, plural, one {# candidate} other {# candidates side by side}}",
+      "live": "Side by side ({n}): {names}",
+      "pickMore": "Add a second candidate from the field to compare side by side.",
+      "pointsSr": "{signed} rating points",
+      "head": {
+        "inFocus": "In focus",
+        "rank": "#{rank} of {rated} on {dimension}",
+        "rankTied": "#{rank} of {rated} on {dimension}, tied",
+        "ratingName": "{name}: {rating} of 100 on {dimension}",
+        "tier": {
+          "strong": "Strong",
+          "solid": "Solid",
+          "thin": "Thin",
+          "weak": "Weak"
+        },
+        "band": "band {lo}–{hi}",
+        "against": "The other corners are read against this one",
+        "delta": "{signed} vs {name}",
+        "deltaSame": "Level with {name}",
+        "gapClears": "outside each other's bands",
+        "gapOverlaps": "inside each other's bands, not a real gap",
+        "absent": "No {dimension} reading: {reason}",
+        "salary": "Expects {amount, number} {currency}/{period, select, month {mo} year {yr} hour {hr} day {day} other {{period}}}",
+        "salaryNone": "No figure stated",
+        "salaryNever": "A figure, never a rank",
+        "built": "Base {base}{earned, plural, =0 {} other { · +# earned}}{lost, plural, =0 {} other { · −# lost}} = {rating}",
+        "builtClamped": "Base {base}{earned, plural, =0 {} other { · +# earned}}{lost, plural, =0 {} other { · −# lost}} = {raw}, held at {rating}",
+        "model": "Model judgement: no point breakdown",
+        "noBuild": "No breakdown recorded",
+        "remove": "Take {name} out of the head-to-head",
+        "unfocus": "Stop focusing {name}",
+        "salaryRating": "closeness to the band"
+      },
+      "status": {
+        "meets": "Meets",
+        "partial": "Partly",
+        "misses": "Misses",
+        "unknown": "Not read"
+      },
+      "kind": {
+        "must": "Required",
+        "target": "Target",
+        "nice": "Nice to have",
+        "signal": "Observed"
+      },
+      "criteria": {
+        "title": "Against the role's criteria: where they differ",
+        "differs": "Differs",
+        "noneDiffer": "No criterion splits them: they share every status below.",
+        "none": "The role sets no criteria on {dimension}.",
+        "noReading": "No reading",
+        "agreeTitle": "Where they agree",
+        "agree": {
+          "meets": "All meet",
+          "partial": "All partly",
+          "misses": "All miss",
+          "unknown": "Not read for any"
+        },
+        "show": "Show {n, plural, one {the row} other {the # rows}}",
+        "hide": "Fold them again"
+      },
+      "loose": {
+        "title": "Pros and cons beyond the criteria",
+        "pro": "Pro",
+        "con": "Con",
+        "note": "Note",
+        "shared": "Held in common",
+        "holds": "Holds it",
+        "notTheirs": "Not among {name}'s reasons",
+        "own": "Each one's own",
+        "ownNone": "Nothing beyond the criteria",
+        "pros": "Pros",
+        "cons": "Cons",
+        "notes": "Notes",
+        "allHold": {
+          "pro": "All hold, pros",
+          "con": "All hold, cons",
+          "note": "All carry the note"
+        }
+      },
+      "evidence": {
+        "show": "Evidence",
+        "label": "Evidence from: {source}",
+        "source": {
+          "scoreParts": "score parts",
+          "skills": "skills read",
+          "unproven": "unproven claims",
+          "alignment": "alignment read",
+          "strengths": "strengths",
+          "gaps": "gaps",
+          "risk": "risk flags",
+          "mustProve": "must-prove list",
+          "softSignal": "soft signals",
+          "trust": "trust check",
+          "salary": "salary assessment",
+          "band": "role band",
+          "github": "GitHub read",
+          "evidenceTrace": "evidence trace"
+        }
+      },
+      "field": {
+        "title": "The field",
+        "order": "By {dimension} rating: an order, not a lead",
+        "orderSalary": "By closeness to the band: never ranked",
+        "focusRated": "{name}, {figure}: put in focus",
+        "focusAbsent": "{name}, {reason}: put in focus",
+        "add": "Add {name} to the head-to-head",
+        "drop": "Take {name} out of the head-to-head",
+        "unfocus": "Stop focusing {name}",
+        "full": "Four side by side is the most: take someone out first",
+        "noReading": "{name} has no reading to compare: {reason}"
+      },
+      "legend": "How a criterion is met"
+    },
+    "layerLedger": {
+      "region": "{dimension}: why each candidate's rating sits where it does",
+      "list": "{dimension} ledger, {count, plural, one {# candidate} other {# candidates}}",
+      "count": "{shown} of {rated} rated shown · {total} in the cohort",
+      "filter": {
+        "label": "Show",
+        "all": "Everything",
+        "cons": "Cons only",
+        "mustMiss": "Must-have misses"
+      },
+      "col": {
+        "rank": "Rank",
+        "order": "Order",
+        "candidate": "Candidate",
+        "rating": "Rating",
+        "why": "Why this rating",
+        "pros": "Pros",
+        "cons": "Cons",
+        "misses": "Must-haves missed"
+      },
+      "press": "Focus {name}: {kind, select, rank {rank} other {position}} {position}{tied, select, yes { (tied)} other {}}, rating {rating}",
+      "pressRest": "Focus {name}: no rating, {reason}",
+      "tied": "tied",
+      "lead": "Leads",
+      "noise": "within the noise",
+      "focused": "focused",
+      "tier": {
+        "strong": "strong",
+        "solid": "solid",
+        "thin": "thin",
+        "weak": "weak"
+      },
+      "gap": "{gap, plural, =0 {level with the top} one {# point below the top} other {# points below the top}}",
+      "noPros": "No pros recorded",
+      "noCons": "No cons recorded",
+      "expand": "Show every reason for {name}",
+      "collapse": "Hide the reasons for {name}",
+      "notes": "Notes",
+      "from": "From {source}",
+      "source": {
+        "scoreParts": "the score parts",
+        "skills": "the skills read",
+        "unproven": "the unproven claims",
+        "alignment": "the alignment read",
+        "strengths": "the analysis strengths",
+        "gaps": "the analysis gaps",
+        "risk": "the risk flags",
+        "mustProve": "the must-prove list",
+        "softSignal": "the soft signals",
+        "trust": "the trust check",
+        "salary": "the salary expectation",
+        "band": "the role's salary band",
+        "github": "the GitHub read",
+        "evidenceTrace": "the evidence trace"
+      },
+      "evidence": "{n, plural, one {Show the evidence} other {Show # lines of evidence}}",
+      "evidenceHide": "Hide the evidence",
+      "detail": {
+        "pro": "Pros",
+        "con": "Cons",
+        "note": "Notes",
+        "none": {
+          "pro": "Nothing earned points here.",
+          "con": "Nothing cost points here.",
+          "note": "No neutral context."
+        },
+        "anatomy": "How the rating is built",
+        "base": "base",
+        "rating": "the rating",
+        "clamped": "{raw} before the 0–100 clamp",
+        "inexact": "These parts do not add up to the rating; treat the breakdown as unreliable.",
+        "modelGiven": "Model judgement, no point breakdown. The model gives the fit rating itself, so the pros and cons above explain it but carry no points.",
+        "noAnatomy": "No point breakdown was recorded for this rating.",
+        "criteriaTitle": "Role criteria",
+        "criteria": "{meets} met · {partial} partly · {misses} missed · {unknown} not read"
+      },
+      "restGroup": "{reason}: {n, plural, one {# candidate} other {# candidates}}",
+      "restWhy": {
+        "pending": "Still analyzing: this row fills in when the analysis lands.",
+        "notRead": "This part of the CV was not read, so there is nothing to explain.",
+        "notTechnical": "Public work is read only for technical roles.",
+        "noLink": "The CV links no GitHub profile to read.",
+        "currencyMismatch": "Quoted in another currency: shown, never converted or compared.",
+        "noJdFit": "No job-fit reading exists for this candidate.",
+        "failed": "The analysis failed, so there is no rating and no reasons.",
+        "blind": "Hidden in a blind cohort."
+      },
+      "shared": "{n} shared with the first row",
+      "modelGivenBar": "Fit is the model's own rating: its pros and cons explain it, with no points."
     }
   }
 }

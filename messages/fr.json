@@ -17655,6 +17655,212 @@
         "forgone": "{n} non obtenus"
       },
       "colWith": "{name}, note {rating} ({label}). Appuyez pour lire pourquoi."
+    },
+    "layerHeadToHead": {
+      "region": "{dimension} : face-à-face",
+      "board": "{dimension}, {n, plural, one {# candidat} other {# candidats côte à côte}}",
+      "live": "Côte à côte ({n}) : {names}",
+      "pickMore": "Ajoutez un deuxième candidat depuis le champ pour les voir côte à côte.",
+      "pointsSr": "points de note : {signed}",
+      "head": {
+        "inFocus": "En focus",
+        "rank": "{rank}e sur {rated} en {dimension}",
+        "rankTied": "{rank}e ex aequo sur {rated} en {dimension}",
+        "ratingName": "{name} : {rating} sur 100 en {dimension}",
+        "tier": {
+          "strong": "Fort",
+          "solid": "Solide",
+          "thin": "Mince",
+          "weak": "Faible"
+        },
+        "band": "bande {lo}–{hi}",
+        "against": "Les autres colonnes se lisent par rapport à celle-ci",
+        "delta": "{signed} face à {name}",
+        "deltaSame": "À égalité avec {name}",
+        "gapClears": "hors des deux bandes d'incertitude",
+        "gapOverlaps": "dans les deux bandes d'incertitude, pas un vrai écart",
+        "absent": "Pas de note en {dimension} : {reason}",
+        "salary": "Attend {amount, number} {currency}/{period, select, month {mois} year {an} hour {h} day {jour} other {{period}}}",
+        "salaryNone": "Aucun montant indiqué",
+        "salaryNever": "Un montant, jamais un rang",
+        "built": "Base {base}{earned, plural, =0 {} other { · +# gagnés}}{lost, plural, =0 {} other { · −# perdus}} = {rating}",
+        "builtClamped": "Base {base}{earned, plural, =0 {} other { · +# gagnés}}{lost, plural, =0 {} other { · −# perdus}} = {raw}, plafonné à {rating}",
+        "model": "Jugement du modèle : pas de détail des points",
+        "noBuild": "Aucun détail enregistré",
+        "remove": "Retirer {name} du face-à-face",
+        "unfocus": "Ne plus mettre {name} en focus",
+        "salaryRating": "proximité de la fourchette"
+      },
+      "status": {
+        "meets": "Remplit",
+        "partial": "En partie",
+        "misses": "Manque",
+        "unknown": "Non lu"
+      },
+      "kind": {
+        "must": "Requis",
+        "target": "Cible",
+        "nice": "Souhaité",
+        "signal": "Observé"
+      },
+      "criteria": {
+        "title": "Face aux critères du poste : où ils diffèrent",
+        "differs": "Diffère",
+        "noneDiffer": "Aucun critère ne les sépare : ils partagent chaque statut ci-dessous.",
+        "none": "Le poste ne fixe aucun critère en {dimension}.",
+        "noReading": "Pas de note",
+        "agreeTitle": "Où ils concordent",
+        "agree": {
+          "meets": "Tous remplissent",
+          "partial": "Tous en partie",
+          "misses": "Manque chez tous",
+          "unknown": "Lu pour personne"
+        },
+        "show": "Afficher {n, plural, one {la ligne} other {les # lignes}}",
+        "hide": "Replier"
+      },
+      "loose": {
+        "title": "Atouts et limites hors critères",
+        "pro": "Atout",
+        "con": "Limite",
+        "note": "Note",
+        "shared": "En commun",
+        "holds": "L'a",
+        "notTheirs": "Absent des raisons de {name}",
+        "own": "Propres à chacun",
+        "ownNone": "Rien hors des critères",
+        "pros": "Atouts",
+        "cons": "Limites",
+        "notes": "Notes",
+        "allHold": {
+          "pro": "Tous l'ont, atouts",
+          "con": "Tous l'ont, limites",
+          "note": "Note chez tous"
+        }
+      },
+      "evidence": {
+        "show": "Preuves",
+        "label": "Preuves issues de : {source}",
+        "source": {
+          "scoreParts": "composantes du score",
+          "skills": "lecture des compétences",
+          "unproven": "affirmations non prouvées",
+          "alignment": "adéquation au poste",
+          "strengths": "points forts",
+          "gaps": "lacunes",
+          "risk": "signaux de risque",
+          "mustProve": "points à prouver",
+          "softSignal": "signaux comportementaux",
+          "trust": "contrôle de fiabilité",
+          "salary": "évaluation salariale",
+          "band": "fourchette du poste",
+          "github": "lecture GitHub",
+          "evidenceTrace": "trace des preuves"
+        }
+      },
+      "field": {
+        "title": "Le champ",
+        "order": "Par note en {dimension} : un ordre, pas une avance",
+        "orderSalary": "Par proximité avec la fourchette : jamais un classement",
+        "focusRated": "{name}, {figure} : mettre en focus",
+        "focusAbsent": "{name}, {reason} : mettre en focus",
+        "add": "Ajouter {name} au face-à-face",
+        "drop": "Retirer {name} du face-à-face",
+        "unfocus": "Ne plus mettre {name} en focus",
+        "full": "Quatre côte à côte au plus : retirez d'abord quelqu'un",
+        "noReading": "{name} n'a pas de note à comparer : {reason}"
+      },
+      "legend": "Comment un critère est rempli"
+    },
+    "layerLedger": {
+      "region": "{dimension} : pourquoi chaque note se situe là où elle est",
+      "list": "Registre des verdicts : {dimension}, {count, plural, one {# candidat} other {# candidats}}",
+      "count": "{shown} sur {rated} notés affichés · {total} dans la cohorte",
+      "filter": {
+        "label": "Afficher",
+        "all": "Tout",
+        "cons": "Points faibles seulement",
+        "mustMiss": "Exigences manquées"
+      },
+      "col": {
+        "rank": "Rang",
+        "order": "Ordre",
+        "candidate": "Candidat",
+        "rating": "Note",
+        "why": "Pourquoi cette note",
+        "pros": "Points forts",
+        "cons": "Points faibles",
+        "misses": "Exigences manquées"
+      },
+      "press": "Cibler {name} : {kind, select, rank {rang} other {position}} {position}{tied, select, yes { (ex æquo)} other {}}, note {rating}",
+      "pressRest": "Cibler {name} : pas de note, {reason}",
+      "tied": "ex æquo",
+      "lead": "En tête",
+      "noise": "dans le bruit",
+      "focused": "ciblé",
+      "tier": {
+        "strong": "forte",
+        "solid": "solide",
+        "thin": "mince",
+        "weak": "faible"
+      },
+      "gap": "{gap, plural, =0 {au niveau du premier} one {# point sous le premier} other {# points sous le premier}}",
+      "noPros": "Aucun point fort relevé",
+      "noCons": "Aucun point faible relevé",
+      "expand": "Afficher toutes les raisons pour {name}",
+      "collapse": "Masquer les raisons pour {name}",
+      "notes": "Notes",
+      "from": "Source : {source}",
+      "source": {
+        "scoreParts": "composantes du score",
+        "skills": "lecture des compétences",
+        "unproven": "affirmations non démontrées",
+        "alignment": "analyse d’alignement",
+        "strengths": "points forts de l’analyse",
+        "gaps": "lacunes de l’analyse",
+        "risk": "signaux de risque",
+        "mustProve": "liste des points à prouver",
+        "softSignal": "signaux comportementaux",
+        "trust": "contrôle de fiabilité",
+        "salary": "prétentions salariales",
+        "band": "fourchette salariale du poste",
+        "github": "lecture GitHub",
+        "evidenceTrace": "trace des preuves"
+      },
+      "evidence": "{n, plural, one {Afficher la preuve} other {Afficher # preuves}}",
+      "evidenceHide": "Masquer les preuves",
+      "detail": {
+        "pro": "Points forts",
+        "con": "Points faibles",
+        "note": "Notes",
+        "none": {
+          "pro": "Rien n’a rapporté de points ici.",
+          "con": "Rien n’a coûté de points ici.",
+          "note": "Aucun contexte neutre."
+        },
+        "anatomy": "Comment la note se construit",
+        "base": "base",
+        "rating": "la note",
+        "clamped": "{raw} avant le plafonnement à 0–100",
+        "inexact": "Ces composantes ne donnent pas la note ; considérez le détail comme peu fiable.",
+        "modelGiven": "Jugement du modèle, sans détail en points. Le modèle donne lui-même la note d’adéquation : les points forts et faibles ci-dessus l’expliquent, sans porter de points.",
+        "noAnatomy": "Aucun détail en points n’a été enregistré pour cette note.",
+        "criteriaTitle": "Critères du poste",
+        "criteria": "{meets} remplis · {partial} en partie · {misses} manqués · {unknown} non lus"
+      },
+      "restGroup": "{reason} : {n, plural, one {# candidat} other {# candidats}}",
+      "restWhy": {
+        "pending": "Analyse en cours : la ligne se remplira dès que l’analyse arrivera.",
+        "notRead": "Cette partie du CV n’a pas été lue : il n’y a rien à expliquer.",
+        "notTechnical": "Les travaux publics ne sont lus que pour les postes techniques.",
+        "noLink": "Le CV ne renvoie à aucun profil GitHub.",
+        "currencyMismatch": "Indiqué dans une autre devise : affiché, jamais converti ni comparé.",
+        "noJdFit": "Aucune lecture d’adéquation au poste n’existe pour ce candidat.",
+        "failed": "L’analyse a échoué : il n’y a donc ni note ni raisons.",
+        "blind": "Masqué dans une cohorte anonyme."
+      },
+      "shared": "{n, plural, one {# commun avec la première ligne} other {# communs avec la première ligne}}",
+      "modelGivenBar": "L’adéquation est notée par le modèle lui-même : points forts et faibles l’expliquent, sans points."
     }
   }
 }

@@ -17655,6 +17655,212 @@
         "forgone": "{n} nicht erreicht"
       },
       "colWith": "{name}, Bewertung {rating} ({label}). Drücken, um die Begründung zu lesen."
+    },
+    "layerHeadToHead": {
+      "region": "{dimension}: direkter Vergleich",
+      "board": "{dimension}, {n, plural, one {# Kandidat} other {# Kandidaten nebeneinander}}",
+      "live": "Nebeneinander ({n}): {names}",
+      "pickMore": "Fügen Sie aus dem Feld einen zweiten Kandidaten hinzu, um sie nebeneinander zu sehen.",
+      "pointsSr": "Bewertungspunkte: {signed}",
+      "head": {
+        "inFocus": "Im Fokus",
+        "rank": "#{rank} von {rated} bei {dimension}",
+        "rankTied": "#{rank} von {rated} bei {dimension}, gleichauf",
+        "ratingName": "{name}: {rating} von 100 bei {dimension}",
+        "tier": {
+          "strong": "Stark",
+          "solid": "Solide",
+          "thin": "Dünn",
+          "weak": "Schwach"
+        },
+        "band": "Band {lo}–{hi}",
+        "against": "Die anderen Spalten werden an dieser gemessen",
+        "delta": "{signed} gegenüber {name}",
+        "deltaSame": "Gleichauf mit {name}",
+        "gapClears": "außerhalb beider Unsicherheitsbänder",
+        "gapOverlaps": "innerhalb beider Unsicherheitsbänder, kein echter Abstand",
+        "absent": "Keine Bewertung bei {dimension}: {reason}",
+        "salary": "Erwartet {amount, number} {currency}/{period, select, month {Mon.} year {Jahr} hour {Std.} day {Tag} other {{period}}}",
+        "salaryNone": "Kein Betrag angegeben",
+        "salaryNever": "Ein Betrag, nie ein Rang",
+        "built": "Basis {base}{earned, plural, =0 {} other { · +# erzielt}}{lost, plural, =0 {} other { · −# verloren}} = {rating}",
+        "builtClamped": "Basis {base}{earned, plural, =0 {} other { · +# erzielt}}{lost, plural, =0 {} other { · −# verloren}} = {raw}, begrenzt auf {rating}",
+        "model": "Urteil des Modells: keine Punkteaufschlüsselung",
+        "noBuild": "Keine Aufschlüsselung erfasst",
+        "remove": "{name} aus dem direkten Vergleich nehmen",
+        "unfocus": "Fokus auf {name} aufheben",
+        "salaryRating": "Nähe zum Band"
+      },
+      "status": {
+        "meets": "Erfüllt",
+        "partial": "Teilweise",
+        "misses": "Fehlt",
+        "unknown": "Nicht gelesen"
+      },
+      "kind": {
+        "must": "Pflicht",
+        "target": "Ziel",
+        "nice": "Wünschenswert",
+        "signal": "Beobachtet"
+      },
+      "criteria": {
+        "title": "An den Kriterien der Rolle: wo sie sich unterscheiden",
+        "differs": "Unterschied",
+        "noneDiffer": "Kein Kriterium trennt sie: Sie teilen jeden Status unten.",
+        "none": "Die Rolle setzt bei {dimension} keine Kriterien.",
+        "noReading": "Keine Bewertung",
+        "agreeTitle": "Wo sie übereinstimmen",
+        "agree": {
+          "meets": "Alle erfüllen",
+          "partial": "Alle teilweise",
+          "misses": "Bei allen fehlend",
+          "unknown": "Bei niemandem gelesen"
+        },
+        "show": "{n, plural, one {Die Zeile} other {Die # Zeilen}} zeigen",
+        "hide": "Wieder einklappen"
+      },
+      "loose": {
+        "title": "Stärken und Schwächen jenseits der Kriterien",
+        "pro": "Stärke",
+        "con": "Schwäche",
+        "note": "Hinweis",
+        "shared": "Gemeinsam",
+        "holds": "Hat es",
+        "notTheirs": "Nicht unter den Gründen von {name}",
+        "own": "Jeweils eigene",
+        "ownNone": "Nichts jenseits der Kriterien",
+        "pros": "Stärken",
+        "cons": "Schwächen",
+        "notes": "Hinweise",
+        "allHold": {
+          "pro": "Alle haben es, Stärken",
+          "con": "Alle haben es, Schwächen",
+          "note": "Hinweis bei allen"
+        }
+      },
+      "evidence": {
+        "show": "Belege",
+        "label": "Belege aus: {source}",
+        "source": {
+          "scoreParts": "Score-Anteile",
+          "skills": "Skill-Auswertung",
+          "unproven": "unbelegte Angaben",
+          "alignment": "Passung zur Rolle",
+          "strengths": "Stärken",
+          "gaps": "Lücken",
+          "risk": "Risikohinweise",
+          "mustProve": "Nachweispflichten",
+          "softSignal": "Soft Signals",
+          "trust": "Vertrauensprüfung",
+          "salary": "Gehaltseinschätzung",
+          "band": "Gehaltsband der Rolle",
+          "github": "GitHub-Auswertung",
+          "evidenceTrace": "Belegspur"
+        }
+      },
+      "field": {
+        "title": "Das Feld",
+        "order": "Nach Bewertung bei {dimension}: eine Reihenfolge, keine Führung",
+        "orderSalary": "Nach Nähe zum Band: nie ein Ranking",
+        "focusRated": "{name}, {figure}: in den Fokus nehmen",
+        "focusAbsent": "{name}, {reason}: in den Fokus nehmen",
+        "add": "{name} zum direkten Vergleich hinzufügen",
+        "drop": "{name} aus dem direkten Vergleich nehmen",
+        "unfocus": "Fokus auf {name} aufheben",
+        "full": "Mehr als vier passen nicht nebeneinander: Nehmen Sie zuerst jemanden heraus",
+        "noReading": "{name} hat keine vergleichbare Bewertung: {reason}"
+      },
+      "legend": "Wie ein Kriterium erfüllt ist"
+    },
+    "layerLedger": {
+      "region": "{dimension}: warum jede Bewertung dort liegt, wo sie liegt",
+      "list": "Urteilsbuch {dimension}, {count, plural, one {# Kandidat} other {# Kandidaten}}",
+      "count": "{shown} von {rated} bewerteten angezeigt · {total} in der Kohorte",
+      "filter": {
+        "label": "Anzeigen",
+        "all": "Alles",
+        "cons": "Nur Contra",
+        "mustMiss": "Fehlende Muss-Kriterien"
+      },
+      "col": {
+        "rank": "Rang",
+        "order": "Reihenfolge",
+        "candidate": "Kandidat",
+        "rating": "Bewertung",
+        "why": "Warum diese Bewertung",
+        "pros": "Pro",
+        "cons": "Contra",
+        "misses": "Fehlende Muss-Kriterien"
+      },
+      "press": "{name} fokussieren: {kind, select, rank {Rang} other {Position}} {position}{tied, select, yes { (gleichauf)} other {}}, Bewertung {rating}",
+      "pressRest": "{name} fokussieren: keine Bewertung, {reason}",
+      "tied": "gleichauf",
+      "lead": "Führt",
+      "noise": "im Rauschen",
+      "focused": "fokussiert",
+      "tier": {
+        "strong": "stark",
+        "solid": "solide",
+        "thin": "dünn",
+        "weak": "schwach"
+      },
+      "gap": "{gap, plural, =0 {gleichauf mit der Spitze} one {# Punkt unter der Spitze} other {# Punkte unter der Spitze}}",
+      "noPros": "Kein Pro erfasst",
+      "noCons": "Kein Contra erfasst",
+      "expand": "Alle Gründe für {name} anzeigen",
+      "collapse": "Gründe für {name} ausblenden",
+      "notes": "Hinweise",
+      "from": "Quelle: {source}",
+      "source": {
+        "scoreParts": "Score-Bestandteile",
+        "skills": "Fähigkeitsauswertung",
+        "unproven": "unbelegte Angaben",
+        "alignment": "Passungsabgleich",
+        "strengths": "Stärken aus der Analyse",
+        "gaps": "Lücken aus der Analyse",
+        "risk": "Risikohinweise",
+        "mustProve": "Nachweisliste",
+        "softSignal": "Soft Signals",
+        "trust": "Vertrauensprüfung",
+        "salary": "Gehaltsvorstellung",
+        "band": "Gehaltsband der Stelle",
+        "github": "GitHub-Auswertung",
+        "evidenceTrace": "Belegspur"
+      },
+      "evidence": "{n, plural, one {Beleg anzeigen} other {# Belege anzeigen}}",
+      "evidenceHide": "Belege ausblenden",
+      "detail": {
+        "pro": "Pro",
+        "con": "Contra",
+        "note": "Hinweise",
+        "none": {
+          "pro": "Hier hat nichts Punkte gebracht.",
+          "con": "Hier hat nichts Punkte gekostet.",
+          "note": "Kein neutraler Kontext."
+        },
+        "anatomy": "Wie die Bewertung entsteht",
+        "base": "Basis",
+        "rating": "die Bewertung",
+        "clamped": "{raw} vor der Begrenzung auf 0–100",
+        "inexact": "Diese Bestandteile ergeben nicht die Bewertung; die Aufschlüsselung ist unzuverlässig.",
+        "modelGiven": "Urteil des Modells, ohne Aufschlüsselung in Punkte. Die Passung vergibt das Modell selbst; Pro und Contra oben erklären sie, tragen aber keine Punkte.",
+        "noAnatomy": "Für diese Bewertung wurde keine Aufschlüsselung in Punkte erfasst.",
+        "criteriaTitle": "Kriterien der Stelle",
+        "criteria": "{meets} erfüllt · {partial} teilweise · {misses} verfehlt · {unknown} nicht gelesen"
+      },
+      "restGroup": "{reason}: {n, plural, one {# Kandidat} other {# Kandidaten}}",
+      "restWhy": {
+        "pending": "Wird noch analysiert: Die Zeile füllt sich, sobald die Analyse vorliegt.",
+        "notRead": "Dieser Teil des Lebenslaufs wurde nicht gelesen, es gibt also nichts zu erklären.",
+        "notTechnical": "Öffentliche Arbeit wird nur bei technischen Stellen gelesen.",
+        "noLink": "Der Lebenslauf verlinkt kein GitHub-Profil.",
+        "currencyMismatch": "In einer anderen Währung angegeben: angezeigt, nie umgerechnet oder verglichen.",
+        "noJdFit": "Für diesen Kandidaten liegt keine Stellenpassung vor.",
+        "failed": "Die Analyse ist fehlgeschlagen, daher gibt es weder Bewertung noch Gründe.",
+        "blind": "In einer anonymen Kohorte verborgen."
+      },
+      "shared": "{n} wie in der ersten Zeile",
+      "modelGivenBar": "Die Passung bewertet das Modell selbst: Pro und Contra erklären sie, ohne Punkte."
     }
   }
 }
