@@ -208,6 +208,46 @@ test("chapter 1's grounding sentence is still the live prompt rule", () => {
   );
 });
 
+// ---- prompt version ids the status lines print ------------------------------
+//
+// Chapter 1 and chapter 5 print the live prompt version in a status line. A
+// version bump upstream leaves the deck naming a prompt the pipeline no longer
+// runs, in every locale, so each id is read from its Python module and required
+// in all four catalogs (the id is a code token, never translated).
+
+/** A module-level `NAME = "<id>"` string assignment. */
+function pyVersion(rel: string, name: string): string {
+  const hit = pySource(rel).match(new RegExp(`^${name}\\s*=\\s*"([^"]+)"`, "m"));
+  assert.ok(hit, `${rel} no longer declares a module-level \`${name}\` — the About deck quotes it`);
+  return hit[1];
+}
+
+const aboutCopyIn = (locale: string, dotted: string): string => {
+  const about = (JSON.parse(readFileSync(path.resolve(ROOT, "messages", `${locale}.json`), "utf8")) as {
+    about: Record<string, unknown>;
+  }).about;
+  let node: unknown = about;
+  for (const seg of dotted.split(".")) node = (node as Record<string, unknown> | undefined)?.[seg];
+  assert.equal(typeof node, "string", `messages/${locale}.json: about.${dotted} is missing`);
+  return node as string;
+};
+
+test("the status lines name the prompt versions the pipeline runs, in every locale", () => {
+  const pins: [string, string, string][] = [
+    ["jd.status.s0", "pipeline/jobfit/devcase/design.py", "ROLE_DESIGN_PROMPT_VERSION"],
+    ["assignments.status.s2", "pipeline/jobfit/devcase/baseline.py", "BASELINE_PROMPT_VERSION"],
+  ];
+  for (const [key, file, name] of pins) {
+    const version = pyVersion(file, name);
+    for (const locale of ["en", "cs", "de", "fr"]) {
+      assert.ok(
+        aboutCopyIn(locale, key).includes(version),
+        `${locale}: about.${key} must name ${version} (${file} ${name})`,
+      );
+    }
+  }
+});
+
 // ---- the constants chapters 2, 3 and 5 quote --------------------------------
 //
 // Chapter 4 got this treatment from the start; the other three quoted engine

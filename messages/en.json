@@ -12255,7 +12255,7 @@
       "gap": "Stated stack not evident in the codebase: <k>Kafka</k>",
       "gapNote": "Surfaced to you as a gap to resolve, not quietly written into the role.",
       "status": {
-        "s0": "role-design-v4 · grounding rules active",
+        "s0": "role-design-v5 · grounding rules active",
         "s2": "candidate requirements: 7",
         "s3": "each must trace to something the inputs actually state",
         "s9": "Kafka has no supporting statement in any input",

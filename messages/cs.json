@@ -12255,7 +12255,7 @@
       "gap": "Uvedená technologie není v codebase doložena: <k>Kafka</k>",
       "gapNote": "Ukážeme vám ji jako mezeru k vyjasnění, nezapíšeme ji potichu do pozice.",
       "status": {
-        "s0": "role-design-v4 · pravidla dohledatelnosti aktivní",
+        "s0": "role-design-v5 · pravidla dohledatelnosti aktivní",
         "s2": "kandidátské požadavky: 7",
         "s3": "každý musí být dohledatelný k něčemu, co vstupy skutečně uvádějí",
         "s9": "Kafka nemá oporu v žádném ze vstupů",

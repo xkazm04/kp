@@ -12255,7 +12255,7 @@
       "gap": "Stack annoncée non attestée dans la codebase : <k>Kafka</k>",
       "gapNote": "Présentée comme un écart à clarifier, et non inscrite discrètement dans le poste.",
       "status": {
-        "s0": "role-design-v4 · règles de traçabilité actives",
+        "s0": "role-design-v5 · règles de traçabilité actives",
         "s2": "exigences candidates : 7",
         "s3": "chacune doit remonter à quelque chose que les entrées énoncent vraiment",
         "s9": "Kafka n'est étayée par aucune entrée",

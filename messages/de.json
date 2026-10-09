@@ -12255,7 +12255,7 @@
       "gap": "Genannter Stack in der Codebase nicht belegt: <k>Kafka</k>",
       "gapNote": "Wird Ihnen als zu klärende Lücke gezeigt, nicht still in die Stelle geschrieben.",
       "status": {
-        "s0": "role-design-v4 · Rückführungsregeln aktiv",
+        "s0": "role-design-v5 · Rückführungsregeln aktiv",
         "s2": "Anforderungskandidaten: 7",
         "s3": "jede muss auf etwas zurückführbar sein, das die Eingaben wirklich nennen",
         "s9": "Kafka hat in keiner Eingabe eine Stütze",
