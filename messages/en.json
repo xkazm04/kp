@@ -9372,6 +9372,7 @@
         "states": {
           "pinned": "Pinned",
           "pin_available": "Pin available",
+          "superseded_pin": "Grid predates your release, re-bench first",
           "unmeasured_pin": "Your pin was not benchmarked",
           "pin_forbidden": "Pinning needs an organization owner",
           "provider_unavailable": "Provider not routable here"

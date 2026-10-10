@@ -7,7 +7,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { LlmConfigRow } from "../../../_lib/db/llm.ts";
 import type { UseCaseRecommendation } from "../../../_lib/llm-quality.ts";
-import { pickRowState, pinPayload, PICK_ROW_STATES } from "./modelsQualityPick.ts";
+import { pickRowState, pinPayload, PICK_ROW_STATES, supersededBy } from "./modelsQualityPick.ts";
 
 const PROVIDERS = ["claude_cli", "anthropic", "gemini", "openai", "qwen", "openrouter"];
 const MEASURED = ["gemini-3.6-flash", "deepseek-v4-flash", "claude-sonnet-5", "claude-opus-5"];
@@ -49,7 +49,7 @@ const ctx = (over: Partial<{ measuredModels: readonly string[]; canPin: boolean 
 test("the state vocabulary is closed", () => {
   assert.deepEqual(
     [...PICK_ROW_STATES],
-    ["pinned", "pin_available", "unmeasured_pin", "pin_forbidden", "provider_unavailable"]
+    ["pinned", "pin_available", "superseded_pin", "unmeasured_pin", "pin_forbidden", "provider_unavailable"]
   );
 });
 
@@ -73,6 +73,34 @@ test("pin_available when the pin differs and the pick's provider is configured",
 test("unmeasured_pin when the current pin's model is not on the scorecard", () => {
   const rows = [row("match_reasoning", "openai", "gpt-5.4-mini")];
   assert.equal(pickRowState("match_reasoning", REC, rows, PROVIDERS, ctx()), "unmeasured_pin");
+});
+
+test("superseded_pin when the pin is a newer release of a family the grid measured", () => {
+  // The grid measured claude-sonnet-5 and claude-opus-5 on 2026-08-12; kp now runs the
+  // 5.5 releases. The grid cannot rank the pick against them, so no Pin is offered.
+  for (const model of ["claude-sonnet-5-5", "claude-opus-5-5", "claude-sonnet-6"]) {
+    const rows = [row("match_reasoning", "claude_cli", model)];
+    assert.equal(pickRowState("match_reasoning", REC, rows, PROVIDERS, ctx()), "superseded_pin", model);
+  }
+  // an OLDER release, a dated snapshot of the measured release, and a family the grid
+  // never measured all stay unmeasured_pin - the grid is not older than any of them
+  for (const [provider, model] of [["claude_cli", "claude-sonnet-4-6"], ["anthropic", "claude-sonnet-5-20260801"], ["openai", "gpt-5.4-mini"]]) {
+    const rows = [row("match_reasoning", provider, model)];
+    assert.equal(pickRowState("match_reasoning", REC, rows, PROVIDERS, ctx()), "unmeasured_pin", model);
+  }
+  // the reader who cannot pin still reads pin_forbidden first
+  const rows = [row("match_reasoning", "claude_cli", "claude-sonnet-5-5")];
+  assert.equal(pickRowState("match_reasoning", REC, rows, PROVIDERS, ctx({ canPin: false })), "pin_forbidden");
+});
+
+test("supersededBy reads family and release from the id", () => {
+  assert.equal(supersededBy("claude-sonnet-5-5", MEASURED), "claude-sonnet-5");
+  assert.equal(supersededBy("gemini-3.7-flash", MEASURED), "gemini-3.6-flash");
+  assert.equal(supersededBy("deepseek-v5-flash", MEASURED), "deepseek-v4-flash");
+  assert.equal(supersededBy("gemini-3.6-flash", MEASURED), null);
+  assert.equal(supersededBy("gemini-3.5-flash", MEASURED), null);
+  assert.equal(supersededBy("gemini-3.7-pro", MEASURED), null);
+  assert.equal(supersededBy("claude-sonnet", MEASURED), null);
 });
 
 test("provider_unavailable when the pick's provider is not in the routing catalogue", () => {

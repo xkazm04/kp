@@ -9372,6 +9372,7 @@
         "states": {
           "pinned": "Nastaveno",
           "pin_available": "Lze nastavit",
+          "superseded_pin": "Měření je starší než váš model, nejprve přeměřte",
           "unmeasured_pin": "Váš model nebyl změřen",
           "pin_forbidden": "Nastavení vyžaduje vlastníka organizace",
           "provider_unavailable": "Poskytovatele zde nelze směrovat"

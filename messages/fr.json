@@ -9372,6 +9372,7 @@
         "states": {
           "pinned": "Épinglé",
           "pin_available": "Épinglage possible",
+          "superseded_pin": "Mesure antérieure à votre modèle, à remesurer",
           "unmeasured_pin": "Votre modèle n'a pas été mesuré",
           "pin_forbidden": "L'épinglage requiert un propriétaire de l'organisation",
           "provider_unavailable": "Fournisseur non routable ici"
