@@ -320,7 +320,8 @@ class PolicyTest(unittest.TestCase):
         self.assertEqual(out["fallbackReason"], "no_provider")
         self.assertEqual([r.get("reason") for r in rows], ["consumer_terms_policy"])
         self.assertEqual(spawned, [])
-        with _env(NODE_ENV="production", KP_ALLOW_CLI_ENGINE="1"):
+        # availability() resolves the binary: stand one in, a runner has no `codex` on PATH.
+        with _env(NODE_ENV="production", KP_ALLOW_CLI_ENGINE="1"), fake_codex("ok"):
             self.assertEqual(pinned().availability(), (True, None))
 
     def test_a_missing_binary_is_not_installed(self):

@@ -16,10 +16,9 @@ import json
 import sys
 from pathlib import Path
 
-from ._cli import configure_stdio, emit_error, not_found, resolve_job_arg
+from ._cli import configure_stdio, emit_error, resolve_job_arg
 from .llm import resolve_provider
-from .jobs import Job
-from .matching import MatchCandidate, load_corpus
+from .matching import MatchCandidate
 from .profile import CandidateProfileV2
 from .recruiter import fairness_check, rank_candidates_for_job
 from .transform import build_match_candidate
