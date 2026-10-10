@@ -116,6 +116,14 @@ test("plainIcu strips hero ICU tags to a single sentence", () => {
   );
 });
 
+test("plainIcu output is a fixed point: stripping again changes nothing", () => {
+  for (const hostile of ["a<scr<emph>ipt>b", "<<emph>emph>x", "<scr<br></br>ipt>alert(1)", "1 < 2 and <b>bold</b>"]) {
+    const once = plainIcu(hostile);
+    assert.equal(plainIcu(once), once, hostile);
+    assert.equal(/<[^>]*>/.test(once), false, hostile);
+  }
+});
+
 test("HowTo.step is one HowToStep per ABOUT_STEP_KEYS, names from the catalog", () => {
   for (const locale of LOCALES) {
     const steps = catalog(locale).aboutPage.steps;
