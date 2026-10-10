@@ -134,7 +134,9 @@ judge), and its Models row shows the pin instead of routing controls.
 
 The row joins the pick against the current pins (`modelsQualityPick.ts`):
 `pinned` (the effective pin already names the pick's bench provider AND model),
-`pin_available`, `unmeasured_pin` (your pin's model was never benchmarked),
+`pin_available`, `superseded_pin` (your pin is a newer release of a family the grid
+measured, so the grid cannot rank it and no Pin button offers the older release back;
+re-bench and re-bake), `unmeasured_pin` (your pin's model was never benchmarked),
 `provider_unavailable`, and `pin_forbidden` for a reader known not to hold
 `org:manage` — the PUT's `requireModelAdmin` would answer `MODEL_ADMIN_FORBIDDEN`.
 The Pin button sends `{useCase, provider, model, params, expectedUpdatedAt}` through

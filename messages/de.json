@@ -9372,6 +9372,7 @@
         "states": {
           "pinned": "Zugeordnet",
           "pin_available": "Zuordnung möglich",
+          "superseded_pin": "Messung älter als Ihr Modell, erst neu messen",
           "unmeasured_pin": "Ihr Modell wurde nicht gemessen",
           "pin_forbidden": "Zuordnen erfordert einen Organisationsinhaber",
           "provider_unavailable": "Anbieter hier nicht routbar"
