@@ -11130,7 +11130,11 @@
           "revision": 26,
           "changedAt": "2026-10-06",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/run-unit-tests.mjs:320 A flake is classified from one immediate re-run and appended to the CI step summary, which is not a retained, stably keyed history the next run can query.",
+          "evaluatedAt": "2026-10-12",
+          "evaluatedAgainst": "sha256-b2:5521806124d93882",
+          "evaluatedRevision": 26
         },
         {
           "subject": "supply-chain",
@@ -13506,7 +13510,11 @@
           "revision": 26,
           "changedAt": "2026-10-06",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "e2e/quality-tables.spec.ts:100 The Playwright lane shares one server and one SQLite file, so one spec's read of the sealed chain can be satisfied by another spec's write.",
+          "evaluatedAt": "2026-10-12",
+          "evaluatedAgainst": "sha256-b2:5521806124d93882",
+          "evaluatedRevision": 26
         },
         {
           "subject": "quality-gates",
@@ -20557,7 +20565,11 @@
           "revision": 26,
           "changedAt": "2026-10-06",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/python-runner-option-injection.test.ts:71 The devcase contract is pinned by a substring of the source file, so a comment that mentions --need-json satisfies it without the call.",
+          "evaluatedAt": "2026-10-12",
+          "evaluatedAgainst": "sha256-b2:5521806124d93882",
+          "evaluatedRevision": 26
         },
         {
           "subject": "agent-memory",
@@ -29955,7 +29967,11 @@
           "revision": 26,
           "changedAt": "2026-10-06",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_byom_coverage.py:78 The literal resolve_provider scan counts every pipeline Python file, tests included, so a fixture or a docstring that spells the call is evidence about production.",
+          "evaluatedAt": "2026-10-12",
+          "evaluatedAgainst": "sha256-b2:5521806124d93882",
+          "evaluatedRevision": 26
         },
         {
           "subject": "eval-harness",
@@ -30223,7 +30239,11 @@
           "revision": 26,
           "changedAt": "2026-10-06",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/tests/run_gated.py:181 An environment variable forces the skip floor to exit 0, so a run that skipped tests the register does not name can still pass.",
+          "evaluatedAt": "2026-10-12",
+          "evaluatedAgainst": "sha256-b2:5521806124d93882",
+          "evaluatedRevision": 26
         },
         {
           "subject": "translation-pipeline-topology",
