@@ -1103,6 +1103,90 @@
       "evaluatedTs": "2026-10-12T21:08:44.146Z",
       "worker": "820631b7-22b5-4d6c-b75f-93acd4578096",
       "techniques": []
+    },
+    "e7a9bc1c-fe25-4247-a48f-d05ce318eb98/prompt-assembly": {
+      "context": "llm-inference-runtime",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-12",
+      "evaluatedTs": "2026-10-12T22:15:58.163Z",
+      "worker": "a2612911-7aa8-483d-bce1-faa7c45fc098",
+      "techniques": [
+        {
+          "technique": "layered-composition",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/match_reasoning.py:556 Traced from runReasoning through reasoning_cli; locale instruction is a post-return suffix rather than an assembler input."
+        }
+      ]
+    },
+    "050c760b-ee78-46e0-a86f-77d80d89b3bf/prompt-assembly": {
+      "context": "interview-simulator",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-12",
+      "evaluatedTs": "2026-10-12T22:15:58.163Z",
+      "worker": "a2612911-7aa8-483d-bce1-faa7c45fc098",
+      "techniques": [
+        {
+          "technique": "consumer-coupled-decoration",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-sim/judge.ts:165 Turn-number decoration has concrete consumers: the judge cites it, and verifyFacts resolves the number against the original turn."
+        },
+        {
+          "technique": "context-budgeting",
+          "verdict": "deviation",
+          "evidence": "app/_lib/interview-sim/engine.ts:257 View.messages returns every accumulated message; this call checks maxCalls but does not size the assembled system plus history against a model window."
+        },
+        {
+          "technique": "task-envelope",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-sim/judge.ts:199 The judge task locates evidence in numbered turns, specifies the JSON artifact and complete question roster, and requires checking quotes against those turns."
+        }
+      ]
+    },
+    "c29afd56-b78f-4c8c-bfa8-75a8a24a80c2/prompt-assembly": {
+      "context": "task-automation-engine",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-12",
+      "evaluatedTs": "2026-10-12T22:15:58.163Z",
+      "worker": "a2612911-7aa8-483d-bce1-faa7c45fc098",
+      "techniques": [
+        {
+          "technique": "consumer-coupled-decoration",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/automation.py:625 The retained object-key wrapper has named consumers: rejection instructions address interview.weakestCompetencies and offer instructions address interview; the renderer documents this coupling."
+        },
+        {
+          "technique": "context-budgeting",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/automation.py:655 Traced through tasks, automation-run and automation_cli into screening: the count cap silently discards additional unproven requirements."
+        }
+      ]
+    },
+    "14d4d7df-d27a-4533-a471-e4ed40575d8d/prompt-assembly": {
+      "context": "candidate-apply-api",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-12",
+      "evaluatedTs": "2026-10-12T22:15:58.163Z",
+      "worker": "a2612911-7aa8-483d-bce1-faa7c45fc098",
+      "techniques": [
+        {
+          "technique": "consumer-coupled-decoration",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/intake.py:310 Numbered transcript decoration has a named consumer: the extraction contract requests sourceTurn citations, and the renderer documents that purpose."
+        },
+        {
+          "technique": "context-budgeting",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/intake.py:307 Traced from the intake message route through intake-run: render_transcript drops older turns, while run_turn labels the result CONVERSATION SO FAR without an omission notice."
+        }
+      ]
     }
   }
 }

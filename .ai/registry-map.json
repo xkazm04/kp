@@ -6177,7 +6177,11 @@
           "revision": 43,
           "changedAt": "2026-10-02",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/intake.py:307 The intake assembler renders only the recent transcript tail under a conversation-so-far heading without telling the model how much earlier history was omitted.",
+          "evaluatedAt": "2026-10-12",
+          "evaluatedAgainst": "sha256-b2:7436fd55a7cb2500",
+          "evaluatedRevision": 43
         },
         {
           "subject": "voice-io",
@@ -16070,7 +16074,11 @@
           "revision": 43,
           "changedAt": "2026-10-02",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/interview-sim/engine.ts:257 The simulator sends its complete accumulated conversation with a call-count guard but no assembled token budget, response reservation, or overflow ladder.",
+          "evaluatedAt": "2026-10-12",
+          "evaluatedAgainst": "sha256-b2:7436fd55a7cb2500",
+          "evaluatedRevision": 43
         },
         {
           "subject": "eval-harness",
@@ -20553,7 +20561,11 @@
           "revision": 43,
           "changedAt": "2026-10-02",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/match_reasoning.py:556 The reasoning runner appends a language directive after build_prompt returns, leaving part of the delivered prompt outside that assembler.",
+          "evaluatedAt": "2026-10-12",
+          "evaluatedAgainst": "sha256-b2:7436fd55a7cb2500",
+          "evaluatedRevision": 43
         },
         {
           "subject": "test-harness",
@@ -29357,7 +29369,11 @@
           "revision": 43,
           "changedAt": "2026-10-02",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/automation.py:655 Screening receives at most eight unproven requirements without an omission count or notice, so a bounded fact base can appear complete.",
+          "evaluatedAt": "2026-10-12",
+          "evaluatedAgainst": "sha256-b2:7436fd55a7cb2500",
+          "evaluatedRevision": 43
         },
         {
           "subject": "agent-memory",
