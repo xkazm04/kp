@@ -20035,7 +20035,11 @@
           "revision": 53,
           "changedAt": "2026-10-06",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "scripts/lint/ratchet.mjs:2 The ratchet protocol unifies suppression ceilings across linters and perf budgets with automated tightening and fail-closed measurement guards.",
+          "evaluatedAt": "2026-10-12",
+          "evaluatedAgainst": "sha256-b2:6e635d76a310aa4b",
+          "evaluatedRevision": 53
         },
         {
           "subject": "test-harness",
@@ -25736,7 +25740,11 @@
           "revision": 53,
           "changedAt": "2026-10-06",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "scripts/review/constitution-check.mjs:12 The review gate framework combines fast deterministic AST and diff scanning with partitioned LLM agent evaluation and GitHub ruleset enforcement.",
+          "evaluatedAt": "2026-10-12",
+          "evaluatedAgainst": "sha256-b2:6e635d76a310aa4b",
+          "evaluatedRevision": 53
         },
         {
           "subject": "supply-chain",
@@ -27087,7 +27095,11 @@
           "revision": 53,
           "changedAt": "2026-10-06",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/api-response.ts:15 Shared API utilities provide HTTP JSON response helpers and rate limiting for web endpoints, not software engineering quality gate machinery.",
+          "evaluatedAt": "2026-10-12",
+          "evaluatedAgainst": "sha256-b2:6e635d76a310aa4b",
+          "evaluatedRevision": 53
         },
         {
           "subject": "client-fetch-cache",
