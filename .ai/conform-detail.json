@@ -1376,6 +1376,153 @@
           "evidence": "app/features/library/jobs/jobsAgentFitModel.ts:1 Coverage classes categorize candidate-job requirement match (automatable, assisted, human_only), not agent memory population coverage."
         }
       ]
+    },
+    "1e9fd764-5fe9-4af8-b360-cd7e86dc09c9/eval-harness": {
+      "context": "group-eval-comparison",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T01:28:20.946Z",
+      "worker": "2d701458-2067-40aa-9bb3-86029c5993b7",
+      "techniques": [],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "not-applicable, re-checked at rev 34: the precondition is scoring a model or agent system against declared scenarios so next month's answer is comparable to this month's. app/features/hiring/decisions/groupEval/cache-key.ts:42 keys the cached run on the candidate set itself - the inverse of scenario-design's fixed key - so nothing here is comparable across versions. kp's actual harness is a separate context (pipeline/jobfit/eval/__main__.py); the recruiting pairings already on this context (comparative-shortlist-evaluation, adverse-impact-and-proxy-neutrality) are the ones that govern.",
+          "evaluatedAt": "2026-09-20",
+          "worker": null,
+          "reason": "replaced by 2d701458-2067-40aa-9bb3-86029c5993b7"
+        }
+      ]
+    },
+    "a42d66c2-a793-423e-a711-b23f8570ff63/eval-harness": {
+      "context": "eval-harness",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T01:28:20.946Z",
+      "worker": "2d701458-2067-40aa-9bb3-86029c5993b7",
+      "techniques": [
+        {
+          "technique": "assertion-vs-judgment",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/eval/judging.py:167 The shared judgment contract returns one blended score and issues, without per-criterion verdicts or cited output evidence; deterministic checks elsewhere do not satisfy those judgment requirements."
+        },
+        {
+          "technique": "eval-economics",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/eval/intake_eval.py:526 The corpus sweep restores completed rows by scenario name alone, without checking scenario content, candidate version or changed run parameters, allowing a resumed report to mix measurements."
+        },
+        {
+          "technique": "failure-signatures-beside-the-pass-rate",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/eval/fault_eval.py:585 The drill aggregates by injected fault mode and lists individual failure strings, but does not report case counts by failed-check mechanism with eligible denominators beside its pass rate."
+        },
+        {
+          "technique": "judge-stability",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/eval/judging.py:40 A capability alias is not the concrete dated model identifier required by the standard; choosing a different named model from the engine does not freeze the judge."
+        },
+        {
+          "technique": "metric-role-contract",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/eval/interview_optimize.py:182 After its new-failure check, acceptance maximizes validation reliability while the measured judge-quality sum remains advisory without an admission threshold, allowing accepted patches to worsen that metric."
+        },
+        {
+          "technique": "scenario-design",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/eval/interview_eval.py:972 The regression baseline records scenario names and outcomes without scenario content versions; diff_baseline compares those names even when a persona or expected property changed."
+        },
+        {
+          "technique": "selection-over-noise",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/eval/interview_optimize.py:344 The optimizer repeatedly consults validation outcomes and publishes the selected best result without a final once-only scoring on an untouched holdout; deterministic validators do not make their LLM-generated inputs noise-free."
+        }
+      ]
+    },
+    "5315fdef-5698-4668-9ba8-8ac3de782a75/eval-harness": {
+      "context": "matrix-grid",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T01:28:20.946Z",
+      "worker": "2d701458-2067-40aa-9bb3-86029c5993b7",
+      "techniques": []
+    },
+    "050c760b-ee78-46e0-a86f-77d80d89b3bf/eval-harness": {
+      "context": "interview-simulator",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T01:28:20.946Z",
+      "worker": "2d701458-2067-40aa-9bb3-86029c5993b7",
+      "techniques": [
+        {
+          "technique": "assertion-vs-judgment",
+          "verdict": "deviation",
+          "evidence": "app/_lib/interview-sim/verdict-run.ts:497 When judging is enabled, the model call precedes evaluateRules, so transcripts that fail mechanical checks still enter judgment instead of being filtered by the cheap outer gate."
+        },
+        {
+          "technique": "candidate-write-access",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/interview-sim/providers.ts:210 The next argument is the empty string, explicitly disabling CLI tools; the simulated models have no shell or filesystem-writing tool surface."
+        },
+        {
+          "technique": "comparison-modes",
+          "verdict": "deviation",
+          "evidence": "app/_lib/interview-sim/verdict-run.ts:354 The conflict guard for merging directories as repeated samples compares brief, director and situation identities but excludes recorded provider identities, allowing different models to be pooled as one condition."
+        },
+        {
+          "technique": "eval-economics",
+          "verdict": "deviation",
+          "evidence": "app/_lib/interview-sim/runner.ts:189 The resume predicate ends after matching scenario content, with no model-identity comparison; bounded concurrency and atomic writes do not repair this incomplete cached-measurement identity."
+        },
+        {
+          "technique": "judge-stability",
+          "verdict": "deviation",
+          "evidence": "app/_lib/interview-sim/providers.ts:201 Provider identity copies the requested model string, including accepted aliases, rather than recording the resolved dated model; the judge cache subsequently treats that label as instrument identity."
+        },
+        {
+          "technique": "scenario-design",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-sim/situations.ts:174 Validated stable scenario IDs carry a content digest over persona, first message, provocations, expected response, fixture and language; resume and conflict checks consume it without incorporating the model under test."
+        }
+      ]
+    },
+    "ec7480d1-b046-46b8-ad78-ba60c3612b85/eval-harness": {
+      "context": "devcase-core",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T01:28:20.946Z",
+      "worker": "2d701458-2067-40aa-9bb3-86029c5993b7",
+      "techniques": [
+        {
+          "technique": "assertion-vs-judgment",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/devcase/lifecycle_audits.py:38 The lifecycle judge requests an unanchored blended 1–5 rating without level descriptions, per-criterion verdicts or cited artifact evidence."
+        },
+        {
+          "technique": "eval-economics",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/devcase/calibrate.py:198 Expensive completed cells are written directly to their final JSON paths rather than atomically; a torn write is discarded by the resume reader, losing the measurement and requiring another paid generation."
+        },
+        {
+          "technique": "judge-stability",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/devcase/llm_judge.py:71 Reported judge identity contains a provider/model label, while lifecycle judgments have no frozen packet-version identity; searches of devcase sources found no anchor-set drift lane."
+        },
+        {
+          "technique": "selection-over-noise",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/devcase/calibrate.py:156 Only reliable LLM results survive resume; completed but unreliable generations are tried again, and prior attempts are absent from the resulting row counts and headline reliability."
+        }
+      ]
     }
   }
 }
