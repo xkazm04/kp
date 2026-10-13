@@ -1,0 +1,56 @@
+{
+  "schema": "conform-run/1",
+  "worker": "d515f5fb-7e3b-4597-991b-ed8dd1ae7002",
+  "subject": "agent-instruction-files",
+  "evaluatedAt": "2026-10-13T04:25:18.955242+00:00",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "pairs": [],
+  "declined": [
+    {
+      "subject": "agent-instruction-files",
+      "context": "security-agent-gates",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "agent-instruction-files",
+      "context": "platform-auth-api",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "agent-instruction-files",
+      "context": "workspace-config-api",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "agent-instruction-files",
+      "context": "decisions-screen-wave-logic",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "agent-instruction-files",
+      "context": "ci-doc-gates",
+      "reason": "withdrawn after review: reviewer (sonnet): The deviation is about the content of the root CLAUDE.md (group overview list, inline counts), which is not among this context's files (scripts/docs/*, scripts/i18n/catalog-check.mjs). The cited check-guidance.mjs and check-doc-sync.mjs anchors show conformant behaviour, and I could not confirm any "
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-13T04:25:18.955242+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-instruction-files"
+      ],
+      "techniques": [
+        "capability-coverage-contract",
+        "enforcement-demotion",
+        "instruction-freshness",
+        "line-earning",
+        "single-source-topology"
+      ],
+      "deviations": 1,
+      "context": "ci-doc-gates",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    }
+  ]
+}

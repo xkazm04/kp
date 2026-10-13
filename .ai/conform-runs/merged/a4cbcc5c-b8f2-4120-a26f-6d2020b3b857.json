@@ -1,0 +1,276 @@
+{
+  "schema": "conform-run/1",
+  "worker": "a4cbcc5c-b8f2-4120-a26f-6d2020b3b857",
+  "subject": "settings",
+  "evaluatedAt": "2026-10-13T08:46:08.759066+00:00",
+  "provider": "grok",
+  "model": "grok-4.7",
+  "pairs": [
+    {
+      "context": "llm-config-provider",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/_lib/provider-key-precedence.ts:63 A blank GEMINI_API_KEY is treated as missing, so a later alias such as GOOGLE_API_KEY still supplies the credential.",
+      "techniques": [
+        {
+          "technique": "applied-defaults-ledger",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/llm-config.ts:357 An empty store emits nothing so the Claude CLI default stays outside the rows. That is the scalar case."
+        },
+        {
+          "technique": "author-declared-include-graph",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/llm-config.ts:389 The child receives one assembled JSON object. No file names a parent file."
+        },
+        {
+          "technique": "config-backup-and-restore",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/llm-secret.ts:17 KP_SECRET_PREVIOUS re-encrypts ciphertext. It is not a bounded backup of a settings file."
+        },
+        {
+          "technique": "cross-source-precedence-chain",
+          "verdict": "deviation",
+          "evidence": "app/_lib/provider-key-precedence.ts:59 Order is byom, then platform, then env, and a decrypt error throws. The return value does not name which source won, and buildLlmConfigEnv folds the rows into one map."
+        },
+        {
+          "technique": "inherited-default-override",
+          "verdict": "conformant",
+          "evidence": "app/_lib/llm-config.ts:294 A use case with no row follows the * pin, a sibling key, and is resolved again on read."
+        },
+        {
+          "technique": "key-registry",
+          "verdict": "conformant",
+          "evidence": "app/_lib/llm-config.ts:73 Providers are one closed list with a membership predicate. saveProviderKey itself is typed and does not call this predicate."
+        },
+        {
+          "technique": "presence-decides-precedence",
+          "verdict": "deviation",
+          "evidence": "app/_lib/provider-key-precedence.ts:63 The stored-row rung returns an empty key and stops. The env-alias rung uses truthiness, so a present blank name loses to the next alias."
+        },
+        {
+          "technique": "read-batching",
+          "verdict": "conformant",
+          "evidence": "app/_lib/llm-config.ts:365 Assembly lists both tables once. There is no cross-call cache, so a later resolve reads the store again."
+        },
+        {
+          "technique": "save-experience",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/llm-config.ts:192 The write door can report stale. No control is rendered in this module."
+        },
+        {
+          "technique": "typed-accessors",
+          "verdict": "conformant",
+          "evidence": "app/_lib/llm-config.ts:367 Nothing configured is omitted so the default is not stored. toUseCaseEntry keeps only positive integer maxTokens and timeoutS."
+        }
+      ],
+      "registryProposal": "Say that an alias list in a read-only source is presence-decides-precedence, and that an empty string is present. This chain already stops on an empty stored key and still truth-tests the env alias rung."
+    },
+    {
+      "context": "analytics-metrics",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/features/insights/analytics/AnalyticsInlineNumberSave.tsx:77 A failed blur-save announces the error and leaves the field showing the number that was not stored.",
+      "techniques": [
+        {
+          "technique": "applied-defaults-ledger",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsGoalsEditor.tsx:59 A blank goal is absence, not a shipped 50% entry reapplied into a collection."
+        },
+        {
+          "technique": "inherited-default-override",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/stageDwellGate.ts:123 A shipped role default is not painted as a team decision. The cadence input passes null team days unless cadenceSource is team, and a null save clears back to that default."
+        },
+        {
+          "technique": "read-batching",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/AnalyticsGoalsEditor.tsx:24 Every stage goal arrives on one prop. The editors do not fetch per metric."
+        },
+        {
+          "technique": "save-experience",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/AnalyticsInlineNumberSave.tsx:77 Blur-save is the right model and the alert is honest. The catch does not put the draft back to the stored value."
+        },
+        {
+          "technique": "setting-kinds",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/AnalyticsThresholdSuggestion.tsx:15 The auto-reject floor waits for Apply and is sealed in history. Goals and channel spend commit on blur. The split is per component, with no shared kind field."
+        },
+        {
+          "technique": "settings-audit-and-history",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/thresholdHistoryRows.ts:23 A sealed floor record carries previous, next, at, and approvedBy, and the strip renders it. Goal and spend edits have no such strip in these files."
+        },
+        {
+          "technique": "typed-accessors",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/inlineNumberSavePlan.ts:37 One planner parses, rejects non-finite and negative input, and turns blank or zero into null so the row is cleared."
+        }
+      ]
+    },
+    {
+      "context": "organization-and-branding",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/features/settings/branding/BrandingTab.tsx:108 The branding form's unsaved guard listens only for a full page unload, so a workspace tab change can drop a dirty form without a prompt.",
+      "techniques": [
+        {
+          "technique": "applied-defaults-ledger",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/branding/BrandingTab.tsx:160 Reset returns the last saved brand. There is no shipped collection of default entries."
+        },
+        {
+          "technique": "config-backup-and-restore",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/organization/OrganizationTab.tsx:28 Org settings are a cookie and a workspace default. The backup panel is an on-demand organization database export with a dry-run, not a rotation of a settings file before each save."
+        },
+        {
+          "technique": "in-place-document-patch",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/branding/BrandingTab.tsx:131 The brand payload is three named fields, a strict section, not a document that keeps unknown members."
+        },
+        {
+          "technique": "read-batching",
+          "verdict": "conformant",
+          "evidence": "app/features/settings/organization/OrganizationTab.tsx:152 The tab does not fetch each setting. Both values are already on the document."
+        },
+        {
+          "technique": "save-experience",
+          "verdict": "deviation",
+          "evidence": "app/features/settings/branding/BrandingTab.tsx:108 Dirty is compared to the saved baseline, and a failed currency write calls setCurrency(previous). The org name debounces and flushes on unmount. The branding explicit form does not prompt on in-app tab changes."
+        },
+        {
+          "technique": "setting-kinds",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/organization/OrganizationTab.tsx:27 Name, language, currency, and brand are identity preferences. No ceiling or flag is in these files."
+        },
+        {
+          "technique": "typed-accessors",
+          "verdict": "conformant",
+          "evidence": "app/features/settings/organization/OrganizationTab.tsx:109 An unknown locale is refused before write. An unrecognized app locale is shown as en. Branding blocks save when the accent is not a legible hex."
+        }
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "settings",
+      "context": "models-keys-and-routing",
+      "reason": "withdrawn after review: reviewer (sonnet): modelsKeysPanelLogic.ts:27 is a comment describing a hazard the code already fixes: keyFormMetaFor seeds the metadata boxes from the stored row, and ModelsKeysPanel.tsx:69 calls it on provider/scope change, so a blank box now means a deliberate clear."
+    },
+    {
+      "subject": "settings",
+      "context": "billing-plan-and-spend",
+      "reason": "withdrawn after review: reviewer (sonnet): The not-applicable anchor, useBillingPortal.ts:39, is a plain POST to the portal endpoint. It does not show that the context has no settings key space, and the grep for keyRegistry, settingsStore and similar names is not proof of absence."
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-13T08:46:08.759066+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "settings"
+      ],
+      "techniques": [
+        "applied-defaults-ledger",
+        "author-declared-include-graph",
+        "config-backup-and-restore",
+        "cross-source-precedence-chain",
+        "in-place-document-patch",
+        "inherited-default-override",
+        "key-registry",
+        "read-batching",
+        "save-experience",
+        "setting-kinds",
+        "typed-accessors"
+      ],
+      "deviations": 1,
+      "context": "models-keys-and-routing",
+      "via": "curator-multi:grok",
+      "model": "grok-4.7"
+    },
+    {
+      "ts": "2026-10-13T08:46:08.759066+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "settings"
+      ],
+      "techniques": [
+        "cross-source-precedence-chain",
+        "read-batching",
+        "save-experience",
+        "setting-kinds"
+      ],
+      "deviations": 0,
+      "context": "billing-plan-and-spend",
+      "via": "curator-multi:grok",
+      "model": "grok-4.7"
+    },
+    {
+      "ts": "2026-10-13T08:46:08.759066+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "settings"
+      ],
+      "techniques": [
+        "applied-defaults-ledger",
+        "author-declared-include-graph",
+        "config-backup-and-restore",
+        "cross-source-precedence-chain",
+        "inherited-default-override",
+        "key-registry",
+        "presence-decides-precedence",
+        "read-batching",
+        "save-experience",
+        "typed-accessors"
+      ],
+      "deviations": 1,
+      "context": "llm-config-provider",
+      "via": "curator-multi:grok",
+      "model": "grok-4.7"
+    },
+    {
+      "ts": "2026-10-13T08:46:08.759066+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "settings"
+      ],
+      "techniques": [
+        "applied-defaults-ledger",
+        "inherited-default-override",
+        "read-batching",
+        "save-experience",
+        "setting-kinds",
+        "settings-audit-and-history",
+        "typed-accessors"
+      ],
+      "deviations": 1,
+      "context": "analytics-metrics",
+      "via": "curator-multi:grok",
+      "model": "grok-4.7"
+    },
+    {
+      "ts": "2026-10-13T08:46:08.759066+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "settings"
+      ],
+      "techniques": [
+        "applied-defaults-ledger",
+        "config-backup-and-restore",
+        "in-place-document-patch",
+        "read-batching",
+        "save-experience",
+        "setting-kinds",
+        "typed-accessors"
+      ],
+      "deviations": 1,
+      "context": "organization-and-branding",
+      "via": "curator-multi:grok",
+      "model": "grok-4.7"
+    }
+  ]
+}

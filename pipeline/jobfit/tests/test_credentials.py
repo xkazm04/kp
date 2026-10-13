@@ -80,5 +80,35 @@ class CredentialChecksTest(unittest.TestCase):
         self.assertEqual(flags, [])
 
 
+class HeldButUnstatedTest(unittest.TestCase):
+    """A JD-required licence counts as held only when the CV's own text states it."""
+
+    JD = "ICU Registered Nurse wanted. Active RN license required."
+    LISTED = [{"name": "Registered Nurse (RN)", "issuer": "State Board of Nursing", "kind": "license"}]
+
+    def test_listed_but_unstated_licence_is_flagged(self) -> None:
+        cv = "ICU nurse, 8 years at a city hospital intensive care unit. BSN, 2016."
+        flags = credential_checks(self.JD, self.LISTED, today=TODAY, cv_text=cv)
+        self.assertEqual([f.code for f in flags], ["credential_unstated"])
+
+    def test_licence_the_cv_states_is_not_flagged(self) -> None:
+        cv = "ICU nurse, 8 years. Registered Nurse, state Board of Nursing. BSN, 2016."
+        self.assertEqual(credential_checks(self.JD, self.LISTED, today=TODAY, cv_text=cv), [])
+
+    def test_licence_number_in_the_cv_counts_as_stated(self) -> None:
+        creds = [{"name": "Registered Nurse (RN)", "identifier": "MA-447120", "kind": "license"}]
+        cv = "ICU nurse, 8 years. Licence MA-447120. BSN, 2016."
+        self.assertEqual(credential_checks(self.JD, creds, today=TODAY, cv_text=cv), [])
+
+    def test_unreadable_cv_raises_nothing_new(self) -> None:
+        # Nothing was read, so the document can neither confirm nor refute the list.
+        self.assertEqual(credential_checks(self.JD, self.LISTED, today=TODAY, cv_text="  "), [])
+        self.assertEqual(credential_checks(self.JD, self.LISTED, today=TODAY), [])
+
+    def test_unrequired_licence_is_not_checked(self) -> None:
+        flags = credential_checks("Cloud engineer wanted.", self.LISTED, today=TODAY, cv_text="Engineer.")
+        self.assertEqual(flags, [])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -52,7 +52,10 @@ const ALL_HOLDOUT_NODES = new Set(Object.values(CONTRAST_HOLDOUTS).flat());
  * for the owner, not a port defect.
  *
  *   inbox       #a9d2cc on #2f6664  3.98:1  crumbs, count, one-line pitch
- *   rediscover  #dbe6df on #72827b  3.15:1  the same four; and the panel's two
+ *   rediscover  #dbe6df on #5c6b63  4.39:1  the same four (the ground was darkened from
+ *               #72827b on 2026-10-13 so the body copy passes; it was 3.58:1: the scene paints
+ *               PALETTE.rediscover.ground in featureData.ts at 80% over black, and #73867c there
+ *               gives .sc-body 4.93:1; the ring medallion keeps its own #8fa39a in art.tsx); and the panel's two
  *               dimmed "earlier applicant" rows, #74787c 4.41:1 / #8e9fa5 2.72:1
  *   voice       #f3b5a9 on #ab483b  3.22:1  the four; and the panel caption 4.37:1
  *   salary      #f1dc9d on #a18132  2.71:1  the four; the panel caption 2.99:1; and
