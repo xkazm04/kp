@@ -1,0 +1,221 @@
+{
+ "schema": "conform-run/1",
+ "worker": "2d701458-2067-40aa-9bb3-86029c5993b7",
+ "subject": "eval-harness",
+ "evaluatedAt": "2026-10-13T01:28:20.946378+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "group-eval-comparison",
+   "subject": "eval-harness",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/hiring/decisions/groupEval/groupEvalOpenMachine.ts:122 Searches of the context and repository for eval-harness, benchmark, scenario, rubric and pass-rate found recruiting presentation and unit-test code here and separate model harnesses elsewhere, while this comparison constructs its field from live hiring entries.",
+   "techniques": []
+  },
+  {
+   "context": "eval-harness",
+   "subject": "eval-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/eval/judging.py:40 The shared judge defaults to a moving model alias, so scores across runs can change with the instrument rather than the pipeline.",
+   "techniques": [
+    {
+     "technique": "assertion-vs-judgment",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/eval/judging.py:167 The shared judgment contract returns one blended score and issues, without per-criterion verdicts or cited output evidence; deterministic checks elsewhere do not satisfy those judgment requirements."
+    },
+    {
+     "technique": "eval-economics",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/eval/intake_eval.py:526 The corpus sweep restores completed rows by scenario name alone, without checking scenario content, candidate version or changed run parameters, allowing a resumed report to mix measurements."
+    },
+    {
+     "technique": "failure-signatures-beside-the-pass-rate",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/eval/fault_eval.py:585 The drill aggregates by injected fault mode and lists individual failure strings, but does not report case counts by failed-check mechanism with eligible denominators beside its pass rate."
+    },
+    {
+     "technique": "judge-stability",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/eval/judging.py:40 A capability alias is not the concrete dated model identifier required by the standard; choosing a different named model from the engine does not freeze the judge."
+    },
+    {
+     "technique": "metric-role-contract",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/eval/interview_optimize.py:182 After its new-failure check, acceptance maximizes validation reliability while the measured judge-quality sum remains advisory without an admission threshold, allowing accepted patches to worsen that metric."
+    },
+    {
+     "technique": "scenario-design",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/eval/interview_eval.py:972 The regression baseline records scenario names and outcomes without scenario content versions; diff_baseline compares those names even when a persona or expected property changed."
+    },
+    {
+     "technique": "selection-over-noise",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/eval/interview_optimize.py:344 The optimizer repeatedly consults validation outcomes and publishes the selected best result without a final once-only scoring on an untouched holdout; deterministic validators do not make their LLM-generated inputs noise-free."
+    }
+   ]
+  },
+  {
+   "context": "matrix-grid",
+   "subject": "eval-harness",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/insights/matrix/MatrixTab.tsx:34 Searches of this context and the repository for eval-harness, benchmark, scenario, rubric and pass-rate found UI and unit-test references here and separate model harnesses elsewhere, while this matrix displays actual recruiting candidates against open roles.",
+   "techniques": []
+  },
+  {
+   "context": "interview-simulator",
+   "subject": "eval-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/interview-sim/runner.ts:187 Resume checks brief, director and situation identities but omits interviewer and candidate model identities, so a changed model can reuse the previous conversation as current.",
+   "techniques": [
+    {
+     "technique": "assertion-vs-judgment",
+     "verdict": "deviation",
+     "evidence": "app/_lib/interview-sim/verdict-run.ts:497 When judging is enabled, the model call precedes evaluateRules, so transcripts that fail mechanical checks still enter judgment instead of being filtered by the cheap outer gate."
+    },
+    {
+     "technique": "candidate-write-access",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/interview-sim/providers.ts:210 The next argument is the empty string, explicitly disabling CLI tools; the simulated models have no shell or filesystem-writing tool surface."
+    },
+    {
+     "technique": "comparison-modes",
+     "verdict": "deviation",
+     "evidence": "app/_lib/interview-sim/verdict-run.ts:354 The conflict guard for merging directories as repeated samples compares brief, director and situation identities but excludes recorded provider identities, allowing different models to be pooled as one condition."
+    },
+    {
+     "technique": "eval-economics",
+     "verdict": "deviation",
+     "evidence": "app/_lib/interview-sim/runner.ts:189 The resume predicate ends after matching scenario content, with no model-identity comparison; bounded concurrency and atomic writes do not repair this incomplete cached-measurement identity."
+    },
+    {
+     "technique": "judge-stability",
+     "verdict": "deviation",
+     "evidence": "app/_lib/interview-sim/providers.ts:201 Provider identity copies the requested model string, including accepted aliases, rather than recording the resolved dated model; the judge cache subsequently treats that label as instrument identity."
+    },
+    {
+     "technique": "scenario-design",
+     "verdict": "conformant",
+     "evidence": "app/_lib/interview-sim/situations.ts:174 Validated stable scenario IDs carry a content digest over persona, first message, provocations, expected response, fixture and language; resume and conflict checks consume it without incorporating the model under test."
+    }
+   ]
+  },
+  {
+   "context": "devcase-core",
+   "subject": "eval-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/devcase/calibrate.py:156 Resume preserves reliable LLM generations and reruns unsuccessful ones without accumulated attempt counts, selecting favorable outcomes instead of reporting the whole sampling history.",
+   "techniques": [
+    {
+     "technique": "assertion-vs-judgment",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/devcase/lifecycle_audits.py:38 The lifecycle judge requests an unanchored blended 1\u20135 rating without level descriptions, per-criterion verdicts or cited artifact evidence."
+    },
+    {
+     "technique": "eval-economics",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/devcase/calibrate.py:198 Expensive completed cells are written directly to their final JSON paths rather than atomically; a torn write is discarded by the resume reader, losing the measurement and requiring another paid generation."
+    },
+    {
+     "technique": "judge-stability",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/devcase/llm_judge.py:71 Reported judge identity contains a provider/model label, while lifecycle judgments have no frozen packet-version identity; searches of devcase sources found no anchor-set drift lane."
+    },
+    {
+     "technique": "selection-over-noise",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/devcase/calibrate.py:156 Only reliable LLM results survive resume; completed but unreliable generations are tried again, and prior attempts are absent from the resulting row counts and headline reliability."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-13T01:28:20.946378+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "eval-harness"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "group-eval-comparison",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-13T01:28:20.946378+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "eval-harness"
+   ],
+   "techniques": [
+    "assertion-vs-judgment",
+    "eval-economics",
+    "failure-signatures-beside-the-pass-rate",
+    "judge-stability",
+    "metric-role-contract",
+    "scenario-design",
+    "selection-over-noise"
+   ],
+   "deviations": 1,
+   "context": "eval-harness",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-13T01:28:20.946378+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "eval-harness"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "matrix-grid",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-13T01:28:20.946378+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "eval-harness"
+   ],
+   "techniques": [
+    "assertion-vs-judgment",
+    "candidate-write-access",
+    "comparison-modes",
+    "eval-economics",
+    "judge-stability",
+    "scenario-design"
+   ],
+   "deviations": 1,
+   "context": "interview-simulator",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-13T01:28:20.946378+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "eval-harness"
+   ],
+   "techniques": [
+    "assertion-vs-judgment",
+    "eval-economics",
+    "judge-stability",
+    "selection-over-noise"
+   ],
+   "deviations": 1,
+   "context": "devcase-core",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}
