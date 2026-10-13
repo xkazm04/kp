@@ -92,10 +92,14 @@ class CredentialGateIsFedTheCapturedCredentialsTest(unittest.TestCase):
 
     JD = "ICU Registered Nurse wanted. Active RN license required."
 
-    def _payload(self, credentials: list[dict]) -> dict:
+    # The CV text a held licence is checked against: the gate counts a JD-required
+    # licence as held only when the document states it, not when the model lists it.
+    STATED = "Sarah Mitchell, ICU nurse. Registered Nurse license, MA Board of Nursing. " * 5
+
+    def _payload(self, credentials: list[dict], cv_text: str = "Sarah Mitchell, ICU nurse. " * 10) -> dict:
         return {
             "profile": {
-                "raw_text": "Sarah Mitchell, ICU nurse. " * 10,
+                "raw_text": cv_text,
                 "name": "Sarah Mitchell",
                 "years_experience": 8,
                 "current_seniority": "senior",
@@ -124,8 +128,8 @@ class CredentialGateIsFedTheCapturedCredentialsTest(unittest.TestCase):
             },
         }
 
-    def _checks(self, credentials: list[dict]) -> list[str]:
-        payload = self._payload(credentials)
+    def _checks(self, credentials: list[dict], cv_text: str | None = None) -> list[str]:
+        payload = self._payload(credentials) if cv_text is None else self._payload(credentials, cv_text)
         with mock.patch.object(P, "extract_text", lambda _p: payload["profile"]["raw_text"]), mock.patch.object(
             P, "analyze_profile_with_gemini", lambda *a, **k: (payload, [], {})
         ):
@@ -136,8 +140,23 @@ class CredentialGateIsFedTheCapturedCredentialsTest(unittest.TestCase):
         # The candidate HOLDS the RN licence the JD demands, and the capture proved it
         # lands on the profile — so the gate must see it and stay silent. A gate fed an
         # empty list instead would flag every regulated-role candidate as unlicensed.
-        checks = self._checks([{"name": "Registered Nurse license", "issuer": "MA Board of Nursing", "kind": "license"}])
+        checks = self._checks(
+            [{"name": "Registered Nurse license", "issuer": "MA Board of Nursing", "kind": "license"}],
+            cv_text=self.STATED,
+        )
         self.assertEqual(checks, [], "the captured RN licence never reached credential_checks")
+
+    def test_listed_licence_the_cv_never_states_is_flagged(self) -> None:
+        # The live failure (probe 2026-10-13): the CV says "ICU nurse" and nothing
+        # else, the JD requires an RN license, and the model lists "Registered Nurse
+        # (RN)" from the State Board of Nursing anyway. Read from the list alone that
+        # silences the missing-licence flag; read against the CV it is a held claim
+        # with no document behind it, and the recruiter must verify it.
+        checks = self._checks(
+            [{"name": "Registered Nurse (RN)", "issuer": "State Board of Nursing", "kind": "license"}]
+        )
+        self.assertTrue(any("does not state it" in c for c in checks), checks)
+        self.assertFalse(any("not found" in c for c in checks), checks)
 
     def test_expired_held_licence_is_flagged_from_the_captured_expiry(self) -> None:
         # The other direction: the expiry check can only fire on a CAPTURED credential,

@@ -183,6 +183,7 @@ export const PROTECTED_PREFIXES = [
   { prefix: 'scripts/release/', why: 'the machinery that judges this change' },
   { prefix: 'scripts/app-master-bench/', why: 'the machinery that judges this change' },
   { prefix: 'scripts/i18n-check.mjs', why: 'the machinery that judges this change' },
+  { prefix: 'scripts/contest/', why: 'the machinery that judges this change (test:docs runs app-kit-pack)' },
   // The flake policy decides whether a red suite BLOCKS: an agent that could
   // edit it could label its own failures as quarantined and land green.
   { prefix: 'scripts/test/', why: 'the machinery that judges this change' },

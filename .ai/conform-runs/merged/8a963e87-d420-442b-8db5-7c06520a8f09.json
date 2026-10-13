@@ -1,0 +1,302 @@
+{
+  "schema": "conform-run/1",
+  "worker": "8a963e87-d420-442b-8db5-7c06520a8f09",
+  "subject": "voice-interview-fidelity",
+  "evaluatedAt": "2026-10-13T12:26:29.649178+00:00",
+  "provider": "agy",
+  "model": "gemini-3.8-flash-high",
+  "pairs": [
+    {
+      "context": "voice-interview-components",
+      "subject": "voice-interview-fidelity",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evidence": "app/_components/voice/transport/elevenlabs.ts:182 The client voice transport injects ASR keyword biasing overrides into the live session without any null-audio control or precision gate to prevent phantom term insertions.",
+      "techniques": [
+        {
+          "technique": "phantom-terms-and-silence-insertions",
+          "verdict": "deviation",
+          "evidence": "app/_components/voice/transport/elevenlabs.ts:182 Applies ASR vocabulary biasing overrides to the speech session without null-audio controls to detect or measure phantom insertions."
+        },
+        {
+          "technique": "closing-read-back-as-the-authoritative-record",
+          "verdict": "deviation",
+          "evidence": "app/_components/voice/VoiceTranscript.tsx:55 Candidate UI only renders speech bubbles in a scrolling transcript with no written checklist for reviewing read-back entities on screen."
+        },
+        {
+          "technique": "language-choice-and-per-turn-drift-detection",
+          "verdict": "conformant",
+          "evidence": "app/_components/voice/transport/elevenlabs.ts:173 Pins the candidate's spoken language directly in the ElevenLabs transport configuration rather than relying solely on prompt instructions."
+        },
+        {
+          "technique": "transcript-sampling-that-keeps-the-conclusion",
+          "verdict": "conformant",
+          "evidence": "app/_components/voice/useTranscriptPersistence.ts:117 Persists the full transcript array without front-slicing at the client persistence boundary."
+        },
+        {
+          "technique": "never-infer-from-how-a-person-sounds",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/voice/VoiceInterview.tsx:20 Client components do not evaluate candidates, write scoring prompts, or score transcripts."
+        },
+        {
+          "technique": "entity-fidelity-not-aggregate-error-rate",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/voice/VoiceTranscript.tsx:5 Entity fidelity quality gates are not evaluated or enforced within client view components."
+        },
+        {
+          "technique": "accent-and-first-language-error-disparity",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/voice/VoiceSettings.tsx:9 Disparate impact audits and population-stratified fidelity metrics are not tracked by client UI controls."
+        }
+      ],
+      "registryProposal": "Consider clarifying in closing-read-back whether visual on-screen read-back confirmation is required when voice is the primary interaction mode in a web UI."
+    },
+    {
+      "context": "voice-interview-session",
+      "subject": "voice-interview-fidelity",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evidence": "app/_lib/voice/asr-keywords.mjs:31 The session keyword bias primes speech recognition with domain terms including known confusable pairs (React/Rust) without running a null-audio control to measure and prevent phantom term insertions.",
+      "techniques": [
+        {
+          "technique": "phantom-terms-and-silence-insertions",
+          "verdict": "deviation",
+          "evidence": "app/_lib/voice/asr-keywords.mjs:31 Defines baseline keyword biasing containing confusable pairs (React/Rust, Java/JavaScript) without running null-audio controls to test for phantom insertions."
+        },
+        {
+          "technique": "language-choice-and-per-turn-drift-detection",
+          "verdict": "deviation",
+          "evidence": "app/_lib/voice/language-lock.ts:34 Per-turn drift detector checks only Czech and English word markers, leaving German/French interviews to fall back to indeterminate without drift detection."
+        },
+        {
+          "technique": "never-infer-from-how-a-person-sounds",
+          "verdict": "conformant",
+          "evidence": "app/_lib/voice/telemetry-format.ts:6 Formats conversation telemetry (talk share, pause duration) purely as neutral descriptive signals without deriving scores."
+        },
+        {
+          "technique": "closing-read-back-as-the-authoritative-record",
+          "verdict": "deviation",
+          "evidence": "app/_lib/voice/finalize-status.ts:64 Flags that the closing block was entered but does not verify whether the read-back actually happened or validate candidate confirmations."
+        },
+        {
+          "technique": "accent-and-first-language-error-disparity",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/voice/candidate-brief.ts:1 Session brief construction and lifecycle management do not perform population-stratified fidelity analysis."
+        },
+        {
+          "technique": "entity-fidelity-not-aggregate-error-rate",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/voice/discarded-turns.ts:1 Turn reconciliation and session finalization do not compute entity fidelity error rates."
+        },
+        {
+          "technique": "transcript-sampling-that-keeps-the-conclusion",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/voice/index.ts:1 Session utilities do not sample or truncate transcripts for downstream synthesis."
+        }
+      ]
+    },
+    {
+      "context": "schedule-interview-prep",
+      "subject": "voice-interview-fidelity",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evidence": "app/features/hiring/schedule/ScheduleInterviewAiScorecardSection.tsx:95 Scorecard evidence quotes are displayed to reviewers verbatim from transcript turns without resolving entity terms against corrected read-back items, permitting misheard words to be shown as candidate statements.",
+      "techniques": [
+        {
+          "technique": "closing-read-back-as-the-authoritative-record",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewAiScorecardSection.tsx:95 Evidence quotes displayed to recruiters are rendered directly from the transcript turn without resolving against corrected read-back entities, leaving misheard terms visible as candidate quotes."
+        },
+        {
+          "technique": "transcript-sampling-that-keeps-the-conclusion",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewAiScorecardSection.tsx:68 Renders an in-band coverage caveat whenever head-and-tail sampling dropped turns from the transcript, while showing the complete transcript in the modal."
+        },
+        {
+          "technique": "never-infer-from-how-a-person-sounds",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewScorecardRow.tsx:42 Collapses unassessed placeholder sentinel ratings (3/5) to null and suppresses placeholder evidence so boilerplate is never shown as a candidate quote."
+        },
+        {
+          "technique": "language-choice-and-per-turn-drift-detection",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewTelemetryStrip.tsx:46 Surfaces the language-lock verdict neutrally within the telemetry strip alongside talk share and pauses."
+        },
+        {
+          "technique": "accent-and-first-language-error-disparity",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewPrepHeader.tsx:1 Schedule preparation surfaces do not calculate population disparity statistics."
+        },
+        {
+          "technique": "entity-fidelity-not-aggregate-error-rate",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewTranscriptTurns.tsx:1 Transcript display components do not compute or gate on entity error rates."
+        },
+        {
+          "technique": "phantom-terms-and-silence-insertions",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewPrepNotes.tsx:1 No recognition vocabulary priming or phantom term controls exist in schedule prep."
+        }
+      ]
+    },
+    {
+      "context": "voice-tts-package",
+      "subject": "voice-interview-fidelity",
+      "bundle": "recruiting",
+      "state": "not-applicable",
+      "evidence": "packages/voice-tts/package.json:5 Searched packages/voice-tts for transcript, scorecard, readback, and phantom; none were found because this package is exclusively a text-to-speech synthesis library with no speech recognition, transcript handling, or candidate evaluation.",
+      "techniques": [
+        {
+          "technique": "accent-and-first-language-error-disparity",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-tts/src/types.ts:16 TTS library synthesizes speech and does not perform speech recognition or candidate evaluation."
+        },
+        {
+          "technique": "closing-read-back-as-the-authoritative-record",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-tts/src/validate.ts:1 No spoken transcripts or interview scorecards exist in the TTS package."
+        },
+        {
+          "technique": "entity-fidelity-not-aggregate-error-rate",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-tts/src/registry.ts:1 Package does not process interview transcripts or compute recognition error rates."
+        },
+        {
+          "technique": "language-choice-and-per-turn-drift-detection",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-tts/src/text/normalize.ts:1 Text normalization for speech synthesis does not detect per-turn conversational language drift."
+        },
+        {
+          "technique": "never-infer-from-how-a-person-sounds",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-tts/src/providers/piper.ts:1 Speech synthesis provider produces audio output and performs no candidate scoring."
+        },
+        {
+          "technique": "phantom-terms-and-silence-insertions",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-tts/src/react/useTts.ts:2 Playback hook plays audio clips and does not perform speech-to-text recognition."
+        },
+        {
+          "technique": "transcript-sampling-that-keeps-the-conclusion",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-tts/src/text/segment.ts:1 TTS text chunking splits input strings for audio playback latency and does not sample interview transcripts."
+        }
+      ],
+      "absenceTerms": [
+        "transcript",
+        "scorecard",
+        "readback",
+        "phantom"
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "voice-interview-fidelity",
+      "context": "interview-lab-harness",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchor (page.tsx:32) is only the env-flag gate, and the page's own comment (lines 14-16) says the lab mounts VoiceInterviewClient to compare 'transcript fidelity', so the page does exercise live ASR and the not-applicable claim is not shown."
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-13T12:26:29.649178+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "voice-interview-fidelity"
+      ],
+      "techniques": [
+        "accent-and-first-language-error-disparity",
+        "closing-read-back-as-the-authoritative-record",
+        "entity-fidelity-not-aggregate-error-rate",
+        "language-choice-and-per-turn-drift-detection",
+        "never-infer-from-how-a-person-sounds",
+        "phantom-terms-and-silence-insertions",
+        "transcript-sampling-that-keeps-the-conclusion"
+      ],
+      "deviations": 1,
+      "context": "voice-interview-components",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-13T12:26:29.649178+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "voice-interview-fidelity"
+      ],
+      "techniques": [
+        "accent-and-first-language-error-disparity",
+        "closing-read-back-as-the-authoritative-record",
+        "entity-fidelity-not-aggregate-error-rate",
+        "language-choice-and-per-turn-drift-detection",
+        "never-infer-from-how-a-person-sounds",
+        "phantom-terms-and-silence-insertions",
+        "transcript-sampling-that-keeps-the-conclusion"
+      ],
+      "deviations": 1,
+      "context": "voice-interview-session",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-13T12:26:29.649178+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "voice-interview-fidelity"
+      ],
+      "techniques": [
+        "accent-and-first-language-error-disparity",
+        "closing-read-back-as-the-authoritative-record",
+        "entity-fidelity-not-aggregate-error-rate",
+        "language-choice-and-per-turn-drift-detection",
+        "never-infer-from-how-a-person-sounds",
+        "phantom-terms-and-silence-insertions",
+        "transcript-sampling-that-keeps-the-conclusion"
+      ],
+      "deviations": 0,
+      "context": "interview-lab-harness",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-13T12:26:29.649178+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "voice-interview-fidelity"
+      ],
+      "techniques": [
+        "accent-and-first-language-error-disparity",
+        "closing-read-back-as-the-authoritative-record",
+        "entity-fidelity-not-aggregate-error-rate",
+        "language-choice-and-per-turn-drift-detection",
+        "never-infer-from-how-a-person-sounds",
+        "phantom-terms-and-silence-insertions",
+        "transcript-sampling-that-keeps-the-conclusion"
+      ],
+      "deviations": 1,
+      "context": "schedule-interview-prep",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-13T12:26:29.649178+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "voice-interview-fidelity"
+      ],
+      "techniques": [
+        "accent-and-first-language-error-disparity",
+        "closing-read-back-as-the-authoritative-record",
+        "entity-fidelity-not-aggregate-error-rate",
+        "language-choice-and-per-turn-drift-detection",
+        "never-infer-from-how-a-person-sounds",
+        "phantom-terms-and-silence-insertions",
+        "transcript-sampling-that-keeps-the-conclusion"
+      ],
+      "deviations": 0,
+      "context": "voice-tts-package",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    }
+  ]
+}

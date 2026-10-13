@@ -18,7 +18,7 @@ type Palette = { ground: string; deep: string; soft: string };
 const PALETTE: Record<FeatureKey, Palette> = {
   inbox: { ground: "#3b7f7d", deep: "#245250", soft: "#a9d2cc" },
   score: { ground: "#526b4f", deep: "#34482f", soft: "#c5d8b8" },
-  rediscover: { ground: "#8fa39a", deep: "#566a61", soft: "#dbe6df" },
+  rediscover: { ground: "#73867c", deep: "#566a61", soft: "#dbe6df" },
   voice: { ground: "#d65a4a", deep: "#8f3529", soft: "#f3b5a9" },
   cases: { ground: "#7a5478", deep: "#4a2f49", soft: "#e0c4de" },
   schedule: { ground: "#4f6d8f", deep: "#2f435c", soft: "#bcd0e6" },
