@@ -26015,7 +26015,11 @@
           "revision": 21,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/review/constitution-check.mjs:114 The constitution check downgrades blocking rule findings when a commit trailer in the git range matches the rule, allowing the authoring agent to unilaterally open its own gate via commit text.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:bc33acb280c8df96",
+          "evaluatedRevision": 21
         }
       ],
       "governance": "governed"

@@ -1,0 +1,154 @@
+{
+  "schema": "conform-run/1",
+  "worker": "f54aeebd-bf42-404e-9d06-b218c336795c",
+  "subject": "hitl-approval",
+  "evaluatedAt": "2026-10-13T21:41:18.821210+00:00",
+  "provider": "agy",
+  "model": "gemini-3.8-flash-high",
+  "pairs": [
+    {
+      "context": "review-gates",
+      "subject": "hitl-approval",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "scripts/review/constitution-check.mjs:114 The constitution check downgrades blocking rule findings when a commit trailer in the git range matches the rule, allowing the authoring agent to unilaterally open its own gate via commit text.",
+      "techniques": [
+        {
+          "technique": "gate-state-machines",
+          "verdict": "deviation",
+          "evidence": "scripts/review/constitution-check.mjs:114 Blocking gate findings are waived by commit message trailers parsed from the change range itself, violating the separation between work authority and approval authority."
+        },
+        {
+          "technique": "fail-loud-classification-default",
+          "verdict": "deviation",
+          "evidence": "scripts/review/agent-review.mjs:268 When Anthropic API credentials and Claude CLI are both unavailable, the judgement lens prints a notice and exits 0 instead of failing closed or holding."
+        }
+      ]
+    },
+    {
+      "context": "pipeline-api",
+      "subject": "hitl-approval",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/api/pipeline/[id]/route.ts:194 Reinstating an auto-rejected candidate commits the stage transition to the database before attempting to seal the decision record, allowing state changes to occur without an immutable decision trail if sealing fails.",
+      "techniques": [
+        {
+          "technique": "decision-records",
+          "verdict": "deviation",
+          "evidence": "app/api/pipeline/[id]/route.ts:194 The reinstatement handler commits the status transition prior to calling sealDecisionSafe on a best-effort basis, allowing the transition to succeed even if the decision record write fails."
+        },
+        {
+          "technique": "review-queues",
+          "verdict": "deviation",
+          "evidence": "app/api/pipeline/batch/route.ts:32 The batch API permits heterogeneous collections of actions across disparate stages in a single payload rather than enforcing homogeneous batch decisions."
+        },
+        {
+          "technique": "truncated-verdict-space",
+          "verdict": "conformant",
+          "evidence": "app/api/pipeline/command/execute.ts:61 The command execution loop truncates the machine's advance capability at the offer step, requiring human decision records to mint terminal outcomes."
+        }
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "hitl-approval",
+      "context": "autonomy-control-room",
+      "reason": "withdrawn after review: reviewer (sonnet): GatesPanel.tsx (opened beside the cited ControlRoom.tsx:238) renders each gate's title and server-composed detail in place, plus a Review link and a two-step arm/confirm button, so \"blind approvals\" is overstated. The ControlRoom.tsx:227 anchor is the sweep status message, not the kill switch, which"
+    },
+    {
+      "subject": "hitl-approval",
+      "context": "control-room-action-guard",
+      "reason": "withdrawn after review: reviewer (sonnet): The verdict judges a pure UI reducer for lacking backend verification and decision records, but the approve route (app/api/devcase/lifecycle/[id]/approve/route.ts) enforces the pipeline:write capability and imports and uses recordAudit. The server-side claim could not be confirmed, and the cited lin"
+    },
+    {
+      "subject": "hitl-approval",
+      "context": "hiring-decisions-offers",
+      "reason": "withdrawn after review: reviewer (sonnet): isOfferReminderDue at offer-policy.ts:92 tests ms > now && ms <= now + lead against the deadline itself, so a reminder can only fire before the deadline by construction. The lead-versus-TTL \"no assertion\" claim therefore does not describe a real gap. The other techniques (the expiry sweep, status-de"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-13T21:41:18.821210+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "hitl-approval"
+      ],
+      "techniques": [
+        "gate-state-machines",
+        "review-queues",
+        "unattended-mode"
+      ],
+      "deviations": 1,
+      "context": "autonomy-control-room",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-13T21:41:18.821210+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "hitl-approval"
+      ],
+      "techniques": [
+        "fail-loud-classification-default",
+        "gate-state-machines"
+      ],
+      "deviations": 1,
+      "context": "review-gates",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-13T21:41:18.821210+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "hitl-approval"
+      ],
+      "techniques": [
+        "consent-gates",
+        "decision-records",
+        "gate-state-machines",
+        "resume-after-decision"
+      ],
+      "deviations": 1,
+      "context": "control-room-action-guard",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-13T21:41:18.821210+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "hitl-approval"
+      ],
+      "techniques": [
+        "decision-records",
+        "review-queues",
+        "truncated-verdict-space"
+      ],
+      "deviations": 1,
+      "context": "pipeline-api",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-13T21:41:18.821210+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "hitl-approval"
+      ],
+      "techniques": [
+        "cosmetic-vs-enforced-threshold-invariant",
+        "decision-records",
+        "gate-state-machines",
+        "resume-after-decision",
+        "severity-sla-ladder"
+      ],
+      "deviations": 1,
+      "context": "hiring-decisions-offers",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    }
+  ]
+}

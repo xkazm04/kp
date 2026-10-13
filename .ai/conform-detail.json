@@ -3889,6 +3889,135 @@
           "evidence": "app/_lib/db/pipeline.ts:3539 Encapsulates multi-statement mutations with CAS checks and audit event recording within an IMMEDIATE transaction, deferring outside side effects until after commit."
         }
       ]
+    },
+    "587be52c-034e-4f95-b9e2-cb5a9340de3d/hitl-approval": {
+      "context": "autonomy-control-room",
+      "subject": "hitl-approval",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T21:41:18.821Z",
+      "techniques": [
+        {
+          "technique": "review-queues",
+          "verdict": "deviation",
+          "evidence": "app/control/ControlRoom.tsx:238 The queue exposes an approval button on the oversight list without embedding the case contents, bound parameters, consequence disclosures, or an SLA countdown in place."
+        },
+        {
+          "technique": "unattended-mode",
+          "verdict": "deviation",
+          "evidence": "app/control/ControlRoom.tsx:227 The autonomy kill switch is a global binary toggle rather than a scoped, expiring grant with spend ceilings and error-rate circuit breakers."
+        },
+        {
+          "technique": "gate-state-machines",
+          "verdict": "deviation",
+          "evidence": "app/control/ControlRoom.tsx:149 The approve POST mutation sends an empty body with only the lifecycle id rather than binding approval to a content version hash from the client."
+        }
+      ],
+      "withdrawn": {
+        "worker": "f54aeebd-bf42-404e-9d06-b218c336795c",
+        "state": "deviation",
+        "at": "2026-10-13T21:43:41.701505+00:00",
+        "reason": "reviewer (sonnet): GatesPanel.tsx (opened beside the cited ControlRoom.tsx:238) renders each gate's title and server-composed detail in place, plus a Review link and a two-step arm/confirm button, so \"blind approvals\" is overstated. The ControlRoom.tsx:227 anchor is the sweep status message, not the kill switch, which"
+      }
+    },
+    "de71aa9b-3319-42bc-8b1f-cc8e185ebebe/hitl-approval": {
+      "context": "review-gates",
+      "subject": "hitl-approval",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T21:41:18.821Z",
+      "worker": "f54aeebd-bf42-404e-9d06-b218c336795c",
+      "techniques": [
+        {
+          "technique": "gate-state-machines",
+          "verdict": "deviation",
+          "evidence": "scripts/review/constitution-check.mjs:114 Blocking gate findings are waived by commit message trailers parsed from the change range itself, violating the separation between work authority and approval authority."
+        },
+        {
+          "technique": "fail-loud-classification-default",
+          "verdict": "deviation",
+          "evidence": "scripts/review/agent-review.mjs:268 When Anthropic API credentials and Claude CLI are both unavailable, the judgement lens prints a notice and exits 0 instead of failing closed or holding."
+        }
+      ]
+    },
+    "7f5ea59a-012e-4609-ac06-17249cb301d3/hitl-approval": {
+      "context": "control-room-action-guard",
+      "subject": "hitl-approval",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T21:41:18.821Z",
+      "techniques": [
+        {
+          "technique": "gate-state-machines",
+          "verdict": "deviation",
+          "evidence": "app/control/controlRoomConfirm.ts:30 The arm/confirm gate is an in-memory client reducer that lacks durable persistence and is not verified by the backend API routes executing the actions."
+        },
+        {
+          "technique": "consent-gates",
+          "verdict": "conformant",
+          "evidence": "app/control/controlRoomConfirm.ts:73 The control key incorporates a hash of the displayed case detail, invalidating armed status if parameters mutate while pending confirmation."
+        },
+        {
+          "technique": "resume-after-decision",
+          "verdict": "conformant",
+          "evidence": "app/control/controlRoomConfirm.ts:38 Armed confirmation times out after 15 seconds and disarms safely without executing, preserving the deny/hold default on elapsed time."
+        },
+        {
+          "technique": "decision-records",
+          "verdict": "deviation",
+          "evidence": "app/control/controlRoomConfirm.ts:39 The reducer executes the action upon confirmation without emitting or persisting a decision record identifying the decider or disclosed payload."
+        }
+      ],
+      "withdrawn": {
+        "worker": "f54aeebd-bf42-404e-9d06-b218c336795c",
+        "state": "deviation",
+        "at": "2026-10-13T21:43:41.757853+00:00",
+        "reason": "reviewer (sonnet): The verdict judges a pure UI reducer for lacking backend verification and decision records, but the approve route (app/api/devcase/lifecycle/[id]/approve/route.ts) enforces the pipeline:write capability and imports and uses recordAudit. The server-side claim could not be confirmed, and the cited lin"
+      }
+    },
+    "1f6c2946-3e45-464e-9113-c7b7a39187dd/hitl-approval": {
+      "context": "hiring-decisions-offers",
+      "subject": "hitl-approval",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T21:41:18.821Z",
+      "techniques": [
+        {
+          "technique": "cosmetic-vs-enforced-threshold-invariant",
+          "verdict": "deviation",
+          "evidence": "app/_lib/offer-policy.ts:56 The reminder lead time defaults to 48 hours while the minimum offer TTL is 24 hours, and no load-time assertion verifies that cosmetic urgency triggers before the enforcing lapse deadline."
+        },
+        {
+          "technique": "severity-sla-ladder",
+          "verdict": "deviation",
+          "evidence": "app/_lib/offers-store.ts:235 The expiry sweep resolves all expired offers to a single terminal status without a severity-keyed SLA ladder supporting escalation or hold rungs."
+        },
+        {
+          "technique": "decision-records",
+          "verdict": "conformant",
+          "evidence": "app/_lib/status-decisions.ts:65 The decision view extracts whether an automated decision received human sign-off into an immutable attribution structure with structured decisive facts."
+        },
+        {
+          "technique": "gate-state-machines",
+          "verdict": "conformant",
+          "evidence": "app/_lib/approval-kinds.ts:28 The approval taxonomy explicitly enumerates recognized gate types on pipeline entries, rejecting unvetted kinds."
+        },
+        {
+          "technique": "resume-after-decision",
+          "verdict": "conformant",
+          "evidence": "app/_lib/offer-finalize.ts:76 Responding to an offer executes a CAS claim to prevent duplicate side effects and guarantees idempotent continuation on concurrent requests."
+        }
+      ],
+      "withdrawn": {
+        "worker": "f54aeebd-bf42-404e-9d06-b218c336795c",
+        "state": "deviation",
+        "at": "2026-10-13T21:43:41.810403+00:00",
+        "reason": "reviewer (sonnet): isOfferReminderDue at offer-policy.ts:92 tests ms > now && ms <= now + lead against the deadline itself, so a reminder can only fire before the deadline by construction. The lead-versus-TTL \"no assertion\" claim therefore does not describe a real gap. The other techniques (the expiry sweep, status-de"
+      }
     }
   }
 }
