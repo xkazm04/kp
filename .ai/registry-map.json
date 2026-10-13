@@ -5322,12 +5322,11 @@
           "changedAt": "2026-10-02",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "not-applicable: app/_lib/auth/require-operator.ts:9 is a session/role gate in front of the routes that spawn Python; guarding a spawn is not implementing the transport contract. The precondition holds only at pipeline/jobfit/claude_cli.py:532.",
-          "evaluatedAt": "2026-09-20",
-          "evaluatedAgainst": "sha256:fd190f2ed79b142e",
-          "evaluatedRevision": 6,
-          "revisionsBehind": 3,
-          "stale": true
+          "evidence": "app/_lib/auth/require-operator.ts:10 Grep for availability-probe, permission-stance, and dated-capability-matrix returned zero matches across app/_lib/auth, confirming this context manages operator HTTP session authentication and RBAC rather than hosting or spawning an agent CLI transport.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:5791230ffb7d9fad",
+          "evaluatedRevision": 9,
+          "revisionsBehind": 3
         },
         {
           "subject": "agent-runtime-assembly",
@@ -5700,14 +5699,10 @@
           "revision": 9,
           "changedAt": "2026-10-02",
           "confidence": "probable",
+          "source": "conform",
           "state": "not-applicable",
           "evidence": "not-applicable: app/features/settings/billing/spend/spendUsageFold.test.ts:51 is this context's whole contact with the transport - \"claude_cli\" appears as a metered provider row folded into a spend panel. Reading a transport's cost rows is cost-metering (already paired here at 1099.4); the transport itself is pipeline/jobfit/claude_cli.py:532.",
-          "evaluatedAt": "2026-09-20",
-          "evaluatedAgainst": "sha256:fd190f2ed79b142e",
-          "evaluatedRevision": 6,
-          "source": "conform",
-          "revisionsBehind": 3,
-          "stale": true
+          "evaluatedAt": "2026-09-20"
         },
         {
           "subject": "cost-metering",
@@ -5890,12 +5885,11 @@
           "changedAt": "2026-10-02",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "not-applicable: app/_lib/billing/gateway.ts:1 declares the provider seam as a merchant-of-record (Polar/Paddle) interface, not a model transport, and no file in this context spawns a process. The subject's subscription-auth-selection technique is about whose seat a spawned agent run bills; kp's only such spawn is pipeline/jobfit/claude_cli.py:532.",
-          "evaluatedAt": "2026-09-20",
-          "evaluatedAgainst": "sha256:fd190f2ed79b142e",
-          "evaluatedRevision": 6,
-          "revisionsBehind": 3,
-          "stale": true
+          "evidence": "app/_lib/billing/gateway.ts:1 Grep for availability-probe, permission-stance, and dated-capability-matrix returned zero matches across app/_lib/billing, confirming this context manages merchant-of-record payment subscriptions and quota enforcement rather than spawning or managing an agent CLI transport.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:5791230ffb7d9fad",
+          "evaluatedRevision": 9,
+          "revisionsBehind": 3
         },
         {
           "subject": "usage-aggregation-semantics",
@@ -12876,15 +12870,11 @@
           "revision": 9,
           "changedAt": "2026-10-02",
           "confidence": "probable",
-          "state": "not-applicable",
-          "evidence": "app/_lib/devcase-run.ts:45 spawns a Python subprocess (spawnPython([\"-m\",\"pipeline.jobfit.devcase.devcase_cli\",...], {env: buildLlmConfigEnv()})) — this context talks to Python, not to an agent CLI directly; devcase-run.ts:44 even says '(Python then defaults to the Claude CLI, unchanged)'. The actual spawn/probe/env-strip/parse contract lives two hops down in pipeline/jobfit/claude_cli.py, governed by context py-llm-runtime (aa150c52), already marked conformant. devcase-orchestrator.ts, -interview-kit.ts, -probe-audit.ts (an unrelated interview-question 'probe', not availability-probe), -seed-diff.ts and -session-auth.ts carry no CLI-transport code either.",
-          "evaluatedAt": "2026-09-22",
-          "evaluatedAgainst": "sha256:fd190f2ed79b142e",
-          "evaluatedRevision": 6,
           "source": "conform",
           "adoptedFrom": "9083c7ba-cc2c-4ea6-a273-cd6e274a23d1",
-          "revisionsBehind": 3,
-          "stale": true
+          "state": "not-applicable",
+          "evidence": "app/_lib/devcase-run.ts:45 spawns a Python subprocess (spawnPython([\"-m\",\"pipeline.jobfit.devcase.devcase_cli\",...], {env: buildLlmConfigEnv()})) — this context talks to Python, not to an agent CLI directly; devcase-run.ts:44 even says '(Python then defaults to the Claude CLI, unchanged)'. The actual spawn/probe/env-strip/parse contract lives two hops down in pipeline/jobfit/claude_cli.py, governed by context py-llm-runtime (aa150c52), already marked conformant. devcase-orchestrator.ts, -interview-kit.ts, -probe-audit.ts (an unrelated interview-question 'probe', not availability-probe), -seed-diff.ts and -session-auth.ts carry no CLI-transport code either.",
+          "evaluatedAt": "2026-09-22"
         },
         {
           "subject": "test-harness",
@@ -21723,13 +21713,12 @@
           "changedAt": "2026-10-02",
           "confidence": "probable",
           "state": "not-applicable",
-          "evidence": "not-applicable: app/features/insights/matrix/matrixReasoningFetch.ts:5 shows this context reaching the model over fetch to /api/match/reasoning; the spawn it describes happens server-side in the Python pipeline. No probe(), no run() contract and no envelope parsing in these 35 files - kp's transport is pipeline/jobfit/claude_cli.py:532.",
-          "evaluatedAt": "2026-09-20",
-          "evaluatedAgainst": "sha256:fd190f2ed79b142e",
-          "evaluatedRevision": 6,
+          "evidence": "app/features/insights/matrix/matrixReasoningFetch.ts:5 Grep for availability-probe, permission-stance, and dated-capability-matrix returned zero matches across app/features/insights/matrix, confirming this context invokes candidate matching via client HTTP fetch to /api/match/reasoning without hosting, probing, or spawning an agent CLI transport.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:5791230ffb7d9fad",
+          "evaluatedRevision": 9,
           "source": "conform",
-          "revisionsBehind": 3,
-          "stale": true
+          "revisionsBehind": 3
         },
         {
           "subject": "test-harness",

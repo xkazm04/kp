@@ -2077,6 +2077,176 @@
         "at": "2026-10-13T04:26:17.675607+00:00",
         "reason": "reviewer (sonnet): The deviation is about the content of the root CLAUDE.md (group overview list, inline counts), which is not among this context's files (scripts/docs/*, scripts/i18n/catalog-check.mjs). The cited check-guidance.mjs and check-doc-sync.mjs anchors show conformant behaviour, and I could not confirm any "
       }
+    },
+    "6b5c4717-aa35-46d9-a266-50a296a27e09/agent-cli-transport": {
+      "context": "billing-plan-and-spend",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T07:59:37.071Z",
+      "techniques": [
+        {
+          "technique": "availability-probe",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/billing/spend/SpendEngineFacts.tsx:171 Displays engine readiness indicators from ops state in the UI rather than probing CLI binary availability or credentials."
+        },
+        {
+          "technique": "subscription-auth-selection",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/billing/BillingCurrentPlanPanel.tsx:11 Renders the customer subscription card in settings rather than configuring agent process auth selection."
+        },
+        {
+          "technique": "fallback-ladder",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/billing/spend/spendUsageFold.ts:43 Separates deterministic fallback metrics in usage reporting rather than managing an execution fallback ladder."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "not-applicable: app/features/settings/billing/spend/spendUsageFold.test.ts:51 is this context's whole contact with the transport - \"claude_cli\" appears as a metered provider row folded into a spend panel. Reading a transport's cost rows is cost-metering (already paired here at 1099.4); the transport itself is pipeline/jobfit/claude_cli.py:532.",
+          "evaluatedAt": "2026-09-20",
+          "worker": null,
+          "reason": "replaced by 3bc55014-0300-406f-a5f2-8ca73265a477"
+        }
+      ],
+      "withdrawn": {
+        "worker": "3bc55014-0300-406f-a5f2-8ca73265a477",
+        "state": "not-applicable",
+        "at": "2026-10-13T08:00:02.185785+00:00",
+        "reason": "reviewer (sonnet): The anchor (spendUsageFold.test.ts:51) is a deterministic-fallback unit test and doesn't show the precondition is absent. SpendEngineFacts.tsx:171 surfaces the 'claude CLI resolves on PATH' readiness state in this context, which is agent-CLI availability territory, so the not-applicable is contradic"
+      }
+    },
+    "3a7c3a7b-a8f1-4566-aabc-3e5e2b4c471b/agent-cli-transport": {
+      "context": "billing-subscriptions",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T07:59:37.071Z",
+      "worker": "3bc55014-0300-406f-a5f2-8ca73265a477",
+      "techniques": [
+        {
+          "technique": "subscription-auth-selection",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/billing/entitlements.ts:22 Calculates organizational SaaS tier entitlements rather than selecting local CLI credentials or stripping API billing tokens."
+        },
+        {
+          "technique": "permission-stance-enforcement",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/billing/enforce.ts:28 Enforces account subscription quota limits rather than configuring agent tool permission stances."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "not-applicable: app/_lib/billing/gateway.ts:1 declares the provider seam as a merchant-of-record (Polar/Paddle) interface, not a model transport, and no file in this context spawns a process. The subject's subscription-auth-selection technique is about whose seat a spawned agent run bills; kp's only such spawn is pipeline/jobfit/claude_cli.py:532.",
+          "evaluatedAt": "2026-09-20",
+          "worker": null,
+          "reason": "replaced by 3bc55014-0300-406f-a5f2-8ca73265a477"
+        }
+      ]
+    },
+    "76d3b42f-9432-413e-a194-967ab66174d9/agent-cli-transport": {
+      "context": "auth-session-rbac",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T07:59:37.071Z",
+      "worker": "3bc55014-0300-406f-a5f2-8ca73265a477",
+      "techniques": [
+        {
+          "technique": "permission-stance-enforcement",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/auth/roles.ts:6 Defines application operator and member role hierarchies rather than configuring agent tool permission stances."
+        },
+        {
+          "technique": "subscription-auth-selection",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/auth/session.ts:52 Validates operator HMAC session cookies with KP_SECRET rather than injecting or stripping LLM subscription tokens."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "not-applicable: app/_lib/auth/require-operator.ts:9 is a session/role gate in front of the routes that spawn Python; guarding a spawn is not implementing the transport contract. The precondition holds only at pipeline/jobfit/claude_cli.py:532.",
+          "evaluatedAt": "2026-09-20",
+          "worker": null,
+          "reason": "replaced by 3bc55014-0300-406f-a5f2-8ca73265a477"
+        }
+      ]
+    },
+    "5315fdef-5698-4668-9ba8-8ac3de782a75/agent-cli-transport": {
+      "context": "matrix-grid",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T07:59:37.071Z",
+      "worker": "3bc55014-0300-406f-a5f2-8ca73265a477",
+      "techniques": [
+        {
+          "technique": "output-normalization",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/matrix/matrixReasoningFetch.ts:60 Parses API JSON response payload into a UI outcome type rather than normalizing an agent CLI process stdout envelope."
+        },
+        {
+          "technique": "fallback-ladder",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/matrix/matrixReasoningFetch.ts:19 Carries the server-supplied score source tag for UI display rather than implementing an execution fallback ladder."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "not-applicable: app/features/insights/matrix/matrixReasoningFetch.ts:5 shows this context reaching the model over fetch to /api/match/reasoning; the spawn it describes happens server-side in the Python pipeline. No probe(), no run() contract and no envelope parsing in these 35 files - kp's transport is pipeline/jobfit/claude_cli.py:532.",
+          "evaluatedAt": "2026-09-20",
+          "worker": null,
+          "reason": "replaced by 3bc55014-0300-406f-a5f2-8ca73265a477"
+        }
+      ]
+    },
+    "9a7b6d11-28e3-4f45-a4f5-7b1b1dd1f134/agent-cli-transport": {
+      "context": "devcase-orchestration",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T07:59:37.071Z",
+      "techniques": [
+        {
+          "technique": "availability-probe",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/devcase-run.ts:47 Delegates to a Python CLI subprocess which internally manages Claude CLI availability rather than probing the agent CLI binary here."
+        },
+        {
+          "technique": "thread-custody-across-resume",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/devcase-session-auth.ts:21 Authenticates candidate devcase assessment sessions via HTTP tokens rather than preserving child agent thread custody across resume."
+        },
+        {
+          "technique": "permission-stance-enforcement",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/devcase-orchestrator.ts:30 Enforces assessment progression and promotion policies rather than restricting agent subprocess permissions or tool allowlists."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "app/_lib/devcase-run.ts:45 spawns a Python subprocess (spawnPython([\"-m\",\"pipeline.jobfit.devcase.devcase_cli\",...], {env: buildLlmConfigEnv()})) — this context talks to Python, not to an agent CLI directly; devcase-run.ts:44 even says '(Python then defaults to the Claude CLI, unchanged)'. The actual spawn/probe/env-strip/parse contract lives two hops down in pipeline/jobfit/claude_cli.py, governed by context py-llm-runtime (aa150c52), already marked conformant. devcase-orchestrator.ts, -interview-kit.ts, -probe-audit.ts (an unrelated interview-question 'probe', not availability-probe), -seed-diff.ts and -session-auth.ts carry no CLI-transport code either.",
+          "evaluatedAt": "2026-09-22",
+          "worker": null,
+          "reason": "replaced by 3bc55014-0300-406f-a5f2-8ca73265a477"
+        }
+      ],
+      "withdrawn": {
+        "worker": "3bc55014-0300-406f-a5f2-8ca73265a477",
+        "state": "not-applicable",
+        "at": "2026-10-13T08:00:02.222841+00:00",
+        "reason": "reviewer (sonnet): devcase-run.ts and devcase-run-cli.ts spawn the Python devcase CLI with buildLlmConfigEnv() and a signal, and a comment says Python 'defaults to the Claude CLI'. The context therefore touches CLI spawn and env wiring. The claim that the Python side handles availability is not traced in the context's"
+      }
     }
   }
 }
