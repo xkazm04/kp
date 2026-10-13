@@ -18863,7 +18863,11 @@
           "revision": 9,
           "changedAt": "2026-09-09",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/library/jobs/useJobsList.ts:161 Context and repository searches found adapter execution elsewhere and no adapter or finish_reason terms in the Jobs directory, whose core files fetch and render application-owned job records.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:f268193750c0a517",
+          "evaluatedRevision": 9
         },
         {
           "subject": "test-harness",
@@ -22044,7 +22048,11 @@
           "revision": 9,
           "changedAt": "2026-09-09",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/settings/models/modelsRoutingActions.ts:37 Context and repository searches located provider execution elsewhere and found no failover or framing terms here, while these files administer configuration and render test results.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:f268193750c0a517",
+          "evaluatedRevision": 9
         },
         {
           "subject": "recruiter-anchored-model-evaluation",
