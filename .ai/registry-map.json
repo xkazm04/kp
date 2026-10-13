@@ -2828,7 +2828,11 @@
           "revision": 5,
           "changedAt": "2026-09-17",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/api/analytics/metric-pack/route.ts:96 Context and repository searches found none of the listed delivery identifiers, while the routes aggregate recruitment records and screening-policy evidence.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:e43700f2d197398b",
+          "evaluatedRevision": 5
         },
         {
           "subject": "eval-harness",
@@ -3122,7 +3126,11 @@
           "revision": 5,
           "changedAt": "2026-09-17",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsCalibrationHeader.tsx:68 Context and repository searches found none of the listed delivery identifiers, while calibration evaluates recruiting scores against candidate advancement and hiring outcomes.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:e43700f2d197398b",
+          "evaluatedRevision": 5
         },
         {
           "subject": "document-text-extraction",
@@ -3192,7 +3200,11 @@
           "revision": 5,
           "changedAt": "2026-09-17",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/metric-pack.ts:264 Context and repository searches found none of the listed delivery identifiers, while the computations measure recruiting outcomes rather than software change history.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:e43700f2d197398b",
+          "evaluatedRevision": 5
         },
         {
           "subject": "recruiting-funnel-metrics",
@@ -3412,7 +3424,11 @@
           "revision": 5,
           "changedAt": "2026-09-17",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsByRoleTable.tsx:148 Context and repository searches found none of the listed delivery identifiers, while the dashboard renders hires by recruiting role rather than engineering delivery behavior.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:e43700f2d197398b",
+          "evaluatedRevision": 5
         },
         {
           "subject": "settings",
@@ -3601,7 +3617,11 @@
           "revision": 5,
           "changedAt": "2026-09-17",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsStatCluster.tsx:23 Context and repository searches found none of the listed delivery identifiers, while these controls display and edit candidate, hiring, and screening metrics.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:e43700f2d197398b",
+          "evaluatedRevision": 5
         },
         {
           "subject": "quality-gates",

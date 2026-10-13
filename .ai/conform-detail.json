@@ -4018,6 +4018,281 @@
         "at": "2026-10-13T21:43:41.810403+00:00",
         "reason": "reviewer (sonnet): isOfferReminderDue at offer-policy.ts:92 tests ms > now && ms <= now + lead against the deadline itself, so a reminder can only fire before the deadline by construction. The lead-versus-TTL \"no assertion\" claim therefore does not describe a real gap. The other techniques (the expiry sweep, status-de"
       }
+    },
+    "ed438bd0-e9e2-48fe-aeda-1a2cd06924dc/delivery-analytics": {
+      "context": "analytics-computation",
+      "subject": "delivery-analytics",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T22:13:04.911Z",
+      "worker": "04db82b7-49c0-49f5-a642-12a1ce4ce93d",
+      "techniques": [
+        {
+          "technique": "attribution-channels",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/sourcing-attribution.test.ts:88 Attribution concerns candidate sourcing, not the producer of a code change."
+        },
+        {
+          "technique": "batch-size-thresholds",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/source-analytics.ts:74 This threshold controls sourcing lead samples, not software change size."
+        },
+        {
+          "technique": "delivery-metric-denominators",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/analytics-deltas.ts:105 The rate measures hires over a candidate cohort, not software delivery."
+        },
+        {
+          "technique": "line-volume-confounded-with-edit-grammar",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/metric-pack.ts:264 The pack measures hiring cost; no producer-reported code volume was found."
+        },
+        {
+          "technique": "off-platform-signal-detection",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/analytics/track.ts:19 This instrumentation records product events, not platform evidence of engineering review."
+        },
+        {
+          "technique": "path-class-confounded-with-size",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/source-analytics.ts:19 Grouping uses recruiting jobs and campaigns, not code-path risk classes."
+        },
+        {
+          "technique": "revert-linkage",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/analytics-offer.ts:19 The event population is employment offers, not software undo events."
+        },
+        {
+          "technique": "review-coverage-rate",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/metric-pack.ts:278 Recruiter capacity is measured; merged-change approval coverage is not."
+        }
+      ]
+    },
+    "12e121d6-6032-464b-a349-68911bfbdbba/delivery-analytics": {
+      "context": "analytics-metrics",
+      "subject": "delivery-analytics",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T22:13:04.911Z",
+      "worker": "04db82b7-49c0-49f5-a642-12a1ce4ce93d",
+      "techniques": [
+        {
+          "technique": "attribution-channels",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsChannelSpendInput.tsx:50 The channel control saves recruitment spend, not code-producer attribution."
+        },
+        {
+          "technique": "batch-size-thresholds",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/stageDwellGate.ts:67 Volume counts occupants of recruiting stages, not changed lines or files."
+        },
+        {
+          "technique": "delivery-metric-denominators",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsStatCluster.tsx:68 The displayed sample belongs to time-to-hire, outside delivery-rate scope."
+        },
+        {
+          "technique": "line-volume-confounded-with-edit-grammar",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsComputeCostPanel.tsx:94 Compute economics are displayed per hire; no code-writing volume comparison was found."
+        },
+        {
+          "technique": "off-platform-signal-detection",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsStatCluster.tsx:23 The population consists of candidates, not engineering practices inferred from host artifacts."
+        },
+        {
+          "technique": "path-class-confounded-with-size",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsGoalsEditor.tsx:66 Goals are organized by recruiting stage, not repository path globs."
+        },
+        {
+          "technique": "post-landing-repair-density",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsThresholdHistoryStrip.tsx:15 History concerns screening-policy adjustments, not post-landing feature repairs."
+        },
+        {
+          "technique": "revert-linkage",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsOfferLegPanel.tsx:52 Acceptance is an employment-offer outcome, not an undo of a software change."
+        },
+        {
+          "technique": "review-coverage-rate",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsGoalsEditor.tsx:73 The editor sets hiring goals, not approving-review requirements or coverage."
+        }
+      ]
+    },
+    "6b065d33-5aa4-46b4-ad68-97ce316d0388/delivery-analytics": {
+      "context": "analytics-dashboard",
+      "subject": "delivery-analytics",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T22:13:04.911Z",
+      "worker": "04db82b7-49c0-49f5-a642-12a1ce4ce93d",
+      "techniques": [
+        {
+          "technique": "attribution-channels",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/analyticsDecisionLogTypes.ts:19 Actors belong to recruiting pipeline actions, not authorship of code changes."
+        },
+        {
+          "technique": "batch-size-thresholds",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsTypes.ts:65 Stage occupancy and waiting time are modeled; software batch size is not."
+        },
+        {
+          "technique": "delivery-metric-denominators",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsTypes.ts:87 The source rates describe interviews and hires, not software delivery populations."
+        },
+        {
+          "technique": "line-volume-confounded-with-edit-grammar",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsAutomationPanel.tsx:70 Automation economics concern hiring cost and duration, not lines written by tools."
+        },
+        {
+          "technique": "off-platform-signal-detection",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsEmptyPreview.tsx:32 The advertised measurement is hiring conversion, not observable engineering review."
+        },
+        {
+          "technique": "path-class-confounded-with-size",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsByRoleTable.tsx:148 The table compares recruiting roles; no code-path review taxonomy was found."
+        },
+        {
+          "technique": "post-landing-repair-density",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsMomentumPanel.tsx:19 Momentum includes hiring outcomes, not feature repair streams."
+        },
+        {
+          "technique": "revert-linkage",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsTypes.ts:20 Terminal outcomes are recruitment rejection and decline, not software reversions."
+        },
+        {
+          "technique": "review-coverage-rate",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsOrgBenchmarkPanel.tsx:15 Benchmarks concern recruiting outcomes; merged-change approval coverage is absent."
+        }
+      ]
+    },
+    "80b0c56c-d9e3-4842-bdb4-f46cbaa565ca/delivery-analytics": {
+      "context": "analytics-api",
+      "subject": "delivery-analytics",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T22:13:04.911Z",
+      "worker": "04db82b7-49c0-49f5-a642-12a1ce4ce93d",
+      "techniques": [
+        {
+          "technique": "attribution-channels",
+          "verdict": "not-applicable",
+          "evidence": "app/api/analytics/decisions/route.ts:122 Decision enrichment resolves candidate pipeline identities, not code-change producers."
+        },
+        {
+          "technique": "batch-size-thresholds",
+          "verdict": "not-applicable",
+          "evidence": "app/api/analytics/metric-pack/route.ts:92 The API counts recruiting openings, not software change size."
+        },
+        {
+          "technique": "delivery-metric-denominators",
+          "verdict": "not-applicable",
+          "evidence": "app/api/analytics/metric-pack/route.ts:102 This sample supports a hiring-duration metric, not a delivery rate."
+        },
+        {
+          "technique": "line-volume-confounded-with-edit-grammar",
+          "verdict": "not-applicable",
+          "evidence": "app/api/analytics/metric-pack/route.ts:103 The exported quantity is recruiting cost; no producer-reported code volume was found."
+        },
+        {
+          "technique": "off-platform-signal-detection",
+          "verdict": "not-applicable",
+          "evidence": "app/api/analytics/calibration/route.ts:83 The alternate evidence arm uses held-out recruiting entries, not off-platform engineering review."
+        },
+        {
+          "technique": "path-class-confounded-with-size",
+          "verdict": "not-applicable",
+          "evidence": "app/api/analytics/calibration/route.ts:89 Classification selects recruiting role families, not repository paths."
+        },
+        {
+          "technique": "post-landing-repair-density",
+          "verdict": "not-applicable",
+          "evidence": "app/api/analytics/calibration/threshold-history/route.ts:128 The dated comparison measures screening-threshold effects, not landed-feature repairs."
+        },
+        {
+          "technique": "revert-linkage",
+          "verdict": "not-applicable",
+          "evidence": "app/api/analytics/calibration/apply-threshold/route.ts:136 The recorded change is a recruitment-policy adjustment, not a software revert event."
+        },
+        {
+          "technique": "review-coverage-rate",
+          "verdict": "not-applicable",
+          "evidence": "app/api/analytics/calibration/route.ts:31 Success concerns candidate screening outcomes, not second-party approval before code merge."
+        }
+      ]
+    },
+    "777cb8a1-955a-471f-8ce9-35c55ce69066/delivery-analytics": {
+      "context": "analytics-calibration",
+      "subject": "delivery-analytics",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T22:13:04.911Z",
+      "worker": "04db82b7-49c0-49f5-a642-12a1ce4ce93d",
+      "techniques": [
+        {
+          "technique": "attribution-channels",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsCalibrationHeader.tsx:32 Sources name recruiting-score instruments, not producers of code changes."
+        },
+        {
+          "technique": "batch-size-thresholds",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsScoreBands.tsx:15 Bands contain scored candidates, not software changes bucketed by size."
+        },
+        {
+          "technique": "delivery-metric-denominators",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/calibrationVerdict.ts:47 The base rate belongs to recruiting calibration outcomes, not delivery history."
+        },
+        {
+          "technique": "line-volume-confounded-with-edit-grammar",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsDriftStrip.tsx:43 The strip displays calibration cohort samples, not producer-reported writing volume."
+        },
+        {
+          "technique": "off-platform-signal-detection",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/calibrationVerdict.ts:78 The evidence limitation is score-caused outcome leakage, not off-platform delivery behavior."
+        },
+        {
+          "technique": "path-class-confounded-with-size",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsCalibrationPanel.tsx:88 The selector validates recruiting role families, not code-path risk classes."
+        },
+        {
+          "technique": "post-landing-repair-density",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/calibrationVerdict.ts:123 After-change evidence measures candidate advancement after a policy adjustment, not software repair density."
+        },
+        {
+          "technique": "revert-linkage",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsFamilyFloorChips.tsx:53 The status concerns enforcement of a screening floor, not recognition or linkage of software reverts."
+        },
+        {
+          "technique": "review-coverage-rate",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsCalibrationHeader.tsx:42 The outcome vocabulary is advancement and hiring, not approving engineering reviews."
+        }
+      ]
     }
   }
 }
