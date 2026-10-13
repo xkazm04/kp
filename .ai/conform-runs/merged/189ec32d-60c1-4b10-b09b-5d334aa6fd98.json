@@ -1,0 +1,275 @@
+{
+ "schema": "conform-run/1",
+ "worker": "189ec32d-60c1-4b10-b09b-5d334aa6fd98",
+ "subject": "translation-pipeline-topology",
+ "evaluatedAt": "2026-10-13T09:17:26.165321+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "i18n-locale-resolution",
+   "subject": "translation-pipeline-topology",
+   "bundle": "localization",
+   "state": "deviation",
+   "evidence": "i18n/locales.ts:6 The frontend registry has independently maintained counterparts in Python and narrative-cache validation, so adding a language requires updating multiple language lists.",
+   "techniques": [
+    {
+     "technique": "canonical-fallback-serving",
+     "verdict": "not-applicable",
+     "evidence": "i18n/server.ts:14 This is locale-negotiation fallback; the context does not fetch partially published derived content."
+    },
+    {
+     "technique": "fuzzy-reuse-under-a-threshold",
+     "verdict": "not-applicable",
+     "evidence": "i18n/locales.ts:70 Language-tag normalization does not perform translation-memory reuse."
+    },
+    {
+     "technique": "language-registry-single-source",
+     "verdict": "deviation",
+     "evidence": "i18n/locales.ts:6 Independent copies were opened at pipeline/jobfit/i18n.py:25\u201330 and app/_lib/reasoning-cache-policy.ts:48; agreement today does not satisfy the single-registry rule."
+    },
+    {
+     "technique": "non-translatable-value-classification",
+     "verdict": "not-applicable",
+     "evidence": "i18n/locales.ts:25 This guard classifies locale identifiers, not catalog values entering a translation engine."
+    },
+    {
+     "technique": "prompt-context-contract",
+     "verdict": "not-applicable",
+     "evidence": "i18n/request.ts:10 The configuration resolves a rendering locale without constructing a machine-translation request."
+    },
+    {
+     "technique": "serialization-transport-safety",
+     "verdict": "not-applicable",
+     "evidence": "i18n/actions.ts:30 Persisting a locale cookie is not batch machine-translation transport."
+    },
+    {
+     "technique": "sharded-translation-ci",
+     "verdict": "not-applicable",
+     "evidence": "i18n/actions.ts:25 This runtime preference action does not schedule translation work."
+    },
+    {
+     "technique": "source-hash-translation-cache",
+     "verdict": "not-applicable",
+     "evidence": "i18n/locales.ts:40 Locale resolution neither generates nor caches derived translations."
+    },
+    {
+     "technique": "source-identical-value-audit",
+     "verdict": "not-applicable",
+     "evidence": "i18n/actions.ts:29 This context validates supported language selections, not catalog translatedness."
+    }
+   ]
+  },
+  {
+   "context": "ci-doc-gates",
+   "subject": "translation-pipeline-topology",
+   "bundle": "localization",
+   "state": "deviation",
+   "evidence": "scripts/i18n/catalog-check.mjs:245 The catalog gate checks structure and placeholders without rejecting unallowlisted source-identical prose, allowing untranslated object values and array items to pass.",
+   "techniques": [
+    {
+     "technique": "canonical-fallback-serving",
+     "verdict": "not-applicable",
+     "evidence": "scripts/i18n-check.mjs:151 This build-time validator reports catalog problems rather than serving translated content."
+    },
+    {
+     "technique": "fuzzy-reuse-under-a-threshold",
+     "verdict": "not-applicable",
+     "evidence": "scripts/i18n/catalog-check.mjs:233 List-parity validation performs no translation-memory reuse."
+    },
+    {
+     "technique": "language-registry-single-source",
+     "verdict": "deviation",
+     "evidence": "scripts/i18n-check.mjs:148 The gate discovers its locale universe from existing files instead of LOCALES, so an absent supported target catalog is excluded rather than reported."
+    },
+    {
+     "technique": "non-translatable-value-classification",
+     "verdict": "not-applicable",
+     "evidence": "scripts/i18n/catalog-check.mjs:213 Catalog-shape validation does not classify inputs before a translation-engine request."
+    },
+    {
+     "technique": "prompt-context-contract",
+     "verdict": "not-applicable",
+     "evidence": "scripts/i18n/catalog-check.mjs:88 The locale is used for ICU compilation, not a machine-translation prompt."
+    },
+    {
+     "technique": "serialization-transport-safety",
+     "verdict": "not-applicable",
+     "evidence": "scripts/i18n-check.mjs:145 Parsing committed catalog files is not the wire seam of a batch machine-translation request."
+    },
+    {
+     "technique": "sharded-translation-ci",
+     "verdict": "not-applicable",
+     "evidence": "scripts/i18n/catalog-check.mjs:198 The gate walks existing catalogs without translating or publishing corpus shards."
+    },
+    {
+     "technique": "source-hash-translation-cache",
+     "verdict": "not-applicable",
+     "evidence": "scripts/i18n/catalog-check.mjs:200 This in-process map holds validation walks, not persisted derived translations."
+    },
+    {
+     "technique": "source-identical-value-audit",
+     "verdict": "deviation",
+     "evidence": "scripts/i18n/catalog-check.mjs:243 The following checks never compare value with baseValue for translatedness; an in-memory en/cs fixture containing identical ordinary prose in an object and an array returned problems: []."
+    }
+   ]
+  },
+  {
+   "context": "review-gates",
+   "subject": "translation-pipeline-topology",
+   "bundle": "localization",
+   "state": "not-applicable",
+   "evidence": "scripts/review/agent-review.mjs:80 Searches found no translation, catalog or termbase references in scripts/review, whose model contract reviews code-change intent rather than managing translations.",
+   "techniques": [
+    {
+     "technique": "canonical-and-derived-split",
+     "verdict": "not-applicable",
+     "evidence": "scripts/review/rubric.mjs:61 The rubric consumes repository guidance, not canonical and derived translation artifacts."
+    },
+    {
+     "technique": "canonical-fallback-serving",
+     "verdict": "not-applicable",
+     "evidence": "scripts/review/agent-review.mjs:260 The input units are changed code files, not partially translated reader content."
+    },
+    {
+     "technique": "fuzzy-reuse-under-a-threshold",
+     "verdict": "not-applicable",
+     "evidence": "scripts/review/agent-review.mjs:222 This policy evaluates review findings without translation-memory matches."
+    },
+    {
+     "technique": "hand-authored-exception-contract",
+     "verdict": "not-applicable",
+     "evidence": "scripts/review/rubric.mjs:65 The maintained records are architectural decisions, not human-authored translation exceptions."
+    },
+    {
+     "technique": "language-registry-single-source",
+     "verdict": "not-applicable",
+     "evidence": "scripts/review/agent-review.mjs:45 The review configuration selects a model without declaring supported translation languages."
+    },
+    {
+     "technique": "non-translatable-value-classification",
+     "verdict": "not-applicable",
+     "evidence": "scripts/review/agent-review.mjs:119 The model receives a code diff, not catalog values selected for translation."
+    },
+    {
+     "technique": "prompt-context-contract",
+     "verdict": "not-applicable",
+     "evidence": "scripts/review/agent-review.mjs:96 This is a code-review prompt contract, not a machine-translation context contract."
+    },
+    {
+     "technique": "pseudo-localization-readiness",
+     "verdict": "not-applicable",
+     "evidence": "scripts/review/agent-review.mjs:81 The model examines change scope without rendering localized product surfaces."
+    },
+    {
+     "technique": "serialization-transport-safety",
+     "verdict": "not-applicable",
+     "evidence": "scripts/review/agent-review.mjs:132 The response contains code-review findings rather than batched translated values."
+    },
+    {
+     "technique": "sharded-translation-ci",
+     "verdict": "not-applicable",
+     "evidence": "scripts/review/agent-review.mjs:61 The budget limits review input; it does not partition translation publication work."
+    },
+    {
+     "technique": "source-hash-translation-cache",
+     "verdict": "not-applicable",
+     "evidence": "scripts/review/agent-review.mjs:259 Work is selected by a commit diff, without a derived-translation cache."
+    },
+    {
+     "technique": "source-identical-value-audit",
+     "verdict": "not-applicable",
+     "evidence": "scripts/review/agent-review.mjs:128 The declared result judges commit intent without auditing locale-catalog values."
+    }
+   ],
+   "absenceTerms": [
+    "translation",
+    "catalog",
+    "termbase"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "translation-pipeline-topology",
+   "context": "shared-api-utilities",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "translation-pipeline-topology",
+   "context": "tests-scoring-fairness",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-13T09:17:26.165321+00:00",
+   "bundle": "localization",
+   "subjects": [
+    "translation-pipeline-topology"
+   ],
+   "techniques": [
+    "canonical-fallback-serving",
+    "fuzzy-reuse-under-a-threshold",
+    "language-registry-single-source",
+    "non-translatable-value-classification",
+    "prompt-context-contract",
+    "serialization-transport-safety",
+    "sharded-translation-ci",
+    "source-hash-translation-cache",
+    "source-identical-value-audit"
+   ],
+   "deviations": 1,
+   "context": "i18n-locale-resolution",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-13T09:17:26.165321+00:00",
+   "bundle": "localization",
+   "subjects": [
+    "translation-pipeline-topology"
+   ],
+   "techniques": [
+    "canonical-fallback-serving",
+    "fuzzy-reuse-under-a-threshold",
+    "language-registry-single-source",
+    "non-translatable-value-classification",
+    "prompt-context-contract",
+    "serialization-transport-safety",
+    "sharded-translation-ci",
+    "source-hash-translation-cache",
+    "source-identical-value-audit"
+   ],
+   "deviations": 1,
+   "context": "ci-doc-gates",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-13T09:17:26.165321+00:00",
+   "bundle": "localization",
+   "subjects": [
+    "translation-pipeline-topology"
+   ],
+   "techniques": [
+    "canonical-and-derived-split",
+    "canonical-fallback-serving",
+    "fuzzy-reuse-under-a-threshold",
+    "hand-authored-exception-contract",
+    "language-registry-single-source",
+    "non-translatable-value-classification",
+    "prompt-context-contract",
+    "pseudo-localization-readiness",
+    "serialization-transport-safety",
+    "sharded-translation-ci",
+    "source-hash-translation-cache",
+    "source-identical-value-audit"
+   ],
+   "deviations": 0,
+   "context": "review-gates",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

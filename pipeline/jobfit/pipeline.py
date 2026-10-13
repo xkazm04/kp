@@ -489,7 +489,15 @@ def analyze_cv(
             # JD-required regulated licence the candidate doesn't hold, or a held
             # regulated licence with a past date — a hard, compliance-relevant blocker
             # that a single missed LLM flag must not silently drop. A SCREEN (verify).
-            sanity_checks += credential_checks(job_description_text, profile.credentials)
+            # "Held" is checked against the document, not the model's list alone: the
+            # local extraction cannot invent a licence, so it is the text of record;
+            # the model's transcript stands in only when nothing was read locally.
+            local_text = clean_text(pypdf_text)
+            sanity_checks += credential_checks(
+                job_description_text,
+                profile.credentials,
+                cv_text=local_text if local_text.strip() else raw_text,
+            )
 
             # Trust-boundary screens (bug-hunter #1): the response schema constrains
             # SHAPE and ranges but not TRUTHFULNESS, and only job_fit.matching_skills is
