@@ -26308,7 +26308,11 @@
           "revision": 2,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewAiScorecardSection.tsx:95 Scorecard evidence quotes are displayed to reviewers verbatim from transcript turns without resolving entity terms against corrected read-back items, permitting misheard words to be shown as candidate statements.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:45d3a27151ad5179",
+          "evaluatedRevision": 2
         },
         {
           "subject": "structured-interview-scorecards",
@@ -31106,7 +31110,11 @@
           "revision": 2,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_components/voice/transport/elevenlabs.ts:182 The client voice transport injects ASR keyword biasing overrides into the live session without any null-audio control or precision gate to prevent phantom term insertions.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:45d3a27151ad5179",
+          "evaluatedRevision": 2
         },
         {
           "subject": "prompt-assembly",
@@ -31281,7 +31289,11 @@
           "revision": 2,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/voice/asr-keywords.mjs:31 The session keyword bias primes speech recognition with domain terms including known confusable pairs (React/Rust) without running a null-audio control to measure and prevent phantom term insertions.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:45d3a27151ad5179",
+          "evaluatedRevision": 2
         },
         {
           "subject": "prompt-assembly",
@@ -31683,7 +31695,11 @@
           "revision": 2,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "packages/voice-tts/package.json:5 Searched packages/voice-tts for transcript, scorecard, readback, and phantom; none were found because this package is exclusively a text-to-speech synthesis library with no speech recognition, transcript handling, or candidate evaluation.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:45d3a27151ad5179",
+          "evaluatedRevision": 2
         },
         {
           "subject": "prompt-assembly",
