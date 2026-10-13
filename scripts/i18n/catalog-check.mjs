@@ -170,8 +170,26 @@ export function dashError(value) {
   return null;
 }
 
+// ---- Control characters --------------------------------------------------------
+// A C0 control character in catalog copy is never intended. The one that reached
+// production was U+0001: a regex backreference written into a French string where a
+// colon or semicolon belonged, 33 times in one file, invisible in an editor and passed
+// by every other check here. It is REPORTED, not stripped: deleting it leaves a gap
+// where the punctuation was, and the right mark is only recoverable from the default
+// locale. Tab, LF and CR are legal in a message.
+const CONTROL_CHAR = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/;
+export function controlCharError(value) {
+  const m = CONTROL_CHAR.exec(value);
+  if (!m) return null;
+  const hex = m[0].charCodeAt(0).toString(16).toUpperCase().padStart(4, "0");
+  const ctx = JSON.stringify(value.slice(Math.max(0, m.index - 12), m.index + 13));
+  return `control character U+${hex} in ${ctx} — a lost or mangled punctuation mark; restore it from the default locale`;
+}
+
 function contentProblems(locale, address, value) {
   const out = [];
+  const ctrl = controlCharError(value);
+  if (ctrl) out.push(`${locale}: "${address}" — ${ctrl}`);
   const err = braceError(value) || icuError(value, locale);
   if (err) out.push(`${locale}: "${address}" — ${err}`);
   const dash = dashError(value);

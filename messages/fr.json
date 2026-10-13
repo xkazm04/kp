@@ -13997,8 +13997,8 @@
         "rim": "Anneau : jamais notée"
       },
       "note": {
-        "shut": "Fermé \u0001 le dôme s’ouvre dès que votre CV est déposé et que les cinq choix sont faits.",
-        "half": "À demi ouvert \u0001 les étoiles restent éteintes et le bord vide tant que les cinq choix ne sont pas faits.",
+        "shut": "Fermé : le dôme s’ouvre dès que votre CV est déposé et que les cinq choix sont faits.",
+        "half": "À demi ouvert : les étoiles restent éteintes et le bord vide tant que les cinq choix ne sont pas faits.",
         "ready": "Le rayon vaut 100 moins la note. Chaque secteur est une source. Le bord garde ce qui n’a jamais reçu de note."
       },
       "plate": {
@@ -14013,32 +14013,32 @@
         "rimEyebrow": "Sur le bord · jamais notées",
         "heldName": "Retenues à la porte",
         "waitName": "En attente d’une note",
-        "gateWhy": "Arrêtées par un filtre strict \u0001 elles gardent une note hypothétique, jamais un zéro.",
+        "gateWhy": "Arrêtées par un filtre strict : elles gardent une note hypothétique, jamais un zéro.",
         "heldWhy": "Leur source est désactivée.",
-        "waitWhy": "Pas encore notées \u0001 ce n’est pas une note basse.",
-        "rimCount": "Offres \u0001 {n}.",
+        "waitWhy": "Pas encore notées : ce n’est pas une note basse.",
+        "rimCount": "Offres : {n}.",
         "sectorEyebrow": "Source",
-        "sectorCount": "Offres \u0001 {n} · notées \u0001 {scored}",
+        "sectorCount": "Offres : {n} · notées : {scored}",
         "bestHere": "meilleure ici"
       },
       "aria": {
-        "star": "Rang {rank} \u0001 {who}. Note {score}, {tier}.",
-        "held": "{who}. Retenue à la porte \u0001 sa source est désactivée.",
+        "star": "Rang {rank} : {who}. Note {score}, {tier}.",
+        "held": "{who}. Retenue à la porte : sa source est désactivée.",
         "wait": "{who}. En attente d’une note.",
-        "gated": "{who}. Arrêtée par {gates} \u0001 non notée.",
-        "sector": "{name} \u0001 offres {n}, notées {scored}",
-        "rimGate": "{name} \u0001 arrêtées {n}. Ouvrir le tamis.",
-        "rimHeld": "Retenues à la porte \u0001 {n}. Ouvrir le tamis.",
-        "rimWait": "En attente d’une note \u0001 {n}. Ouvrir le tamis.",
-        "plateLocked": "Le dôme est {state} \u0001 {text}. Appuyez pour voir ce qui l’ouvre.",
+        "gated": "{who}. Arrêtée par {gates} ; non notée.",
+        "sector": "{name} : offres {n}, notées {scored}",
+        "rimGate": "{name} : arrêtées {n}. Ouvrir le tamis.",
+        "rimHeld": "Retenues à la porte : {n}. Ouvrir le tamis.",
+        "rimWait": "En attente d’une note : {n}. Ouvrir le tamis.",
+        "plateLocked": "Le dôme est {state} : {text}. Appuyez pour voir ce qui l’ouvre.",
         "shut": "fermé",
         "halfOpen": "à demi ouvert"
       },
       "rim": {
         "held": "Retenues à la porte {n}",
-        "heldNone": "Retenues \u0001 aucune",
-        "wait": "En attente \u0001 {n}",
-        "waitNone": "En attente \u0001 aucune",
+        "heldNone": "Retenues : aucune",
+        "wait": "En attente : {n}",
+        "waitNone": "En attente : aucune",
         "chipsLabel": "Le bord : ce qui n’a jamais reçu de note",
         "chipsIntro": "Bord, jamais notées :",
         "heldShort": "Retenues à la porte",
@@ -14062,14 +14062,14 @@
       "headline": {
         "closed": "Fermé",
         "noCvText": "Déposez votre CV. Le dôme s’ouvre dès que les {total} choix sont faits.",
-        "noCvSub": "Offres en attente \u0001 {n}. Aucune n’est encore lue pour vous.",
+        "noCvSub": "Offres en attente : {n}. Aucune n’est encore lue pour vous.",
         "toGo": "Encore {n}",
         "toGoText": "Le dôme s’ouvre dès que les {total} sont faits.",
-        "missing": "Manque \u0001 {list}",
+        "missing": "Manque : {list}",
         "reading": "Lecture…",
         "loadFailed": "Les offres n’ont pas pu être chargées.",
         "nothing": "Rien",
-        "nothingText": "dans le ciel \u0001 chaque source est retenue à la porte.",
+        "nothingText": "dans le ciel : chaque source est retenue à la porte.",
         "emptyText": "dans le ciel pour l’instant : lancez l’analyse de vos sources pour le remplir.",
         "worthText": "sur {total} notées valent votre soirée.",
         "worthSub": "{strong} fortes, {promising} prometteuses",
@@ -14082,9 +14082,9 @@
         "noCvTitle": "Déposez votre CV",
         "title": "{n} choix sur {total} faits",
         "noCvText": "Les choix partent de votre CV. Ensuite, chacun fait tourner l’iris d’un cran.",
-        "missing": "Reste à faire \u0001 {list}.",
+        "missing": "Reste à faire : {list}.",
         "set": "fait",
-        "notSetNoCv": "pas fait \u0001 déposez d’abord votre CV",
+        "notSetNoCv": "pas fait : déposez d’abord votre CV",
         "optional": "facultatif",
         "missingOne": "manque",
         "ctaNoCv": "Déposer mon CV",
@@ -14113,7 +14113,7 @@
         "cvIn": "CV déposé",
         "cvDrop": "Déposez votre CV",
         "needsCv": "A besoin de votre CV",
-        "skills": "{n, plural, one {# compétence} other {# compétences}} · déclarées seulement \u0001 {stated}",
+        "skills": "{n, plural, one {# compétence} other {# compétences}} · déclarées seulement : {stated}",
         "wantsSet": "{n} sur {total} faits",
         "startHere": "commencez ici",
         "cv": {
@@ -14132,11 +14132,11 @@
       "lenses": {
         "label": "Les quatre lentilles",
         "lockedLabel": "Les quatre lentilles, verrouillées",
-        "notSwitchedOn": "Le marché \u0001 pas encore allumé",
+        "notSwitchedOn": "Le marché : pas encore allumé",
         "locked": "Verrouillé",
-        "lockedAria": "{name} \u0001 verrouillé. Appuyez pour voir ce qui le débloque.",
+        "lockedAria": "{name} : verrouillé. Appuyez pour voir ce qui le débloque.",
         "lockedExplain": "{name} est verrouillé. {text}",
-        "lockedMissing": "Reste à faire \u0001 {list} ({n} sur {total} faits).",
+        "lockedMissing": "Reste à faire : {list} ({n} sur {total} faits).",
         "weighEmpty": "Rien n’est encore noté, il n’y a donc rien à peser.",
         "sieve": {
           "name": "Tamis",
@@ -14168,14 +14168,14 @@
         "headNone": "Les cinq meilleures · aucune prometteuse",
         "headEmpty": "Pas encore d’offres",
         "empty": "Rien n’a encore été analysé.",
-        "meta": "{scored} notées sur {found} trouvées · note et fourchette \u0001 le degré de certitude",
+        "meta": "{scored} notées sur {found} trouvées · note et fourchette : le degré de certitude",
         "loading": "Lecture des offres…",
-        "none": "Rien n’est encore noté \u0001 chaque source est retenue à la porte.",
+        "none": "Rien n’est encore noté : chaque source est retenue à la porte.",
         "decideSources": "Décider des sources",
-        "all": "Les {n} notées \u0001 ouvrir le catalogue"
+        "all": "Les {n} notées : ouvrir le catalogue"
       },
       "card": {
-        "aria": "Numéro {rank} \u0001 {title}, {company}. Note {score}, {tier}. {pay}.",
+        "aria": "Numéro {rank} : {title}, {company}. Note {score}, {tier}. {pay}.",
         "payUnstated": "Salaire non indiqué",
         "pay": "Salaire {range} {cur}/{period}",
         "perMonth": "mois",
@@ -14195,7 +14195,7 @@
         "read": {
           "name": "Ce qu’il laisse lire",
           "kicker": "Mise en place · spectre",
-          "lead": "La personne lue dans votre CV \u0001 la forme de chaque compétence dit d’où vient l’affirmation."
+          "lead": "La personne lue dans votre CV : la forme de chaque compétence dit d’où vient l’affirmation."
         },
         "want": {
           "name": "Ce que vous voulez",
@@ -14210,7 +14210,7 @@
         "evening": {
           "name": "Dignes de votre soirée",
           "kicker": "Le marché · soirée",
-          "lead": "Le classement \u0001 les cinq premières, la ligne d’horizon et toute la liste."
+          "lead": "Le classement : les cinq premières, la ligne d’horizon et toute la liste."
         },
         "sources": {
           "name": "Sources",

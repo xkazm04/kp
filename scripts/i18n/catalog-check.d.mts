@@ -23,3 +23,4 @@ export declare function checkCatalogs(
     totalCounted: number;
   };
 };
+export declare function controlCharError(value: string): string | null;

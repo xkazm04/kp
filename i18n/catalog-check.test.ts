@@ -106,3 +106,16 @@ test("the shipped catalogs: every string is a unit, and the list strings are amo
     assert.ok(arrays.size > 0, `${file} has no lists; this fixture no longer exercises the array path`);
   }
 });
+
+test("a C0 control character fails, naming the code point and its neighbourhood; tab and newline do not", () => {
+  const cs = clean();
+  cs.landing.voice.transcript[1] = "Stav\u0001 a state.";
+  const found = run(clean(), cs).problems;
+  assert.ok(
+    found.some((p) => p.startsWith('cs: "landing.voice.transcript[1]"') && p.includes("U+0001")),
+    found.join("\n")
+  );
+  const ok = clean();
+  ok.landing.voice.transcript[1] = "Line one\nLine two\tcolumn";
+  assert.deepEqual(run(clean(), ok).problems, []);
+});
