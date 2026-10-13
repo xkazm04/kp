@@ -7864,7 +7864,11 @@
           "revision": 12,
           "changedAt": "2026-10-06",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/i18n/catalog-check.mjs:245 The catalog gate checks structure and placeholders without rejecting unallowlisted source-identical prose, allowing untranslated object values and array items to pass.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:678c2208c5b0dfc0",
+          "evaluatedRevision": 12
         },
         {
           "subject": "agent-instruction-files",
@@ -15316,7 +15320,11 @@
           "revision": 12,
           "changedAt": "2026-10-06",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "i18n/locales.ts:6 The frontend registry has independently maintained counterparts in Python and narrative-cache validation, so adding a language requires updating multiple language lists.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:678c2208c5b0dfc0",
+          "evaluatedRevision": 12
         },
         {
           "subject": "i18n",
@@ -25867,7 +25875,11 @@
           "revision": 12,
           "changedAt": "2026-10-06",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "scripts/review/agent-review.mjs:80 Searches found no translation, catalog or termbase references in scripts/review, whose model contract reviews code-change intent rather than managing translations.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:678c2208c5b0dfc0",
+          "evaluatedRevision": 12
         },
         {
           "subject": "docs-sync",
