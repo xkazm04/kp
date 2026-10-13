@@ -9727,7 +9727,11 @@
           "revision": 18,
           "changedAt": "2026-10-06",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "app/_lib/db/core.ts:166 The SQLite boot sequence establishes structural integrity checks, atomic migration and table rebuild boundaries, and a centralized row-decode seam with counted health telemetry.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:b67182492821d592",
+          "evaluatedRevision": 18
         },
         {
           "subject": "node-boot-and-declarative-bootstrap",
@@ -10306,7 +10310,11 @@
           "revision": 18,
           "changedAt": "2026-10-06",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "app/_lib/db/pipeline.ts:3539 Pipeline repository operations encapsulate multi-statement state transitions and audit logging in immediate transactions with compare-and-swap stage guards while deferring side-effect hooks until after commit.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:b67182492821d592",
+          "evaluatedRevision": 18
         },
         {
           "subject": "pipeline-stage-modelling",

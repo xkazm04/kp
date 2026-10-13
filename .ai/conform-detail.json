@@ -3737,6 +3737,158 @@
           "evidence": "app/features/insights/analytics/AnalyticsTab.tsx:113 Calculates funnel maximum and conversion deltas on component render passes without an identity-keyed derivation cache."
         }
       ]
+    },
+    "ee64b398-8e4c-40aa-a4af-8ff922026ef2/data-access": {
+      "context": "db-core-migrations",
+      "subject": "data-access",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T21:12:50.987Z",
+      "worker": "2b0eecbf-8571-4d4b-9a6d-e509ebb5bdea",
+      "techniques": [
+        {
+          "technique": "batching-and-n-plus-one",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/core.ts:3262 Executes batch seeding writes inside a single transaction closure so the entire collection is inserted atomically as one fact rather than per-item auto-commits."
+        },
+        {
+          "technique": "capability-declared-in-the-type",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/core.ts:3 Database core initializes a single better-sqlite3 engine instance; multi-driver capability negotiation does not apply."
+        },
+        {
+          "technique": "cross-driver-invariant-parity",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/pg-portability.ts:8 SQLite is the sole active engine; Postgres compatibility is tracked via a static dialect audit checklist, so cross-driver runtime parity does not apply."
+        },
+        {
+          "technique": "existence-authority-written-last",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/core.ts:3692 Writes backfilled rows and their governing completion mark together inside one transaction so existence authority cannot precede or outlive the records it certifies."
+        },
+        {
+          "technique": "layering-rules",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/core.ts:100 Maintains downward dependency direction by structurally typing row validators rather than importing application schemas or validation libraries into the data core."
+        },
+        {
+          "technique": "localized-record-identity",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/core.ts:336 Stores an organization locale preference string rather than per-language localized record rows with group identifiers."
+        },
+        {
+          "technique": "operator-defined-tables",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/core.ts:316 All database tables and migrations are declared directly by developers in TypeScript DDL; no runtime operator-defined schemas exist."
+        },
+        {
+          "technique": "query-construction",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/add-columns.ts:50 Validates table and column identifiers against a strict regex allowlist before interpolating into dynamic DDL statements."
+        },
+        {
+          "technique": "read-models-and-projections",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/core.ts:319 Core boot module manages primary database tables and schema migrations rather than consumer read projections."
+        },
+        {
+          "technique": "repo-testing",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/core-integrity.test.ts:10 Tests database corruption drills against real SQLite engine instances, verifying that boot refuses both page-corrupted databases and non-database files."
+        },
+        {
+          "technique": "row-mapping",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/core.ts:166 Provides a unified decode seam distinguishing absent from unreadable, recording corruption and schema invalidity in a central ledger rather than silently skipping."
+        },
+        {
+          "technique": "sequence-token-write-ordering",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/core.ts:448 Indexes monotonic auto-increment surrogate identifiers in descending order alongside timestamps to establish a reliable total write ordering for revision history."
+        },
+        {
+          "technique": "transactions-and-units-of-work",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/core.ts:2801 Executes table rebuilds inside a db.transaction() scope so scratch creation and schema swapping commit or roll back atomically without leaving transactions open on failure."
+        }
+      ]
+    },
+    "f77c7ea2-aef7-4d0a-93ae-1600bf15f53f/data-access": {
+      "context": "db-pipeline-store",
+      "subject": "data-access",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T21:12:50.987Z",
+      "worker": "2b0eecbf-8571-4d4b-9a6d-e509ebb5bdea",
+      "techniques": [
+        {
+          "technique": "batching-and-n-plus-one",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/pipeline.ts:3068 Provides a chunked batch read answering empty input immediately, binding chunked parameters, and returning a keyed Map of domain entities."
+        },
+        {
+          "technique": "capability-declared-in-the-type",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/pipeline.ts:1 Concrete SQLite repository; single storage engine means multi-driver capability negotiation does not apply."
+        },
+        {
+          "technique": "cross-driver-invariant-parity",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/pipeline.ts:22 Pipeline store operates exclusively over the shared SQLite connection; cross-driver parity does not apply."
+        },
+        {
+          "technique": "existence-authority-written-last",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/pipeline.ts:2889 Treats the database transaction as the existence authority during erasure, committing candidate scrubbing before deleting dependent unversioned disk audio files."
+        },
+        {
+          "technique": "layering-rules",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/pipeline.ts:43 Inverts upward dependencies using post-commit late-bound hooks carrying event facts rather than upward imports, preserving layering direction and transaction atomicity."
+        },
+        {
+          "technique": "localized-record-identity",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/pipeline-core.ts:88 Pipeline entries record an applicant locale scalar rather than localized rows per language; multi-language record identity does not apply."
+        },
+        {
+          "technique": "operator-defined-tables",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/pipeline-core.ts:133 Schemas and status taxonomies are compiled constants defined by developers; runtime operator-defined schemas do not apply."
+        },
+        {
+          "technique": "query-construction",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/pipeline-core.ts:160 Enforces a closed allowlist mapping query sort parameters to internal SQL column identifiers to prevent SQL injection in ORDER BY clauses."
+        },
+        {
+          "technique": "read-models-and-projections",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/pipeline.ts:162 Exposes an explicit client-facing read projection omitting unneeded internal and sensitive columns, while mutation operations accept aggregate identity rather than projection objects."
+        },
+        {
+          "technique": "repo-testing",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/pipeline-store.test.ts:37 Tests repository invariants against an isolated real SQLite engine with test fixtures created strictly through the repository's front-door write surface."
+        },
+        {
+          "technique": "row-mapping",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/pipeline-core.ts:66 Transforms raw untyped SQLite rows into typed domain entities at a single decode seam, normalizing booleans and narrowing status/approval unions."
+        },
+        {
+          "technique": "sequence-token-write-ordering",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/pipeline-core.ts:155 Uses the engine's monotonic surrogate key as an explicit deterministic tiebreaker for audit event ordering to guarantee stable cross-page pagination."
+        },
+        {
+          "technique": "transactions-and-units-of-work",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/pipeline.ts:3539 Encapsulates multi-statement mutations with CAS checks and audit event recording within an IMMEDIATE transaction, deferring outside side effects until after commit."
+        }
+      ]
     }
   }
 }
