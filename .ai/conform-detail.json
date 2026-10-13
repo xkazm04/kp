@@ -2929,6 +2929,150 @@
           "evidence": "scripts/release/sbom.mjs:253 The inspected manifest loader reads data-only JSON, rather than a saved model or executable-object format."
         }
       ]
+    },
+    "b564f01b-cf9d-42a8-8cf7-08ec2311c9c5/module-design": {
+      "context": "decisions-screen-wave-logic",
+      "subject": "module-design",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T11:14:03.231Z",
+      "worker": "f112dffe-68a2-43dc-9a6d-20b7eb964b44",
+      "techniques": [
+        {
+          "technique": "concurrency-at-the-edge",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/decisions/decisionsLatestWins.ts:42 Stale-response coordination is represented by tickets; the gate performs no network calls or scheduling."
+        },
+        {
+          "technique": "declarative-or-sequential",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/decisions/decisionsScreenWaveMachine.ts:99 Explicit event branches express the state machine directly, including notice lifetime and refusal transitions."
+        },
+        {
+          "technique": "io-free-core",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/decisions/decisionsScreenWaveMachine.ts:98 The reducer consumes state and event values and returns state without I/O, clocks, randomness or waiting."
+        },
+        {
+          "technique": "marked-unverifiable-region",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/decisions/decisionsAiReviewCardLogic.ts:23 The assertion is greppable, but neither the surrounding catch nor the comments establish that every parsed value satisfies ParsedApproval."
+        },
+        {
+          "technique": "module-depth",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/decisions/decisionsPeerCompare.ts:60 Two ordinary inputs buy tied ranking, median, comparison margin and unscored accounting without exposing the calculation procedure."
+        }
+      ]
+    },
+    "ebfe3268-6c14-4997-a49c-091483d763b5/module-design": {
+      "context": "shared-api-utilities",
+      "subject": "module-design",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T11:14:03.231Z",
+      "worker": "f112dffe-68a2-43dc-9a6d-20b7eb964b44",
+      "techniques": [
+        {
+          "technique": "concurrency-at-the-edge",
+          "verdict": "conformant",
+          "evidence": "app/_lib/request-body.ts:50 Racing a stream read against the whole-body deadline is the reader's policy; removing it would require recreating coordination."
+        },
+        {
+          "technique": "declarative-or-sequential",
+          "verdict": "conformant",
+          "evidence": "app/_lib/sanity-checks.ts:48 One classification pass builds two required output collections using explicit sequential code."
+        },
+        {
+          "technique": "io-free-core",
+          "verdict": "conformant",
+          "evidence": "app/_lib/cache-key.ts:76 Cache identity is computed from supplied values; registry digests and model routing arrive as inputs rather than being fetched."
+        },
+        {
+          "technique": "marked-unverifiable-region",
+          "verdict": "deviation",
+          "evidence": "app/_lib/request-body.ts:118 The null guard proves only non-nullness, not T; documented validation by callers happens after the helper has exposed the asserted type."
+        },
+        {
+          "technique": "module-depth",
+          "verdict": "conformant",
+          "evidence": "app/_lib/api-response.ts:2177 safeJsonError takes a registered code and hides safe-message selection, error-envelope construction and server-side logging from route callers."
+        }
+      ]
+    },
+    "a756a7a4-eeeb-4ac4-b43b-b2afb7f3e4a2/module-design": {
+      "context": "voice-stt-package",
+      "subject": "module-design",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T11:14:03.231Z",
+      "worker": "f112dffe-68a2-43dc-9a6d-20b7eb964b44",
+      "techniques": [
+        {
+          "technique": "concurrency-at-the-edge",
+          "verdict": "conformant",
+          "evidence": "packages/voice-stt/src/registry.ts:233 The queue implements the explicit one-local-transcription-at-a-time policy; removing it would require another serialization mechanism."
+        },
+        {
+          "technique": "declarative-or-sequential",
+          "verdict": "conformant",
+          "evidence": "packages/voice-stt/src/providers/whisper-cpp.ts:226 Loaded transcript rows pass through a pure map/filter transformation, with file reads before it and logging after it."
+        },
+        {
+          "technique": "io-free-core",
+          "verdict": "conformant",
+          "evidence": "packages/voice-stt/src/browser/wav-encode.ts:41 Audio arithmetic consumes constructible PCM arrays; browser decoding remains in encodeWavFromBlob outside this computational core."
+        },
+        {
+          "technique": "marked-unverifiable-region",
+          "verdict": "deviation",
+          "evidence": "packages/voice-stt/src/node/spawn.ts:69 The generic file reader asserts arbitrary JSON as T without a checked shape or a per-use invariant establishing T."
+        },
+        {
+          "technique": "module-depth",
+          "verdict": "deviation",
+          "evidence": "packages/voice-stt/src/registry.ts:41 Returning the underlying provider makes the registry's validation, residency selection, length limits and serialization optional at the public boundary."
+        }
+      ]
+    },
+    "ee64b398-8e4c-40aa-a4af-8ff922026ef2/module-design": {
+      "context": "db-core-migrations",
+      "subject": "module-design",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T11:14:03.231Z",
+      "worker": "f112dffe-68a2-43dc-9a6d-20b7eb964b44",
+      "techniques": [
+        {
+          "technique": "declarative-or-sequential",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/core.ts:2746 Boot uses sequential effectful statements, with schema-before-seeding and seeding-before-backfills ordering explicitly documented nearby."
+        },
+        {
+          "technique": "marked-unverifiable-region",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/core.ts:182 The unchecked path establishes JSON syntax but no invariant proving T, despite the same function providing a checked safeParse path."
+        },
+        {
+          "technique": "mirror-type-at-the-edge",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/core.ts:3017 Boot maintenance needs the connection's effectful verb, so a data mirror would not replace its required capability."
+        },
+        {
+          "technique": "module-depth",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/core.ts:307 One entry point provides a booted connection while hiding integrity checking, schema creation, migrations, seed ordering and maintenance."
+        },
+        {
+          "technique": "seams-and-adapters",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/core.ts:3006 The boot tail accepts a minimal connection capability plus injected prune and health operations; tests exercise fault adapters and a real SQLite boot path."
+        }
+      ]
     }
   }
 }

@@ -9687,7 +9687,11 @@
           "revision": 17,
           "changedAt": "2026-10-07",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/db/core.ts:182 The decoder exposes an unvalidated parsed value as an ok T, making its checked validator path optional instead of enclosing the assertion.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:a33adfb4a8edc0eb",
+          "evaluatedRevision": 17
         },
         {
           "subject": "test-harness",
@@ -11005,7 +11009,11 @@
           "revision": 17,
           "changedAt": "2026-10-07",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/hiring/decisions/decisionsAiReviewCardLogic.ts:23 The approval parser asserts ParsedApproval after checking only JSON syntax, without a shape check or a written invariant establishing that type.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:a33adfb4a8edc0eb",
+          "evaluatedRevision": 17
         },
         {
           "subject": "supply-chain",
@@ -27258,7 +27266,11 @@
           "revision": 17,
           "changedAt": "2026-10-07",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/request-body.ts:118 The generic body reader exposes arbitrary non-null parsed JSON as T before any shape validation, leaving the type assertion outside a checked boundary.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:a33adfb4a8edc0eb",
+          "evaluatedRevision": 17
         },
         {
           "subject": "browser-credential-boundary",
@@ -31537,7 +31549,11 @@
           "revision": 17,
           "changedAt": "2026-10-07",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "packages/voice-stt/src/registry.ts:41 The public get API exposes a raw registered provider whose transcribe method can bypass registry validation, allowed-provider filtering, clip limits and local serialization.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:a33adfb4a8edc0eb",
+          "evaluatedRevision": 17
         },
         {
           "subject": "quality-gates",
