@@ -1,0 +1,294 @@
+{
+  "schema": "conform-run/1",
+  "worker": "820631b7-22b5-4d6c-b75f-93acd4578096",
+  "subject": "quality-gates",
+  "evaluatedAt": "2026-10-12T21:08:44.146429+00:00",
+  "provider": "agy",
+  "model": "gemini-3.8-flash-high",
+  "pairs": [
+    {
+      "context": "review-gates",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evidence": "scripts/review/constitution-check.mjs:12 The review gate framework combines fast deterministic AST and diff scanning with partitioned LLM agent evaluation and GitHub ruleset enforcement.",
+      "techniques": [
+        {
+          "technique": "severity-by-construction",
+          "verdict": "conformant",
+          "evidence": "scripts/review/constitution-check.mjs:19 Exit code 1 is reserved for blocking findings, while warnings and clean runs exit 0."
+        },
+        {
+          "technique": "gate-liveness",
+          "verdict": "conformant",
+          "evidence": "scripts/review/constitution-check.mjs:20 Exit code 2 distinguishes when the check could not run from a passing exit code 0."
+        },
+        {
+          "technique": "waiver-names-its-finding",
+          "verdict": "conformant",
+          "evidence": "scripts/review/constitution-check.mjs:65 Exemptions must parse rule, file, and reason; shapeless trailers are rejected."
+        },
+        {
+          "technique": "decidable-in-a-window",
+          "verdict": "conformant",
+          "evidence": "scripts/review/constitution-check.mjs:269 Skip reasons are parsed within a bounded window of 8 added lines in the unified diff chunk."
+        },
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "conformant",
+          "evidence": "scripts/review/constitution-check.mjs:357 Comments and string literals are masked out so token rules only inspect executable code."
+        },
+        {
+          "technique": "false-positive-economics",
+          "verdict": "conformant",
+          "evidence": "scripts/review/constitution-check.mjs:378 Conditional skips with declared reasons are demoted to warnings to avoid false-positive fatigue."
+        },
+        {
+          "technique": "oracle-frozen-during-repair",
+          "verdict": "conformant",
+          "evidence": "scripts/review/constitution-check.mjs:534 Warns whenever a pull request modifies the review gate scripts and configuration files."
+        },
+        {
+          "technique": "blocking-by-input-determinism",
+          "verdict": "conformant",
+          "evidence": "scripts/review/agent-review.mjs:23 Keyless fallback exits 0 and prints that the LLM lens did not run rather than blocking on missing model keys."
+        },
+        {
+          "technique": "shared-substrate-check-partition",
+          "verdict": "conformant",
+          "evidence": "scripts/review/agent-review.mjs:77 Agent review prompt explicitly partitions out deterministic lint and test checks."
+        },
+        {
+          "technique": "unparseable-form-is-a-finding",
+          "verdict": "conformant",
+          "evidence": "scripts/review/gate-check.mjs:125 Workflows declaring no jobs or unparseable structure are raised as blocking findings."
+        },
+        {
+          "technique": "enforcement-binding",
+          "verdict": "conformant",
+          "evidence": "scripts/review/gate-check.mjs:159 Asserts that required check contexts in the ruleset match actual jobs emitted by workflow files."
+        },
+        {
+          "technique": "refusal-names-a-reachable-remedy",
+          "verdict": "conformant",
+          "evidence": "scripts/review/gate-check.mjs:249 Refusal message gives the exact in-tree command needed to sync and apply the branch ruleset."
+        },
+        {
+          "technique": "prose-rule-drift",
+          "verdict": "conformant",
+          "evidence": "scripts/review/rubric.mjs:2 Rubric is assembled directly from committed documentation and ADRs to prevent drift."
+        },
+        {
+          "technique": "vacuous-by-evaluation",
+          "verdict": "conformant",
+          "evidence": "scripts/review/__tests__/constitution-check.test.mjs:6 Test suite verifies that each pattern fires against realistic unified diff test fragments."
+        },
+        {
+          "technique": "fabrication-economics",
+          "verdict": "conformant",
+          "evidence": "scripts/review/constitution-check.mjs:39 Eliminating per-line comments forces justifications into commit trailers reviewed in git log."
+        }
+      ],
+      "registryProposal": "The standard's waiver-names-its-finding technique should explicitly mention matching on git commit message trailers (e.g. `Gate-exemption: <rule> at <file>[:<line>] — <why>`) as a robust alternative to inline source suppression comments, preventing inadvertent proliferation of copy-pasted in-code disable directives."
+    },
+    {
+      "context": "lint-quality-gates",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evidence": "scripts/lint/ratchet.mjs:2 The ratchet protocol unifies suppression ceilings across linters and perf budgets with automated tightening and fail-closed measurement guards.",
+      "techniques": [
+        {
+          "technique": "severity-by-construction",
+          "verdict": "conformant",
+          "evidence": "scripts/lint/ratchet.mjs:34 Growth beyond the ceiling is unconditionally classified as blocking."
+        },
+        {
+          "technique": "oracle-frozen-during-repair",
+          "verdict": "conformant",
+          "evidence": "scripts/lint/ratchet.mjs:27 Undeclared suppressions block CI, requiring a deliberate ceiling entry with rationale."
+        },
+        {
+          "technique": "unparseable-form-is-a-finding",
+          "verdict": "conformant",
+          "evidence": "scripts/lint/ratchet.mjs:30 Non-integer ceilings or missing explanations are treated as blocking errors."
+        },
+        {
+          "technique": "false-positive-economics",
+          "verdict": "conformant",
+          "evidence": "scripts/lint/ratchet.mjs:40 Surplus ceiling headroom reports as a note rather than failing CI on debt cleanup."
+        },
+        {
+          "technique": "vacuous-by-evaluation",
+          "verdict": "conformant",
+          "evidence": "scripts/lint/ratchet.mjs:51 Empty scan results on measurement failure are rejected to prevent wiping debt ceilings."
+        },
+        {
+          "technique": "gate-liveness",
+          "verdict": "conformant",
+          "evidence": "scripts/lint/ratchet.mjs:54 Throws on measurement errors so tool failure exits non-zero rather than passing clean."
+        },
+        {
+          "technique": "blocking-by-input-determinism",
+          "verdict": "conformant",
+          "evidence": "scripts/perf/ci-budget.mjs:18 Recognizes wall-clock variance as non-deterministic, using slack margins and explicit run context."
+        },
+        {
+          "technique": "refusal-names-a-reachable-remedy",
+          "verdict": "conformant",
+          "evidence": "scripts/perf/ci-budget.mjs:38 CLI guidance provides the exact --tighten command to recalibrate ceilings after improvements."
+        },
+        {
+          "technique": "unmeasurable-criteria",
+          "verdict": "conformant",
+          "evidence": "scripts/perf/ci-budget.mjs:20 New pipeline jobs without defined duration ceilings fail the gate immediately."
+        },
+        {
+          "technique": "prose-rule-drift",
+          "verdict": "conformant",
+          "evidence": "scripts/design/check-design-tokens.mjs:8 Automates verification of dual-theme CSS variables against brand constants that previously drifted in prose."
+        },
+        {
+          "technique": "chokepoint-tag-registry",
+          "verdict": "conformant",
+          "evidence": "scripts/design/check-design-tokens.mjs:83 Unresolved color constants fail with an error to preserve strict registry mapping."
+        },
+        {
+          "technique": "item-liveness",
+          "verdict": "conformant",
+          "evidence": "scripts/lint/ruff-ratchet.mjs:34 Zero violations on an ignore rule indicates a dead entry that must be deleted."
+        },
+        {
+          "technique": "instrument-answers-only-its-own-question",
+          "verdict": "conformant",
+          "evidence": "scripts/lint/ts-ratchet.mjs:42 Avoids lexical grep for the word 'any' and instead gates on compiler directives and disable comments."
+        },
+        {
+          "technique": "gate-laddering",
+          "verdict": "conformant",
+          "evidence": "scripts/perf/sqlite-writer-knee.mjs:9 Places heavy load benchmarks as runnable standalone probes rather than blocking CI pipeline steps."
+        },
+        {
+          "technique": "excess-indicts-the-instrument",
+          "verdict": "conformant",
+          "evidence": "scripts/perf/devbench.mjs:34 Wide 35% tolerance threshold prevents machine noise from undermining gate trustworthiness."
+        }
+      ],
+      "registryProposal": "The standard's severity-by-construction and excess-indicts-the-instrument techniques should formalize the ratchet pawl protocol (undeclared, unexplained, grew, dead/zero, slack, met) where slack automatically triggers unattended ceiling reduction (--tighten) via CI autofix jobs without failing the build."
+    },
+    {
+      "context": "shared-api-utilities",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/_lib/api-response.ts:15 Shared API utilities provide HTTP JSON response helpers and rate limiting for web endpoints, not software engineering quality gate machinery.",
+      "techniques": []
+    }
+  ],
+  "declined": [
+    {
+      "subject": "quality-gates",
+      "context": "pipeline-api",
+      "reason": "withdrawn after review: reviewer (sonnet): The pipeline-api anchor (route.ts:31) is only a comment inside one GET handler, and its context holds authz-parity and execution-count tests that could be gate-like. The pipeline-move-bulk anchor (pipelineBoardPopulation.ts:39) is a population helper, and that file is not among the listed context fi"
+    },
+    {
+      "subject": "quality-gates",
+      "context": "pipeline-move-bulk-operations",
+      "reason": "withdrawn after review: reviewer (sonnet): The pipeline-api anchor (route.ts:31) is only a comment inside one GET handler, and its context holds authz-parity and execution-count tests that could be gate-like. The pipeline-move-bulk anchor (pipelineBoardPopulation.ts:39) is a population helper, and that file is not among the listed context fi"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-12T21:08:44.146429+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "quality-gates"
+      ],
+      "techniques": [
+        "blocking-by-input-determinism",
+        "decidable-in-a-window",
+        "enforcement-binding",
+        "fabrication-economics",
+        "false-positive-economics",
+        "gate-liveness",
+        "match-the-resolved-artifact",
+        "oracle-frozen-during-repair",
+        "prose-rule-drift",
+        "refusal-names-a-reachable-remedy",
+        "severity-by-construction",
+        "shared-substrate-check-partition",
+        "unparseable-form-is-a-finding",
+        "vacuous-by-evaluation",
+        "waiver-names-its-finding"
+      ],
+      "deviations": 0,
+      "context": "review-gates",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-12T21:08:44.146429+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "quality-gates"
+      ],
+      "techniques": [
+        "blocking-by-input-determinism",
+        "chokepoint-tag-registry",
+        "excess-indicts-the-instrument",
+        "false-positive-economics",
+        "gate-laddering",
+        "gate-liveness",
+        "instrument-answers-only-its-own-question",
+        "item-liveness",
+        "oracle-frozen-during-repair",
+        "prose-rule-drift",
+        "refusal-names-a-reachable-remedy",
+        "severity-by-construction",
+        "unmeasurable-criteria",
+        "unparseable-form-is-a-finding",
+        "vacuous-by-evaluation"
+      ],
+      "deviations": 0,
+      "context": "lint-quality-gates",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-12T21:08:44.146429+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "quality-gates"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "pipeline-api",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-12T21:08:44.146429+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "quality-gates"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "pipeline-move-bulk-operations",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-12T21:08:44.146429+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "quality-gates"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "shared-api-utilities",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    }
+  ]
+}

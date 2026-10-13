@@ -1,0 +1,418 @@
+{
+ "schema": "conform-run/1",
+ "worker": "bf8c6b43-98c6-46e5-a5a8-f414a1d8657a",
+ "subject": "client-fetch-cache",
+ "evaluatedAt": "2026-10-13T13:10:59.945477+00:00",
+ "provider": "agy",
+ "model": "gemini-3.8-flash-high",
+ "pairs": [
+  {
+   "context": "shared-api-utilities",
+   "subject": "client-fetch-cache",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/cache.ts:11 The shared prompt cache performs simple database lookups without in-flight request deduplication or stale-while-revalidate windows, allowing duplicate analysis workloads to run concurrently.",
+   "techniques": [
+    {
+     "technique": "cache-key-discipline",
+     "verdict": "conformant",
+     "evidence": "app/_lib/cache-key.ts:76 Computes canonical SHA-256 cache key using unambiguous length-framing across all answer-changing axes."
+    },
+    {
+     "technique": "in-flight-dedup",
+     "verdict": "deviation",
+     "evidence": "app/_lib/cache.ts:11 Lookup does not maintain an in-flight promise registry, so identical concurrent requests execute redundantly."
+    },
+    {
+     "technique": "swr-design",
+     "verdict": "deviation",
+     "evidence": "app/_lib/cache.ts:20 Stores cached analysis without fresh vs stale zone partitioning or background revalidation."
+    },
+    {
+     "technique": "admission-hypothesis",
+     "verdict": "deviation",
+     "evidence": "app/_lib/cache.ts:22 Admits all analysis payloads into the cache unconditionally without verifying an admission hypothesis."
+    },
+    {
+     "technique": "similarity-keyed-admission",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/cache-key.ts:77 Keys cache entries using exact SHA-256 cryptographic hashes rather than resemblance metrics or similarity cut-points."
+    },
+    {
+     "technique": "warm-remount-caches",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/cache.ts:9 Operates in server process scope and does not manage client-side UI view mount lifecycles."
+    },
+    {
+     "technique": "parse-and-derive-caches",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/cache-key.ts:86 Length-framed field serialization is computed synchronously during key generation without a derivation cache."
+    },
+    {
+     "technique": "prefetch-and-defer",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/og-fonts.ts:37 Font loading executes on demand for OG image generation without client intent prefetching or idle deferral."
+    },
+    {
+     "technique": "plural-policy-claims",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/rate-limit.ts:44 Server utilities execute single policy configurations per route without multiple competing client readers."
+    },
+    {
+     "technique": "portable-read-definitions",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/cache.ts:7 Re-exports server cache key derivation functions rather than client-portable read definition triples."
+    },
+    {
+     "technique": "sibling-entry-warmth",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/cache.ts:13 Analysis cache operates on standalone analysis hashes with no concept of list vs detail sibling borrowing."
+    }
+   ],
+   "registryProposal": "Techniques like cache-key-discipline and admission-hypothesis apply equally to server-side prompt/response caches; clarifying boundaries between client fetch wrappers and server request caches would eliminate taxonomy ambiguity."
+  },
+  {
+   "context": "llm-inference-runtime",
+   "subject": "client-fetch-cache",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/reasoning-run.ts:146 The LLM reasoning runner executes match reasoning without in-flight request deduplication, allowing concurrent identical reasoning requests to miss the prompt cache and trigger duplicate Python subprocess spawns.",
+   "techniques": [
+    {
+     "technique": "admission-hypothesis",
+     "verdict": "conformant",
+     "evidence": "app/_lib/reasoning-cache-policy.ts:18 Admits only authoritative LLM verdicts to the cache and withholds deterministic template fallbacks."
+    },
+    {
+     "technique": "cache-key-discipline",
+     "verdict": "conformant",
+     "evidence": "app/_lib/reasoning-cache-key.ts:52 Builds a pure SHA-256 key from six answer-changing axes including prompt version, content hashes, locale, and workspace tenancy."
+    },
+    {
+     "technique": "in-flight-dedup",
+     "verdict": "deviation",
+     "evidence": "app/_lib/reasoning-run.ts:146 Runtime executes reasoning without an in-flight promise registry, allowing concurrent identical reasoning calls to spawn redundant Python subprocesses."
+    },
+    {
+     "technique": "swr-design",
+     "verdict": "deviation",
+     "evidence": "app/_lib/reasoning-run.ts:186 Cached verdicts are stored under a fixed TTL with no stale-while-revalidate zone partitioning or background revalidation."
+    },
+    {
+     "technique": "similarity-keyed-admission",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/reasoning-cache-key.ts:84 Keys cache entries on exact cryptographic hashes rather than semantic similarity or embedding resemblance metrics."
+    },
+    {
+     "technique": "warm-remount-caches",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/reasoning-run.ts:105 Subprocess runner handles server-side inference requests and does not manage client-side UI view mount lifecycles."
+    },
+    {
+     "technique": "parse-and-derive-caches",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/reasoning-cache-key.ts:42 Computes job payload digest synchronously without a memoized parse/derivation cache."
+    },
+    {
+     "technique": "prefetch-and-defer",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/reasoning-run.ts:113 Reasoning execution is triggered synchronously on API invocation with no client intent prefetch or idle deferral."
+    },
+    {
+     "technique": "plural-policy-claims",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/reasoning-cache-policy.ts:16 Reasoning cache policy is declared once globally rather than reconciling divergent claims across multiple client readers."
+    },
+    {
+     "technique": "portable-read-definitions",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/reasoning-run.ts:132 Reasoning cache key construction is invoked directly inside the server orchestrator rather than bound to a portable client read definition."
+    },
+    {
+     "technique": "sibling-entry-warmth",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/reasoning-run.ts:122 Loads full job records for corpus fingerprinting rather than borrowing fields from sibling client cache entries."
+    }
+   ]
+  },
+  {
+   "context": "ui-recipes-and-layout",
+   "subject": "client-fetch-cache",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/_components/ui/Defer.tsx:22 Searched app/_components/ui/ for client-fetch-cache vocabulary ('swr', 'staleWhileRevalidate', 'in-flight', 'prefetch') which returned 0 hits, confirming that ui-recipes-and-layout is strictly a design-token, UI accessibility, and DOM-commit deferral layer that performs no data fetching from an authority.",
+   "techniques": [
+    {
+     "technique": "prefetch-and-defer",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/ui/Defer.tsx:22 Defer component stages the DOM commit of already rendered children via requestIdleCallback without performing or scheduling network fetches."
+    },
+    {
+     "technique": "swr-design",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/ui/Defer.tsx:21 Context lacks network fetch handling and authority data storage, so stale-while-revalidate freshness zones do not apply."
+    },
+    {
+     "technique": "warm-remount-caches",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/ui/defer-policy.ts:14 Defers DOM tree insertion based on frame/idle/visible strategies rather than caching authority responses across route unmounts."
+    },
+    {
+     "technique": "cache-key-discipline",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/ui/recipes.ts:25 Context exports static Tailwind recipe strings with no cache key generation or hashing."
+    },
+    {
+     "technique": "in-flight-dedup",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/ui/Defer.tsx:56 Evaluates immediate DOM commit flags without network request dispatching or in-flight deduplication."
+    },
+    {
+     "technique": "parse-and-derive-caches",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/ui/useDateFormat.ts:36 Delegates date formatting to next-intl context without managing content-identity derivation caches."
+    },
+    {
+     "technique": "admission-hypothesis",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/ui/LoadingGap.tsx:36 Placeholder gap component serves purely as an accessible loading visual without caching or admission logic."
+    },
+    {
+     "technique": "similarity-keyed-admission",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/ui/defer-policy.ts:18 Layout viewport margins govern element visibility thresholds rather than similarity metrics for response admission."
+    },
+    {
+     "technique": "plural-policy-claims",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/ui/useTablist.ts:32 UI tablist hook manages local keyboard focus across tabs without reconciling multi-claimant cache policies."
+    },
+    {
+     "technique": "portable-read-definitions",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/ui/useTheme.ts:11 Subscribes to client theme store via useSyncExternalStore rather than binding network fetch queries or cache options."
+    },
+    {
+     "technique": "sibling-entry-warmth",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/ui/SectionTitle.tsx:11 Presentation title component renders heading text with CSS styling without referencing listing or detail cache entries."
+    }
+   ],
+   "absenceTerms": [
+    "swr",
+    "staleWhileRevalidate",
+    "in-flight",
+    "prefetch"
+   ]
+  },
+  {
+   "context": "matrix-grid",
+   "subject": "client-fetch-cache",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/insights/matrix/useMatrixTab.ts:84 The candidate-job matrix stores fetched grid data in component state without a module-scoped cache, forcing the view to mount cold with a loading placeholder on every tab return.",
+   "techniques": [
+    {
+     "technique": "warm-remount-caches",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/matrix/useMatrixTab.ts:84 Stores matrix grid data in component state which is destroyed on unmount, resulting in cold remounts instead of module-scoped warm paints."
+    },
+    {
+     "technique": "swr-design",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/matrix/useMatrixTab.ts:130 Direct fetch call lacks fresh window and stale ceiling boundaries, providing no background revalidation over cached data."
+    },
+    {
+     "technique": "in-flight-dedup",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/matrix/useMatrixTab.ts:397 Reasoning request deduplication is scoped to a component ref rather than the fetch layer, and closing the popover aborts the flight directly."
+    },
+    {
+     "technique": "cache-key-discipline",
+     "verdict": "conformant",
+     "evidence": "app/features/insights/matrix/matrixSelection.ts:38 Defines canonical reasoning cache keys across candidate, position, and narrative locale axes to prevent stale-language cache collisions."
+    },
+    {
+     "technique": "parse-and-derive-caches",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/matrix/useMatrixTab.ts:257 Complex row sorting and fit floor calculations rely on React useMemo tied to component lifecycle rather than a bounded derivation cache."
+    },
+    {
+     "technique": "prefetch-and-defer",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/matrix/MatrixTab.tsx:268 Displays a quiet loading gap during initial fetch instead of prefetching matrix data on intent or deferring heavy calculations to idle time."
+    },
+    {
+     "technique": "portable-read-definitions",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/matrix/matrixReasoningFetch.ts:43 Reasoning fetcher handles network communication imperatively without bundling the cache key and default policies into a portable read definition."
+    },
+    {
+     "technique": "sibling-entry-warmth",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/matrix/useMatrixTab.ts:461 Popover click initiates a full remote reasoning fetch without borrowing summary score, knockout, or match context already present in the matrix cell."
+    }
+   ]
+  },
+  {
+   "context": "analytics-dashboard",
+   "subject": "client-fetch-cache",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/insights/analytics/AnalyticsTab.tsx:96 The analytics dashboard consumes server metrics via useJsonFetch which stores data in component state without a module-scoped cache, resetting to null and causing a cold loading gap on every navigation return.",
+   "techniques": [
+    {
+     "technique": "warm-remount-caches",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/analytics/AnalyticsTab.tsx:96 Analytics data is bound to component lifecycle via useJsonFetch; navigating away unmounts the tab, discarding data and forcing a cold remount."
+    },
+    {
+     "technique": "swr-design",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/analytics/AnalyticsTab.tsx:121 Renders aria-busy while data is absent and lacks stale-while-revalidate freshness zones or background revalidation."
+    },
+    {
+     "technique": "in-flight-dedup",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/analytics/AnalyticsTab.tsx:69 Changing cohort window replaces the URL and refires useJsonFetch without joining identical in-flight network requests."
+    },
+    {
+     "technique": "cache-key-discipline",
+     "verdict": "conformant",
+     "evidence": "app/features/insights/analytics/analyticsJobScope.ts:58 Serializes days and job parameters canonically into URL query parameters, ensuring equivalent arguments map to identical request keys."
+    },
+    {
+     "technique": "portable-read-definitions",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/analytics/AnalyticsTab.tsx:17 Separates URL key formatting from the fetcher and component consumer rather than declaring a portable read triple callable across server and client boundaries."
+    },
+    {
+     "technique": "prefetch-and-defer",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/analytics/AnalyticsTab.tsx:151 Falls back to an unpopulated loading gap on initial mount rather than prefetching analytics on navigation intent or deferring secondary panels to idle."
+    },
+    {
+     "technique": "parse-and-derive-caches",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/analytics/AnalyticsTab.tsx:113 Calculates funnel maximum and conversion deltas on component render passes without an identity-keyed derivation cache."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-13T13:10:59.945477+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "client-fetch-cache"
+   ],
+   "techniques": [
+    "admission-hypothesis",
+    "cache-key-discipline",
+    "in-flight-dedup",
+    "parse-and-derive-caches",
+    "plural-policy-claims",
+    "portable-read-definitions",
+    "prefetch-and-defer",
+    "sibling-entry-warmth",
+    "similarity-keyed-admission",
+    "swr-design",
+    "warm-remount-caches"
+   ],
+   "deviations": 1,
+   "context": "shared-api-utilities",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-13T13:10:59.945477+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "client-fetch-cache"
+   ],
+   "techniques": [
+    "admission-hypothesis",
+    "cache-key-discipline",
+    "in-flight-dedup",
+    "parse-and-derive-caches",
+    "plural-policy-claims",
+    "portable-read-definitions",
+    "prefetch-and-defer",
+    "sibling-entry-warmth",
+    "similarity-keyed-admission",
+    "swr-design",
+    "warm-remount-caches"
+   ],
+   "deviations": 1,
+   "context": "llm-inference-runtime",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-13T13:10:59.945477+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "client-fetch-cache"
+   ],
+   "techniques": [
+    "admission-hypothesis",
+    "cache-key-discipline",
+    "in-flight-dedup",
+    "parse-and-derive-caches",
+    "plural-policy-claims",
+    "portable-read-definitions",
+    "prefetch-and-defer",
+    "sibling-entry-warmth",
+    "similarity-keyed-admission",
+    "swr-design",
+    "warm-remount-caches"
+   ],
+   "deviations": 0,
+   "context": "ui-recipes-and-layout",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-13T13:10:59.945477+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "client-fetch-cache"
+   ],
+   "techniques": [
+    "cache-key-discipline",
+    "in-flight-dedup",
+    "parse-and-derive-caches",
+    "portable-read-definitions",
+    "prefetch-and-defer",
+    "sibling-entry-warmth",
+    "swr-design",
+    "warm-remount-caches"
+   ],
+   "deviations": 1,
+   "context": "matrix-grid",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-13T13:10:59.945477+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "client-fetch-cache"
+   ],
+   "techniques": [
+    "cache-key-discipline",
+    "in-flight-dedup",
+    "parse-and-derive-caches",
+    "portable-read-definitions",
+    "prefetch-and-defer",
+    "swr-design",
+    "warm-remount-caches"
+   ],
+   "deviations": 1,
+   "context": "analytics-dashboard",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  }
+ ]
+}

@@ -1,0 +1,240 @@
+{
+  "schema": "conform-run/1",
+  "worker": "6722369d-d615-4671-830b-6d926a031895",
+  "subject": "fleet-orchestration",
+  "evaluatedAt": "2026-10-13T09:52:14.483182+00:00",
+  "provider": "agy",
+  "model": "gemini-3.8-flash-high",
+  "pairs": [
+    {
+      "context": "devcase-orchestration",
+      "subject": "fleet-orchestration",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/_lib/devcase-orchestrator.ts:76 The devcase module manages candidate take-home assessment workflow stages and editorial review rather than an autonomous agent fleet, so fleet orchestration techniques do not apply.",
+      "techniques": [
+        {
+          "technique": "session-registry",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/devcase-transitions.ts:54 Manages candidate devcase editorial stages rather than fleet agent sessions."
+        },
+        {
+          "technique": "parallel-dispatch",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/devcase-orchestrator.ts:99 Pass limit governs polling passes over human candidate submissions rather than concurrent agent workers."
+        },
+        {
+          "technique": "completion-claim-verification",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/devcase-orchestrator.ts:42 Governs candidate benchmark score promotion rather than agent completion receipts."
+        },
+        {
+          "technique": "soft-budget-under-the-hard-cap",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/devcase-timebox.ts:24 Enforces human assessment SLA window rather than agent model turn or token budgets."
+        }
+      ],
+      "absenceTerms": [
+        "substrate",
+        "hibernation",
+        "worker-trajectory",
+        "heterogeneous-model"
+      ]
+    },
+    {
+      "context": "interview-simulator",
+      "subject": "fleet-orchestration",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/_lib/interview-sim/types.ts:24 The interview simulator is an in-memory evaluation test harness validating conversational voice director policies against synthetic personas rather than a runtime fleet of autonomous agent workers.",
+      "techniques": [
+        {
+          "technique": "session-registry",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/interview-sim/types.ts:82 In-memory simulation result termination reason, not a fleet session registry entry."
+        },
+        {
+          "technique": "parallel-dispatch",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/interview-sim/runner.ts:226 Sim test batch worker pool sizing over static evaluation fixtures rather than fleet session parallel dispatch."
+        },
+        {
+          "technique": "soft-budget-under-the-hard-cap",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/interview-sim/types.ts:85 Sim trajectory call count meter rather than model-driven loop dual budget."
+        },
+        {
+          "technique": "lifecycle-signals",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/interview-sim/clock.ts:44 Synthetic frozen epoch used for deterministic in-memory simulation clock instead of real-time lifecycle sweeper."
+        }
+      ],
+      "absenceTerms": [
+        "fleet",
+        "substrate",
+        "hibernation",
+        "worker-trajectory"
+      ]
+    },
+    {
+      "context": "agents-api",
+      "subject": "fleet-orchestration",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/api/agents/dispatch/spec-bounds.ts:26 The agents dispatch endpoint enforces a hard model turn ceiling without provisioning a derived soft budget in worker specifications or measuring cap-fired rates.",
+      "techniques": [
+        {
+          "technique": "soft-budget-under-the-hard-cap",
+          "verdict": "deviation",
+          "evidence": "app/api/agents/dispatch/spec-bounds.ts:26 Enforces an upper ceiling of 1000 model turns without a smaller soft budget derived from it for graceful worker self-termination."
+        },
+        {
+          "technique": "outbound-compute-plane",
+          "verdict": "conformant",
+          "evidence": "app/api/agents/report/[token]/route.ts:13 Workers run on external compute and report status inbound via an unguessable CSPRNG token route rather than requiring direct control-plane ingress."
+        },
+        {
+          "technique": "session-registry",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/agents.ts:373 Defines agent status transitions but does not track process incarnation tokens, generation fencing, or resource leases."
+        },
+        {
+          "technique": "lifecycle-signals",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/agents.ts:46 Stores report timestamp for reachability but lacks an active background sweeper that transitions silent agents from alive to suspected or lost."
+        },
+        {
+          "technique": "parallel-dispatch",
+          "verdict": "deviation",
+          "evidence": "app/api/agents/dispatch/mint.ts:27 Applies client IP rate limiting to agent minting without checking fleet-wide concurrency caps or write scope collision domains."
+        }
+      ]
+    },
+    {
+      "context": "shell-setup-wizard",
+      "subject": "fleet-orchestration",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/features/shell/setup/setupSteps.ts:51 The setup wizard is an interactive UI client onboarding flow that guides an operator through workspace configuration rather than managing an autonomous agent fleet.",
+      "techniques": [
+        {
+          "technique": "hibernation-and-resume",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/setup/setupDraft.ts:27 Browser localStorage form draft caching for UI onboarding rather than fleet session hibernation."
+        },
+        {
+          "technique": "session-registry",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/setup/setupSteps.ts:88 Selects relevant UI wizard form step list for the user rather than maintaining a fleet session registry."
+        },
+        {
+          "technique": "lifecycle-signals",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/setup/onboardingReopen.ts:28 Dispatches browser window DOM event to reopen UI onboarding flow rather than agent lifecycle signals."
+        }
+      ],
+      "absenceTerms": [
+        "fleet",
+        "concurrency",
+        "staleness",
+        "substrate"
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "fleet-orchestration",
+      "context": "task-automation-engine",
+      "reason": "withdrawn after review: reviewer (sonnet): The tasks are in-process handlers with no external executor or heartbeat, so the claim 'without querying external executor heartbeat signals' doesn't fit task-maintenance.ts:46. isTaskStale is a watchdog and orphan reaper that skips rows with a live in-process controller. The task-poll-state.ts:62 t"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-13T09:52:14.483182+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "fleet-orchestration"
+      ],
+      "techniques": [
+        "completion-claim-verification",
+        "parallel-dispatch",
+        "session-registry",
+        "soft-budget-under-the-hard-cap"
+      ],
+      "deviations": 0,
+      "context": "devcase-orchestration",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-13T09:52:14.483182+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "fleet-orchestration"
+      ],
+      "techniques": [
+        "lifecycle-signals",
+        "parallel-dispatch",
+        "session-registry",
+        "soft-budget-under-the-hard-cap"
+      ],
+      "deviations": 0,
+      "context": "interview-simulator",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-13T09:52:14.483182+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "fleet-orchestration"
+      ],
+      "techniques": [
+        "absent-status-passthrough",
+        "durable-fleet-state",
+        "evidence-outranks-a-liveness-claim",
+        "parallel-dispatch",
+        "session-registry",
+        "soft-budget-under-the-hard-cap"
+      ],
+      "deviations": 1,
+      "context": "task-automation-engine",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-13T09:52:14.483182+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "fleet-orchestration"
+      ],
+      "techniques": [
+        "lifecycle-signals",
+        "outbound-compute-plane",
+        "parallel-dispatch",
+        "session-registry",
+        "soft-budget-under-the-hard-cap"
+      ],
+      "deviations": 1,
+      "context": "agents-api",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-13T09:52:14.483182+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "fleet-orchestration"
+      ],
+      "techniques": [
+        "hibernation-and-resume",
+        "lifecycle-signals",
+        "session-registry"
+      ],
+      "deviations": 0,
+      "context": "shell-setup-wizard",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    }
+  ]
+}

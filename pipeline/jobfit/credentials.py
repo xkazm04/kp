@@ -10,7 +10,14 @@ This adds a cheap, deterministic safety net (mirroring ``authenticity_checks``):
 
   * required-but-missing — the JD names a regulated licence the candidate's
     credentials do not include;
-  * expiry — a *regulated* credential carries a date that has already passed.
+  * expiry — a *regulated* credential carries a date that has already passed;
+  * held-but-unstated — the model lists a JD-required licence as held, but the CV's
+    own text names it nowhere. The "held" side of the gate used to read the model's
+    credential list alone, and that list is produced in the same call that reads the
+    JD: a live probe (2026-10-13) returned "Registered Nurse (RN)", issuer "State
+    Board of Nursing", for a CV that says only "ICU nurse" against a JD requiring an
+    RN license, which silenced the required-but-missing flag. A credential is only
+    as good as the document that states it, so the cue must appear in the CV text.
 
 Findings are emitted as ``Credential: …(manual review)`` sentences folded into the
 existing sanity-check trust ledger, independent of whether the LLM flagged them.
@@ -101,29 +108,62 @@ def _expiry(cred: Any) -> str:
     return str((cred.get("expiry") if isinstance(cred, dict) else getattr(cred, "expiry", "")) or "")
 
 
+def _identifier(cred: Any) -> str:
+    return str((cred.get("identifier") if isinstance(cred, dict) else getattr(cred, "identifier", "")) or "")
+
+
+def _stated_in(cv_text: str, name_res: tuple[re.Pattern[str], ...], held: list[Any]) -> bool:
+    """True when the CV text itself names the licence: one of its cues, or a held
+    entry's licence number verbatim (an identifier short enough to be a stray token
+    does not count)."""
+    if any(nr.search(cv_text) for nr in name_res):
+        return True
+    ids = [_identifier(c).strip() for c in held]
+    return any(len(i) >= 4 and i.lower() in cv_text.lower() for i in ids)
+
+
 def credential_checks(
     job_description_text: str | None,
     credentials: list[Any] | None,
     *,
     today: date | None = None,
+    cv_text: str | None = None,
 ) -> list[str]:
     """Return ``Credential: …(manual review)`` findings. Empty when nothing to flag
-    (credentials are not always relevant, so there is no positive 'clean' line)."""
+    (credentials are not always relevant, so there is no positive 'clean' line).
+
+    ``cv_text`` is the CV's own text. When it is given, a JD-required licence counts
+    as held only if the text states it too; when it is absent or blank (a scanned
+    file nothing could read) the held-but-unstated check is skipped rather than
+    raised on noise."""
     today = today or date.today()
     creds = credentials or []
-    held_names = [_name(c) for c in creds if _name(c)]
     flags: list[str] = []
 
     jd = job_description_text or ""
+    cv = cv_text or ""
     for jd_re, label, name_res in _LICENCE_SPECS:
         # Required-but-missing: JD demands this licence and no held credential names it.
         if jd and jd_re.search(jd):
-            if not any(any(nr.search(n) for nr in name_res) for n in held_names):
+            held = [c for c in creds if _name(c) and any(nr.search(_name(c)) for nr in name_res)]
+            if not held:
                 flags.append(
                     Finding(
                         f"Credential: the role appears to require a {label}, not found in the "
                         f"candidate's credentials — verify before advancing (manual review).",
                         code="credential_missing",
+                        severity="warn",
+                        scope="credential",
+                        value=label,
+                    )
+                )
+            elif cv.strip() and not _stated_in(cv, name_res, held):
+                flags.append(
+                    Finding(
+                        f"Credential: the analysis lists '{_name(held[0])}' for the required "
+                        f"{label}, but the CV text does not state it — verify before "
+                        f"advancing (manual review).",
+                        code="credential_unstated",
                         severity="warn",
                         scope="credential",
                         value=label,

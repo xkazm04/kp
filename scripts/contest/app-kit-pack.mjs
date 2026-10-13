@@ -119,7 +119,7 @@ export function pickRules(css, keep) {
 
 /** A selector keeper: any class in the list, as a whole class or with a suffix (`k-btn` keeps `.k-btn--sm`). */
 export const byClass = (prefixes) => {
-  const re = new RegExp(`\\.(?:${prefixes.map((p) => p.replace(/[-]/g, "\\-")).join("|")})(?![a-zA-Z0-9])`);
+  const re = new RegExp(`\\.(?:${prefixes.map((p) => p.replace(/[\\^$.*+?()[\]{}|-]/g, "\\$&")).join("|")})(?![a-zA-Z0-9])`);
   return (sel) => re.test(sel);
 };
 
