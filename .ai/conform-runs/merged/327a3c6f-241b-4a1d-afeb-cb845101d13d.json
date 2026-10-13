@@ -1,0 +1,132 @@
+{
+ "schema": "conform-run/1",
+ "worker": "327a3c6f-241b-4a1d-afeb-cb845101d13d",
+ "subject": "supply-chain",
+ "evaluatedAt": "2026-10-13T10:32:04.889289+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "review-gates",
+   "subject": "supply-chain",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "scripts/review/constitution-check.mjs:429 The diff credential detector applies directory-wide exemptions inherited from the shared scanner, allowing matching credentials in exempt paths to bypass review.",
+   "techniques": [
+    {
+     "technique": "secret-scanning-architecture",
+     "verdict": "deviation",
+     "evidence": "scripts/review/constitution-check.mjs:429 The imported exemption predicate excludes all docs/, README files, and security/review script directories; the standard requires individual finding fingerprints instead of blanket paths."
+    },
+    {
+     "technique": "unsafe-deserialization-off-by-default",
+     "verdict": "not-applicable",
+     "evidence": "scripts/review/gate-check.mjs:338 The inspected configuration loader reads data-only JSON, not a model/checkpoint or executable-object format."
+    }
+   ]
+  },
+  {
+   "context": "security-agent-gates",
+   "subject": "supply-chain",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "scripts/security/secret-scan.mjs:98 The credential scanner exempts an entire directory, so a real credential placed anywhere under docs bypasses detection despite the standard's finding-specific exemption requirement.",
+   "techniques": [
+    {
+     "technique": "reading-is-not-running",
+     "verdict": "conformant",
+     "evidence": "scripts/security/check-actions.mjs:590 The offline workflow scanner reads source as text through the shared static reader; the credential scanner likewise inspects text rather than evaluating scanned files."
+    },
+    {
+     "technique": "secret-scanning-architecture",
+     "verdict": "deviation",
+     "evidence": "scripts/security/secret-scan.mjs:114 Exemptions are blanket path patterns rather than finding fingerprints; the fixtures explicitly expect credential-shaped content in exempt files to yield no findings."
+    },
+    {
+     "technique": "unsafe-deserialization-off-by-default",
+     "verdict": "not-applicable",
+     "evidence": "scripts/security/check-actions.mjs:150 The inspected policy loader reads JSON, not a saved model or executable-object serialization."
+    }
+   ]
+  },
+  {
+   "context": "release-pipeline",
+   "subject": "supply-chain",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "scripts/deploy/check-chart.mjs:281 The permission guard checks textual mentions rather than applied security contexts, allowing both applications to disappear while retained comment references keep every chart policy passing.",
+   "techniques": [
+    {
+     "technique": "permission-manifest-scoping",
+     "verdict": "deviation",
+     "evidence": "scripts/deploy/check-chart.mjs:281 An in-memory probe replaced both toYaml security-context applications with Helm comments retaining the variable names; runPolicies still returned zero findings."
+    },
+    {
+     "technique": "unsafe-deserialization-off-by-default",
+     "verdict": "not-applicable",
+     "evidence": "scripts/release/sbom.mjs:253 The inspected manifest loader reads data-only JSON, rather than a saved model or executable-object format."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "supply-chain",
+   "context": "decisions-screen-wave-logic",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "supply-chain",
+   "context": "jobseeker-sources-scans",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-13T10:32:04.889289+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "supply-chain"
+   ],
+   "techniques": [
+    "secret-scanning-architecture",
+    "unsafe-deserialization-off-by-default"
+   ],
+   "deviations": 1,
+   "context": "review-gates",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-13T10:32:04.889289+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "supply-chain"
+   ],
+   "techniques": [
+    "reading-is-not-running",
+    "secret-scanning-architecture",
+    "unsafe-deserialization-off-by-default"
+   ],
+   "deviations": 1,
+   "context": "security-agent-gates",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-13T10:32:04.889289+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "supply-chain"
+   ],
+   "techniques": [
+    "permission-manifest-scoping",
+    "unsafe-deserialization-off-by-default"
+   ],
+   "deviations": 1,
+   "context": "release-pipeline",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

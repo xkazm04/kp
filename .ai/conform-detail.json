@@ -2861,6 +2861,74 @@
           "evidence": "app/features/shell/setup/onboardingReopen.ts:28 Dispatches browser window DOM event to reopen UI onboarding flow rather than agent lifecycle signals."
         }
       ]
+    },
+    "de71aa9b-3319-42bc-8b1f-cc8e185ebebe/supply-chain": {
+      "context": "review-gates",
+      "subject": "supply-chain",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T10:32:04.889Z",
+      "worker": "327a3c6f-241b-4a1d-afeb-cb845101d13d",
+      "techniques": [
+        {
+          "technique": "secret-scanning-architecture",
+          "verdict": "deviation",
+          "evidence": "scripts/review/constitution-check.mjs:429 The imported exemption predicate excludes all docs/, README files, and security/review script directories; the standard requires individual finding fingerprints instead of blanket paths."
+        },
+        {
+          "technique": "unsafe-deserialization-off-by-default",
+          "verdict": "not-applicable",
+          "evidence": "scripts/review/gate-check.mjs:338 The inspected configuration loader reads data-only JSON, not a model/checkpoint or executable-object format."
+        }
+      ]
+    },
+    "e6d77461-4869-4190-bfcb-a5cf7fec1162/supply-chain": {
+      "context": "security-agent-gates",
+      "subject": "supply-chain",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T10:32:04.889Z",
+      "worker": "327a3c6f-241b-4a1d-afeb-cb845101d13d",
+      "techniques": [
+        {
+          "technique": "reading-is-not-running",
+          "verdict": "conformant",
+          "evidence": "scripts/security/check-actions.mjs:590 The offline workflow scanner reads source as text through the shared static reader; the credential scanner likewise inspects text rather than evaluating scanned files."
+        },
+        {
+          "technique": "secret-scanning-architecture",
+          "verdict": "deviation",
+          "evidence": "scripts/security/secret-scan.mjs:114 Exemptions are blanket path patterns rather than finding fingerprints; the fixtures explicitly expect credential-shaped content in exempt files to yield no findings."
+        },
+        {
+          "technique": "unsafe-deserialization-off-by-default",
+          "verdict": "not-applicable",
+          "evidence": "scripts/security/check-actions.mjs:150 The inspected policy loader reads JSON, not a saved model or executable-object serialization."
+        }
+      ]
+    },
+    "7b5da07d-0f32-47ad-be88-61179442c8b4/supply-chain": {
+      "context": "release-pipeline",
+      "subject": "supply-chain",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T10:32:04.889Z",
+      "worker": "327a3c6f-241b-4a1d-afeb-cb845101d13d",
+      "techniques": [
+        {
+          "technique": "permission-manifest-scoping",
+          "verdict": "deviation",
+          "evidence": "scripts/deploy/check-chart.mjs:281 An in-memory probe replaced both toYaml security-context applications with Helm comments retaining the variable names; runPolicies still returned zero findings."
+        },
+        {
+          "technique": "unsafe-deserialization-off-by-default",
+          "verdict": "not-applicable",
+          "evidence": "scripts/release/sbom.mjs:253 The inspected manifest loader reads data-only JSON, rather than a saved model or executable-object format."
+        }
+      ]
     }
   }
 }

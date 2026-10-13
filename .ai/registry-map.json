@@ -25417,7 +25417,11 @@
           "revision": 6,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/deploy/check-chart.mjs:281 The permission guard checks textual mentions rather than applied security contexts, allowing both applications to disappear while retained comment references keep every chart policy passing.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:f5666db1094acd9f",
+          "evaluatedRevision": 6
         },
         {
           "subject": "test-harness",
@@ -25839,7 +25843,11 @@
           "revision": 6,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/review/constitution-check.mjs:429 The diff credential detector applies directory-wide exemptions inherited from the shared scanner, allowing matching credentials in exempt paths to bypass review.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:f5666db1094acd9f",
+          "evaluatedRevision": 6
         },
         {
           "subject": "agent-memory",
@@ -26861,7 +26869,11 @@
           "revision": 6,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/security/secret-scan.mjs:98 The credential scanner exempts an entire directory, so a real credential placed anywhere under docs bypasses detection despite the standard's finding-specific exemption requirement.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:f5666db1094acd9f",
+          "evaluatedRevision": 6
         },
         {
           "subject": "agent-runtime-assembly",
