@@ -1,0 +1,496 @@
+{
+ "schema": "conform-run/1",
+ "worker": "59e4fc46-3d44-49bf-beec-ac6719e4df6e",
+ "subject": "test-harness",
+ "evaluatedAt": "2026-10-12T19:51:46.311382+00:00",
+ "provider": "grok",
+ "model": "grok-4.7",
+ "pairs": [
+  {
+   "context": "e2e-suite",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "e2e/quality-tables.spec.ts:100 The Playwright lane shares one server and one SQLite file, so one spec's read of the sealed chain can be satisfied by another spec's write.",
+   "techniques": [
+    {
+     "technique": "assert-through-the-reader",
+     "verdict": "not-applicable",
+     "evidence": "e2e/locale-smoke.spec.ts:23 The reader of the catalog strings is the product page itself, which this technique excludes."
+    },
+    {
+     "technique": "configuration-axes-cross-the-ladder",
+     "verdict": "conformant",
+     "evidence": "e2e/shell.spec.ts:82 Each of en/cs/de/fr is its own test, so a locale split is a separate result; dark theme is a separate test."
+    },
+    {
+     "technique": "context-starved-executor",
+     "verdict": "deviation",
+     "evidence": "e2e/shell-tab-state.spec.ts:23 Journeys address known roles and names. Nothing in e2e is a prose journey run by an executor denied the checkout and the checks."
+    },
+    {
+     "technique": "derived-selection-must-be-measured",
+     "verdict": "not-applicable",
+     "evidence": "playwright.config.ts:52 Keyless membership is an explicit name list, not tags derived from file text."
+    },
+    {
+     "technique": "far-side-oracle",
+     "verdict": "not-applicable",
+     "evidence": "e2e/journey-role-to-schedule.spec.ts:17 The journey's effect is computed and read back inside kp; there is no foreign host to observe."
+    },
+    {
+     "technique": "fixture-economics",
+     "verdict": "deviation",
+     "evidence": "e2e/quality-tables.spec.ts:100 One shared database is mutated by every spec. The cheap private copy is not what this lane spends."
+    },
+    {
+     "technique": "flake-lifecycle",
+     "verdict": "deviation",
+     "evidence": "playwright.config.ts:105 CI retries once so a flake does not block the release. That is a retry that salvages the run rather than a flake that still fails."
+    },
+    {
+     "technique": "gate-scope-is-not-report-scope",
+     "verdict": "deviation",
+     "evidence": "e2e/public-pages.spec.ts:19 The file header says this is everything the sitemap indexes except '/'. The population is a handwritten list, so a new sitemap URL does not fail the spec."
+    },
+    {
+     "technique": "history-driven-partitioning",
+     "verdict": "deviation",
+     "evidence": "playwright.config.ts:113 CI splits the suite across two workers. Nothing in the config records per-test duration or assigns longest-first."
+    },
+    {
+     "technique": "isolation-lanes",
+     "verdict": "deviation",
+     "evidence": "e2e/quality-tables.spec.ts:95 The singleton database is documented and still shared by parallel workers. The lane is not declared serial."
+    },
+    {
+     "technique": "live-app-harness",
+     "verdict": "deviation",
+     "evidence": "playwright.config.ts:126 The suite's own server is next dev. journey-role-to-schedule.spec.ts says the same journey fails against next dev and passes against the production server."
+    },
+    {
+     "technique": "long-lane-certification",
+     "verdict": "not-applicable",
+     "evidence": "playwright.config.ts:114 The lane's ceiling is two minutes per test, not an hours-long statistical certification."
+    },
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "not-applicable",
+     "evidence": "e2e/shell.spec.ts:9 The shell contract is checked on a real response. The technique says to execute the site when the lane can."
+    },
+    {
+     "technique": "platform-quirk-absorption",
+     "verdict": "conformant",
+     "evidence": "playwright.config.ts:100 A committed test.only exits 0 after skipping the rest. CI turns that into a failed run at the one config every CI invocation uses."
+    },
+    {
+     "technique": "recorded-interaction-fixtures",
+     "verdict": "deviation",
+     "evidence": "e2e/fixtures/mock-personas-bridge.ts:9 App-master hire is a handwritten mock of a service the suite never records and never re-certifies live, so an upstream change cannot turn the lane red."
+    },
+    {
+     "technique": "suite-partitioning",
+     "verdict": "deviation",
+     "evidence": "playwright.config.ts:36 Dev-server and production-server runs, and the keyless file filter, are switches inside one Playwright config rather than one configuration file per suite."
+    },
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "conformant",
+     "evidence": "e2e/quality-tables.spec.ts:109 The spec refuses a chain count a sibling could have produced and waits until its own entry id is in the payload."
+    }
+   ],
+   "registryProposal": "live-app-harness requires a test-only control endpoint that production must not contain. A browser lane that drives the shipped UI has no way to meet that rule without adding the door the technique forbids, and the golden path already places that lane on the end-to-end rung rather than live-app."
+  },
+  {
+   "context": "tests-llm-eval",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/tests/test_byom_coverage.py:78 The literal resolve_provider scan counts every pipeline Python file, tests included, so a fixture or a docstring that spells the call is evidence about production.",
+   "techniques": [
+    {
+     "technique": "approval-snapshots-with-guarded-update",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_thresholds.py:352 Record mode is a CLI flag, and test_record_refuses_to_run_in_ci proves a CI environment exits 2 and leaves the record bytes unchanged."
+    },
+    {
+     "technique": "configuration-axes-cross-the-ladder",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_llm_offline.py:3 KP_OFFLINE is applied and cleared per provider inside the file, so both cells of that axis are asserted rather than reported as one run."
+    },
+    {
+     "technique": "context-starved-executor",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/tests/test_llm_offline.py:1 These files test an engine gate, not a human-facing journey."
+    },
+    {
+     "technique": "derived-selection-must-be-measured",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_llm_capabilities.py:71 The call-site scan declares a floor, so a regex that matches nothing fails instead of leaving every later assertion vacuously green."
+    },
+    {
+     "technique": "gate-scope-is-not-report-scope",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_byom_coverage.py:18 The use-case population is parsed from the catalogs and the call sites, and exemptions are checked in both directions later in the same file."
+    },
+    {
+     "technique": "isolation-lanes",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_llm_offline.py:35 The offline helper pops provider base-URL variables before the assertion, so a developer shell cannot decide the cell."
+    },
+    {
+     "technique": "live-app-harness",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/tests/test_fault_injection.py:1 The file states it is a unit pin of the fault seam, not a drive of the shipped process."
+    },
+    {
+     "technique": "mutation-lane-with-a-triaged-baseline",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/tests/test_byom_coverage.py:99 The 2026-08-22 mutation was a one-off probe of the scanner. It is not a scheduled mutation-score lane."
+    },
+    {
+     "technique": "negative-control-tests",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_byom_coverage.py:96 They mutated a map value the literal scan never reached, watched the suite stay green, and recorded that the scan was the thing that could not fail."
+    },
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/tests/test_byom_coverage.py:78 The only exclusion is __pycache__. test_llm_capabilities.py says this scan reads tests too, and its own docstring avoids spelling the call because a prose example would be taken as a site."
+    },
+    {
+     "technique": "platform-quirk-absorption",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_eval_runner.py:206 The line-ending quirk is absorbed in write_text_lf and the test asserts the bytes contain no CR on every platform."
+    },
+    {
+     "technique": "recorded-interaction-fixtures",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/tests/test_fault_injection.py:7 FaultProvider is an in-process failure double for the client's handling, not a captured exchange with a remote service."
+    },
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/test_graded_fallback.py:53 Fallback fixtures are nonsense terms, and the test fails if the taxonomy resolver would have answered instead of the fallback."
+    }
+   ]
+  },
+  {
+   "context": "dev-toolchain",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "scripts/run-unit-tests.mjs:320 A flake is classified from one immediate re-run and appended to the CI step summary, which is not a retained, stably keyed history the next run can query.",
+   "techniques": [
+    {
+     "technique": "configuration-axes-cross-the-ladder",
+     "verdict": "conformant",
+     "evidence": "scripts/run-unit-tests.mjs:26 The launcher deletes inherited backend and offline variables and says a test that needs another cell sets it itself, so the default run is not silently every backend."
+    },
+    {
+     "technique": "context-starved-executor",
+     "verdict": "not-applicable",
+     "evidence": "scripts/run-unit-tests.mjs:1 This context is the unit launcher and the dev-server reaper, not a human journey."
+    },
+    {
+     "technique": "derived-selection-must-be-measured",
+     "verdict": "conformant",
+     "evidence": "scripts/run-unit-tests.mjs:161 A glob that selects nothing, and a run whose reporter counted zero tests, exits 1 instead of the runner's green empty success."
+    },
+    {
+     "technique": "fixture-economics",
+     "verdict": "not-applicable",
+     "evidence": "scripts/run-unit-tests.mjs:24 The launcher says per-file database isolation lives in unit-db.ts. It does not build or copy a template."
+    },
+    {
+     "technique": "flake-lifecycle",
+     "verdict": "deviation",
+     "evidence": "scripts/run-unit-tests.mjs:320 A flake still fails the build, and the register requires why, since, and expires. Detection is one re-run written to a per-job summary, and the register checker has no owner field."
+    },
+    {
+     "technique": "isolation-lanes",
+     "verdict": "conformant",
+     "evidence": "scripts/run-unit-tests.mjs:106 The only entrance deletes inherited runner and database variables before the test process boots, with the incident dated in the header."
+    },
+    {
+     "technique": "live-app-harness",
+     "verdict": "not-applicable",
+     "evidence": "scripts/dev-guard.mjs:18 dev-guard reaps a dev process tree. It is not a lane that drives the shipped product."
+    },
+    {
+     "technique": "platform-quirk-absorption",
+     "verdict": "conformant",
+     "evidence": "scripts/run-unit-tests.mjs:11 NODE_TEST_CONTEXT inherited from an ancestor runner forces exit 0. The wrapper deletes it before bootstrap, and the comment records the node version and the date it was measured. dev-guard.mjs records the same shape for the Windows process-tree leak."
+    },
+    {
+     "technique": "suite-partitioning",
+     "verdict": "conformant",
+     "evidence": "scripts/run-unit-tests.mjs:118 Membership is four location globs. The header says i18n sat outside app/ and would otherwise have been a test nothing ran."
+    }
+   ]
+  },
+  {
+   "context": "llm-inference-runtime",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/python-runner-option-injection.test.ts:71 The devcase contract is pinned by a substring of the source file, so a comment that mentions --need-json satisfies it without the call.",
+   "techniques": [
+    {
+     "technique": "assert-through-the-reader",
+     "verdict": "conformant",
+     "evidence": "app/_lib/python-runner-option-injection.test.ts:115 A hostile flag value is spawned through a real child and read back from that process's argv, not only searched for in the source."
+    },
+    {
+     "technique": "configuration-axes-cross-the-ladder",
+     "verdict": "conformant",
+     "evidence": "app/_lib/reasoning-cache-first.test.ts:69 de and fr are separate tests of the engine locale after the code had collapsed both to English. The cache key comment names workspace as its own axis."
+    },
+    {
+     "technique": "constraint-injection-for-unreachable-tiers",
+     "verdict": "conformant",
+     "evidence": "app/_lib/python-runner-concurrency.test.ts:59 The test sets the same environment variable the production ceiling reads live, then asserts in-flight and queued counts from that read."
+    },
+    {
+     "technique": "context-starved-executor",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/reasoning-cache-first.test.ts:1 These are in-process node:test files. There is no rendered interface to starve an executor of."
+    },
+    {
+     "technique": "isolation-lanes",
+     "verdict": "conformant",
+     "evidence": "app/_lib/python-runner-concurrency.test.ts:17 The concurrency tests replace the interpreter and switch the usage ledger off so they cannot inherit a developer Python or a real ledger."
+    },
+    {
+     "technique": "live-app-harness",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/reasoning-cache-first.test.ts:9 The cache test forces the spawn seam to fail inside the unit process. It does not start the shipped server."
+    },
+    {
+     "technique": "negative-control-tests",
+     "verdict": "conformant",
+     "evidence": "app/_lib/python-runner-concurrency.test.ts:20 The file records the mutation that makes each admission and kill test fail, including the Windows kill that leaves a grandchild alive."
+    },
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "deviation",
+     "evidence": "app/_lib/python-runner-option-injection.test.ts:71 The needle is a bare flag string. A comment in devcase-run.ts that mentions it would pass the source contract."
+    },
+    {
+     "technique": "platform-quirk-absorption",
+     "verdict": "conformant",
+     "evidence": "app/_lib/python-runner-concurrency.test.ts:108 The Windows taskkill-versus-POSIX process-group difference is stated in the test and the detached grandchild is asserted only where that kill can reach it."
+    },
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "conformant",
+     "evidence": "app/_lib/reasoning-cache-first.test.ts:55 A bogus PYTHON_CMD makes a miss throw. A clean return plus cached: true is what distinguishes the cache producer from a spawn that never happened."
+    }
+   ]
+  },
+  {
+   "context": "tests-pipeline-automation",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/tests/run_gated.py:181 An environment variable forces the skip floor to exit 0, so a run that skipped tests the register does not name can still pass.",
+   "techniques": [
+    {
+     "technique": "context-starved-executor",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/tests/_helpers.py:4 The helper says this suite is unittest discovery, not a browser journey."
+    },
+    {
+     "technique": "derived-selection-must-be-measured",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/tests/run_gated.py:181 Unnamed skips otherwise fail by identity and the register length must equal the baseline. ALLOW_SKIP=1 drops that verdict to success with no CI refusal in this function."
+    },
+    {
+     "technique": "fixture-economics",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/_helpers.py:33 Unit cases build a job in memory through the product normalizer. They do not rebuild a migrated database per test."
+    },
+    {
+     "technique": "history-driven-partitioning",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/tests/run_gated.py:26 Timings name the slowest modules. The runner does not assign tests to workers."
+    },
+    {
+     "technique": "isolation-lanes",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/__init__.py:36 Importing the test package clears the telemetry URL and replaces the SDK so a developer .env.local cannot emit."
+    },
+    {
+     "technique": "live-app-harness",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/tests/run_gated.py:34 The gated python run is declared as a different machine from the browser suite."
+    },
+    {
+     "technique": "long-lane-certification",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/tests/run_gated.py:21 The stated cost is minutes of unittest, not an hours-long statistical lane."
+    },
+    {
+     "technique": "negative-control-tests",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/run_gated.py:16 Deleting either hermeticity layer left the suite green. The comment records that mutation, and the tripwire now fails the run if the layers are gone."
+    },
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/run_gated.py:255 The guard checks that load_dotenv and LightTrack come from the tests package. An attribute that merely exists does not pass."
+    },
+    {
+     "technique": "platform-quirk-absorption",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/__init__.py:11 The .env.local telemetry switch is present on a developer machine and absent in CI. The test package neutralises dotenv once, before any test module imports."
+    },
+    {
+     "technique": "recorded-interaction-fixtures",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/tests/__init__.py:23 LightTrack is stubbed so the suite cannot talk to it. The question under test is not the remote service's behaviour."
+    },
+    {
+     "technique": "suite-partitioning",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/run_gated.py:370 The gated python machine discovers one directory. Membership is the file's location, not a marker on the test."
+    },
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/tests/run_gated.py:268 The suite stays green if the no-network stub is removed. The tripwire fails unless the installed LightTrack's module is the tests package, which is the producer."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-12T19:51:46.311382+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "assert-through-the-reader",
+    "configuration-axes-cross-the-ladder",
+    "context-starved-executor",
+    "derived-selection-must-be-measured",
+    "far-side-oracle",
+    "fixture-economics",
+    "flake-lifecycle",
+    "gate-scope-is-not-report-scope",
+    "history-driven-partitioning",
+    "isolation-lanes",
+    "live-app-harness",
+    "long-lane-certification",
+    "pin-the-call-not-the-name",
+    "platform-quirk-absorption",
+    "recorded-interaction-fixtures",
+    "suite-partitioning",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "e2e-suite",
+   "via": "curator-multi:grok",
+   "model": "grok-4.7"
+  },
+  {
+   "ts": "2026-10-12T19:51:46.311382+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "approval-snapshots-with-guarded-update",
+    "configuration-axes-cross-the-ladder",
+    "context-starved-executor",
+    "derived-selection-must-be-measured",
+    "gate-scope-is-not-report-scope",
+    "isolation-lanes",
+    "live-app-harness",
+    "mutation-lane-with-a-triaged-baseline",
+    "negative-control-tests",
+    "pin-the-call-not-the-name",
+    "platform-quirk-absorption",
+    "recorded-interaction-fixtures",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "tests-llm-eval",
+   "via": "curator-multi:grok",
+   "model": "grok-4.7"
+  },
+  {
+   "ts": "2026-10-12T19:51:46.311382+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "configuration-axes-cross-the-ladder",
+    "context-starved-executor",
+    "derived-selection-must-be-measured",
+    "fixture-economics",
+    "flake-lifecycle",
+    "isolation-lanes",
+    "live-app-harness",
+    "platform-quirk-absorption",
+    "suite-partitioning"
+   ],
+   "deviations": 1,
+   "context": "dev-toolchain",
+   "via": "curator-multi:grok",
+   "model": "grok-4.7"
+  },
+  {
+   "ts": "2026-10-12T19:51:46.311382+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "assert-through-the-reader",
+    "configuration-axes-cross-the-ladder",
+    "constraint-injection-for-unreachable-tiers",
+    "context-starved-executor",
+    "isolation-lanes",
+    "live-app-harness",
+    "negative-control-tests",
+    "pin-the-call-not-the-name",
+    "platform-quirk-absorption",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "llm-inference-runtime",
+   "via": "curator-multi:grok",
+   "model": "grok-4.7"
+  },
+  {
+   "ts": "2026-10-12T19:51:46.311382+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "context-starved-executor",
+    "derived-selection-must-be-measured",
+    "fixture-economics",
+    "history-driven-partitioning",
+    "isolation-lanes",
+    "live-app-harness",
+    "long-lane-certification",
+    "negative-control-tests",
+    "pin-the-call-not-the-name",
+    "platform-quirk-absorption",
+    "recorded-interaction-fixtures",
+    "suite-partitioning",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "tests-pipeline-automation",
+   "via": "curator-multi:grok",
+   "model": "grok-4.7"
+  }
+ ]
+}

@@ -142,7 +142,11 @@ export function buildArgs(settingsPath = enforcementSettingsPath()) {
  * splits in half is exactly the kind of failure that fails OPEN.
  */
 function quoteForShell(arg) {
-  return /[\s"]/.test(arg) ? `"${arg.replace(/"/g, '\\"')}"` : arg;
+  // CommandLineToArgvW rules: backslashes only matter before a quote (the closing
+  // one included), where each must be doubled; elsewhere a Windows path stays as is.
+  return /[\s"]/.test(arg)
+    ? `"${arg.replace(/(\\*)"/g, '$1$1\\"').replace(/(\\+)$/, "$1$1")}"`
+    : arg;
 }
 
 /**
