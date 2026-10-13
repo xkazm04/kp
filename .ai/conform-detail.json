@@ -2691,6 +2691,176 @@
           "evidence": "scripts/review/agent-review.mjs:128 The declared result judges commit intent without auditing locale-catalog values."
         }
       ]
+    },
+    "9a7b6d11-28e3-4f45-a4f5-7b1b1dd1f134/fleet-orchestration": {
+      "context": "devcase-orchestration",
+      "subject": "fleet-orchestration",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T09:52:14.483Z",
+      "worker": "6722369d-d615-4671-830b-6d926a031895",
+      "techniques": [
+        {
+          "technique": "session-registry",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/devcase-transitions.ts:54 Manages candidate devcase editorial stages rather than fleet agent sessions."
+        },
+        {
+          "technique": "parallel-dispatch",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/devcase-orchestrator.ts:99 Pass limit governs polling passes over human candidate submissions rather than concurrent agent workers."
+        },
+        {
+          "technique": "completion-claim-verification",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/devcase-orchestrator.ts:42 Governs candidate benchmark score promotion rather than agent completion receipts."
+        },
+        {
+          "technique": "soft-budget-under-the-hard-cap",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/devcase-timebox.ts:24 Enforces human assessment SLA window rather than agent model turn or token budgets."
+        }
+      ]
+    },
+    "050c760b-ee78-46e0-a86f-77d80d89b3bf/fleet-orchestration": {
+      "context": "interview-simulator",
+      "subject": "fleet-orchestration",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T09:52:14.483Z",
+      "worker": "6722369d-d615-4671-830b-6d926a031895",
+      "techniques": [
+        {
+          "technique": "session-registry",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/interview-sim/types.ts:82 In-memory simulation result termination reason, not a fleet session registry entry."
+        },
+        {
+          "technique": "parallel-dispatch",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/interview-sim/runner.ts:226 Sim test batch worker pool sizing over static evaluation fixtures rather than fleet session parallel dispatch."
+        },
+        {
+          "technique": "soft-budget-under-the-hard-cap",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/interview-sim/types.ts:85 Sim trajectory call count meter rather than model-driven loop dual budget."
+        },
+        {
+          "technique": "lifecycle-signals",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/interview-sim/clock.ts:44 Synthetic frozen epoch used for deterministic in-memory simulation clock instead of real-time lifecycle sweeper."
+        }
+      ]
+    },
+    "c29afd56-b78f-4c8c-bfa8-75a8a24a80c2/fleet-orchestration": {
+      "context": "task-automation-engine",
+      "subject": "fleet-orchestration",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T09:52:14.483Z",
+      "techniques": [
+        {
+          "technique": "evidence-outranks-a-liveness-claim",
+          "verdict": "deviation",
+          "evidence": "app/_lib/task-maintenance.ts:46 Declares a task dead based purely on wall-clock elapsed time since start rather than checking if evidence of active progress was produced."
+        },
+        {
+          "technique": "parallel-dispatch",
+          "verdict": "conformant",
+          "evidence": "app/_lib/automation-pass.ts:246 Calculates spawn budget upfront by checking currently running scoring tasks against a concurrency cap before dispatching batch tasks."
+        },
+        {
+          "technique": "absent-status-passthrough",
+          "verdict": "conformant",
+          "evidence": "app/_lib/task-poll-state.ts:62 Treats network poll failure as a transient state holding the last known task status without asserting terminal completion or failure."
+        },
+        {
+          "technique": "durable-fleet-state",
+          "verdict": "conformant",
+          "evidence": "app/_lib/tasks.ts:590 Recovers running tasks from SQLite database on engine startup to restore durable state across orchestrator restarts."
+        },
+        {
+          "technique": "session-registry",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/tasks.ts:359 Updates task status without fencing generation tokens or validating against an authoritative state machine transition door."
+        },
+        {
+          "technique": "soft-budget-under-the-hard-cap",
+          "verdict": "deviation",
+          "evidence": "app/_lib/task-budget.ts:55 Rate limits task admissions with fixed window limits without providing a derived soft budget for graceful degradation."
+        }
+      ],
+      "withdrawn": {
+        "worker": "6722369d-d615-4671-830b-6d926a031895",
+        "state": "deviation",
+        "at": "2026-10-13T09:53:15.552708+00:00",
+        "reason": "reviewer (sonnet): The tasks are in-process handlers with no external executor or heartbeat, so the claim 'without querying external executor heartbeat signals' doesn't fit task-maintenance.ts:46. isTaskStale is a watchdog and orphan reaper that skips rows with a live in-process controller. The task-poll-state.ts:62 t"
+      }
+    },
+    "5e59aca6-ce51-498d-85c6-6ad37b847bc6/fleet-orchestration": {
+      "context": "agents-api",
+      "subject": "fleet-orchestration",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T09:52:14.483Z",
+      "worker": "6722369d-d615-4671-830b-6d926a031895",
+      "techniques": [
+        {
+          "technique": "soft-budget-under-the-hard-cap",
+          "verdict": "deviation",
+          "evidence": "app/api/agents/dispatch/spec-bounds.ts:26 Enforces an upper ceiling of 1000 model turns without a smaller soft budget derived from it for graceful worker self-termination."
+        },
+        {
+          "technique": "outbound-compute-plane",
+          "verdict": "conformant",
+          "evidence": "app/api/agents/report/[token]/route.ts:13 Workers run on external compute and report status inbound via an unguessable CSPRNG token route rather than requiring direct control-plane ingress."
+        },
+        {
+          "technique": "session-registry",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/agents.ts:373 Defines agent status transitions but does not track process incarnation tokens, generation fencing, or resource leases."
+        },
+        {
+          "technique": "lifecycle-signals",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/agents.ts:46 Stores report timestamp for reachability but lacks an active background sweeper that transitions silent agents from alive to suspected or lost."
+        },
+        {
+          "technique": "parallel-dispatch",
+          "verdict": "deviation",
+          "evidence": "app/api/agents/dispatch/mint.ts:27 Applies client IP rate limiting to agent minting without checking fleet-wide concurrency caps or write scope collision domains."
+        }
+      ]
+    },
+    "2c3bab35-1a41-4ed0-85d3-e48cdaea2546/fleet-orchestration": {
+      "context": "shell-setup-wizard",
+      "subject": "fleet-orchestration",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T09:52:14.483Z",
+      "worker": "6722369d-d615-4671-830b-6d926a031895",
+      "techniques": [
+        {
+          "technique": "hibernation-and-resume",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/setup/setupDraft.ts:27 Browser localStorage form draft caching for UI onboarding rather than fleet session hibernation."
+        },
+        {
+          "technique": "session-registry",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/setup/setupSteps.ts:88 Selects relevant UI wizard form step list for the user rather than maintaining a fleet session registry."
+        },
+        {
+          "technique": "lifecycle-signals",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/setup/onboardingReopen.ts:28 Dispatches browser window DOM event to reopen UI onboarding flow rather than agent lifecycle signals."
+        }
+      ]
     }
   }
 }

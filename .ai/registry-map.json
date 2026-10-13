@@ -2722,7 +2722,11 @@
           "revision": 25,
           "changedAt": "2026-10-06",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/agents/dispatch/spec-bounds.ts:26 The agents dispatch endpoint enforces a hard model turn ceiling without provisioning a derived soft budget in worker specifications or measuring cap-fired rates.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:4fc5c1fbe75c52d2",
+          "evaluatedRevision": 25
         },
         {
           "subject": "agent-runtime-assembly",
@@ -12846,7 +12850,11 @@
           "revision": 25,
           "changedAt": "2026-10-06",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/devcase-orchestrator.ts:76 The devcase module manages candidate take-home assessment workflow stages and editorial review rather than an autonomous agent fleet, so fleet orchestration techniques do not apply.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:4fc5c1fbe75c52d2",
+          "evaluatedRevision": 25
         },
         {
           "subject": "prompt-assembly",
@@ -16254,7 +16262,11 @@
           "revision": 25,
           "changedAt": "2026-10-06",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/interview-sim/types.ts:24 The interview simulator is an in-memory evaluation test harness validating conversational voice director policies against synthetic personas rather than a runtime fleet of autonomous agent workers.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:4fc5c1fbe75c52d2",
+          "evaluatedRevision": 25
         }
       ],
       "governance": "governed"
@@ -28135,7 +28147,11 @@
           "revision": 25,
           "changedAt": "2026-10-06",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/shell/setup/setupSteps.ts:51 The setup wizard is an interactive UI client onboarding flow that guides an operator through workspace configuration rather than managing an autonomous agent fleet.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:4fc5c1fbe75c52d2",
+          "evaluatedRevision": 25
         },
         {
           "subject": "prompt-assembly",
