@@ -13788,14 +13788,13 @@
           "changedAt": "2026-09-30",
           "confidence": "strong",
           "state": "conformant",
-          "evidence": "app/_lib/voice/self-hosted.ts is a strong portable-provider-package realization: one derived signal (elevenLabsBaseUrl / isSelfHostedVoice) rather than a second free/paid flag that could disagree with it (':18-20 two switches that must agree is a bug waiting to happen'), a conservative default (hosted service unless a private/loopback host is explicitly configured, :61-66), and it names the actual portable package by repo (Gravitone, github.com/xkazm04/gravitone) serving the same Agents-API protocol locally. pipeline/jobfit/eval/voice/session_runner.py mints real candidate-mode sessions via /simulate specifically so the eval exercises the real per-provider brief path rather than a stale dashboard prompt (session_runner.py:7-11) — a duplex-agent-sessions-aware eval design.",
-          "evaluatedAt": "2026-09-22",
-          "evaluatedAgainst": "sha256-b2:4337a608b34cbe4a",
-          "evaluatedRevision": 18,
+          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:198 A spoken run fails when a domain term the candidate spoke is missing from the transcript, and aggregate word-error rate is a separate budget, so the aggregate does not decide the gate.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:fa1c8ca716f872dc",
+          "evaluatedRevision": 20,
           "source": "conform",
           "adoptedFrom": "5b6decdf-74e8-4c24-a0f7-d4f87c9c57f3",
-          "revisionsBehind": 1,
-          "stale": true
+          "revisionsBehind": 1
         },
         {
           "subject": "voice-interview-fidelity",
@@ -31019,15 +31018,14 @@
           "revision": 19,
           "changedAt": "2026-09-30",
           "confidence": "strong",
-          "state": "conformant",
-          "evidence": "app/_components/voice/micErrorText.ts maps getUserMedia/connection failures to specific actionable recovery copy (denied/not-found/busy) rather than a raw DOMException message; MicTestPanel.tsx pairs a live level meter with a persistent aria-live=\"polite\" region so the pass/fail verdict is announced (not just painted); VoiceStatusPill.tsx deliberately splits a high-frequency visual-only cue (speaking/listening toggling every turn) from a low-frequency role=\"status\" live region (the unstable-connection warning) to avoid spamming screen-reader output — exactly the golden path's 'everything narrated exists as visible text... capture/playback states announced through non-audio channels' posture. transport/elevenlabs.ts + transport/openai.ts realize engine-abstraction as parallel per-engine adapters behind a shared VoiceTurn/callback-context shape (ui-types.ts).",
-          "evaluatedAt": "2026-09-22",
-          "evaluatedAgainst": "sha256-b2:4337a608b34cbe4a",
-          "evaluatedRevision": 18,
+          "state": "deviation",
+          "evidence": "app/_components/voice/transport/elevenlabs.ts:150 startElevenLabsSession sends prompt and asr.keywords overrides and still treats onConnect as a live call, so an agent that has not unlocked those overrides runs the account defaults with no error.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:fa1c8ca716f872dc",
+          "evaluatedRevision": 20,
           "source": "conform",
           "adoptedFrom": "9de4d799-279c-429b-a0ca-2afecf4543b1",
-          "revisionsBehind": 1,
-          "stale": true
+          "revisionsBehind": 1
         },
         {
           "subject": "voice-interview-fidelity",
@@ -31194,15 +31192,11 @@
           "revision": 19,
           "changedAt": "2026-09-30",
           "confidence": "strong",
-          "state": "conformant",
-          "evidence": "This context is the strongest realization of duplex-agent-sessions in the tree. index.ts:49-70 and candidate-brief.ts implement the audience-safe-brief allow-list explicitly (candidate-brief.ts:11-19: 'THE SECURITY BOUNDARY IS THE SANITIZER IN THIS FILE... never turn this into a deny-list'), with candidateSafeTopic() scrubbing bracketed assessment asides out of topic labels (candidate-brief.ts:76-87). eleven-agent-diff.mjs is the drift gate the technique asks for: a pure, network-free field-by-field diff between intended and live agent config, defensive-read so a shape change degrades to reported drift rather than a crash (never silently reads as agreement). finalize-status.ts computes a real end-of-call verdict rather than trusting the close event (interviewFinalStatus distinguishes a late-blip-on-a-substantive-call from a real abandonment, and unmountBeaconStatus separately handles the late-arrival/in-flight-End case). connect-failover.ts deliberately builds the served provider's prompt OUTSIDE the failover trigger so a failing brief-build surfaces as itself rather than masquerading as a second real failover (connect-failover.ts:72-78).",
-          "evaluatedAt": "2026-09-22",
-          "evaluatedAgainst": "sha256-b2:4337a608b34cbe4a",
-          "evaluatedRevision": 18,
           "source": "conform",
           "adoptedFrom": "5e8c1a9d-62a1-4673-a0eb-2c27ecefc5f7",
-          "revisionsBehind": 1,
-          "stale": true
+          "state": "conformant",
+          "evidence": "This context is the strongest realization of duplex-agent-sessions in the tree. index.ts:49-70 and candidate-brief.ts implement the audience-safe-brief allow-list explicitly (candidate-brief.ts:11-19: 'THE SECURITY BOUNDARY IS THE SANITIZER IN THIS FILE... never turn this into a deny-list'), with candidateSafeTopic() scrubbing bracketed assessment asides out of topic labels (candidate-brief.ts:76-87). eleven-agent-diff.mjs is the drift gate the technique asks for: a pure, network-free field-by-field diff between intended and live agent config, defensive-read so a shape change degrades to reported drift rather than a crash (never silently reads as agreement). finalize-status.ts computes a real end-of-call verdict rather than trusting the close event (interviewFinalStatus distinguishes a late-blip-on-a-substantive-call from a real abandonment, and unmountBeaconStatus separately handles the late-arrival/in-flight-End case). connect-failover.ts deliberately builds the served provider's prompt OUTSIDE the failover trigger so a failing brief-build surfaces as itself rather than masquerading as a second real failover (connect-failover.ts:72-78).",
+          "evaluatedAt": "2026-09-22"
         },
         {
           "subject": "voice-interview-fidelity",
@@ -31406,7 +31400,11 @@
           "revision": 19,
           "changedAt": "2026-09-30",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "packages/voice-stt/src/registry.ts:102 Cloud transcription is refused only when the caller sets needs.onDevice, and useStt defaults that flag to false, so a missing local model falls through to AssemblyAI.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:fa1c8ca716f872dc",
+          "evaluatedRevision": 20
         },
         {
           "subject": "self-describing-model-packages",
@@ -31588,7 +31586,11 @@
           "revision": 19,
           "changedAt": "2026-09-30",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "packages/voice-tts/src/text/segment.ts:2 Chunk size is justified by one unsourced CPU speed sentence, and the registry still starts a new local process that reloads the model on every call.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:fa1c8ca716f872dc",
+          "evaluatedRevision": 20
         },
         {
           "subject": "voice-interview-fidelity",
