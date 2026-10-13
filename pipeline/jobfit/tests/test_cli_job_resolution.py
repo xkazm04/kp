@@ -10,7 +10,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from pipeline.jobfit import _cli, automation_cli, recruiter_cli, winnability_cli
+from pipeline.jobfit import _cli, automation_cli
 from pipeline.jobfit.tests._helpers import mkjob
 
 _CANDIDATE = {
