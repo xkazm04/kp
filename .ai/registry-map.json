@@ -14866,7 +14866,11 @@
           "revision": 47,
           "changedAt": "2026-10-05",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/api/decisions/records/route.ts:21 Grep across hiring-decisions-api files for agent-memory terms (recall, episodic, consolidat, working_memory, belief) found zero matches, as this context handles sealed candidate decision records, peer-context lookups, and recruiter feedback without an interactive agent memory loop.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:23599eae61aa7119",
+          "evaluatedRevision": 47
         },
         {
           "subject": "prompt-assembly",
@@ -18068,7 +18072,11 @@
           "revision": 47,
           "changedAt": "2026-10-05",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsCoachApply.ts:1 Grep across jobs-ai-coach-fit files for agent-memory terms (recall, episodic, consolidat, working_memory, belief) found zero matches, as this context implements a read-only client UI panel staging URL suggestions for recruiter JD editing rather than carrying forward agent memory.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:23599eae61aa7119",
+          "evaluatedRevision": 47
         },
         {
           "subject": "agent-instruction-files",
@@ -24649,7 +24657,11 @@
           "revision": 47,
           "changedAt": "2026-10-05",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/api/auth/login/route.ts:11 Grep across platform-auth-api files for agent-memory terms (recall, episodic, consolidat, working_memory, belief) found zero matches, as this context handles HTTP session authentication, credential throttling, workspace CRUD, and health checks without an LLM agent memory pipeline.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:23599eae61aa7119",
+          "evaluatedRevision": 47
         },
         {
           "subject": "quality-gates",
@@ -29409,7 +29421,11 @@
           "revision": 47,
           "changedAt": "2026-10-05",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/tasks.ts:44 Grep across task-automation-engine files for agent-memory terms (recall, episodic, consolidat, working_memory, belief) found zero matches, as this module implements an in-process background task queue backed by SQLite rather than an agent memory system.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:23599eae61aa7119",
+          "evaluatedRevision": 47
         },
         {
           "subject": "fleet-orchestration",

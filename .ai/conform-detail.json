@@ -1287,6 +1287,95 @@
         }
       ],
       "registryProposal": "The golden path already excludes a model's private function-calling format. interview-simulator matches this subject only by vocabulary (tool lines, JSON-schema parameters, a detector named tool_protocol). That exclusion is doing the work; the pairing is technique-shaped resonance, not a hole in the standard."
+    },
+    "c29afd56-b78f-4c8c-bfa8-75a8a24a80c2/agent-memory": {
+      "context": "task-automation-engine",
+      "subject": "agent-memory",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T00:06:40.160Z",
+      "worker": "08401036-214f-421d-91d4-621f9d917a26",
+      "techniques": [
+        {
+          "technique": "working-memory",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/tasks.ts:44 Operative state represents background job execution context rather than agent working memory."
+        },
+        {
+          "technique": "decay-and-forgetting",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/task-maintenance.ts:17 Retention sweeps delete terminal task rows in SQLite rather than decaying agent beliefs."
+        },
+        {
+          "technique": "episodic-capture",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/task-outcome-summary.ts:1 Outcome summaries format background task execution results for the UI rather than capturing agent conversation episodes."
+        }
+      ]
+    },
+    "145b5d07-e126-4749-8ada-b0fa84fcfa37/agent-memory": {
+      "context": "platform-auth-api",
+      "subject": "agent-memory",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T00:06:40.160Z",
+      "worker": "08401036-214f-421d-91d4-621f9d917a26",
+      "techniques": [
+        {
+          "technique": "working-memory",
+          "verdict": "not-applicable",
+          "evidence": "app/api/auth/login/route.ts:3 Sessions here represent HTTP session cookies for operator authentication rather than agent working memory."
+        },
+        {
+          "technique": "owner-and-counterpart-scope",
+          "verdict": "not-applicable",
+          "evidence": "app/api/workspaces/route.ts:11 Workspaces partition platform user teams rather than agent memory ownership or counterpart interaction scopes."
+        }
+      ]
+    },
+    "1427e2ae-3cf6-48f4-a866-6c5a0dc67559/agent-memory": {
+      "context": "hiring-decisions-api",
+      "subject": "agent-memory",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T00:06:40.160Z",
+      "worker": "08401036-214f-421d-91d4-621f9d917a26",
+      "techniques": [
+        {
+          "technique": "episodic-capture",
+          "verdict": "not-applicable",
+          "evidence": "app/api/feedback/route.ts:11 This route collects recruiter UI product feedback rather than capturing agent conversation episodes."
+        },
+        {
+          "technique": "memory-governance",
+          "verdict": "not-applicable",
+          "evidence": "app/api/decisions/records/route.ts:24 Hash-chained records seal recruiter screening decisions for adverse action auditability rather than governing agent memory writes."
+        }
+      ]
+    },
+    "d2c749a4-1821-4c77-af16-2254725a3b3f/agent-memory": {
+      "context": "jobs-ai-coach-fit",
+      "subject": "agent-memory",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T00:06:40.160Z",
+      "worker": "08401036-214f-421d-91d4-621f9d917a26",
+      "techniques": [
+        {
+          "technique": "working-memory",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsCoachApply.ts:5 The coach pre-stages job description parameter suggestions in a recruiter UI form rather than managing an agent's operative working memory."
+        },
+        {
+          "technique": "coverage-instrumentation",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsAgentFitModel.ts:1 Coverage classes categorize candidate-job requirement match (automatable, assisted, human_only), not agent memory population coverage."
+        }
+      ]
     }
   }
 }
