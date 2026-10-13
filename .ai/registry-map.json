@@ -30852,7 +30852,11 @@
           "revision": 27,
           "changedAt": "2026-10-06",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/api/interview/connect/route.ts:83 Grep of app/api/interview/ for assembly, checkpoint, mutator, subagent, and extension returned zero matches, as this route suite acts as an HTTP credential-minting and session-lifecycle gateway for browser-to-provider WebRTC calls rather than an in-process agent runtime assembly.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:9036e979656a8dc5",
+          "evaluatedRevision": 27
         },
         {
           "subject": "prompt-assembly",
@@ -31073,7 +31077,11 @@
           "revision": 27,
           "changedAt": "2026-10-06",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_components/voice/VoiceInterview.tsx:30 A search of app/_components/voice/ for agent runtime assembly constructs confirmed that all hooks are React component hooks and data-channel transport callbacks, as this module implements the client-side browser WebRTC/audio UI rather than an in-process agent runtime.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:9036e979656a8dc5",
+          "evaluatedRevision": 27
         },
         {
           "subject": "chat-transcript",
@@ -31436,7 +31444,11 @@
           "revision": 27,
           "changedAt": "2026-10-06",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "packages/voice-stt/package.json:5 A search across packages/voice-stt/ for agent runtime assembly constructs confirmed that 'assembly' refers only to AssemblyAI and 'hook' only to the useStt React browser binding, as this standalone library provides speech-to-text transcription rather than an LLM agent assembly.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:9036e979656a8dc5",
+          "evaluatedRevision": 27
         },
         {
           "subject": "voice-interview-fidelity",
@@ -31858,7 +31870,11 @@
           "revision": 27,
           "changedAt": "2026-10-06",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/api/tasks/route.ts:23 A search across workspace configuration routes for agent runtime assembly constructs found zero occurrences; this API suite exposes background task job tracking and tenant settings rather than an LLM agent execution assembly.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:9036e979656a8dc5",
+          "evaluatedRevision": 27
         },
         {
           "subject": "prompt-assembly",

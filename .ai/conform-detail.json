@@ -1832,6 +1832,210 @@
           "evidence": "packages/voice-tts/src/providers/kokoro.ts:17 Voices are catalog ids into a shipped pack. A search of this package found no description, sample, or clone authoring path."
         }
       ]
+    },
+    "0f0b2b00-f446-41b0-af7a-d927592c28de/agent-runtime-assembly": {
+      "context": "voice-interview-api",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T03:19:23.520Z",
+      "worker": "a09186b8-21cb-4d2c-bcda-2a6704e6f88f",
+      "techniques": [
+        {
+          "technique": "session-scoped-capability",
+          "verdict": "not-applicable",
+          "evidence": "app/api/interview/connect/route.ts:98 Voice provider selection is chosen by the client or stored session token, not resolved dynamically from an agent session capability roster."
+        },
+        {
+          "technique": "guard-input-custody",
+          "verdict": "not-applicable",
+          "evidence": "app/api/interview/connect/route.ts:125 The single-use interview gate checks database session status rather than policy files or in-agent guardrails."
+        },
+        {
+          "technique": "bounded-projection-of-external-work",
+          "verdict": "not-applicable",
+          "evidence": "app/api/interview/complete/route.ts:21 The response projection filters public HTTP candidate payload fields rather than projecting background task executor leases into an agent loop."
+        },
+        {
+          "technique": "checkpoint-mode-custody",
+          "verdict": "not-applicable",
+          "evidence": "app/api/interview/create/route.ts:28 Interview sessions persist as SQLite database rows via shared invite helpers rather than full or delta checkpoint graphs."
+        },
+        {
+          "technique": "host-routes-win",
+          "verdict": "not-applicable",
+          "evidence": "app/api/interview/sessions/route.ts:11 The route is a statically defined Next.js API route handler, not an extension route mounted onto a host router."
+        },
+        {
+          "technique": "operator-tier-code-loading",
+          "verdict": "not-applicable",
+          "evidence": "app/api/interview/simulate/attach/sim-session.ts:24 Practice interview simulation validation is implemented as a pure in-code predicate with no dynamic extension loading."
+        },
+        {
+          "technique": "honest-hook-registry",
+          "verdict": "not-applicable",
+          "evidence": "app/api/interview/create/route.ts:29 Recruitment pipeline stage transitions trigger hardcoded stage hooks rather than an extensible event hook registry."
+        },
+        {
+          "technique": "nested-run-is-not-its-parent",
+          "verdict": "not-applicable",
+          "evidence": "app/api/interview/create/route.ts:59 Voice interview sessions link directly to candidate pipeline entries without spawning nested subagent runs."
+        }
+      ]
+    },
+    "9179c3cd-8c4f-4065-b76a-70cd6ece2944/agent-runtime-assembly": {
+      "context": "workspace-config-api",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T03:19:23.520Z",
+      "worker": "a09186b8-21cb-4d2c-bcda-2a6704e6f88f",
+      "techniques": [
+        {
+          "technique": "session-scoped-capability",
+          "verdict": "not-applicable",
+          "evidence": "app/api/me/capabilities/route.ts:6 Capabilities returned here represent user and operator workspace access permissions for the navigation UI rather than agent session capabilities."
+        },
+        {
+          "technique": "bounded-projection-of-external-work",
+          "verdict": "not-applicable",
+          "evidence": "app/api/tasks/route.ts:38 The task list is a database query of background tasks paged for the workspace UI dock under the job-coordination domain, not an agent loop reading a bounded task projection."
+        },
+        {
+          "technique": "indeterminate-closure-on-interruption",
+          "verdict": "not-applicable",
+          "evidence": "app/api/tasks/route.ts:36 Crashed background tasks are healed across process restarts at the job coordination store layer rather than recording indeterminate tool execution closures in an agent conversation."
+        },
+        {
+          "technique": "operator-tier-code-loading",
+          "verdict": "not-applicable",
+          "evidence": "app/api/tasks/route.ts:72 Permitted background task kinds are validated against a static enum in code, not dynamically loaded extension code."
+        },
+        {
+          "technique": "guard-input-custody",
+          "verdict": "not-applicable",
+          "evidence": "app/api/tasks/route.ts:83 Server-only task kinds are gated via hardcoded admission rules, protecting the server from untrusted client execution parameters."
+        },
+        {
+          "technique": "checkpoint-mode-custody",
+          "verdict": "not-applicable",
+          "evidence": "app/api/profile/draft/route.ts:9 Profile drafting is executed as an isolated per-call process without conversation checkpoints or delta graph representations."
+        },
+        {
+          "technique": "host-routes-win",
+          "verdict": "not-applicable",
+          "evidence": "app/api/brand/route.ts:10 Route endpoints are statically mounted Next.js route handlers with no contributed extension router precedence concerns."
+        },
+        {
+          "technique": "honest-hook-registry",
+          "verdict": "not-applicable",
+          "evidence": "app/api/templates/route.ts:11 Reusable templates are managed via a database store with no runtime extension hook registration."
+        }
+      ]
+    },
+    "a756a7a4-eeeb-4ac4-b43b-b2afb7f3e4a2/agent-runtime-assembly": {
+      "context": "voice-stt-package",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T03:19:23.520Z",
+      "worker": "a09186b8-21cb-4d2c-bcda-2a6704e6f88f",
+      "techniques": [
+        {
+          "technique": "session-scoped-capability",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-stt/README.md:48 The capability gate checks transcription engine capabilities like PII redaction and diarization, not client-facing agent capabilities."
+        },
+        {
+          "technique": "honest-hook-registry",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-stt/src/react/useStt.ts:3 The hook in this package is a React client-side browser recording hook rather than an agent execution lifecycle hook."
+        },
+        {
+          "technique": "operator-tier-code-loading",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-stt/src/registry.ts:1 STT provider adapters are hardcoded implementations instantiated directly by the package rather than loaded from operator extension configuration."
+        },
+        {
+          "technique": "guard-input-custody",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-stt/src/validate.ts:11 Request payload constraints and format validation are hardcoded invariants defined directly in the validation module."
+        },
+        {
+          "technique": "host-routes-win",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-stt/src/index.ts:3 The package exports functional library APIs rather than an HTTP router or route endpoints."
+        },
+        {
+          "technique": "checkpoint-mode-custody",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-stt/src/providers/assemblyai.ts:1 Transcription operations are stateless upload-submit-poll audio conversions with no conversation checkpoint graph."
+        },
+        {
+          "technique": "nested-run-is-not-its-parent",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-stt/src/node/spawn.ts:1 Local whisper sidecar processes are spawned directly for audio transcription without nested agent run semantics."
+        },
+        {
+          "technique": "bounded-projection-of-external-work",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-stt/src/types.ts:1 The package defines an audio transcription provider interface that executes audio jobs rather than exposing a bounded projection into an agent loop."
+        }
+      ]
+    },
+    "e2f41475-e943-47a4-bf2d-7e3ee529366d/agent-runtime-assembly": {
+      "context": "voice-interview-components",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T03:19:23.520Z",
+      "worker": "a09186b8-21cb-4d2c-bcda-2a6704e6f88f",
+      "techniques": [
+        {
+          "technique": "session-scoped-capability",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/voice/availability-gate.ts:3 Voice provider readiness on the client is determined by an availability probe endpoint rather than an agent session capability resolution policy."
+        },
+        {
+          "technique": "honest-hook-registry",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/voice/timer-registry.ts:1 The timer registry tracks browser client DOM timeouts to clear them on React component unmount, having no relation to extension event hook execution."
+        },
+        {
+          "technique": "operator-tier-code-loading",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/voice/VoiceSettings.tsx:9 Voice settings UI offers client language and provider selection controls with no extension code loading capability."
+        },
+        {
+          "technique": "guard-input-custody",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/voice/transport/transport-error.ts:1 Transport error classification maps WebRTC connection failures to typed error codes for UI display rather than evaluating security guardrails."
+        },
+        {
+          "technique": "host-routes-win",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/voice/VoiceTranscript.tsx:10 The component is a pure client-side React UI component that renders transcript turns with no route mounting or server routing logic."
+        },
+        {
+          "technique": "checkpoint-mode-custody",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/voice/useTranscriptPersistence.ts:1 Client-side transcript persistence sends the recorded interview transcript over HTTP POST to the backend with sessionStorage buffering, not using graph checkpointer deltas."
+        },
+        {
+          "technique": "nested-run-is-not-its-parent",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/voice/InterviewSidebar.tsx:11 The sidebar component renders candidate interview agenda blocks and readiness status in the browser without any nested subagent execution."
+        },
+        {
+          "technique": "bounded-projection-of-external-work",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/voice/VoiceLiveControls.tsx:8 Live controls provide client UI buttons for user microphone muting and call timing rather than projecting external background task executor leases."
+        }
+      ]
     }
   }
 }
