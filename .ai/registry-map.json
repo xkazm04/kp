@@ -3459,7 +3459,11 @@
           "revision": 15,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/insights/analytics/AnalyticsTab.tsx:96 The analytics dashboard consumes server metrics via useJsonFetch which stores data in component state without a module-scoped cache, resetting to null and causing a cold loading gap on every navigation return.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:20824426732ffb6a",
+          "evaluatedRevision": 15
         },
         {
           "subject": "agent-memory",
@@ -20761,7 +20765,11 @@
           "revision": 15,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/reasoning-run.ts:146 The LLM reasoning runner executes match reasoning without in-flight request deduplication, allowing concurrent identical reasoning requests to miss the prompt cache and trigger duplicate Python subprocess spawns.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:20824426732ffb6a",
+          "evaluatedRevision": 15
         },
         {
           "subject": "translation-pipeline-topology",
@@ -21822,7 +21830,11 @@
           "revision": 15,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/insights/matrix/useMatrixTab.ts:84 The candidate-job matrix stores fetched grid data in component state without a module-scoped cache, forcing the view to mount cold with a loading placeholder on every tab return.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:20824426732ffb6a",
+          "evaluatedRevision": 15
         }
       ],
       "governance": "governed"
@@ -27230,7 +27242,11 @@
           "revision": 15,
           "changedAt": "2026-09-25",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/cache.ts:11 The shared prompt cache performs simple database lookups without in-flight request deduplication or stale-while-revalidate windows, allowing duplicate analysis workloads to run concurrently.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:20824426732ffb6a",
+          "evaluatedRevision": 15
         },
         {
           "subject": "test-harness",
@@ -30735,7 +30751,11 @@
           "revision": 15,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_components/ui/Defer.tsx:22 Searched app/_components/ui/ for client-fetch-cache vocabulary ('swr', 'staleWhileRevalidate', 'in-flight', 'prefetch') which returned 0 hits, confirming that ui-recipes-and-layout is strictly a design-token, UI accessibility, and DOM-commit deferral layer that performs no data fetching from an authority.",
+          "evaluatedAt": "2026-10-13",
+          "evaluatedAgainst": "sha256-b2:20824426732ffb6a",
+          "evaluatedRevision": 15
         },
         {
           "subject": "quality-gates",
