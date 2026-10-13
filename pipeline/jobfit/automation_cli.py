@@ -175,7 +175,6 @@ def main(argv: list[str] | None = None) -> int:
             # below it are a candidate + a corpus job, and this command has neither. The
             # kit is authored for a DB job handed in whole, so there is no corpus to
             # search and no MatchCandidate to load.
-            from .jobs import Job
 
             if not args.job_json:
                 raise ValueError("interview-kit requires --job-json")

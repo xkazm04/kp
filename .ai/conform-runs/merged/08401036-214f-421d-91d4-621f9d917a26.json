@@ -1,0 +1,238 @@
+{
+ "schema": "conform-run/1",
+ "worker": "08401036-214f-421d-91d4-621f9d917a26",
+ "subject": "agent-memory",
+ "evaluatedAt": "2026-10-13T00:06:40.160912+00:00",
+ "provider": "agy",
+ "model": "gemini-3.8-flash-high",
+ "pairs": [
+  {
+   "context": "task-automation-engine",
+   "subject": "agent-memory",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/_lib/tasks.ts:44 Grep across task-automation-engine files for agent-memory terms (recall, episodic, consolidat, working_memory, belief) found zero matches, as this module implements an in-process background task queue backed by SQLite rather than an agent memory system.",
+   "techniques": [
+    {
+     "technique": "working-memory",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/tasks.ts:44 Operative state represents background job execution context rather than agent working memory."
+    },
+    {
+     "technique": "decay-and-forgetting",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/task-maintenance.ts:17 Retention sweeps delete terminal task rows in SQLite rather than decaying agent beliefs."
+    },
+    {
+     "technique": "episodic-capture",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/task-outcome-summary.ts:1 Outcome summaries format background task execution results for the UI rather than capturing agent conversation episodes."
+    }
+   ]
+  },
+  {
+   "context": "platform-auth-api",
+   "subject": "agent-memory",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/api/auth/login/route.ts:11 Grep across platform-auth-api files for agent-memory terms (recall, episodic, consolidat, working_memory, belief) found zero matches, as this context handles HTTP session authentication, credential throttling, workspace CRUD, and health checks without an LLM agent memory pipeline.",
+   "techniques": [
+    {
+     "technique": "working-memory",
+     "verdict": "not-applicable",
+     "evidence": "app/api/auth/login/route.ts:3 Sessions here represent HTTP session cookies for operator authentication rather than agent working memory."
+    },
+    {
+     "technique": "owner-and-counterpart-scope",
+     "verdict": "not-applicable",
+     "evidence": "app/api/workspaces/route.ts:11 Workspaces partition platform user teams rather than agent memory ownership or counterpart interaction scopes."
+    }
+   ]
+  },
+  {
+   "context": "agents-api",
+   "subject": "agent-memory",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/api/companion/[id]/message/route.ts:140 The companion message route captures raw turn utterances directly as episodes and stores their paths in turn metadata, but lacks a consolidation pass to distill episodes into durable beliefs or decay stale records before recall.",
+   "techniques": [
+    {
+     "technique": "consolidation",
+     "verdict": "deviation",
+     "evidence": "app/api/companion/[id]/message/route.ts:139 Raw turn episodes are recalled directly without a periodic distillation pass converting events into consolidated facts, preferences, or procedures."
+    },
+    {
+     "technique": "working-memory",
+     "verdict": "deviation",
+     "evidence": "app/api/companion/[id]/message/route.ts:77 In-session state is supplied as a raw truncated transcript window rather than a rolling synthesized working memory structure."
+    },
+    {
+     "technique": "episodic-capture",
+     "verdict": "deviation",
+     "evidence": "app/api/companion/[id]/message/route.ts:36 Each chat exchange is appended as an utterance episode directly instead of defining bounded episodes with distilled claims and raw evidence pointers."
+    },
+    {
+     "technique": "decay-and-forgetting",
+     "verdict": "deviation",
+     "evidence": "app/api/companion/brain/route.ts:24 Memory is connected or created as a filesystem tree without an importance model, retention caps, or pruning sweeps on the kp side."
+    },
+    {
+     "technique": "lane-reconciliation",
+     "verdict": "deviation",
+     "evidence": "app/api/companion/[id]/message/route.ts:141 Index write omissions are tracked in metadata, but no reconciliation process scans the store to verify consistency between disk records and index lanes."
+    },
+    {
+     "technique": "durable-store-failure-posture",
+     "verdict": "deviation",
+     "evidence": "app/api/companion/brain/route.ts:55 Read-path probe failures throw a 500 error instead of returning a degraded unavailable status to the model/client."
+    },
+    {
+     "technique": "owner-and-counterpart-scope",
+     "verdict": "deviation",
+     "evidence": "app/api/companion/brain/route.ts:34 Memory consent and storage are partitioned only by workspace without maintaining counterpart sub-scopes or per-request view filters."
+    },
+    {
+     "technique": "memory-governance",
+     "verdict": "deviation",
+     "evidence": "app/api/companion/brain/route.ts:26 Hand-written constitution and identity files are protected from overwrite, but inferred memories lack tiered write lanes (auto-commit vs proposal-reviewed)."
+    },
+    {
+     "technique": "procedure-promotion",
+     "verdict": "not-applicable",
+     "evidence": "app/api/companion/proposals/[id]/resolve/route.ts:33 Proposals execute pre-defined catalog actions rather than promoting capabilities distilled from repeated observed workflows."
+    },
+    {
+     "technique": "filter-at-the-id-door",
+     "verdict": "not-applicable",
+     "evidence": "app/api/companion/proposals/[id]/resolve/route.ts:35 The system executes actions by catalog action ID rather than having the model choose and load memory items by ID."
+    }
+   ],
+   "registryProposal": "The agent-memory standard assumes a unified local agent memory loop, whereas hybrid studio architectures that store local episodic logs while delegating consolidation and sleep cycles to external desktop runtimes (e.g. Personas) create an asymmetric boundary where host-side memory operations are structurally incomplete without the external runner."
+  },
+  {
+   "context": "hiring-decisions-api",
+   "subject": "agent-memory",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/api/decisions/records/route.ts:21 Grep across hiring-decisions-api files for agent-memory terms (recall, episodic, consolidat, working_memory, belief) found zero matches, as this context handles sealed candidate decision records, peer-context lookups, and recruiter feedback without an interactive agent memory loop.",
+   "techniques": [
+    {
+     "technique": "episodic-capture",
+     "verdict": "not-applicable",
+     "evidence": "app/api/feedback/route.ts:11 This route collects recruiter UI product feedback rather than capturing agent conversation episodes."
+    },
+    {
+     "technique": "memory-governance",
+     "verdict": "not-applicable",
+     "evidence": "app/api/decisions/records/route.ts:24 Hash-chained records seal recruiter screening decisions for adverse action auditability rather than governing agent memory writes."
+    }
+   ]
+  },
+  {
+   "context": "jobs-ai-coach-fit",
+   "subject": "agent-memory",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/library/jobs/jobsCoachApply.ts:1 Grep across jobs-ai-coach-fit files for agent-memory terms (recall, episodic, consolidat, working_memory, belief) found zero matches, as this context implements a read-only client UI panel staging URL suggestions for recruiter JD editing rather than carrying forward agent memory.",
+   "techniques": [
+    {
+     "technique": "working-memory",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jobs/jobsCoachApply.ts:5 The coach pre-stages job description parameter suggestions in a recruiter UI form rather than managing an agent's operative working memory."
+    },
+    {
+     "technique": "coverage-instrumentation",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jobs/jobsAgentFitModel.ts:1 Coverage classes categorize candidate-job requirement match (automatable, assisted, human_only), not agent memory population coverage."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-13T00:06:40.160912+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-memory"
+   ],
+   "techniques": [
+    "decay-and-forgetting",
+    "episodic-capture",
+    "working-memory"
+   ],
+   "deviations": 0,
+   "context": "task-automation-engine",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-13T00:06:40.160912+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-memory"
+   ],
+   "techniques": [
+    "owner-and-counterpart-scope",
+    "working-memory"
+   ],
+   "deviations": 0,
+   "context": "platform-auth-api",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-13T00:06:40.160912+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-memory"
+   ],
+   "techniques": [
+    "consolidation",
+    "decay-and-forgetting",
+    "durable-store-failure-posture",
+    "episodic-capture",
+    "filter-at-the-id-door",
+    "lane-reconciliation",
+    "memory-governance",
+    "owner-and-counterpart-scope",
+    "procedure-promotion",
+    "working-memory"
+   ],
+   "deviations": 1,
+   "context": "agents-api",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-13T00:06:40.160912+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-memory"
+   ],
+   "techniques": [
+    "episodic-capture",
+    "memory-governance"
+   ],
+   "deviations": 0,
+   "context": "hiring-decisions-api",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-13T00:06:40.160912+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-memory"
+   ],
+   "techniques": [
+    "coverage-instrumentation",
+    "working-memory"
+   ],
+   "deviations": 0,
+   "context": "jobs-ai-coach-fit",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  }
+ ]
+}
