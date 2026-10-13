@@ -1,0 +1,213 @@
+{
+ "schema": "conform-run/1",
+ "worker": "b1840e21-336b-4efd-ae0c-f1bd513bd4e9",
+ "subject": "multi-provider-gateway-plane",
+ "evaluatedAt": "2026-10-13T11:49:33.120189+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "models-keys-and-routing",
+   "subject": "multi-provider-gateway-plane",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/settings/models/modelsRoutingActions.ts:37 Context and repository searches located provider execution elsewhere and found no failover or framing terms here, while these files administer configuration and render test results.",
+   "techniques": [
+    {
+     "technique": "adapter-direction-asymmetry",
+     "verdict": "not-applicable",
+     "evidence": "app/features/settings/models/modelsKeysPanelLogic.ts:85 This builds a key-store administration request, not an upstream adapter request."
+    },
+    {
+     "technique": "caller-scoped-normalization-strictness",
+     "verdict": "not-applicable",
+     "evidence": "app/features/settings/models/ModelsKeyRow.tsx:68 The UI consumes its own canary verdict contract rather than proxying native provider responses."
+    },
+    {
+     "technique": "exclusive-authorship-of-a-measured-decision",
+     "verdict": "not-applicable",
+     "evidence": "app/features/settings/models/ModelsRoutingRow.tsx:269 This guards a saved-pin canary UI; it does not own an evaluated runtime selector."
+    },
+    {
+     "technique": "join-breadth-follows-the-wrong-match-cost",
+     "verdict": "not-applicable",
+     "evidence": "app/features/settings/models/modelsKeysPanelLogic.ts:19 Stored keys are located by exact provider/scope identity, without a catalog-to-upstream naming join."
+    },
+    {
+     "technique": "named-members-over-a-uniform-collection",
+     "verdict": "not-applicable",
+     "evidence": "app/features/settings/models/ModelsKeysList.tsx:32 This collection renders stored metadata; it does not aggregate upstream probe results."
+    },
+    {
+     "technique": "one-typed-carrier-for-echoed-state",
+     "verdict": "not-applicable",
+     "evidence": "app/features/settings/models/modelsRoutingActions.ts:73 The echoed value is an application-owned concurrency version, not opaque upstream continuation state."
+    },
+    {
+     "technique": "per-provider-stream-framing",
+     "verdict": "not-applicable",
+     "evidence": "app/features/settings/models/ModelsRoutingRow.tsx:174 The component reads a settled application JSON response."
+    },
+    {
+     "technique": "policy-verdict-in-the-status-space",
+     "verdict": "not-applicable",
+     "evidence": "app/features/settings/models/modelsTestReason.ts:63 The consumer parses the body's typed code, so a private status vocabulary is unnecessary."
+    },
+    {
+     "technique": "router-versus-candidate-failure",
+     "verdict": "not-applicable",
+     "evidence": "app/features/settings/models/ModelsKeyRow.tsx:63 The row invokes one application canary endpoint and owns no candidate fallback loop."
+    },
+    {
+     "technique": "strategy-tree-with-inherited-policy",
+     "verdict": "not-applicable",
+     "evidence": "app/features/settings/models/ModelsRoutingPanel.tsx:75 The panel edits individual use-case pins rather than recursive execution strategies."
+    },
+    {
+     "technique": "upstream-identity-before-inventory",
+     "verdict": "not-applicable",
+     "evidence": "app/features/settings/models/modelsProviderNames.ts:14 This labels an already supplied provider identifier and performs no endpoint identity discovery."
+    }
+   ],
+   "absenceTerms": [
+    "failover",
+    "framing"
+   ]
+  },
+  {
+   "context": "jobs-table-core",
+   "subject": "multi-provider-gateway-plane",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "app/features/library/jobs/useJobsList.ts:161 Context and repository searches found adapter execution elsewhere and no adapter or finish_reason terms in the Jobs directory, whose core files fetch and render application-owned job records.",
+   "techniques": [
+    {
+     "technique": "adapter-direction-asymmetry",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jobs/useJobsList.ts:161 The hook calls one application API rather than translating requests for upstream adapters."
+    },
+    {
+     "technique": "caller-scoped-normalization-strictness",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jobs/useJobsList.ts:72 The UI reads its application's own Job contract, without gateway compatibility modes."
+    },
+    {
+     "technique": "exclusive-authorship-of-a-measured-decision",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jobs/jobsStatusMerge.ts:25 This merges a job lifecycle update, not an evaluated upstream-selection decision."
+    },
+    {
+     "technique": "join-breadth-follows-the-wrong-match-cost",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jobs/jobsTabDeepLink.ts:50 Deep links match exact application record IDs rather than independently named upstream artifacts."
+    },
+    {
+     "technique": "named-members-over-a-uniform-collection",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jobs/JobsTab.tsx:123 The aggregate being rendered is job-category statistics, not heterogeneous upstream inventory."
+    },
+    {
+     "technique": "one-typed-carrier-for-echoed-state",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jobs/jobsRequestGuard.ts:23 The guard keeps local request identity; no opaque upstream state must survive a client round trip."
+    },
+    {
+     "technique": "per-provider-stream-framing",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jobs/jobsTabDeepLink.ts:68 The lookup consumes settled application JSON, without provider-specific streaming frames."
+    },
+    {
+     "technique": "policy-verdict-in-the-status-space",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jobs/jobsResponseFold.ts:35 The response consumer can inspect both the parsed body and status; no status-only candidate policy is configured."
+    },
+    {
+     "technique": "router-versus-candidate-failure",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jobs/useJobsList.ts:165 This handles one application endpoint's failure and owns no interchangeable-candidate loop."
+    },
+    {
+     "technique": "strategy-tree-with-inherited-policy",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jobs/useJobsList.ts:47 The request configures job-list sorting and filtering rather than a recursive routing strategy."
+    },
+    {
+     "technique": "upstream-identity-before-inventory",
+     "verdict": "not-applicable",
+     "evidence": "app/features/library/jobs/JobsRow.tsx:43 Rows display application job records; this surface does not identify upstream implementations."
+    }
+   ],
+   "absenceTerms": [
+    "adapter",
+    "finish_reason"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "multi-provider-gateway-plane",
+   "context": "llm-layer",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "multi-provider-gateway-plane",
+   "context": "jobseeker-ats-adapters",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "multi-provider-gateway-plane",
+   "context": "voice-tts-package",
+   "reason": "conformant with fewer than two techniques shown realized"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-13T11:49:33.120189+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "multi-provider-gateway-plane"
+   ],
+   "techniques": [
+    "adapter-direction-asymmetry",
+    "caller-scoped-normalization-strictness",
+    "exclusive-authorship-of-a-measured-decision",
+    "join-breadth-follows-the-wrong-match-cost",
+    "named-members-over-a-uniform-collection",
+    "one-typed-carrier-for-echoed-state",
+    "per-provider-stream-framing",
+    "policy-verdict-in-the-status-space",
+    "router-versus-candidate-failure",
+    "strategy-tree-with-inherited-policy",
+    "upstream-identity-before-inventory"
+   ],
+   "deviations": 0,
+   "context": "models-keys-and-routing",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-13T11:49:33.120189+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "multi-provider-gateway-plane"
+   ],
+   "techniques": [
+    "adapter-direction-asymmetry",
+    "caller-scoped-normalization-strictness",
+    "exclusive-authorship-of-a-measured-decision",
+    "join-breadth-follows-the-wrong-match-cost",
+    "named-members-over-a-uniform-collection",
+    "one-typed-carrier-for-echoed-state",
+    "per-provider-stream-framing",
+    "policy-verdict-in-the-status-space",
+    "router-versus-candidate-failure",
+    "strategy-tree-with-inherited-policy",
+    "upstream-identity-before-inventory"
+   ],
+   "deviations": 0,
+   "context": "jobs-table-core",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}
