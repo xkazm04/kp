@@ -523,6 +523,3220 @@
         }
       ],
       "registryProposal": ""
+    },
+    "1ee35ac8-8811-4919-a9e7-f6ef215bfb41/test-harness": {
+      "context": "e2e-suite",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-12",
+      "evaluatedTs": "2026-10-12T19:51:46.311Z",
+      "worker": "59e4fc46-3d44-49bf-beec-ac6719e4df6e",
+      "techniques": [
+        {
+          "technique": "assert-through-the-reader",
+          "verdict": "not-applicable",
+          "evidence": "e2e/locale-smoke.spec.ts:23 The reader of the catalog strings is the product page itself, which this technique excludes."
+        },
+        {
+          "technique": "configuration-axes-cross-the-ladder",
+          "verdict": "conformant",
+          "evidence": "e2e/shell.spec.ts:82 Each of en/cs/de/fr is its own test, so a locale split is a separate result; dark theme is a separate test."
+        },
+        {
+          "technique": "context-starved-executor",
+          "verdict": "deviation",
+          "evidence": "e2e/shell-tab-state.spec.ts:23 Journeys address known roles and names. Nothing in e2e is a prose journey run by an executor denied the checkout and the checks."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "not-applicable",
+          "evidence": "playwright.config.ts:52 Keyless membership is an explicit name list, not tags derived from file text."
+        },
+        {
+          "technique": "far-side-oracle",
+          "verdict": "not-applicable",
+          "evidence": "e2e/journey-role-to-schedule.spec.ts:17 The journey's effect is computed and read back inside kp; there is no foreign host to observe."
+        },
+        {
+          "technique": "fixture-economics",
+          "verdict": "deviation",
+          "evidence": "e2e/quality-tables.spec.ts:100 One shared database is mutated by every spec. The cheap private copy is not what this lane spends."
+        },
+        {
+          "technique": "flake-lifecycle",
+          "verdict": "deviation",
+          "evidence": "playwright.config.ts:105 CI retries once so a flake does not block the release. That is a retry that salvages the run rather than a flake that still fails."
+        },
+        {
+          "technique": "gate-scope-is-not-report-scope",
+          "verdict": "deviation",
+          "evidence": "e2e/public-pages.spec.ts:19 The file header says this is everything the sitemap indexes except '/'. The population is a handwritten list, so a new sitemap URL does not fail the spec."
+        },
+        {
+          "technique": "history-driven-partitioning",
+          "verdict": "deviation",
+          "evidence": "playwright.config.ts:113 CI splits the suite across two workers. Nothing in the config records per-test duration or assigns longest-first."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "deviation",
+          "evidence": "e2e/quality-tables.spec.ts:95 The singleton database is documented and still shared by parallel workers. The lane is not declared serial."
+        },
+        {
+          "technique": "live-app-harness",
+          "verdict": "deviation",
+          "evidence": "playwright.config.ts:126 The suite's own server is next dev. journey-role-to-schedule.spec.ts says the same journey fails against next dev and passes against the production server."
+        },
+        {
+          "technique": "long-lane-certification",
+          "verdict": "not-applicable",
+          "evidence": "playwright.config.ts:114 The lane's ceiling is two minutes per test, not an hours-long statistical certification."
+        },
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "not-applicable",
+          "evidence": "e2e/shell.spec.ts:9 The shell contract is checked on a real response. The technique says to execute the site when the lane can."
+        },
+        {
+          "technique": "platform-quirk-absorption",
+          "verdict": "conformant",
+          "evidence": "playwright.config.ts:100 A committed test.only exits 0 after skipping the rest. CI turns that into a failed run at the one config every CI invocation uses."
+        },
+        {
+          "technique": "recorded-interaction-fixtures",
+          "verdict": "deviation",
+          "evidence": "e2e/fixtures/mock-personas-bridge.ts:9 App-master hire is a handwritten mock of a service the suite never records and never re-certifies live, so an upstream change cannot turn the lane red."
+        },
+        {
+          "technique": "suite-partitioning",
+          "verdict": "deviation",
+          "evidence": "playwright.config.ts:36 Dev-server and production-server runs, and the keyless file filter, are switches inside one Playwright config rather than one configuration file per suite."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "conformant",
+          "evidence": "e2e/quality-tables.spec.ts:109 The spec refuses a chain count a sibling could have produced and waits until its own entry id is in the payload."
+        }
+      ],
+      "registryProposal": "live-app-harness requires a test-only control endpoint that production must not contain. A browser lane that drives the shipped UI has no way to meet that rule without adding the door the technique forbids, and the golden path already places that lane on the end-to-end rung rather than live-app."
+    },
+    "7e9c708a-57d1-4496-8e24-0172455620bb/test-harness": {
+      "context": "tests-llm-eval",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-12",
+      "evaluatedTs": "2026-10-12T19:51:46.311Z",
+      "worker": "59e4fc46-3d44-49bf-beec-ac6719e4df6e",
+      "techniques": [
+        {
+          "technique": "approval-snapshots-with-guarded-update",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_thresholds.py:352 Record mode is a CLI flag, and test_record_refuses_to_run_in_ci proves a CI environment exits 2 and leaves the record bytes unchanged."
+        },
+        {
+          "technique": "configuration-axes-cross-the-ladder",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_llm_offline.py:3 KP_OFFLINE is applied and cleared per provider inside the file, so both cells of that axis are asserted rather than reported as one run."
+        },
+        {
+          "technique": "context-starved-executor",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/tests/test_llm_offline.py:1 These files test an engine gate, not a human-facing journey."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_llm_capabilities.py:71 The call-site scan declares a floor, so a regex that matches nothing fails instead of leaving every later assertion vacuously green."
+        },
+        {
+          "technique": "gate-scope-is-not-report-scope",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_byom_coverage.py:18 The use-case population is parsed from the catalogs and the call sites, and exemptions are checked in both directions later in the same file."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_llm_offline.py:35 The offline helper pops provider base-URL variables before the assertion, so a developer shell cannot decide the cell."
+        },
+        {
+          "technique": "live-app-harness",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/tests/test_fault_injection.py:1 The file states it is a unit pin of the fault seam, not a drive of the shipped process."
+        },
+        {
+          "technique": "mutation-lane-with-a-triaged-baseline",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/tests/test_byom_coverage.py:99 The 2026-08-22 mutation was a one-off probe of the scanner. It is not a scheduled mutation-score lane."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_byom_coverage.py:96 They mutated a map value the literal scan never reached, watched the suite stay green, and recorded that the scan was the thing that could not fail."
+        },
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_byom_coverage.py:78 The only exclusion is __pycache__. test_llm_capabilities.py says this scan reads tests too, and its own docstring avoids spelling the call because a prose example would be taken as a site."
+        },
+        {
+          "technique": "platform-quirk-absorption",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_eval_runner.py:206 The line-ending quirk is absorbed in write_text_lf and the test asserts the bytes contain no CR on every platform."
+        },
+        {
+          "technique": "recorded-interaction-fixtures",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/tests/test_fault_injection.py:7 FaultProvider is an in-process failure double for the client's handling, not a captured exchange with a remote service."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_graded_fallback.py:53 Fallback fixtures are nonsense terms, and the test fails if the taxonomy resolver would have answered instead of the fallback."
+        }
+      ]
+    },
+    "c914a994-2658-490a-9f11-41768247fa0d/test-harness": {
+      "context": "dev-toolchain",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-12",
+      "evaluatedTs": "2026-10-12T19:51:46.311Z",
+      "worker": "59e4fc46-3d44-49bf-beec-ac6719e4df6e",
+      "techniques": [
+        {
+          "technique": "configuration-axes-cross-the-ladder",
+          "verdict": "conformant",
+          "evidence": "scripts/run-unit-tests.mjs:26 The launcher deletes inherited backend and offline variables and says a test that needs another cell sets it itself, so the default run is not silently every backend."
+        },
+        {
+          "technique": "context-starved-executor",
+          "verdict": "not-applicable",
+          "evidence": "scripts/run-unit-tests.mjs:1 This context is the unit launcher and the dev-server reaper, not a human journey."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "conformant",
+          "evidence": "scripts/run-unit-tests.mjs:161 A glob that selects nothing, and a run whose reporter counted zero tests, exits 1 instead of the runner's green empty success."
+        },
+        {
+          "technique": "fixture-economics",
+          "verdict": "not-applicable",
+          "evidence": "scripts/run-unit-tests.mjs:24 The launcher says per-file database isolation lives in unit-db.ts. It does not build or copy a template."
+        },
+        {
+          "technique": "flake-lifecycle",
+          "verdict": "deviation",
+          "evidence": "scripts/run-unit-tests.mjs:320 A flake still fails the build, and the register requires why, since, and expires. Detection is one re-run written to a per-job summary, and the register checker has no owner field."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "conformant",
+          "evidence": "scripts/run-unit-tests.mjs:106 The only entrance deletes inherited runner and database variables before the test process boots, with the incident dated in the header."
+        },
+        {
+          "technique": "live-app-harness",
+          "verdict": "not-applicable",
+          "evidence": "scripts/dev-guard.mjs:18 dev-guard reaps a dev process tree. It is not a lane that drives the shipped product."
+        },
+        {
+          "technique": "platform-quirk-absorption",
+          "verdict": "conformant",
+          "evidence": "scripts/run-unit-tests.mjs:11 NODE_TEST_CONTEXT inherited from an ancestor runner forces exit 0. The wrapper deletes it before bootstrap, and the comment records the node version and the date it was measured. dev-guard.mjs records the same shape for the Windows process-tree leak."
+        },
+        {
+          "technique": "suite-partitioning",
+          "verdict": "conformant",
+          "evidence": "scripts/run-unit-tests.mjs:118 Membership is four location globs. The header says i18n sat outside app/ and would otherwise have been a test nothing ran."
+        }
+      ]
+    },
+    "e7a9bc1c-fe25-4247-a48f-d05ce318eb98/test-harness": {
+      "context": "llm-inference-runtime",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-12",
+      "evaluatedTs": "2026-10-12T19:51:46.311Z",
+      "worker": "59e4fc46-3d44-49bf-beec-ac6719e4df6e",
+      "techniques": [
+        {
+          "technique": "assert-through-the-reader",
+          "verdict": "conformant",
+          "evidence": "app/_lib/python-runner-option-injection.test.ts:115 A hostile flag value is spawned through a real child and read back from that process's argv, not only searched for in the source."
+        },
+        {
+          "technique": "configuration-axes-cross-the-ladder",
+          "verdict": "conformant",
+          "evidence": "app/_lib/reasoning-cache-first.test.ts:69 de and fr are separate tests of the engine locale after the code had collapsed both to English. The cache key comment names workspace as its own axis."
+        },
+        {
+          "technique": "constraint-injection-for-unreachable-tiers",
+          "verdict": "conformant",
+          "evidence": "app/_lib/python-runner-concurrency.test.ts:59 The test sets the same environment variable the production ceiling reads live, then asserts in-flight and queued counts from that read."
+        },
+        {
+          "technique": "context-starved-executor",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/reasoning-cache-first.test.ts:1 These are in-process node:test files. There is no rendered interface to starve an executor of."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "conformant",
+          "evidence": "app/_lib/python-runner-concurrency.test.ts:17 The concurrency tests replace the interpreter and switch the usage ledger off so they cannot inherit a developer Python or a real ledger."
+        },
+        {
+          "technique": "live-app-harness",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/reasoning-cache-first.test.ts:9 The cache test forces the spawn seam to fail inside the unit process. It does not start the shipped server."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "app/_lib/python-runner-concurrency.test.ts:20 The file records the mutation that makes each admission and kill test fail, including the Windows kill that leaves a grandchild alive."
+        },
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "app/_lib/python-runner-option-injection.test.ts:71 The needle is a bare flag string. A comment in devcase-run.ts that mentions it would pass the source contract."
+        },
+        {
+          "technique": "platform-quirk-absorption",
+          "verdict": "conformant",
+          "evidence": "app/_lib/python-runner-concurrency.test.ts:108 The Windows taskkill-versus-POSIX process-group difference is stated in the test and the detached grandchild is asserted only where that kill can reach it."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "conformant",
+          "evidence": "app/_lib/reasoning-cache-first.test.ts:55 A bogus PYTHON_CMD makes a miss throw. A clean return plus cached: true is what distinguishes the cache producer from a spawn that never happened."
+        }
+      ]
+    },
+    "8b2d6213-b08e-4a6a-b1bd-485ef0ccbd89/test-harness": {
+      "context": "tests-pipeline-automation",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-12",
+      "evaluatedTs": "2026-10-12T19:51:46.311Z",
+      "worker": "59e4fc46-3d44-49bf-beec-ac6719e4df6e",
+      "techniques": [
+        {
+          "technique": "context-starved-executor",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/tests/_helpers.py:4 The helper says this suite is unittest discovery, not a browser journey."
+        },
+        {
+          "technique": "derived-selection-must-be-measured",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/run_gated.py:181 Unnamed skips otherwise fail by identity and the register length must equal the baseline. ALLOW_SKIP=1 drops that verdict to success with no CI refusal in this function."
+        },
+        {
+          "technique": "fixture-economics",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/_helpers.py:33 Unit cases build a job in memory through the product normalizer. They do not rebuild a migrated database per test."
+        },
+        {
+          "technique": "history-driven-partitioning",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/tests/run_gated.py:26 Timings name the slowest modules. The runner does not assign tests to workers."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/__init__.py:36 Importing the test package clears the telemetry URL and replaces the SDK so a developer .env.local cannot emit."
+        },
+        {
+          "technique": "live-app-harness",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/tests/run_gated.py:34 The gated python run is declared as a different machine from the browser suite."
+        },
+        {
+          "technique": "long-lane-certification",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/tests/run_gated.py:21 The stated cost is minutes of unittest, not an hours-long statistical lane."
+        },
+        {
+          "technique": "negative-control-tests",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/run_gated.py:16 Deleting either hermeticity layer left the suite green. The comment records that mutation, and the tripwire now fails the run if the layers are gone."
+        },
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/run_gated.py:255 The guard checks that load_dotenv and LightTrack come from the tests package. An attribute that merely exists does not pass."
+        },
+        {
+          "technique": "platform-quirk-absorption",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/__init__.py:11 The .env.local telemetry switch is present on a developer machine and absent in CI. The test package neutralises dotenv once, before any test module imports."
+        },
+        {
+          "technique": "recorded-interaction-fixtures",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/tests/__init__.py:23 LightTrack is stubbed so the suite cannot talk to it. The question under test is not the remote service's behaviour."
+        },
+        {
+          "technique": "suite-partitioning",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/run_gated.py:370 The gated python machine discovers one directory. Membership is the file's location, not a marker on the test."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/run_gated.py:268 The suite stays green if the no-network stub is removed. The tripwire fails unless the installed LightTrack's module is the tests package, which is the producer."
+        }
+      ]
+    },
+    "de71aa9b-3319-42bc-8b1f-cc8e185ebebe/quality-gates": {
+      "context": "review-gates",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evaluatedAt": "2026-10-12",
+      "evaluatedTs": "2026-10-12T21:08:44.146Z",
+      "worker": "820631b7-22b5-4d6c-b75f-93acd4578096",
+      "techniques": [
+        {
+          "technique": "severity-by-construction",
+          "verdict": "conformant",
+          "evidence": "scripts/review/constitution-check.mjs:19 Exit code 1 is reserved for blocking findings, while warnings and clean runs exit 0."
+        },
+        {
+          "technique": "gate-liveness",
+          "verdict": "conformant",
+          "evidence": "scripts/review/constitution-check.mjs:20 Exit code 2 distinguishes when the check could not run from a passing exit code 0."
+        },
+        {
+          "technique": "waiver-names-its-finding",
+          "verdict": "conformant",
+          "evidence": "scripts/review/constitution-check.mjs:65 Exemptions must parse rule, file, and reason; shapeless trailers are rejected."
+        },
+        {
+          "technique": "decidable-in-a-window",
+          "verdict": "conformant",
+          "evidence": "scripts/review/constitution-check.mjs:269 Skip reasons are parsed within a bounded window of 8 added lines in the unified diff chunk."
+        },
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "conformant",
+          "evidence": "scripts/review/constitution-check.mjs:357 Comments and string literals are masked out so token rules only inspect executable code."
+        },
+        {
+          "technique": "false-positive-economics",
+          "verdict": "conformant",
+          "evidence": "scripts/review/constitution-check.mjs:378 Conditional skips with declared reasons are demoted to warnings to avoid false-positive fatigue."
+        },
+        {
+          "technique": "oracle-frozen-during-repair",
+          "verdict": "conformant",
+          "evidence": "scripts/review/constitution-check.mjs:534 Warns whenever a pull request modifies the review gate scripts and configuration files."
+        },
+        {
+          "technique": "blocking-by-input-determinism",
+          "verdict": "conformant",
+          "evidence": "scripts/review/agent-review.mjs:23 Keyless fallback exits 0 and prints that the LLM lens did not run rather than blocking on missing model keys."
+        },
+        {
+          "technique": "shared-substrate-check-partition",
+          "verdict": "conformant",
+          "evidence": "scripts/review/agent-review.mjs:77 Agent review prompt explicitly partitions out deterministic lint and test checks."
+        },
+        {
+          "technique": "unparseable-form-is-a-finding",
+          "verdict": "conformant",
+          "evidence": "scripts/review/gate-check.mjs:125 Workflows declaring no jobs or unparseable structure are raised as blocking findings."
+        },
+        {
+          "technique": "enforcement-binding",
+          "verdict": "conformant",
+          "evidence": "scripts/review/gate-check.mjs:159 Asserts that required check contexts in the ruleset match actual jobs emitted by workflow files."
+        },
+        {
+          "technique": "refusal-names-a-reachable-remedy",
+          "verdict": "conformant",
+          "evidence": "scripts/review/gate-check.mjs:249 Refusal message gives the exact in-tree command needed to sync and apply the branch ruleset."
+        },
+        {
+          "technique": "prose-rule-drift",
+          "verdict": "conformant",
+          "evidence": "scripts/review/rubric.mjs:2 Rubric is assembled directly from committed documentation and ADRs to prevent drift."
+        },
+        {
+          "technique": "vacuous-by-evaluation",
+          "verdict": "conformant",
+          "evidence": "scripts/review/__tests__/constitution-check.test.mjs:6 Test suite verifies that each pattern fires against realistic unified diff test fragments."
+        },
+        {
+          "technique": "fabrication-economics",
+          "verdict": "conformant",
+          "evidence": "scripts/review/constitution-check.mjs:39 Eliminating per-line comments forces justifications into commit trailers reviewed in git log."
+        }
+      ],
+      "registryProposal": "The standard's waiver-names-its-finding technique should explicitly mention matching on git commit message trailers (e.g. `Gate-exemption: <rule> at <file>[:<line>] — <why>`) as a robust alternative to inline source suppression comments, preventing inadvertent proliferation of copy-pasted in-code disable directives."
+    },
+    "923796fb-9839-4b9d-bbf1-cb4e1cc7574f/quality-gates": {
+      "context": "lint-quality-gates",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evaluatedAt": "2026-10-12",
+      "evaluatedTs": "2026-10-12T21:08:44.146Z",
+      "worker": "820631b7-22b5-4d6c-b75f-93acd4578096",
+      "techniques": [
+        {
+          "technique": "severity-by-construction",
+          "verdict": "conformant",
+          "evidence": "scripts/lint/ratchet.mjs:34 Growth beyond the ceiling is unconditionally classified as blocking."
+        },
+        {
+          "technique": "oracle-frozen-during-repair",
+          "verdict": "conformant",
+          "evidence": "scripts/lint/ratchet.mjs:27 Undeclared suppressions block CI, requiring a deliberate ceiling entry with rationale."
+        },
+        {
+          "technique": "unparseable-form-is-a-finding",
+          "verdict": "conformant",
+          "evidence": "scripts/lint/ratchet.mjs:30 Non-integer ceilings or missing explanations are treated as blocking errors."
+        },
+        {
+          "technique": "false-positive-economics",
+          "verdict": "conformant",
+          "evidence": "scripts/lint/ratchet.mjs:40 Surplus ceiling headroom reports as a note rather than failing CI on debt cleanup."
+        },
+        {
+          "technique": "vacuous-by-evaluation",
+          "verdict": "conformant",
+          "evidence": "scripts/lint/ratchet.mjs:51 Empty scan results on measurement failure are rejected to prevent wiping debt ceilings."
+        },
+        {
+          "technique": "gate-liveness",
+          "verdict": "conformant",
+          "evidence": "scripts/lint/ratchet.mjs:54 Throws on measurement errors so tool failure exits non-zero rather than passing clean."
+        },
+        {
+          "technique": "blocking-by-input-determinism",
+          "verdict": "conformant",
+          "evidence": "scripts/perf/ci-budget.mjs:18 Recognizes wall-clock variance as non-deterministic, using slack margins and explicit run context."
+        },
+        {
+          "technique": "refusal-names-a-reachable-remedy",
+          "verdict": "conformant",
+          "evidence": "scripts/perf/ci-budget.mjs:38 CLI guidance provides the exact --tighten command to recalibrate ceilings after improvements."
+        },
+        {
+          "technique": "unmeasurable-criteria",
+          "verdict": "conformant",
+          "evidence": "scripts/perf/ci-budget.mjs:20 New pipeline jobs without defined duration ceilings fail the gate immediately."
+        },
+        {
+          "technique": "prose-rule-drift",
+          "verdict": "conformant",
+          "evidence": "scripts/design/check-design-tokens.mjs:8 Automates verification of dual-theme CSS variables against brand constants that previously drifted in prose."
+        },
+        {
+          "technique": "chokepoint-tag-registry",
+          "verdict": "conformant",
+          "evidence": "scripts/design/check-design-tokens.mjs:83 Unresolved color constants fail with an error to preserve strict registry mapping."
+        },
+        {
+          "technique": "item-liveness",
+          "verdict": "conformant",
+          "evidence": "scripts/lint/ruff-ratchet.mjs:34 Zero violations on an ignore rule indicates a dead entry that must be deleted."
+        },
+        {
+          "technique": "instrument-answers-only-its-own-question",
+          "verdict": "conformant",
+          "evidence": "scripts/lint/ts-ratchet.mjs:42 Avoids lexical grep for the word 'any' and instead gates on compiler directives and disable comments."
+        },
+        {
+          "technique": "gate-laddering",
+          "verdict": "conformant",
+          "evidence": "scripts/perf/sqlite-writer-knee.mjs:9 Places heavy load benchmarks as runnable standalone probes rather than blocking CI pipeline steps."
+        },
+        {
+          "technique": "excess-indicts-the-instrument",
+          "verdict": "conformant",
+          "evidence": "scripts/perf/devbench.mjs:34 Wide 35% tolerance threshold prevents machine noise from undermining gate trustworthiness."
+        }
+      ],
+      "registryProposal": "The standard's severity-by-construction and excess-indicts-the-instrument techniques should formalize the ratchet pawl protocol (undeclared, unexplained, grew, dead/zero, slack, met) where slack automatically triggers unattended ceiling reduction (--tighten) via CI autofix jobs without failing the build."
+    },
+    "903990c9-54d2-4ed6-af82-defd5db63d49/quality-gates": {
+      "context": "pipeline-api",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-12",
+      "evaluatedTs": "2026-10-12T21:08:44.146Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "820631b7-22b5-4d6c-b75f-93acd4578096",
+        "state": "not-applicable",
+        "at": "2026-10-12T21:09:57.127405+00:00",
+        "reason": "reviewer (sonnet): The pipeline-api anchor (route.ts:31) is only a comment inside one GET handler, and its context holds authz-parity and execution-count tests that could be gate-like. The pipeline-move-bulk anchor (pipelineBoardPopulation.ts:39) is a population helper, and that file is not among the listed context fi"
+      }
+    },
+    "bfeaddc0-56a8-4128-9a38-f1a7f89428e7/quality-gates": {
+      "context": "pipeline-move-bulk-operations",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-12",
+      "evaluatedTs": "2026-10-12T21:08:44.146Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "820631b7-22b5-4d6c-b75f-93acd4578096",
+        "state": "not-applicable",
+        "at": "2026-10-12T21:09:57.127405+00:00",
+        "reason": "reviewer (sonnet): The pipeline-api anchor (route.ts:31) is only a comment inside one GET handler, and its context holds authz-parity and execution-count tests that could be gate-like. The pipeline-move-bulk anchor (pipelineBoardPopulation.ts:39) is a population helper, and that file is not among the listed context fi"
+      }
+    },
+    "ebfe3268-6c14-4997-a49c-091483d763b5/quality-gates": {
+      "context": "shared-api-utilities",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-12",
+      "evaluatedTs": "2026-10-12T21:08:44.146Z",
+      "worker": "820631b7-22b5-4d6c-b75f-93acd4578096",
+      "techniques": []
+    },
+    "e7a9bc1c-fe25-4247-a48f-d05ce318eb98/prompt-assembly": {
+      "context": "llm-inference-runtime",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-12",
+      "evaluatedTs": "2026-10-12T22:15:58.163Z",
+      "worker": "a2612911-7aa8-483d-bce1-faa7c45fc098",
+      "techniques": [
+        {
+          "technique": "layered-composition",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/match_reasoning.py:556 Traced from runReasoning through reasoning_cli; locale instruction is a post-return suffix rather than an assembler input."
+        }
+      ]
+    },
+    "050c760b-ee78-46e0-a86f-77d80d89b3bf/prompt-assembly": {
+      "context": "interview-simulator",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-12",
+      "evaluatedTs": "2026-10-12T22:15:58.163Z",
+      "worker": "a2612911-7aa8-483d-bce1-faa7c45fc098",
+      "techniques": [
+        {
+          "technique": "consumer-coupled-decoration",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-sim/judge.ts:165 Turn-number decoration has concrete consumers: the judge cites it, and verifyFacts resolves the number against the original turn."
+        },
+        {
+          "technique": "context-budgeting",
+          "verdict": "deviation",
+          "evidence": "app/_lib/interview-sim/engine.ts:257 View.messages returns every accumulated message; this call checks maxCalls but does not size the assembled system plus history against a model window."
+        },
+        {
+          "technique": "task-envelope",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-sim/judge.ts:199 The judge task locates evidence in numbered turns, specifies the JSON artifact and complete question roster, and requires checking quotes against those turns."
+        }
+      ]
+    },
+    "c29afd56-b78f-4c8c-bfa8-75a8a24a80c2/prompt-assembly": {
+      "context": "task-automation-engine",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-12",
+      "evaluatedTs": "2026-10-12T22:15:58.163Z",
+      "worker": "a2612911-7aa8-483d-bce1-faa7c45fc098",
+      "techniques": [
+        {
+          "technique": "consumer-coupled-decoration",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/automation.py:625 The retained object-key wrapper has named consumers: rejection instructions address interview.weakestCompetencies and offer instructions address interview; the renderer documents this coupling."
+        },
+        {
+          "technique": "context-budgeting",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/automation.py:655 Traced through tasks, automation-run and automation_cli into screening: the count cap silently discards additional unproven requirements."
+        }
+      ]
+    },
+    "14d4d7df-d27a-4533-a471-e4ed40575d8d/prompt-assembly": {
+      "context": "candidate-apply-api",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-12",
+      "evaluatedTs": "2026-10-12T22:15:58.163Z",
+      "worker": "a2612911-7aa8-483d-bce1-faa7c45fc098",
+      "techniques": [
+        {
+          "technique": "consumer-coupled-decoration",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/intake.py:310 Numbered transcript decoration has a named consumer: the extraction contract requests sourceTurn citations, and the renderer documents that purpose."
+        },
+        {
+          "technique": "context-budgeting",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/intake.py:307 Traced from the intake message route through intake-run: render_transcript drops older turns, while run_turn labels the result CONVERSATION SO FAR without an omission notice."
+        }
+      ]
+    },
+    "1a8b63b3-ac28-4460-a74c-fbbe54884aec/mcp-tools": {
+      "context": "analyze-engine",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-12",
+      "evaluatedTs": "2026-10-12T23:10:58.277Z",
+      "worker": "571b1740-4440-4fe0-bab1-977f4c975c78",
+      "techniques": [
+        {
+          "technique": "transport-selection",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/analyze/AnalyzeApi.ts:396 The other outbound call is the same shape, a same-origin form POST, not a child-process tool server or a network listener."
+        }
+      ]
+    },
+    "01cf5f88-41a1-47e6-9310-186589ebf384/mcp-tools": {
+      "context": "cv-analyze-intake",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-12",
+      "evaluatedTs": "2026-10-12T23:10:58.277Z",
+      "worker": "571b1740-4440-4fe0-bab1-977f4c975c78",
+      "techniques": []
+    },
+    "903990c9-54d2-4ed6-af82-defd5db63d49/mcp-tools": {
+      "context": "pipeline-api",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-12",
+      "evaluatedTs": "2026-10-12T23:10:58.277Z",
+      "worker": "571b1740-4440-4fe0-bab1-977f4c975c78",
+      "techniques": [
+        {
+          "technique": "command-audit-by-position",
+          "verdict": "not-applicable",
+          "evidence": "app/api/pipeline/command/execute.ts:18 Confirmed commands call an in-process pipeline action, so there is no host-spawned command string to classify by token position."
+        },
+        {
+          "technique": "enumeration-without-a-scope",
+          "verdict": "not-applicable",
+          "evidence": "app/api/pipeline/events/route.ts:20 The event list is scoped to the caller's team, so it is not a listing whose access check has no scope."
+        }
+      ]
+    },
+    "5e59aca6-ce51-498d-85c6-6ad37b847bc6/mcp-tools": {
+      "context": "agents-api",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-12",
+      "evaluatedTs": "2026-10-12T23:10:58.277Z",
+      "worker": "571b1740-4440-4fe0-bab1-977f4c975c78",
+      "techniques": [
+        {
+          "technique": "egress-argument-gating",
+          "verdict": "not-applicable",
+          "evidence": "app/api/agents/catalog/route.ts:13 Egress here is this route opening a socket to Personas for a connector catalog, not a model tool call gated over a third-party argument schema."
+        },
+        {
+          "technique": "first-party-agent-is-a-principal",
+          "verdict": "not-applicable",
+          "evidence": "app/api/companion/[id]/message/route.ts:24 The companion route is an operator chat exchange persisted to the thread; it does not call tools through a protocol door."
+        }
+      ]
+    },
+    "050c760b-ee78-46e0-a86f-77d80d89b3bf/mcp-tools": {
+      "context": "interview-simulator",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-12",
+      "evaluatedTs": "2026-10-12T23:10:58.277Z",
+      "worker": "571b1740-4440-4fe0-bab1-977f4c975c78",
+      "techniques": [
+        {
+          "technique": "fluent-syntax-bounded-grammar",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/interview-sim/tool-line.ts:5 The <<tool JSON>> line is the harness stand-in for function calling, not a tool-server command grammar the host executes."
+        },
+        {
+          "technique": "untrusted-result-handling",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/interview-sim/engine.ts:80 Results are harness lines inside the stand-in prompt, not server output crossing a protocol trust boundary."
+        },
+        {
+          "technique": "tool-schema-design",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/interview-sim/engine.ts:82 Schemas are pasted into the provider stand-in preamble; the golden path puts that private function-calling format outside this subject."
+        },
+        {
+          "technique": "server-composition",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/interview-sim/detectors.ts:469 Unknown names are a post-hoc scoring check over a transcript, not a tool-server registry and dispatch door."
+        }
+      ],
+      "registryProposal": "The golden path already excludes a model's private function-calling format. interview-simulator matches this subject only by vocabulary (tool lines, JSON-schema parameters, a detector named tool_protocol). That exclusion is doing the work; the pairing is technique-shaped resonance, not a hole in the standard."
+    },
+    "c29afd56-b78f-4c8c-bfa8-75a8a24a80c2/agent-memory": {
+      "context": "task-automation-engine",
+      "subject": "agent-memory",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T00:06:40.160Z",
+      "worker": "08401036-214f-421d-91d4-621f9d917a26",
+      "techniques": [
+        {
+          "technique": "working-memory",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/tasks.ts:44 Operative state represents background job execution context rather than agent working memory."
+        },
+        {
+          "technique": "decay-and-forgetting",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/task-maintenance.ts:17 Retention sweeps delete terminal task rows in SQLite rather than decaying agent beliefs."
+        },
+        {
+          "technique": "episodic-capture",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/task-outcome-summary.ts:1 Outcome summaries format background task execution results for the UI rather than capturing agent conversation episodes."
+        }
+      ]
+    },
+    "145b5d07-e126-4749-8ada-b0fa84fcfa37/agent-memory": {
+      "context": "platform-auth-api",
+      "subject": "agent-memory",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T00:06:40.160Z",
+      "worker": "08401036-214f-421d-91d4-621f9d917a26",
+      "techniques": [
+        {
+          "technique": "working-memory",
+          "verdict": "not-applicable",
+          "evidence": "app/api/auth/login/route.ts:3 Sessions here represent HTTP session cookies for operator authentication rather than agent working memory."
+        },
+        {
+          "technique": "owner-and-counterpart-scope",
+          "verdict": "not-applicable",
+          "evidence": "app/api/workspaces/route.ts:11 Workspaces partition platform user teams rather than agent memory ownership or counterpart interaction scopes."
+        }
+      ]
+    },
+    "1427e2ae-3cf6-48f4-a866-6c5a0dc67559/agent-memory": {
+      "context": "hiring-decisions-api",
+      "subject": "agent-memory",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T00:06:40.160Z",
+      "worker": "08401036-214f-421d-91d4-621f9d917a26",
+      "techniques": [
+        {
+          "technique": "episodic-capture",
+          "verdict": "not-applicable",
+          "evidence": "app/api/feedback/route.ts:11 This route collects recruiter UI product feedback rather than capturing agent conversation episodes."
+        },
+        {
+          "technique": "memory-governance",
+          "verdict": "not-applicable",
+          "evidence": "app/api/decisions/records/route.ts:24 Hash-chained records seal recruiter screening decisions for adverse action auditability rather than governing agent memory writes."
+        }
+      ]
+    },
+    "d2c749a4-1821-4c77-af16-2254725a3b3f/agent-memory": {
+      "context": "jobs-ai-coach-fit",
+      "subject": "agent-memory",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T00:06:40.160Z",
+      "worker": "08401036-214f-421d-91d4-621f9d917a26",
+      "techniques": [
+        {
+          "technique": "working-memory",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsCoachApply.ts:5 The coach pre-stages job description parameter suggestions in a recruiter UI form rather than managing an agent's operative working memory."
+        },
+        {
+          "technique": "coverage-instrumentation",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsAgentFitModel.ts:1 Coverage classes categorize candidate-job requirement match (automatable, assisted, human_only), not agent memory population coverage."
+        }
+      ]
+    },
+    "1e9fd764-5fe9-4af8-b360-cd7e86dc09c9/eval-harness": {
+      "context": "group-eval-comparison",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T01:28:20.946Z",
+      "worker": "2d701458-2067-40aa-9bb3-86029c5993b7",
+      "techniques": [],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "not-applicable, re-checked at rev 34: the precondition is scoring a model or agent system against declared scenarios so next month's answer is comparable to this month's. app/features/hiring/decisions/groupEval/cache-key.ts:42 keys the cached run on the candidate set itself - the inverse of scenario-design's fixed key - so nothing here is comparable across versions. kp's actual harness is a separate context (pipeline/jobfit/eval/__main__.py); the recruiting pairings already on this context (comparative-shortlist-evaluation, adverse-impact-and-proxy-neutrality) are the ones that govern.",
+          "evaluatedAt": "2026-09-20",
+          "worker": null,
+          "reason": "replaced by 2d701458-2067-40aa-9bb3-86029c5993b7"
+        }
+      ]
+    },
+    "a42d66c2-a793-423e-a711-b23f8570ff63/eval-harness": {
+      "context": "eval-harness",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T01:28:20.946Z",
+      "worker": "2d701458-2067-40aa-9bb3-86029c5993b7",
+      "techniques": [
+        {
+          "technique": "assertion-vs-judgment",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/eval/judging.py:167 The shared judgment contract returns one blended score and issues, without per-criterion verdicts or cited output evidence; deterministic checks elsewhere do not satisfy those judgment requirements."
+        },
+        {
+          "technique": "eval-economics",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/eval/intake_eval.py:526 The corpus sweep restores completed rows by scenario name alone, without checking scenario content, candidate version or changed run parameters, allowing a resumed report to mix measurements."
+        },
+        {
+          "technique": "failure-signatures-beside-the-pass-rate",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/eval/fault_eval.py:585 The drill aggregates by injected fault mode and lists individual failure strings, but does not report case counts by failed-check mechanism with eligible denominators beside its pass rate."
+        },
+        {
+          "technique": "judge-stability",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/eval/judging.py:40 A capability alias is not the concrete dated model identifier required by the standard; choosing a different named model from the engine does not freeze the judge."
+        },
+        {
+          "technique": "metric-role-contract",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/eval/interview_optimize.py:182 After its new-failure check, acceptance maximizes validation reliability while the measured judge-quality sum remains advisory without an admission threshold, allowing accepted patches to worsen that metric."
+        },
+        {
+          "technique": "scenario-design",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/eval/interview_eval.py:972 The regression baseline records scenario names and outcomes without scenario content versions; diff_baseline compares those names even when a persona or expected property changed."
+        },
+        {
+          "technique": "selection-over-noise",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/eval/interview_optimize.py:344 The optimizer repeatedly consults validation outcomes and publishes the selected best result without a final once-only scoring on an untouched holdout; deterministic validators do not make their LLM-generated inputs noise-free."
+        }
+      ]
+    },
+    "5315fdef-5698-4668-9ba8-8ac3de782a75/eval-harness": {
+      "context": "matrix-grid",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T01:28:20.946Z",
+      "worker": "2d701458-2067-40aa-9bb3-86029c5993b7",
+      "techniques": []
+    },
+    "050c760b-ee78-46e0-a86f-77d80d89b3bf/eval-harness": {
+      "context": "interview-simulator",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T01:28:20.946Z",
+      "worker": "2d701458-2067-40aa-9bb3-86029c5993b7",
+      "techniques": [
+        {
+          "technique": "assertion-vs-judgment",
+          "verdict": "deviation",
+          "evidence": "app/_lib/interview-sim/verdict-run.ts:497 When judging is enabled, the model call precedes evaluateRules, so transcripts that fail mechanical checks still enter judgment instead of being filtered by the cheap outer gate."
+        },
+        {
+          "technique": "candidate-write-access",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/interview-sim/providers.ts:210 The next argument is the empty string, explicitly disabling CLI tools; the simulated models have no shell or filesystem-writing tool surface."
+        },
+        {
+          "technique": "comparison-modes",
+          "verdict": "deviation",
+          "evidence": "app/_lib/interview-sim/verdict-run.ts:354 The conflict guard for merging directories as repeated samples compares brief, director and situation identities but excludes recorded provider identities, allowing different models to be pooled as one condition."
+        },
+        {
+          "technique": "eval-economics",
+          "verdict": "deviation",
+          "evidence": "app/_lib/interview-sim/runner.ts:189 The resume predicate ends after matching scenario content, with no model-identity comparison; bounded concurrency and atomic writes do not repair this incomplete cached-measurement identity."
+        },
+        {
+          "technique": "judge-stability",
+          "verdict": "deviation",
+          "evidence": "app/_lib/interview-sim/providers.ts:201 Provider identity copies the requested model string, including accepted aliases, rather than recording the resolved dated model; the judge cache subsequently treats that label as instrument identity."
+        },
+        {
+          "technique": "scenario-design",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-sim/situations.ts:174 Validated stable scenario IDs carry a content digest over persona, first message, provocations, expected response, fixture and language; resume and conflict checks consume it without incorporating the model under test."
+        }
+      ]
+    },
+    "ec7480d1-b046-46b8-ad78-ba60c3612b85/eval-harness": {
+      "context": "devcase-core",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T01:28:20.946Z",
+      "worker": "2d701458-2067-40aa-9bb3-86029c5993b7",
+      "techniques": [
+        {
+          "technique": "assertion-vs-judgment",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/devcase/lifecycle_audits.py:38 The lifecycle judge requests an unanchored blended 1–5 rating without level descriptions, per-criterion verdicts or cited artifact evidence."
+        },
+        {
+          "technique": "eval-economics",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/devcase/calibrate.py:198 Expensive completed cells are written directly to their final JSON paths rather than atomically; a torn write is discarded by the resume reader, losing the measurement and requiring another paid generation."
+        },
+        {
+          "technique": "judge-stability",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/devcase/llm_judge.py:71 Reported judge identity contains a provider/model label, while lifecycle judgments have no frozen packet-version identity; searches of devcase sources found no anchor-set drift lane."
+        },
+        {
+          "technique": "selection-over-noise",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/devcase/calibrate.py:156 Only reliable LLM results survive resume; completed but unreliable generations are tried again, and prior attempts are absent from the resulting row counts and headline reliability."
+        }
+      ]
+    },
+    "e2f41475-e943-47a4-bf2d-7e3ee529366d/voice-io": {
+      "context": "voice-interview-components",
+      "subject": "voice-io",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T02:20:44.632Z",
+      "worker": "bcee8cec-f63e-4301-8803-a25550497567",
+      "techniques": [
+        {
+          "technique": "duplex-agent-sessions",
+          "verdict": "deviation",
+          "evidence": "app/_components/voice/transport/elevenlabs.ts:150 The file states the unlock is a separate dashboard flag (OVERRIDE_INTENT) and that a locked override is ignored; nothing in this start path reads back whether the override was applied."
+        },
+        {
+          "technique": "decode-time-vocabulary-biasing",
+          "verdict": "deviation",
+          "evidence": "app/_components/voice/transport/elevenlabs.ts:149 Keywords are sent as a session override, and a silent drop is not reported on the result, so the product cannot tell that the job vocabulary never reached the decoder."
+        },
+        {
+          "technique": "stt-pipeline",
+          "verdict": "conformant",
+          "evidence": "app/_components/voice/useMicTest.ts:19 Permission denial, missing device, busy device, and a permitted-but-silent meter are separate states, and MicTestPanel announces the verdict in a persistent aria-live region beside a level bar."
+        },
+        {
+          "technique": "voice-ux-integration",
+          "verdict": "conformant",
+          "evidence": "app/_components/voice/VoiceStatusPill.tsx:40 The per-turn speaking cue stays visual; the unstable-connection and phase pills are the live regions, and VoiceLiveControls keeps mic mute and interviewer-output mute as pressed toggles."
+        },
+        {
+          "technique": "engine-abstraction",
+          "verdict": "conformant",
+          "evidence": "app/_components/voice/VoiceInterview.tsx:43 After the single start() dispatch, mute, levels, directives, and end go through CallTransport capabilities rather than engine branches."
+        },
+        {
+          "technique": "portable-provider-package",
+          "verdict": "conformant",
+          "evidence": "app/_components/voice/TtsComparePanel.tsx:35 The compare surface speaks one sample sentence per shipped locale and prints probe state and fallback; candidates do not see engine names."
+        },
+        {
+          "technique": "transcript-normalization",
+          "verdict": "conformant",
+          "evidence": "app/_components/voice/useTranscriptPersistence.ts:1 The interview transcript is persisted as the call record; this module has no cleanup rewrite before save, which is the evidence rule."
+        },
+        {
+          "technique": "transcript-handoff-receipts",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/voice/VoiceTranscript.tsx:79 The accepted transcript is rendered in the interview log on this page; nothing in these files pastes or types into another application."
+        },
+        {
+          "technique": "voice-setup-experience",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/voice/useMicTest.ts:1 This surface checks the microphone before dialing; it does not install an engine, pick a voice by ear, or keep setup receipts."
+        },
+        {
+          "technique": "unattended-caller-attribution",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/voice/VoiceLiveControls.tsx:41 Mute and end are controls on the interview surface the candidate is looking at; these files do not expose synthesis to a process the product does not host."
+        },
+        {
+          "technique": "tts-pipeline",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/voice/VoiceInterview.tsx:694 Playback, output mute, and teardown belong to the duplex transport, not to an utterance queue in this UI."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "conformant",
+          "evidence": "app/_components/voice/micErrorText.ts maps getUserMedia/connection failures to specific actionable recovery copy (denied/not-found/busy) rather than a raw DOMException message; MicTestPanel.tsx pairs a live level meter with a persistent aria-live=\"polite\" region so the pass/fail verdict is announced (not just painted); VoiceStatusPill.tsx deliberately splits a high-frequency visual-only cue (speaking/listening toggling every turn) from a low-frequency role=\"status\" live region (the unstable-connection warning) to avoid spamming screen-reader output — exactly the golden path's 'everything narrated exists as visible text... capture/playback states announced through non-audio channels' posture. transport/elevenlabs.ts + transport/openai.ts realize engine-abstraction as parallel per-engine adapters behind a shared VoiceTurn/callback-context shape (ui-types.ts).",
+          "evaluatedAt": "2026-09-22",
+          "worker": null,
+          "reason": "replaced by bcee8cec-f63e-4301-8803-a25550497567"
+        }
+      ]
+    },
+    "40e7d65d-bb8a-4321-aa57-b845a86def9a/voice-io": {
+      "context": "eval-voice",
+      "subject": "voice-io",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T02:20:44.632Z",
+      "worker": "bcee8cec-f63e-4301-8803-a25550497567",
+      "techniques": [
+        {
+          "technique": "engine-choice-on-decisive-terms",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:198 wer.py matches terms longest-prefix-first, reports the missing list, and keeps diacritics. recognizers.py and bakeoff.py in this same directory (not in the context map file list) rank a second engine on recall with WER as a threshold."
+        },
+        {
+          "technique": "duplex-agent-sessions",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:8 The harness mints a candidate-mode session so the run sends the app's agentPrompt, and voice_checks flags a run that has no prompt to send."
+        },
+        {
+          "technique": "decode-time-vocabulary-biasing",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/eval/voice/el_ws.py:67 An empty keyword override is omitted because it would bias toward nothing; a missing list is not sent as an empty one."
+        },
+        {
+          "technique": "on-device-vs-cloud",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/eval/voice/tts.py:33 Local Piper speaks the candidate, and a language with no voice is refused instead of being spoken in an English voice. The ElevenLabs session is an explicit cloud connect."
+        },
+        {
+          "technique": "real-time-synthesis-budget",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:205 First-audio latency is measured on the real websocket path and gated as p95, which is the network figure a hosted engine still owes."
+        },
+        {
+          "technique": "stt-pipeline",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:48 A no-word capture is a dropped utterance, counted apart from word errors."
+        },
+        {
+          "technique": "speech-ready-text",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:33 The persona is told to speak short prose without markup, and clip_spoken cuts on a word boundary."
+        },
+        {
+          "technique": "transcript-normalization",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/eval/voice/wer.py:9 The scoring normalizer folds case, punctuation, and spelled numbers, and it keeps diacritics because this transcript is evidence."
+        },
+        {
+          "technique": "engine-abstraction",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/eval/voice/recognizers.py:54 The choice instrument is a PCM-in transcript-out protocol; adding an engine is a register call, and the ElevenLabs session driver stays the regression path."
+        },
+        {
+          "technique": "voice-ux-integration",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/eval/voice/el_ws.py:3 The driver is headless; there is no capture affordance or narration surface here."
+        },
+        {
+          "technique": "transcript-handoff-receipts",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:113 Transcripts stay on the run for scoring; nothing inserts them into another application."
+        },
+        {
+          "technique": "portable-provider-package",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/eval/voice/tts.py:1 Piper here is the harness mouth, wired to this eval, not a host-seamed package."
+        },
+        {
+          "technique": "authored-voice-identity",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/eval/voice/tts.py:28 Voices are named Piper files, one per language, not descriptions or clones."
+        },
+        {
+          "technique": "spoken-intent-parsing",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:155 The transcript is scored; these files do not turn it into a typed command."
+        },
+        {
+          "technique": "unattended-caller-attribution",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:270 This is a sealed outbound eval client, not a door other programs use to make the machine speak."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "conformant",
+          "evidence": "app/_lib/voice/self-hosted.ts is a strong portable-provider-package realization: one derived signal (elevenLabsBaseUrl / isSelfHostedVoice) rather than a second free/paid flag that could disagree with it (':18-20 two switches that must agree is a bug waiting to happen'), a conservative default (hosted service unless a private/loopback host is explicitly configured, :61-66), and it names the actual portable package by repo (Gravitone, github.com/xkazm04/gravitone) serving the same Agents-API protocol locally. pipeline/jobfit/eval/voice/session_runner.py mints real candidate-mode sessions via /simulate specifically so the eval exercises the real per-provider brief path rather than a stale dashboard prompt (session_runner.py:7-11) — a duplex-agent-sessions-aware eval design.",
+          "evaluatedAt": "2026-09-22",
+          "worker": null,
+          "reason": "replaced by bcee8cec-f63e-4301-8803-a25550497567"
+        }
+      ]
+    },
+    "eb0e8133-4575-4d03-8155-dcf219192bf4/voice-io": {
+      "context": "voice-interview-session",
+      "subject": "voice-io",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T02:20:44.632Z",
+      "techniques": [
+        {
+          "technique": "decode-time-vocabulary-biasing",
+          "verdict": "deviation",
+          "evidence": "app/_lib/voice/asr-keywords.mjs:25 buildAsrKeywords puts job terms first, then fills remaining slots from BASE_ASR_KEYWORDS for any screen. That is a conversation-wide catalog, not a list limited to measured misses for this turn."
+        },
+        {
+          "technique": "duplex-agent-sessions",
+          "verdict": "conformant",
+          "evidence": "app/_lib/voice/candidate-brief.ts:18 The candidate-sent brief is built by an allow-list, and candidateSafeTopic strips bracketed assessment asides. interviewFinalStatus and unmountBeaconStatus compute completed versus failed from turns and ending, not from the socket close. The live-config drift diff is not in this file list."
+        },
+        {
+          "technique": "transcript-normalization",
+          "verdict": "conformant",
+          "evidence": "app/_lib/voice/discarded-turns.ts:29 Duplicate detection compares stored turn text exactly, so the transcript kept as the record is not rewritten first."
+        }
+      ],
+      "registryProposal": "decode-time-vocabulary-biasing scopes bias to one turn's visible choices. A voice interview's known words are the job's terms for the whole call. The technique should say whether a per-conversation list is in bounds or is the session-wide failure.",
+      "superseded": [
+        {
+          "state": "conformant",
+          "evidence": "This context is the strongest realization of duplex-agent-sessions in the tree. index.ts:49-70 and candidate-brief.ts implement the audience-safe-brief allow-list explicitly (candidate-brief.ts:11-19: 'THE SECURITY BOUNDARY IS THE SANITIZER IN THIS FILE... never turn this into a deny-list'), with candidateSafeTopic() scrubbing bracketed assessment asides out of topic labels (candidate-brief.ts:76-87). eleven-agent-diff.mjs is the drift gate the technique asks for: a pure, network-free field-by-field diff between intended and live agent config, defensive-read so a shape change degrades to reported drift rather than a crash (never silently reads as agreement). finalize-status.ts computes a real end-of-call verdict rather than trusting the close event (interviewFinalStatus distinguishes a late-blip-on-a-substantive-call from a real abandonment, and unmountBeaconStatus separately handles the late-arrival/in-flight-End case). connect-failover.ts deliberately builds the served provider's prompt OUTSIDE the failover trigger so a failing brief-build surfaces as itself rather than masquerading as a second real failover (connect-failover.ts:72-78).",
+          "evaluatedAt": "2026-09-22",
+          "worker": null,
+          "reason": "replaced by bcee8cec-f63e-4301-8803-a25550497567"
+        }
+      ],
+      "withdrawn": {
+        "worker": "bcee8cec-f63e-4301-8803-a25550497567",
+        "state": "deviation",
+        "at": "2026-10-13T02:22:28.254029+00:00",
+        "reason": "reviewer (sonnet): The deviation anchor asr-keywords.mjs is not among this context's listed files, and none of them import it (a grep of app/_lib/voice found only its own test, the d.mts and the eleven-agent-diff scripts), so the verdict is about code outside this context."
+      }
+    },
+    "a756a7a4-eeeb-4ac4-b43b-b2afb7f3e4a2/voice-io": {
+      "context": "voice-stt-package",
+      "subject": "voice-io",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T02:20:44.632Z",
+      "worker": "bcee8cec-f63e-4301-8803-a25550497567",
+      "techniques": [
+        {
+          "technique": "on-device-vs-cloud",
+          "verdict": "deviation",
+          "evidence": "packages/voice-stt/src/registry.ts:102 Default order is whisper.cpp then AssemblyAI, and registry tests expect an absent local engine to serve the cloud engine with fallbackFrom set. That crossing is fallback logic, not a consent ask. Residency is an opt-in refusal rather than the default."
+        },
+        {
+          "technique": "engine-abstraction",
+          "verdict": "conformant",
+          "evidence": "packages/voice-stt/src/providers/whisper-cpp.ts:152 A missing binary or model is absent with a setup hint; a tiny file is broken. Callers are told to branch on capabilities, and the closed id list is STT_PROVIDER_IDS."
+        },
+        {
+          "technique": "portable-provider-package",
+          "verdict": "conformant",
+          "evidence": "packages/voice-stt/src/types.ts:1 SttHost is env, home, cwd, and a log sink; createStt is the only dispatch door; preference typos throw; fallbackFrom names the engine that was asked for."
+        },
+        {
+          "technique": "stt-pipeline",
+          "verdict": "conformant",
+          "evidence": "packages/voice-stt/src/react/useStt.ts:225 The hook stops microphone tracks when a capture ends or the component unmounts, and a hard maxSeconds cap ends the take."
+        },
+        {
+          "technique": "voice-ux-integration",
+          "verdict": "conformant",
+          "evidence": "packages/voice-stt/src/react/useStt.ts:163 STT_UNAVAILABLE sticks until a probe finds a ready engine, so the control does not invite another recording into a known refusal."
+        },
+        {
+          "technique": "transcript-handoff-receipts",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-stt/src/react/useStt.ts:208 The transcript is handed to the host callback for the product's own composer. A search of this package found no clipboard or synthetic keystrokes."
+        },
+        {
+          "technique": "decode-time-vocabulary-biasing",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-stt/src/providers/whisper-cpp.ts:204 The whisper.cpp invocation and the AssemblyAI adapter take no phrase list or prompt. A search of this package found no bias parameter."
+        }
+      ],
+      "registryProposal": "portable-provider-package tells the package to walk requested, then preferred, then the first ready engine and to show the fallback. on-device-vs-cloud says a local-to-cloud step for transcription needs a consent ask and must not be fallback logic alone. A package that does the first by default breaks the second. The standard should say which rule wins when the allowed set contains both."
+    },
+    "85aca759-e385-4fdf-8ad6-b2fbe9540b37/voice-io": {
+      "context": "voice-tts-package",
+      "subject": "voice-io",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T02:20:44.632Z",
+      "worker": "bcee8cec-f63e-4301-8803-a25550497567",
+      "techniques": [
+        {
+          "technique": "real-time-synthesis-budget",
+          "verdict": "deviation",
+          "evidence": "packages/voice-tts/src/text/segment.ts:2 types.ts describes the same 1200 characters as about twice real time and about 35s to first audio, so the two comments disagree, and neither records device, runtime, or run count. registry.ts says a one-shot process reloads the model per call. Kokoro and Piper declare streaming false."
+        },
+        {
+          "technique": "voice-setup-experience",
+          "verdict": "deviation",
+          "evidence": "packages/voice-tts/src/providers/kokoro.ts:26 Speaker ids are integers into voices.bin. The comment says Heart was checked by ear and the other two were derived from alphabetical order. A search of this package found no test that pins the pair to the model pack."
+        },
+        {
+          "technique": "speech-ready-text",
+          "verdict": "conformant",
+          "evidence": "packages/voice-tts/src/validate.ts:23 Chat text passes one pure speechReady door before any adapter, and that door strips markup and does not expand numbers. segmentSpeech splits on sentence ends with abbreviation, decimal, and ordinal-dot exceptions, and the first chunk may end on a clause."
+        },
+        {
+          "technique": "tts-pipeline",
+          "verdict": "conformant",
+          "evidence": "packages/voice-tts/src/react/utterance.ts:125 A generation counter is taken before the chunk awaits, stop bumps it, and a late chunk is not played. useTts stop pauses the element, clears its src, and runs on unmount. A failed middle chunk reports how far playback got."
+        },
+        {
+          "technique": "engine-abstraction",
+          "verdict": "conformant",
+          "evidence": "packages/voice-tts/src/types.ts:18 One TtsProvider interface, a closed TTS_PROVIDER_IDS list, and probes that separate absent, broken, and ready. An unknown preference id throws instead of being dropped."
+        },
+        {
+          "technique": "portable-provider-package",
+          "verdict": "conformant",
+          "evidence": "packages/voice-tts/src/node/resolve-bin.ts:9 Binaries resolve override, then the shared sidecar home, then PATH. TtsHost is the only host seam, and speak returns fallbackFrom and unsupportedLanguage."
+        },
+        {
+          "technique": "on-device-vs-cloud",
+          "verdict": "conformant",
+          "evidence": "packages/voice-tts/src/providers/elevenlabs.ts:23 Cloud versus local is a declared capability. A language the serving engine does not declare is still returned with unsupportedLanguage set, so a Czech clip spoken in an English voice is visible."
+        },
+        {
+          "technique": "authored-voice-identity",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-tts/src/providers/kokoro.ts:17 Voices are catalog ids into a shipped pack. A search of this package found no description, sample, or clone authoring path."
+        }
+      ]
+    },
+    "0f0b2b00-f446-41b0-af7a-d927592c28de/agent-runtime-assembly": {
+      "context": "voice-interview-api",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T03:19:23.520Z",
+      "worker": "a09186b8-21cb-4d2c-bcda-2a6704e6f88f",
+      "techniques": [
+        {
+          "technique": "session-scoped-capability",
+          "verdict": "not-applicable",
+          "evidence": "app/api/interview/connect/route.ts:98 Voice provider selection is chosen by the client or stored session token, not resolved dynamically from an agent session capability roster."
+        },
+        {
+          "technique": "guard-input-custody",
+          "verdict": "not-applicable",
+          "evidence": "app/api/interview/connect/route.ts:125 The single-use interview gate checks database session status rather than policy files or in-agent guardrails."
+        },
+        {
+          "technique": "bounded-projection-of-external-work",
+          "verdict": "not-applicable",
+          "evidence": "app/api/interview/complete/route.ts:21 The response projection filters public HTTP candidate payload fields rather than projecting background task executor leases into an agent loop."
+        },
+        {
+          "technique": "checkpoint-mode-custody",
+          "verdict": "not-applicable",
+          "evidence": "app/api/interview/create/route.ts:28 Interview sessions persist as SQLite database rows via shared invite helpers rather than full or delta checkpoint graphs."
+        },
+        {
+          "technique": "host-routes-win",
+          "verdict": "not-applicable",
+          "evidence": "app/api/interview/sessions/route.ts:11 The route is a statically defined Next.js API route handler, not an extension route mounted onto a host router."
+        },
+        {
+          "technique": "operator-tier-code-loading",
+          "verdict": "not-applicable",
+          "evidence": "app/api/interview/simulate/attach/sim-session.ts:24 Practice interview simulation validation is implemented as a pure in-code predicate with no dynamic extension loading."
+        },
+        {
+          "technique": "honest-hook-registry",
+          "verdict": "not-applicable",
+          "evidence": "app/api/interview/create/route.ts:29 Recruitment pipeline stage transitions trigger hardcoded stage hooks rather than an extensible event hook registry."
+        },
+        {
+          "technique": "nested-run-is-not-its-parent",
+          "verdict": "not-applicable",
+          "evidence": "app/api/interview/create/route.ts:59 Voice interview sessions link directly to candidate pipeline entries without spawning nested subagent runs."
+        }
+      ]
+    },
+    "9179c3cd-8c4f-4065-b76a-70cd6ece2944/agent-runtime-assembly": {
+      "context": "workspace-config-api",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T03:19:23.520Z",
+      "worker": "a09186b8-21cb-4d2c-bcda-2a6704e6f88f",
+      "techniques": [
+        {
+          "technique": "session-scoped-capability",
+          "verdict": "not-applicable",
+          "evidence": "app/api/me/capabilities/route.ts:6 Capabilities returned here represent user and operator workspace access permissions for the navigation UI rather than agent session capabilities."
+        },
+        {
+          "technique": "bounded-projection-of-external-work",
+          "verdict": "not-applicable",
+          "evidence": "app/api/tasks/route.ts:38 The task list is a database query of background tasks paged for the workspace UI dock under the job-coordination domain, not an agent loop reading a bounded task projection."
+        },
+        {
+          "technique": "indeterminate-closure-on-interruption",
+          "verdict": "not-applicable",
+          "evidence": "app/api/tasks/route.ts:36 Crashed background tasks are healed across process restarts at the job coordination store layer rather than recording indeterminate tool execution closures in an agent conversation."
+        },
+        {
+          "technique": "operator-tier-code-loading",
+          "verdict": "not-applicable",
+          "evidence": "app/api/tasks/route.ts:72 Permitted background task kinds are validated against a static enum in code, not dynamically loaded extension code."
+        },
+        {
+          "technique": "guard-input-custody",
+          "verdict": "not-applicable",
+          "evidence": "app/api/tasks/route.ts:83 Server-only task kinds are gated via hardcoded admission rules, protecting the server from untrusted client execution parameters."
+        },
+        {
+          "technique": "checkpoint-mode-custody",
+          "verdict": "not-applicable",
+          "evidence": "app/api/profile/draft/route.ts:9 Profile drafting is executed as an isolated per-call process without conversation checkpoints or delta graph representations."
+        },
+        {
+          "technique": "host-routes-win",
+          "verdict": "not-applicable",
+          "evidence": "app/api/brand/route.ts:10 Route endpoints are statically mounted Next.js route handlers with no contributed extension router precedence concerns."
+        },
+        {
+          "technique": "honest-hook-registry",
+          "verdict": "not-applicable",
+          "evidence": "app/api/templates/route.ts:11 Reusable templates are managed via a database store with no runtime extension hook registration."
+        }
+      ]
+    },
+    "a756a7a4-eeeb-4ac4-b43b-b2afb7f3e4a2/agent-runtime-assembly": {
+      "context": "voice-stt-package",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T03:19:23.520Z",
+      "worker": "a09186b8-21cb-4d2c-bcda-2a6704e6f88f",
+      "techniques": [
+        {
+          "technique": "session-scoped-capability",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-stt/README.md:48 The capability gate checks transcription engine capabilities like PII redaction and diarization, not client-facing agent capabilities."
+        },
+        {
+          "technique": "honest-hook-registry",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-stt/src/react/useStt.ts:3 The hook in this package is a React client-side browser recording hook rather than an agent execution lifecycle hook."
+        },
+        {
+          "technique": "operator-tier-code-loading",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-stt/src/registry.ts:1 STT provider adapters are hardcoded implementations instantiated directly by the package rather than loaded from operator extension configuration."
+        },
+        {
+          "technique": "guard-input-custody",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-stt/src/validate.ts:11 Request payload constraints and format validation are hardcoded invariants defined directly in the validation module."
+        },
+        {
+          "technique": "host-routes-win",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-stt/src/index.ts:3 The package exports functional library APIs rather than an HTTP router or route endpoints."
+        },
+        {
+          "technique": "checkpoint-mode-custody",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-stt/src/providers/assemblyai.ts:1 Transcription operations are stateless upload-submit-poll audio conversions with no conversation checkpoint graph."
+        },
+        {
+          "technique": "nested-run-is-not-its-parent",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-stt/src/node/spawn.ts:1 Local whisper sidecar processes are spawned directly for audio transcription without nested agent run semantics."
+        },
+        {
+          "technique": "bounded-projection-of-external-work",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-stt/src/types.ts:1 The package defines an audio transcription provider interface that executes audio jobs rather than exposing a bounded projection into an agent loop."
+        }
+      ]
+    },
+    "e2f41475-e943-47a4-bf2d-7e3ee529366d/agent-runtime-assembly": {
+      "context": "voice-interview-components",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T03:19:23.520Z",
+      "worker": "a09186b8-21cb-4d2c-bcda-2a6704e6f88f",
+      "techniques": [
+        {
+          "technique": "session-scoped-capability",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/voice/availability-gate.ts:3 Voice provider readiness on the client is determined by an availability probe endpoint rather than an agent session capability resolution policy."
+        },
+        {
+          "technique": "honest-hook-registry",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/voice/timer-registry.ts:1 The timer registry tracks browser client DOM timeouts to clear them on React component unmount, having no relation to extension event hook execution."
+        },
+        {
+          "technique": "operator-tier-code-loading",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/voice/VoiceSettings.tsx:9 Voice settings UI offers client language and provider selection controls with no extension code loading capability."
+        },
+        {
+          "technique": "guard-input-custody",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/voice/transport/transport-error.ts:1 Transport error classification maps WebRTC connection failures to typed error codes for UI display rather than evaluating security guardrails."
+        },
+        {
+          "technique": "host-routes-win",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/voice/VoiceTranscript.tsx:10 The component is a pure client-side React UI component that renders transcript turns with no route mounting or server routing logic."
+        },
+        {
+          "technique": "checkpoint-mode-custody",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/voice/useTranscriptPersistence.ts:1 Client-side transcript persistence sends the recorded interview transcript over HTTP POST to the backend with sessionStorage buffering, not using graph checkpointer deltas."
+        },
+        {
+          "technique": "nested-run-is-not-its-parent",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/voice/InterviewSidebar.tsx:11 The sidebar component renders candidate interview agenda blocks and readiness status in the browser without any nested subagent execution."
+        },
+        {
+          "technique": "bounded-projection-of-external-work",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/voice/VoiceLiveControls.tsx:8 Live controls provide client UI buttons for user microphone muting and call timing rather than projecting external background task executor leases."
+        }
+      ]
+    },
+    "65792460-c7df-4a0e-ad4b-224ea3acd82b/agent-instruction-files": {
+      "context": "ci-doc-gates",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T04:25:18.955Z",
+      "techniques": [
+        {
+          "technique": "capability-coverage-contract",
+          "verdict": "conformant",
+          "evidence": "scripts/docs/check-guidance.mjs:607 Within the CI-gate domain, expected commands are derived from the gating workflows, and an undeclared command produces gate-unlisted rather than relying solely on a maintained expected list."
+        },
+        {
+          "technique": "enforcement-demotion",
+          "verdict": "conformant",
+          "evidence": "scripts/docs/check-doc-sync.mjs:137 The reminder's trigger is computed from observed edits and mapped source hits; it does not print its judgment-shaped instruction unconditionally on every turn."
+        },
+        {
+          "technique": "instruction-freshness",
+          "verdict": "deviation",
+          "evidence": "CLAUDE.md:17 The inline volatile counts carry no measurement date; the backing map has generated_at, but that date is absent from the delivered claim, and the counts are currently correct."
+        },
+        {
+          "technique": "line-earning",
+          "verdict": "deviation",
+          "evidence": "CLAUDE.md:24 This is another entry in a generated overview of reachable map data; the preceding pointer already names the authoritative artifact, so the overview body fails the unreachability admission test."
+        },
+        {
+          "technique": "single-source-topology",
+          "verdict": "deviation",
+          "evidence": "scripts/docs/__tests__/check-guidance.test.mjs:174 The checker explicitly accepts independently restated verification guidance in canonical and projection bodies; the shipped AGENTS.md:23 also repeats the command in .claude/CLAUDE.md:32 instead of making the projection solely a bridge."
+        }
+      ],
+      "withdrawn": {
+        "worker": "d515f5fb-7e3b-4597-991b-ed8dd1ae7002",
+        "state": "deviation",
+        "at": "2026-10-13T04:26:17.675607+00:00",
+        "reason": "reviewer (sonnet): The deviation is about the content of the root CLAUDE.md (group overview list, inline counts), which is not among this context's files (scripts/docs/*, scripts/i18n/catalog-check.mjs). The cited check-guidance.mjs and check-doc-sync.mjs anchors show conformant behaviour, and I could not confirm any "
+      }
+    },
+    "6b5c4717-aa35-46d9-a266-50a296a27e09/agent-cli-transport": {
+      "context": "billing-plan-and-spend",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T07:59:37.071Z",
+      "techniques": [
+        {
+          "technique": "availability-probe",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/billing/spend/SpendEngineFacts.tsx:171 Displays engine readiness indicators from ops state in the UI rather than probing CLI binary availability or credentials."
+        },
+        {
+          "technique": "subscription-auth-selection",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/billing/BillingCurrentPlanPanel.tsx:11 Renders the customer subscription card in settings rather than configuring agent process auth selection."
+        },
+        {
+          "technique": "fallback-ladder",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/billing/spend/spendUsageFold.ts:43 Separates deterministic fallback metrics in usage reporting rather than managing an execution fallback ladder."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "not-applicable: app/features/settings/billing/spend/spendUsageFold.test.ts:51 is this context's whole contact with the transport - \"claude_cli\" appears as a metered provider row folded into a spend panel. Reading a transport's cost rows is cost-metering (already paired here at 1099.4); the transport itself is pipeline/jobfit/claude_cli.py:532.",
+          "evaluatedAt": "2026-09-20",
+          "worker": null,
+          "reason": "replaced by 3bc55014-0300-406f-a5f2-8ca73265a477"
+        }
+      ],
+      "withdrawn": {
+        "worker": "3bc55014-0300-406f-a5f2-8ca73265a477",
+        "state": "not-applicable",
+        "at": "2026-10-13T08:00:02.185785+00:00",
+        "reason": "reviewer (sonnet): The anchor (spendUsageFold.test.ts:51) is a deterministic-fallback unit test and doesn't show the precondition is absent. SpendEngineFacts.tsx:171 surfaces the 'claude CLI resolves on PATH' readiness state in this context, which is agent-CLI availability territory, so the not-applicable is contradic"
+      }
+    },
+    "3a7c3a7b-a8f1-4566-aabc-3e5e2b4c471b/agent-cli-transport": {
+      "context": "billing-subscriptions",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T07:59:37.071Z",
+      "worker": "3bc55014-0300-406f-a5f2-8ca73265a477",
+      "techniques": [
+        {
+          "technique": "subscription-auth-selection",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/billing/entitlements.ts:22 Calculates organizational SaaS tier entitlements rather than selecting local CLI credentials or stripping API billing tokens."
+        },
+        {
+          "technique": "permission-stance-enforcement",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/billing/enforce.ts:28 Enforces account subscription quota limits rather than configuring agent tool permission stances."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "not-applicable: app/_lib/billing/gateway.ts:1 declares the provider seam as a merchant-of-record (Polar/Paddle) interface, not a model transport, and no file in this context spawns a process. The subject's subscription-auth-selection technique is about whose seat a spawned agent run bills; kp's only such spawn is pipeline/jobfit/claude_cli.py:532.",
+          "evaluatedAt": "2026-09-20",
+          "worker": null,
+          "reason": "replaced by 3bc55014-0300-406f-a5f2-8ca73265a477"
+        }
+      ]
+    },
+    "76d3b42f-9432-413e-a194-967ab66174d9/agent-cli-transport": {
+      "context": "auth-session-rbac",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T07:59:37.071Z",
+      "worker": "3bc55014-0300-406f-a5f2-8ca73265a477",
+      "techniques": [
+        {
+          "technique": "permission-stance-enforcement",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/auth/roles.ts:6 Defines application operator and member role hierarchies rather than configuring agent tool permission stances."
+        },
+        {
+          "technique": "subscription-auth-selection",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/auth/session.ts:52 Validates operator HMAC session cookies with KP_SECRET rather than injecting or stripping LLM subscription tokens."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "not-applicable: app/_lib/auth/require-operator.ts:9 is a session/role gate in front of the routes that spawn Python; guarding a spawn is not implementing the transport contract. The precondition holds only at pipeline/jobfit/claude_cli.py:532.",
+          "evaluatedAt": "2026-09-20",
+          "worker": null,
+          "reason": "replaced by 3bc55014-0300-406f-a5f2-8ca73265a477"
+        }
+      ]
+    },
+    "5315fdef-5698-4668-9ba8-8ac3de782a75/agent-cli-transport": {
+      "context": "matrix-grid",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T07:59:37.071Z",
+      "worker": "3bc55014-0300-406f-a5f2-8ca73265a477",
+      "techniques": [
+        {
+          "technique": "output-normalization",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/matrix/matrixReasoningFetch.ts:60 Parses API JSON response payload into a UI outcome type rather than normalizing an agent CLI process stdout envelope."
+        },
+        {
+          "technique": "fallback-ladder",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/matrix/matrixReasoningFetch.ts:19 Carries the server-supplied score source tag for UI display rather than implementing an execution fallback ladder."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "not-applicable: app/features/insights/matrix/matrixReasoningFetch.ts:5 shows this context reaching the model over fetch to /api/match/reasoning; the spawn it describes happens server-side in the Python pipeline. No probe(), no run() contract and no envelope parsing in these 35 files - kp's transport is pipeline/jobfit/claude_cli.py:532.",
+          "evaluatedAt": "2026-09-20",
+          "worker": null,
+          "reason": "replaced by 3bc55014-0300-406f-a5f2-8ca73265a477"
+        }
+      ]
+    },
+    "9a7b6d11-28e3-4f45-a4f5-7b1b1dd1f134/agent-cli-transport": {
+      "context": "devcase-orchestration",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T07:59:37.071Z",
+      "techniques": [
+        {
+          "technique": "availability-probe",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/devcase-run.ts:47 Delegates to a Python CLI subprocess which internally manages Claude CLI availability rather than probing the agent CLI binary here."
+        },
+        {
+          "technique": "thread-custody-across-resume",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/devcase-session-auth.ts:21 Authenticates candidate devcase assessment sessions via HTTP tokens rather than preserving child agent thread custody across resume."
+        },
+        {
+          "technique": "permission-stance-enforcement",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/devcase-orchestrator.ts:30 Enforces assessment progression and promotion policies rather than restricting agent subprocess permissions or tool allowlists."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "app/_lib/devcase-run.ts:45 spawns a Python subprocess (spawnPython([\"-m\",\"pipeline.jobfit.devcase.devcase_cli\",...], {env: buildLlmConfigEnv()})) — this context talks to Python, not to an agent CLI directly; devcase-run.ts:44 even says '(Python then defaults to the Claude CLI, unchanged)'. The actual spawn/probe/env-strip/parse contract lives two hops down in pipeline/jobfit/claude_cli.py, governed by context py-llm-runtime (aa150c52), already marked conformant. devcase-orchestrator.ts, -interview-kit.ts, -probe-audit.ts (an unrelated interview-question 'probe', not availability-probe), -seed-diff.ts and -session-auth.ts carry no CLI-transport code either.",
+          "evaluatedAt": "2026-09-22",
+          "worker": null,
+          "reason": "replaced by 3bc55014-0300-406f-a5f2-8ca73265a477"
+        }
+      ],
+      "withdrawn": {
+        "worker": "3bc55014-0300-406f-a5f2-8ca73265a477",
+        "state": "not-applicable",
+        "at": "2026-10-13T08:00:02.222841+00:00",
+        "reason": "reviewer (sonnet): devcase-run.ts and devcase-run-cli.ts spawn the Python devcase CLI with buildLlmConfigEnv() and a signal, and a comment says Python 'defaults to the Claude CLI'. The context therefore touches CLI spawn and env wiring. The claim that the Python side handles availability is not traced in the context's"
+      }
+    },
+    "92d1ca34-143b-4d61-8cd6-b9becd08d145/settings": {
+      "context": "models-keys-and-routing",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T08:46:08.759Z",
+      "techniques": [
+        {
+          "technique": "applied-defaults-ledger",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/models/ModelsRoutingPanel.tsx:16 A missing pin is one scalar default, which this technique excludes from the ledger."
+        },
+        {
+          "technique": "author-declared-include-graph",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/models/ModelsRoutingPanel.tsx:15 Routing is API rows. No config file names a parent file."
+        },
+        {
+          "technique": "config-backup-and-restore",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/models/ModelsKeysPanel.tsx:129 Keys are a server API resource, which this technique excludes in favor of a backend copy."
+        },
+        {
+          "technique": "cross-source-precedence-chain",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/models/modelsKeysPanelLogic.ts:53 The form sends the scope the operator picked. Resolution of that chain is outside this folder."
+        },
+        {
+          "technique": "in-place-document-patch",
+          "verdict": "deviation",
+          "evidence": "app/features/settings/models/modelsKeysPanelLogic.ts:27 Known fields are seeded back into the form, and the write is still a wholesale meta_json replace."
+        },
+        {
+          "technique": "inherited-default-override",
+          "verdict": "conformant",
+          "evidence": "app/features/settings/models/ModelsRoutingPanel.tsx:17 No row follows the * pin, then the built-in default. Reset deletes the row."
+        },
+        {
+          "technique": "key-registry",
+          "verdict": "conformant",
+          "evidence": "app/features/settings/models/modelsRoutingSections.test.ts:30 Section membership and the use-case catalog are one set, enforced by test."
+        },
+        {
+          "technique": "read-batching",
+          "verdict": "conformant",
+          "evidence": "app/features/settings/models/ModelsRoutingPanel.tsx:42 One response holds every pin; row lookup reads that payload."
+        },
+        {
+          "technique": "save-experience",
+          "verdict": "conformant",
+          "evidence": "app/features/settings/models/ModelsRoutingRow.tsx:116 Explicit save. Dirty is difference from the stored row. A failed save sets ok:false; a stale 409 reloads the server rows."
+        },
+        {
+          "technique": "setting-kinds",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/models/ModelsTab.tsx:14 Every pin shares one operational save/reset contract. No ceiling or flag is declared here."
+        },
+        {
+          "technique": "typed-accessors",
+          "verdict": "conformant",
+          "evidence": "app/features/settings/models/modelsRoutingActions.ts:71 Reset removes the pin row so the use case is absent again, and the save trims the model through one wrapper."
+        }
+      ],
+      "withdrawn": {
+        "worker": "a4cbcc5c-b8f2-4120-a26f-6d2020b3b857",
+        "state": "deviation",
+        "at": "2026-10-13T08:46:39.925469+00:00",
+        "reason": "reviewer (sonnet): modelsKeysPanelLogic.ts:27 is a comment describing a hazard the code already fixes: keyFormMetaFor seeds the metadata boxes from the stored row, and ModelsKeysPanel.tsx:69 calls it on provider/scope change, so a blank box now means a deliberate clear."
+      }
+    },
+    "6b5c4717-aa35-46d9-a266-50a296a27e09/settings": {
+      "context": "billing-plan-and-spend",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T08:46:08.759Z",
+      "techniques": [
+        {
+          "technique": "cross-source-precedence-chain",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/billing/useBillingPortal.ts:39 One portal endpoint. No ordered configuration sources."
+        },
+        {
+          "technique": "read-batching",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/billing/spend/useSpendData.ts:9 The coalesced reads are usage and ops payloads, not settings keys."
+        },
+        {
+          "technique": "save-experience",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/billing/billingTabState.ts:47 This guards a checkout redirect, not a settings write."
+        },
+        {
+          "technique": "setting-kinds",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/billing/BillingSelfHostPanel.tsx:11 Self-host is an explicit unmetered mode displayed to the operator, not a classified settings key."
+        }
+      ],
+      "withdrawn": {
+        "worker": "a4cbcc5c-b8f2-4120-a26f-6d2020b3b857",
+        "state": "not-applicable",
+        "at": "2026-10-13T08:46:39.980625+00:00",
+        "reason": "reviewer (sonnet): The not-applicable anchor, useBillingPortal.ts:39, is a plain POST to the portal endpoint. It does not show that the context has no settings key space, and the grep for keyRegistry, settingsStore and similar names is not proof of absence."
+      }
+    },
+    "0eeb3d35-3c43-4ac7-bcd9-3ae9ffffddcf/settings": {
+      "context": "llm-config-provider",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T08:46:08.759Z",
+      "worker": "a4cbcc5c-b8f2-4120-a26f-6d2020b3b857",
+      "techniques": [
+        {
+          "technique": "applied-defaults-ledger",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/llm-config.ts:357 An empty store emits nothing so the Claude CLI default stays outside the rows. That is the scalar case."
+        },
+        {
+          "technique": "author-declared-include-graph",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/llm-config.ts:389 The child receives one assembled JSON object. No file names a parent file."
+        },
+        {
+          "technique": "config-backup-and-restore",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/llm-secret.ts:17 KP_SECRET_PREVIOUS re-encrypts ciphertext. It is not a bounded backup of a settings file."
+        },
+        {
+          "technique": "cross-source-precedence-chain",
+          "verdict": "deviation",
+          "evidence": "app/_lib/provider-key-precedence.ts:59 Order is byom, then platform, then env, and a decrypt error throws. The return value does not name which source won, and buildLlmConfigEnv folds the rows into one map."
+        },
+        {
+          "technique": "inherited-default-override",
+          "verdict": "conformant",
+          "evidence": "app/_lib/llm-config.ts:294 A use case with no row follows the * pin, a sibling key, and is resolved again on read."
+        },
+        {
+          "technique": "key-registry",
+          "verdict": "conformant",
+          "evidence": "app/_lib/llm-config.ts:73 Providers are one closed list with a membership predicate. saveProviderKey itself is typed and does not call this predicate."
+        },
+        {
+          "technique": "presence-decides-precedence",
+          "verdict": "deviation",
+          "evidence": "app/_lib/provider-key-precedence.ts:63 The stored-row rung returns an empty key and stops. The env-alias rung uses truthiness, so a present blank name loses to the next alias."
+        },
+        {
+          "technique": "read-batching",
+          "verdict": "conformant",
+          "evidence": "app/_lib/llm-config.ts:365 Assembly lists both tables once. There is no cross-call cache, so a later resolve reads the store again."
+        },
+        {
+          "technique": "save-experience",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/llm-config.ts:192 The write door can report stale. No control is rendered in this module."
+        },
+        {
+          "technique": "typed-accessors",
+          "verdict": "conformant",
+          "evidence": "app/_lib/llm-config.ts:367 Nothing configured is omitted so the default is not stored. toUseCaseEntry keeps only positive integer maxTokens and timeoutS."
+        }
+      ],
+      "registryProposal": "Say that an alias list in a read-only source is presence-decides-precedence, and that an empty string is present. This chain already stops on an empty stored key and still truth-tests the env alias rung."
+    },
+    "12e121d6-6032-464b-a349-68911bfbdbba/settings": {
+      "context": "analytics-metrics",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T08:46:08.759Z",
+      "worker": "a4cbcc5c-b8f2-4120-a26f-6d2020b3b857",
+      "techniques": [
+        {
+          "technique": "applied-defaults-ledger",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsGoalsEditor.tsx:59 A blank goal is absence, not a shipped 50% entry reapplied into a collection."
+        },
+        {
+          "technique": "inherited-default-override",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/stageDwellGate.ts:123 A shipped role default is not painted as a team decision. The cadence input passes null team days unless cadenceSource is team, and a null save clears back to that default."
+        },
+        {
+          "technique": "read-batching",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/AnalyticsGoalsEditor.tsx:24 Every stage goal arrives on one prop. The editors do not fetch per metric."
+        },
+        {
+          "technique": "save-experience",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/AnalyticsInlineNumberSave.tsx:77 Blur-save is the right model and the alert is honest. The catch does not put the draft back to the stored value."
+        },
+        {
+          "technique": "setting-kinds",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/AnalyticsThresholdSuggestion.tsx:15 The auto-reject floor waits for Apply and is sealed in history. Goals and channel spend commit on blur. The split is per component, with no shared kind field."
+        },
+        {
+          "technique": "settings-audit-and-history",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/thresholdHistoryRows.ts:23 A sealed floor record carries previous, next, at, and approvedBy, and the strip renders it. Goal and spend edits have no such strip in these files."
+        },
+        {
+          "technique": "typed-accessors",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/inlineNumberSavePlan.ts:37 One planner parses, rejects non-finite and negative input, and turns blank or zero into null so the row is cleared."
+        }
+      ]
+    },
+    "05c81bc5-6671-4396-86c6-42f9d78ec20e/settings": {
+      "context": "organization-and-branding",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T08:46:08.759Z",
+      "worker": "a4cbcc5c-b8f2-4120-a26f-6d2020b3b857",
+      "techniques": [
+        {
+          "technique": "applied-defaults-ledger",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/branding/BrandingTab.tsx:160 Reset returns the last saved brand. There is no shipped collection of default entries."
+        },
+        {
+          "technique": "config-backup-and-restore",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/organization/OrganizationTab.tsx:28 Org settings are a cookie and a workspace default. The backup panel is an on-demand organization database export with a dry-run, not a rotation of a settings file before each save."
+        },
+        {
+          "technique": "in-place-document-patch",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/branding/BrandingTab.tsx:131 The brand payload is three named fields, a strict section, not a document that keeps unknown members."
+        },
+        {
+          "technique": "read-batching",
+          "verdict": "conformant",
+          "evidence": "app/features/settings/organization/OrganizationTab.tsx:152 The tab does not fetch each setting. Both values are already on the document."
+        },
+        {
+          "technique": "save-experience",
+          "verdict": "deviation",
+          "evidence": "app/features/settings/branding/BrandingTab.tsx:108 Dirty is compared to the saved baseline, and a failed currency write calls setCurrency(previous). The org name debounces and flushes on unmount. The branding explicit form does not prompt on in-app tab changes."
+        },
+        {
+          "technique": "setting-kinds",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/organization/OrganizationTab.tsx:27 Name, language, currency, and brand are identity preferences. No ceiling or flag is in these files."
+        },
+        {
+          "technique": "typed-accessors",
+          "verdict": "conformant",
+          "evidence": "app/features/settings/organization/OrganizationTab.tsx:109 An unknown locale is refused before write. An unrecognized app locale is shown as en. Branding blocks save when the accent is not a legible hex."
+        }
+      ]
+    },
+    "6f32f7eb-be6a-48aa-a546-d7f77ddf7546/translation-pipeline-topology": {
+      "context": "i18n-locale-resolution",
+      "subject": "translation-pipeline-topology",
+      "bundle": "localization",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T09:17:26.165Z",
+      "worker": "189ec32d-60c1-4b10-b09b-5d334aa6fd98",
+      "techniques": [
+        {
+          "technique": "canonical-fallback-serving",
+          "verdict": "not-applicable",
+          "evidence": "i18n/server.ts:14 This is locale-negotiation fallback; the context does not fetch partially published derived content."
+        },
+        {
+          "technique": "fuzzy-reuse-under-a-threshold",
+          "verdict": "not-applicable",
+          "evidence": "i18n/locales.ts:70 Language-tag normalization does not perform translation-memory reuse."
+        },
+        {
+          "technique": "language-registry-single-source",
+          "verdict": "deviation",
+          "evidence": "i18n/locales.ts:6 Independent copies were opened at pipeline/jobfit/i18n.py:25–30 and app/_lib/reasoning-cache-policy.ts:48; agreement today does not satisfy the single-registry rule."
+        },
+        {
+          "technique": "non-translatable-value-classification",
+          "verdict": "not-applicable",
+          "evidence": "i18n/locales.ts:25 This guard classifies locale identifiers, not catalog values entering a translation engine."
+        },
+        {
+          "technique": "prompt-context-contract",
+          "verdict": "not-applicable",
+          "evidence": "i18n/request.ts:10 The configuration resolves a rendering locale without constructing a machine-translation request."
+        },
+        {
+          "technique": "serialization-transport-safety",
+          "verdict": "not-applicable",
+          "evidence": "i18n/actions.ts:30 Persisting a locale cookie is not batch machine-translation transport."
+        },
+        {
+          "technique": "sharded-translation-ci",
+          "verdict": "not-applicable",
+          "evidence": "i18n/actions.ts:25 This runtime preference action does not schedule translation work."
+        },
+        {
+          "technique": "source-hash-translation-cache",
+          "verdict": "not-applicable",
+          "evidence": "i18n/locales.ts:40 Locale resolution neither generates nor caches derived translations."
+        },
+        {
+          "technique": "source-identical-value-audit",
+          "verdict": "not-applicable",
+          "evidence": "i18n/actions.ts:29 This context validates supported language selections, not catalog translatedness."
+        }
+      ]
+    },
+    "65792460-c7df-4a0e-ad4b-224ea3acd82b/translation-pipeline-topology": {
+      "context": "ci-doc-gates",
+      "subject": "translation-pipeline-topology",
+      "bundle": "localization",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T09:17:26.165Z",
+      "worker": "189ec32d-60c1-4b10-b09b-5d334aa6fd98",
+      "techniques": [
+        {
+          "technique": "canonical-fallback-serving",
+          "verdict": "not-applicable",
+          "evidence": "scripts/i18n-check.mjs:151 This build-time validator reports catalog problems rather than serving translated content."
+        },
+        {
+          "technique": "fuzzy-reuse-under-a-threshold",
+          "verdict": "not-applicable",
+          "evidence": "scripts/i18n/catalog-check.mjs:233 List-parity validation performs no translation-memory reuse."
+        },
+        {
+          "technique": "language-registry-single-source",
+          "verdict": "deviation",
+          "evidence": "scripts/i18n-check.mjs:148 The gate discovers its locale universe from existing files instead of LOCALES, so an absent supported target catalog is excluded rather than reported."
+        },
+        {
+          "technique": "non-translatable-value-classification",
+          "verdict": "not-applicable",
+          "evidence": "scripts/i18n/catalog-check.mjs:213 Catalog-shape validation does not classify inputs before a translation-engine request."
+        },
+        {
+          "technique": "prompt-context-contract",
+          "verdict": "not-applicable",
+          "evidence": "scripts/i18n/catalog-check.mjs:88 The locale is used for ICU compilation, not a machine-translation prompt."
+        },
+        {
+          "technique": "serialization-transport-safety",
+          "verdict": "not-applicable",
+          "evidence": "scripts/i18n-check.mjs:145 Parsing committed catalog files is not the wire seam of a batch machine-translation request."
+        },
+        {
+          "technique": "sharded-translation-ci",
+          "verdict": "not-applicable",
+          "evidence": "scripts/i18n/catalog-check.mjs:198 The gate walks existing catalogs without translating or publishing corpus shards."
+        },
+        {
+          "technique": "source-hash-translation-cache",
+          "verdict": "not-applicable",
+          "evidence": "scripts/i18n/catalog-check.mjs:200 This in-process map holds validation walks, not persisted derived translations."
+        },
+        {
+          "technique": "source-identical-value-audit",
+          "verdict": "deviation",
+          "evidence": "scripts/i18n/catalog-check.mjs:243 The following checks never compare value with baseValue for translatedness; an in-memory en/cs fixture containing identical ordinary prose in an object and an array returned problems: []."
+        }
+      ]
+    },
+    "de71aa9b-3319-42bc-8b1f-cc8e185ebebe/translation-pipeline-topology": {
+      "context": "review-gates",
+      "subject": "translation-pipeline-topology",
+      "bundle": "localization",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T09:17:26.165Z",
+      "worker": "189ec32d-60c1-4b10-b09b-5d334aa6fd98",
+      "techniques": [
+        {
+          "technique": "canonical-and-derived-split",
+          "verdict": "not-applicable",
+          "evidence": "scripts/review/rubric.mjs:61 The rubric consumes repository guidance, not canonical and derived translation artifacts."
+        },
+        {
+          "technique": "canonical-fallback-serving",
+          "verdict": "not-applicable",
+          "evidence": "scripts/review/agent-review.mjs:260 The input units are changed code files, not partially translated reader content."
+        },
+        {
+          "technique": "fuzzy-reuse-under-a-threshold",
+          "verdict": "not-applicable",
+          "evidence": "scripts/review/agent-review.mjs:222 This policy evaluates review findings without translation-memory matches."
+        },
+        {
+          "technique": "hand-authored-exception-contract",
+          "verdict": "not-applicable",
+          "evidence": "scripts/review/rubric.mjs:65 The maintained records are architectural decisions, not human-authored translation exceptions."
+        },
+        {
+          "technique": "language-registry-single-source",
+          "verdict": "not-applicable",
+          "evidence": "scripts/review/agent-review.mjs:45 The review configuration selects a model without declaring supported translation languages."
+        },
+        {
+          "technique": "non-translatable-value-classification",
+          "verdict": "not-applicable",
+          "evidence": "scripts/review/agent-review.mjs:119 The model receives a code diff, not catalog values selected for translation."
+        },
+        {
+          "technique": "prompt-context-contract",
+          "verdict": "not-applicable",
+          "evidence": "scripts/review/agent-review.mjs:96 This is a code-review prompt contract, not a machine-translation context contract."
+        },
+        {
+          "technique": "pseudo-localization-readiness",
+          "verdict": "not-applicable",
+          "evidence": "scripts/review/agent-review.mjs:81 The model examines change scope without rendering localized product surfaces."
+        },
+        {
+          "technique": "serialization-transport-safety",
+          "verdict": "not-applicable",
+          "evidence": "scripts/review/agent-review.mjs:132 The response contains code-review findings rather than batched translated values."
+        },
+        {
+          "technique": "sharded-translation-ci",
+          "verdict": "not-applicable",
+          "evidence": "scripts/review/agent-review.mjs:61 The budget limits review input; it does not partition translation publication work."
+        },
+        {
+          "technique": "source-hash-translation-cache",
+          "verdict": "not-applicable",
+          "evidence": "scripts/review/agent-review.mjs:259 Work is selected by a commit diff, without a derived-translation cache."
+        },
+        {
+          "technique": "source-identical-value-audit",
+          "verdict": "not-applicable",
+          "evidence": "scripts/review/agent-review.mjs:128 The declared result judges commit intent without auditing locale-catalog values."
+        }
+      ]
+    },
+    "9a7b6d11-28e3-4f45-a4f5-7b1b1dd1f134/fleet-orchestration": {
+      "context": "devcase-orchestration",
+      "subject": "fleet-orchestration",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T09:52:14.483Z",
+      "worker": "6722369d-d615-4671-830b-6d926a031895",
+      "techniques": [
+        {
+          "technique": "session-registry",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/devcase-transitions.ts:54 Manages candidate devcase editorial stages rather than fleet agent sessions."
+        },
+        {
+          "technique": "parallel-dispatch",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/devcase-orchestrator.ts:99 Pass limit governs polling passes over human candidate submissions rather than concurrent agent workers."
+        },
+        {
+          "technique": "completion-claim-verification",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/devcase-orchestrator.ts:42 Governs candidate benchmark score promotion rather than agent completion receipts."
+        },
+        {
+          "technique": "soft-budget-under-the-hard-cap",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/devcase-timebox.ts:24 Enforces human assessment SLA window rather than agent model turn or token budgets."
+        }
+      ]
+    },
+    "050c760b-ee78-46e0-a86f-77d80d89b3bf/fleet-orchestration": {
+      "context": "interview-simulator",
+      "subject": "fleet-orchestration",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T09:52:14.483Z",
+      "worker": "6722369d-d615-4671-830b-6d926a031895",
+      "techniques": [
+        {
+          "technique": "session-registry",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/interview-sim/types.ts:82 In-memory simulation result termination reason, not a fleet session registry entry."
+        },
+        {
+          "technique": "parallel-dispatch",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/interview-sim/runner.ts:226 Sim test batch worker pool sizing over static evaluation fixtures rather than fleet session parallel dispatch."
+        },
+        {
+          "technique": "soft-budget-under-the-hard-cap",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/interview-sim/types.ts:85 Sim trajectory call count meter rather than model-driven loop dual budget."
+        },
+        {
+          "technique": "lifecycle-signals",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/interview-sim/clock.ts:44 Synthetic frozen epoch used for deterministic in-memory simulation clock instead of real-time lifecycle sweeper."
+        }
+      ]
+    },
+    "c29afd56-b78f-4c8c-bfa8-75a8a24a80c2/fleet-orchestration": {
+      "context": "task-automation-engine",
+      "subject": "fleet-orchestration",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T09:52:14.483Z",
+      "techniques": [
+        {
+          "technique": "evidence-outranks-a-liveness-claim",
+          "verdict": "deviation",
+          "evidence": "app/_lib/task-maintenance.ts:46 Declares a task dead based purely on wall-clock elapsed time since start rather than checking if evidence of active progress was produced."
+        },
+        {
+          "technique": "parallel-dispatch",
+          "verdict": "conformant",
+          "evidence": "app/_lib/automation-pass.ts:246 Calculates spawn budget upfront by checking currently running scoring tasks against a concurrency cap before dispatching batch tasks."
+        },
+        {
+          "technique": "absent-status-passthrough",
+          "verdict": "conformant",
+          "evidence": "app/_lib/task-poll-state.ts:62 Treats network poll failure as a transient state holding the last known task status without asserting terminal completion or failure."
+        },
+        {
+          "technique": "durable-fleet-state",
+          "verdict": "conformant",
+          "evidence": "app/_lib/tasks.ts:590 Recovers running tasks from SQLite database on engine startup to restore durable state across orchestrator restarts."
+        },
+        {
+          "technique": "session-registry",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/tasks.ts:359 Updates task status without fencing generation tokens or validating against an authoritative state machine transition door."
+        },
+        {
+          "technique": "soft-budget-under-the-hard-cap",
+          "verdict": "deviation",
+          "evidence": "app/_lib/task-budget.ts:55 Rate limits task admissions with fixed window limits without providing a derived soft budget for graceful degradation."
+        }
+      ],
+      "withdrawn": {
+        "worker": "6722369d-d615-4671-830b-6d926a031895",
+        "state": "deviation",
+        "at": "2026-10-13T09:53:15.552708+00:00",
+        "reason": "reviewer (sonnet): The tasks are in-process handlers with no external executor or heartbeat, so the claim 'without querying external executor heartbeat signals' doesn't fit task-maintenance.ts:46. isTaskStale is a watchdog and orphan reaper that skips rows with a live in-process controller. The task-poll-state.ts:62 t"
+      }
+    },
+    "5e59aca6-ce51-498d-85c6-6ad37b847bc6/fleet-orchestration": {
+      "context": "agents-api",
+      "subject": "fleet-orchestration",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T09:52:14.483Z",
+      "worker": "6722369d-d615-4671-830b-6d926a031895",
+      "techniques": [
+        {
+          "technique": "soft-budget-under-the-hard-cap",
+          "verdict": "deviation",
+          "evidence": "app/api/agents/dispatch/spec-bounds.ts:26 Enforces an upper ceiling of 1000 model turns without a smaller soft budget derived from it for graceful worker self-termination."
+        },
+        {
+          "technique": "outbound-compute-plane",
+          "verdict": "conformant",
+          "evidence": "app/api/agents/report/[token]/route.ts:13 Workers run on external compute and report status inbound via an unguessable CSPRNG token route rather than requiring direct control-plane ingress."
+        },
+        {
+          "technique": "session-registry",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/agents.ts:373 Defines agent status transitions but does not track process incarnation tokens, generation fencing, or resource leases."
+        },
+        {
+          "technique": "lifecycle-signals",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/agents.ts:46 Stores report timestamp for reachability but lacks an active background sweeper that transitions silent agents from alive to suspected or lost."
+        },
+        {
+          "technique": "parallel-dispatch",
+          "verdict": "deviation",
+          "evidence": "app/api/agents/dispatch/mint.ts:27 Applies client IP rate limiting to agent minting without checking fleet-wide concurrency caps or write scope collision domains."
+        }
+      ]
+    },
+    "2c3bab35-1a41-4ed0-85d3-e48cdaea2546/fleet-orchestration": {
+      "context": "shell-setup-wizard",
+      "subject": "fleet-orchestration",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T09:52:14.483Z",
+      "worker": "6722369d-d615-4671-830b-6d926a031895",
+      "techniques": [
+        {
+          "technique": "hibernation-and-resume",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/setup/setupDraft.ts:27 Browser localStorage form draft caching for UI onboarding rather than fleet session hibernation."
+        },
+        {
+          "technique": "session-registry",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/setup/setupSteps.ts:88 Selects relevant UI wizard form step list for the user rather than maintaining a fleet session registry."
+        },
+        {
+          "technique": "lifecycle-signals",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/setup/onboardingReopen.ts:28 Dispatches browser window DOM event to reopen UI onboarding flow rather than agent lifecycle signals."
+        }
+      ]
+    },
+    "de71aa9b-3319-42bc-8b1f-cc8e185ebebe/supply-chain": {
+      "context": "review-gates",
+      "subject": "supply-chain",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T10:32:04.889Z",
+      "worker": "327a3c6f-241b-4a1d-afeb-cb845101d13d",
+      "techniques": [
+        {
+          "technique": "secret-scanning-architecture",
+          "verdict": "deviation",
+          "evidence": "scripts/review/constitution-check.mjs:429 The imported exemption predicate excludes all docs/, README files, and security/review script directories; the standard requires individual finding fingerprints instead of blanket paths."
+        },
+        {
+          "technique": "unsafe-deserialization-off-by-default",
+          "verdict": "not-applicable",
+          "evidence": "scripts/review/gate-check.mjs:338 The inspected configuration loader reads data-only JSON, not a model/checkpoint or executable-object format."
+        }
+      ]
+    },
+    "e6d77461-4869-4190-bfcb-a5cf7fec1162/supply-chain": {
+      "context": "security-agent-gates",
+      "subject": "supply-chain",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T10:32:04.889Z",
+      "worker": "327a3c6f-241b-4a1d-afeb-cb845101d13d",
+      "techniques": [
+        {
+          "technique": "reading-is-not-running",
+          "verdict": "conformant",
+          "evidence": "scripts/security/check-actions.mjs:590 The offline workflow scanner reads source as text through the shared static reader; the credential scanner likewise inspects text rather than evaluating scanned files."
+        },
+        {
+          "technique": "secret-scanning-architecture",
+          "verdict": "deviation",
+          "evidence": "scripts/security/secret-scan.mjs:114 Exemptions are blanket path patterns rather than finding fingerprints; the fixtures explicitly expect credential-shaped content in exempt files to yield no findings."
+        },
+        {
+          "technique": "unsafe-deserialization-off-by-default",
+          "verdict": "not-applicable",
+          "evidence": "scripts/security/check-actions.mjs:150 The inspected policy loader reads JSON, not a saved model or executable-object serialization."
+        }
+      ]
+    },
+    "7b5da07d-0f32-47ad-be88-61179442c8b4/supply-chain": {
+      "context": "release-pipeline",
+      "subject": "supply-chain",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T10:32:04.889Z",
+      "worker": "327a3c6f-241b-4a1d-afeb-cb845101d13d",
+      "techniques": [
+        {
+          "technique": "permission-manifest-scoping",
+          "verdict": "deviation",
+          "evidence": "scripts/deploy/check-chart.mjs:281 An in-memory probe replaced both toYaml security-context applications with Helm comments retaining the variable names; runPolicies still returned zero findings."
+        },
+        {
+          "technique": "unsafe-deserialization-off-by-default",
+          "verdict": "not-applicable",
+          "evidence": "scripts/release/sbom.mjs:253 The inspected manifest loader reads data-only JSON, rather than a saved model or executable-object format."
+        }
+      ]
+    },
+    "b564f01b-cf9d-42a8-8cf7-08ec2311c9c5/module-design": {
+      "context": "decisions-screen-wave-logic",
+      "subject": "module-design",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T11:14:03.231Z",
+      "worker": "f112dffe-68a2-43dc-9a6d-20b7eb964b44",
+      "techniques": [
+        {
+          "technique": "concurrency-at-the-edge",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/decisions/decisionsLatestWins.ts:42 Stale-response coordination is represented by tickets; the gate performs no network calls or scheduling."
+        },
+        {
+          "technique": "declarative-or-sequential",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/decisions/decisionsScreenWaveMachine.ts:99 Explicit event branches express the state machine directly, including notice lifetime and refusal transitions."
+        },
+        {
+          "technique": "io-free-core",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/decisions/decisionsScreenWaveMachine.ts:98 The reducer consumes state and event values and returns state without I/O, clocks, randomness or waiting."
+        },
+        {
+          "technique": "marked-unverifiable-region",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/decisions/decisionsAiReviewCardLogic.ts:23 The assertion is greppable, but neither the surrounding catch nor the comments establish that every parsed value satisfies ParsedApproval."
+        },
+        {
+          "technique": "module-depth",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/decisions/decisionsPeerCompare.ts:60 Two ordinary inputs buy tied ranking, median, comparison margin and unscored accounting without exposing the calculation procedure."
+        }
+      ]
+    },
+    "ebfe3268-6c14-4997-a49c-091483d763b5/module-design": {
+      "context": "shared-api-utilities",
+      "subject": "module-design",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T11:14:03.231Z",
+      "worker": "f112dffe-68a2-43dc-9a6d-20b7eb964b44",
+      "techniques": [
+        {
+          "technique": "concurrency-at-the-edge",
+          "verdict": "conformant",
+          "evidence": "app/_lib/request-body.ts:50 Racing a stream read against the whole-body deadline is the reader's policy; removing it would require recreating coordination."
+        },
+        {
+          "technique": "declarative-or-sequential",
+          "verdict": "conformant",
+          "evidence": "app/_lib/sanity-checks.ts:48 One classification pass builds two required output collections using explicit sequential code."
+        },
+        {
+          "technique": "io-free-core",
+          "verdict": "conformant",
+          "evidence": "app/_lib/cache-key.ts:76 Cache identity is computed from supplied values; registry digests and model routing arrive as inputs rather than being fetched."
+        },
+        {
+          "technique": "marked-unverifiable-region",
+          "verdict": "deviation",
+          "evidence": "app/_lib/request-body.ts:118 The null guard proves only non-nullness, not T; documented validation by callers happens after the helper has exposed the asserted type."
+        },
+        {
+          "technique": "module-depth",
+          "verdict": "conformant",
+          "evidence": "app/_lib/api-response.ts:2177 safeJsonError takes a registered code and hides safe-message selection, error-envelope construction and server-side logging from route callers."
+        }
+      ]
+    },
+    "a756a7a4-eeeb-4ac4-b43b-b2afb7f3e4a2/module-design": {
+      "context": "voice-stt-package",
+      "subject": "module-design",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T11:14:03.231Z",
+      "worker": "f112dffe-68a2-43dc-9a6d-20b7eb964b44",
+      "techniques": [
+        {
+          "technique": "concurrency-at-the-edge",
+          "verdict": "conformant",
+          "evidence": "packages/voice-stt/src/registry.ts:233 The queue implements the explicit one-local-transcription-at-a-time policy; removing it would require another serialization mechanism."
+        },
+        {
+          "technique": "declarative-or-sequential",
+          "verdict": "conformant",
+          "evidence": "packages/voice-stt/src/providers/whisper-cpp.ts:226 Loaded transcript rows pass through a pure map/filter transformation, with file reads before it and logging after it."
+        },
+        {
+          "technique": "io-free-core",
+          "verdict": "conformant",
+          "evidence": "packages/voice-stt/src/browser/wav-encode.ts:41 Audio arithmetic consumes constructible PCM arrays; browser decoding remains in encodeWavFromBlob outside this computational core."
+        },
+        {
+          "technique": "marked-unverifiable-region",
+          "verdict": "deviation",
+          "evidence": "packages/voice-stt/src/node/spawn.ts:69 The generic file reader asserts arbitrary JSON as T without a checked shape or a per-use invariant establishing T."
+        },
+        {
+          "technique": "module-depth",
+          "verdict": "deviation",
+          "evidence": "packages/voice-stt/src/registry.ts:41 Returning the underlying provider makes the registry's validation, residency selection, length limits and serialization optional at the public boundary."
+        }
+      ]
+    },
+    "ee64b398-8e4c-40aa-a4af-8ff922026ef2/module-design": {
+      "context": "db-core-migrations",
+      "subject": "module-design",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T11:14:03.231Z",
+      "worker": "f112dffe-68a2-43dc-9a6d-20b7eb964b44",
+      "techniques": [
+        {
+          "technique": "declarative-or-sequential",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/core.ts:2746 Boot uses sequential effectful statements, with schema-before-seeding and seeding-before-backfills ordering explicitly documented nearby."
+        },
+        {
+          "technique": "marked-unverifiable-region",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/core.ts:182 The unchecked path establishes JSON syntax but no invariant proving T, despite the same function providing a checked safeParse path."
+        },
+        {
+          "technique": "mirror-type-at-the-edge",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/core.ts:3017 Boot maintenance needs the connection's effectful verb, so a data mirror would not replace its required capability."
+        },
+        {
+          "technique": "module-depth",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/core.ts:307 One entry point provides a booted connection while hiding integrity checking, schema creation, migrations, seed ordering and maintenance."
+        },
+        {
+          "technique": "seams-and-adapters",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/core.ts:3006 The boot tail accepts a minimal connection capability plus injected prune and health operations; tests exercise fault adapters and a real SQLite boot path."
+        }
+      ]
+    },
+    "92d1ca34-143b-4d61-8cd6-b9becd08d145/multi-provider-gateway-plane": {
+      "context": "models-keys-and-routing",
+      "subject": "multi-provider-gateway-plane",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T11:49:33.120Z",
+      "worker": "b1840e21-336b-4efd-ae0c-f1bd513bd4e9",
+      "techniques": [
+        {
+          "technique": "adapter-direction-asymmetry",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/models/modelsKeysPanelLogic.ts:85 This builds a key-store administration request, not an upstream adapter request."
+        },
+        {
+          "technique": "caller-scoped-normalization-strictness",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/models/ModelsKeyRow.tsx:68 The UI consumes its own canary verdict contract rather than proxying native provider responses."
+        },
+        {
+          "technique": "exclusive-authorship-of-a-measured-decision",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/models/ModelsRoutingRow.tsx:269 This guards a saved-pin canary UI; it does not own an evaluated runtime selector."
+        },
+        {
+          "technique": "join-breadth-follows-the-wrong-match-cost",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/models/modelsKeysPanelLogic.ts:19 Stored keys are located by exact provider/scope identity, without a catalog-to-upstream naming join."
+        },
+        {
+          "technique": "named-members-over-a-uniform-collection",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/models/ModelsKeysList.tsx:32 This collection renders stored metadata; it does not aggregate upstream probe results."
+        },
+        {
+          "technique": "one-typed-carrier-for-echoed-state",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/models/modelsRoutingActions.ts:73 The echoed value is an application-owned concurrency version, not opaque upstream continuation state."
+        },
+        {
+          "technique": "per-provider-stream-framing",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/models/ModelsRoutingRow.tsx:174 The component reads a settled application JSON response."
+        },
+        {
+          "technique": "policy-verdict-in-the-status-space",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/models/modelsTestReason.ts:63 The consumer parses the body's typed code, so a private status vocabulary is unnecessary."
+        },
+        {
+          "technique": "router-versus-candidate-failure",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/models/ModelsKeyRow.tsx:63 The row invokes one application canary endpoint and owns no candidate fallback loop."
+        },
+        {
+          "technique": "strategy-tree-with-inherited-policy",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/models/ModelsRoutingPanel.tsx:75 The panel edits individual use-case pins rather than recursive execution strategies."
+        },
+        {
+          "technique": "upstream-identity-before-inventory",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/models/modelsProviderNames.ts:14 This labels an already supplied provider identifier and performs no endpoint identity discovery."
+        }
+      ]
+    },
+    "a7075610-e714-4a96-82ec-6999c4f8945e/multi-provider-gateway-plane": {
+      "context": "jobs-table-core",
+      "subject": "multi-provider-gateway-plane",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T11:49:33.120Z",
+      "worker": "b1840e21-336b-4efd-ae0c-f1bd513bd4e9",
+      "techniques": [
+        {
+          "technique": "adapter-direction-asymmetry",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/useJobsList.ts:161 The hook calls one application API rather than translating requests for upstream adapters."
+        },
+        {
+          "technique": "caller-scoped-normalization-strictness",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/useJobsList.ts:72 The UI reads its application's own Job contract, without gateway compatibility modes."
+        },
+        {
+          "technique": "exclusive-authorship-of-a-measured-decision",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsStatusMerge.ts:25 This merges a job lifecycle update, not an evaluated upstream-selection decision."
+        },
+        {
+          "technique": "join-breadth-follows-the-wrong-match-cost",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsTabDeepLink.ts:50 Deep links match exact application record IDs rather than independently named upstream artifacts."
+        },
+        {
+          "technique": "named-members-over-a-uniform-collection",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/JobsTab.tsx:123 The aggregate being rendered is job-category statistics, not heterogeneous upstream inventory."
+        },
+        {
+          "technique": "one-typed-carrier-for-echoed-state",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsRequestGuard.ts:23 The guard keeps local request identity; no opaque upstream state must survive a client round trip."
+        },
+        {
+          "technique": "per-provider-stream-framing",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsTabDeepLink.ts:68 The lookup consumes settled application JSON, without provider-specific streaming frames."
+        },
+        {
+          "technique": "policy-verdict-in-the-status-space",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsResponseFold.ts:35 The response consumer can inspect both the parsed body and status; no status-only candidate policy is configured."
+        },
+        {
+          "technique": "router-versus-candidate-failure",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/useJobsList.ts:165 This handles one application endpoint's failure and owns no interchangeable-candidate loop."
+        },
+        {
+          "technique": "strategy-tree-with-inherited-policy",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/useJobsList.ts:47 The request configures job-list sorting and filtering rather than a recursive routing strategy."
+        },
+        {
+          "technique": "upstream-identity-before-inventory",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/JobsRow.tsx:43 Rows display application job records; this surface does not identify upstream implementations."
+        }
+      ]
+    },
+    "e2f41475-e943-47a4-bf2d-7e3ee529366d/voice-interview-fidelity": {
+      "context": "voice-interview-components",
+      "subject": "voice-interview-fidelity",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T12:26:29.649Z",
+      "worker": "8a963e87-d420-442b-8db5-7c06520a8f09",
+      "techniques": [
+        {
+          "technique": "phantom-terms-and-silence-insertions",
+          "verdict": "deviation",
+          "evidence": "app/_components/voice/transport/elevenlabs.ts:182 Applies ASR vocabulary biasing overrides to the speech session without null-audio controls to detect or measure phantom insertions."
+        },
+        {
+          "technique": "closing-read-back-as-the-authoritative-record",
+          "verdict": "deviation",
+          "evidence": "app/_components/voice/VoiceTranscript.tsx:55 Candidate UI only renders speech bubbles in a scrolling transcript with no written checklist for reviewing read-back entities on screen."
+        },
+        {
+          "technique": "language-choice-and-per-turn-drift-detection",
+          "verdict": "conformant",
+          "evidence": "app/_components/voice/transport/elevenlabs.ts:173 Pins the candidate's spoken language directly in the ElevenLabs transport configuration rather than relying solely on prompt instructions."
+        },
+        {
+          "technique": "transcript-sampling-that-keeps-the-conclusion",
+          "verdict": "conformant",
+          "evidence": "app/_components/voice/useTranscriptPersistence.ts:117 Persists the full transcript array without front-slicing at the client persistence boundary."
+        },
+        {
+          "technique": "never-infer-from-how-a-person-sounds",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/voice/VoiceInterview.tsx:20 Client components do not evaluate candidates, write scoring prompts, or score transcripts."
+        },
+        {
+          "technique": "entity-fidelity-not-aggregate-error-rate",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/voice/VoiceTranscript.tsx:5 Entity fidelity quality gates are not evaluated or enforced within client view components."
+        },
+        {
+          "technique": "accent-and-first-language-error-disparity",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/voice/VoiceSettings.tsx:9 Disparate impact audits and population-stratified fidelity metrics are not tracked by client UI controls."
+        }
+      ],
+      "registryProposal": "Consider clarifying in closing-read-back whether visual on-screen read-back confirmation is required when voice is the primary interaction mode in a web UI."
+    },
+    "eb0e8133-4575-4d03-8155-dcf219192bf4/voice-interview-fidelity": {
+      "context": "voice-interview-session",
+      "subject": "voice-interview-fidelity",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T12:26:29.649Z",
+      "worker": "8a963e87-d420-442b-8db5-7c06520a8f09",
+      "techniques": [
+        {
+          "technique": "phantom-terms-and-silence-insertions",
+          "verdict": "deviation",
+          "evidence": "app/_lib/voice/asr-keywords.mjs:31 Defines baseline keyword biasing containing confusable pairs (React/Rust, Java/JavaScript) without running null-audio controls to test for phantom insertions."
+        },
+        {
+          "technique": "language-choice-and-per-turn-drift-detection",
+          "verdict": "deviation",
+          "evidence": "app/_lib/voice/language-lock.ts:34 Per-turn drift detector checks only Czech and English word markers, leaving German/French interviews to fall back to indeterminate without drift detection."
+        },
+        {
+          "technique": "never-infer-from-how-a-person-sounds",
+          "verdict": "conformant",
+          "evidence": "app/_lib/voice/telemetry-format.ts:6 Formats conversation telemetry (talk share, pause duration) purely as neutral descriptive signals without deriving scores."
+        },
+        {
+          "technique": "closing-read-back-as-the-authoritative-record",
+          "verdict": "deviation",
+          "evidence": "app/_lib/voice/finalize-status.ts:64 Flags that the closing block was entered but does not verify whether the read-back actually happened or validate candidate confirmations."
+        },
+        {
+          "technique": "accent-and-first-language-error-disparity",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/voice/candidate-brief.ts:1 Session brief construction and lifecycle management do not perform population-stratified fidelity analysis."
+        },
+        {
+          "technique": "entity-fidelity-not-aggregate-error-rate",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/voice/discarded-turns.ts:1 Turn reconciliation and session finalization do not compute entity fidelity error rates."
+        },
+        {
+          "technique": "transcript-sampling-that-keeps-the-conclusion",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/voice/index.ts:1 Session utilities do not sample or truncate transcripts for downstream synthesis."
+        }
+      ]
+    },
+    "f3c7a16c-32b1-4b6a-8df4-6181ab2734dc/voice-interview-fidelity": {
+      "context": "interview-lab-harness",
+      "subject": "voice-interview-fidelity",
+      "bundle": "recruiting",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T12:26:29.649Z",
+      "techniques": [
+        {
+          "technique": "accent-and-first-language-error-disparity",
+          "verdict": "not-applicable",
+          "evidence": "app/interview-lab/page.tsx:18 Internal test harness does not evaluate multi-accent candidate pools or audit assessment pipelines."
+        },
+        {
+          "technique": "closing-read-back-as-the-authoritative-record",
+          "verdict": "not-applicable",
+          "evidence": "app/interview-lab/page.tsx:23 Page does not wire spoken transcripts into scorecards or manage candidate corrections."
+        },
+        {
+          "technique": "entity-fidelity-not-aggregate-error-rate",
+          "verdict": "not-applicable",
+          "evidence": "app/interview-lab/page.tsx:28 No transcript quality gate or entity error rate computation exists on this test page."
+        },
+        {
+          "technique": "language-choice-and-per-turn-drift-detection",
+          "verdict": "not-applicable",
+          "evidence": "app/interview-lab/page.tsx:52 Page mounts client component in test mode with no automated drift detection."
+        },
+        {
+          "technique": "never-infer-from-how-a-person-sounds",
+          "verdict": "not-applicable",
+          "evidence": "app/interview-lab/page.tsx:56 No candidate assessment or scoring occurs on this operator comparison page."
+        },
+        {
+          "technique": "phantom-terms-and-silence-insertions",
+          "verdict": "not-applicable",
+          "evidence": "app/interview-lab/page.tsx:3 No vocabulary list testing or phantom insertion checks are performed here."
+        },
+        {
+          "technique": "transcript-sampling-that-keeps-the-conclusion",
+          "verdict": "not-applicable",
+          "evidence": "app/interview-lab/page.tsx:4 No transcript synthesis or sampling occurs on this test page."
+        }
+      ],
+      "withdrawn": {
+        "worker": "8a963e87-d420-442b-8db5-7c06520a8f09",
+        "state": "not-applicable",
+        "at": "2026-10-13T12:29:24.099704+00:00",
+        "reason": "reviewer (sonnet): The anchor (page.tsx:32) is only the env-flag gate, and the page's own comment (lines 14-16) says the lab mounts VoiceInterviewClient to compare 'transcript fidelity', so the page does exercise live ASR and the not-applicable claim is not shown."
+      }
+    },
+    "2b8247b0-eb5c-4139-ba1e-9c4c185cd4dc/voice-interview-fidelity": {
+      "context": "schedule-interview-prep",
+      "subject": "voice-interview-fidelity",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T12:26:29.649Z",
+      "worker": "8a963e87-d420-442b-8db5-7c06520a8f09",
+      "techniques": [
+        {
+          "technique": "closing-read-back-as-the-authoritative-record",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewAiScorecardSection.tsx:95 Evidence quotes displayed to recruiters are rendered directly from the transcript turn without resolving against corrected read-back entities, leaving misheard terms visible as candidate quotes."
+        },
+        {
+          "technique": "transcript-sampling-that-keeps-the-conclusion",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewAiScorecardSection.tsx:68 Renders an in-band coverage caveat whenever head-and-tail sampling dropped turns from the transcript, while showing the complete transcript in the modal."
+        },
+        {
+          "technique": "never-infer-from-how-a-person-sounds",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewScorecardRow.tsx:42 Collapses unassessed placeholder sentinel ratings (3/5) to null and suppresses placeholder evidence so boilerplate is never shown as a candidate quote."
+        },
+        {
+          "technique": "language-choice-and-per-turn-drift-detection",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewTelemetryStrip.tsx:46 Surfaces the language-lock verdict neutrally within the telemetry strip alongside talk share and pauses."
+        },
+        {
+          "technique": "accent-and-first-language-error-disparity",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewPrepHeader.tsx:1 Schedule preparation surfaces do not calculate population disparity statistics."
+        },
+        {
+          "technique": "entity-fidelity-not-aggregate-error-rate",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewTranscriptTurns.tsx:1 Transcript display components do not compute or gate on entity error rates."
+        },
+        {
+          "technique": "phantom-terms-and-silence-insertions",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewPrepNotes.tsx:1 No recognition vocabulary priming or phantom term controls exist in schedule prep."
+        }
+      ]
+    },
+    "85aca759-e385-4fdf-8ad6-b2fbe9540b37/voice-interview-fidelity": {
+      "context": "voice-tts-package",
+      "subject": "voice-interview-fidelity",
+      "bundle": "recruiting",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T12:26:29.649Z",
+      "worker": "8a963e87-d420-442b-8db5-7c06520a8f09",
+      "techniques": [
+        {
+          "technique": "accent-and-first-language-error-disparity",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-tts/src/types.ts:16 TTS library synthesizes speech and does not perform speech recognition or candidate evaluation."
+        },
+        {
+          "technique": "closing-read-back-as-the-authoritative-record",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-tts/src/validate.ts:1 No spoken transcripts or interview scorecards exist in the TTS package."
+        },
+        {
+          "technique": "entity-fidelity-not-aggregate-error-rate",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-tts/src/registry.ts:1 Package does not process interview transcripts or compute recognition error rates."
+        },
+        {
+          "technique": "language-choice-and-per-turn-drift-detection",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-tts/src/text/normalize.ts:1 Text normalization for speech synthesis does not detect per-turn conversational language drift."
+        },
+        {
+          "technique": "never-infer-from-how-a-person-sounds",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-tts/src/providers/piper.ts:1 Speech synthesis provider produces audio output and performs no candidate scoring."
+        },
+        {
+          "technique": "phantom-terms-and-silence-insertions",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-tts/src/react/useTts.ts:2 Playback hook plays audio clips and does not perform speech-to-text recognition."
+        },
+        {
+          "technique": "transcript-sampling-that-keeps-the-conclusion",
+          "verdict": "not-applicable",
+          "evidence": "packages/voice-tts/src/text/segment.ts:1 TTS text chunking splits input strings for audio playback latency and does not sample interview transcripts."
+        }
+      ]
+    },
+    "ebfe3268-6c14-4997-a49c-091483d763b5/client-fetch-cache": {
+      "context": "shared-api-utilities",
+      "subject": "client-fetch-cache",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T13:10:59.945Z",
+      "worker": "bf8c6b43-98c6-46e5-a5a8-f414a1d8657a",
+      "techniques": [
+        {
+          "technique": "cache-key-discipline",
+          "verdict": "conformant",
+          "evidence": "app/_lib/cache-key.ts:76 Computes canonical SHA-256 cache key using unambiguous length-framing across all answer-changing axes."
+        },
+        {
+          "technique": "in-flight-dedup",
+          "verdict": "deviation",
+          "evidence": "app/_lib/cache.ts:11 Lookup does not maintain an in-flight promise registry, so identical concurrent requests execute redundantly."
+        },
+        {
+          "technique": "swr-design",
+          "verdict": "deviation",
+          "evidence": "app/_lib/cache.ts:20 Stores cached analysis without fresh vs stale zone partitioning or background revalidation."
+        },
+        {
+          "technique": "admission-hypothesis",
+          "verdict": "deviation",
+          "evidence": "app/_lib/cache.ts:22 Admits all analysis payloads into the cache unconditionally without verifying an admission hypothesis."
+        },
+        {
+          "technique": "similarity-keyed-admission",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/cache-key.ts:77 Keys cache entries using exact SHA-256 cryptographic hashes rather than resemblance metrics or similarity cut-points."
+        },
+        {
+          "technique": "warm-remount-caches",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/cache.ts:9 Operates in server process scope and does not manage client-side UI view mount lifecycles."
+        },
+        {
+          "technique": "parse-and-derive-caches",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/cache-key.ts:86 Length-framed field serialization is computed synchronously during key generation without a derivation cache."
+        },
+        {
+          "technique": "prefetch-and-defer",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/og-fonts.ts:37 Font loading executes on demand for OG image generation without client intent prefetching or idle deferral."
+        },
+        {
+          "technique": "plural-policy-claims",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/rate-limit.ts:44 Server utilities execute single policy configurations per route without multiple competing client readers."
+        },
+        {
+          "technique": "portable-read-definitions",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/cache.ts:7 Re-exports server cache key derivation functions rather than client-portable read definition triples."
+        },
+        {
+          "technique": "sibling-entry-warmth",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/cache.ts:13 Analysis cache operates on standalone analysis hashes with no concept of list vs detail sibling borrowing."
+        }
+      ],
+      "registryProposal": "Techniques like cache-key-discipline and admission-hypothesis apply equally to server-side prompt/response caches; clarifying boundaries between client fetch wrappers and server request caches would eliminate taxonomy ambiguity."
+    },
+    "e7a9bc1c-fe25-4247-a48f-d05ce318eb98/client-fetch-cache": {
+      "context": "llm-inference-runtime",
+      "subject": "client-fetch-cache",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T13:10:59.945Z",
+      "worker": "bf8c6b43-98c6-46e5-a5a8-f414a1d8657a",
+      "techniques": [
+        {
+          "technique": "admission-hypothesis",
+          "verdict": "conformant",
+          "evidence": "app/_lib/reasoning-cache-policy.ts:18 Admits only authoritative LLM verdicts to the cache and withholds deterministic template fallbacks."
+        },
+        {
+          "technique": "cache-key-discipline",
+          "verdict": "conformant",
+          "evidence": "app/_lib/reasoning-cache-key.ts:52 Builds a pure SHA-256 key from six answer-changing axes including prompt version, content hashes, locale, and workspace tenancy."
+        },
+        {
+          "technique": "in-flight-dedup",
+          "verdict": "deviation",
+          "evidence": "app/_lib/reasoning-run.ts:146 Runtime executes reasoning without an in-flight promise registry, allowing concurrent identical reasoning calls to spawn redundant Python subprocesses."
+        },
+        {
+          "technique": "swr-design",
+          "verdict": "deviation",
+          "evidence": "app/_lib/reasoning-run.ts:186 Cached verdicts are stored under a fixed TTL with no stale-while-revalidate zone partitioning or background revalidation."
+        },
+        {
+          "technique": "similarity-keyed-admission",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/reasoning-cache-key.ts:84 Keys cache entries on exact cryptographic hashes rather than semantic similarity or embedding resemblance metrics."
+        },
+        {
+          "technique": "warm-remount-caches",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/reasoning-run.ts:105 Subprocess runner handles server-side inference requests and does not manage client-side UI view mount lifecycles."
+        },
+        {
+          "technique": "parse-and-derive-caches",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/reasoning-cache-key.ts:42 Computes job payload digest synchronously without a memoized parse/derivation cache."
+        },
+        {
+          "technique": "prefetch-and-defer",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/reasoning-run.ts:113 Reasoning execution is triggered synchronously on API invocation with no client intent prefetch or idle deferral."
+        },
+        {
+          "technique": "plural-policy-claims",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/reasoning-cache-policy.ts:16 Reasoning cache policy is declared once globally rather than reconciling divergent claims across multiple client readers."
+        },
+        {
+          "technique": "portable-read-definitions",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/reasoning-run.ts:132 Reasoning cache key construction is invoked directly inside the server orchestrator rather than bound to a portable client read definition."
+        },
+        {
+          "technique": "sibling-entry-warmth",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/reasoning-run.ts:122 Loads full job records for corpus fingerprinting rather than borrowing fields from sibling client cache entries."
+        }
+      ]
+    },
+    "0c761574-cc59-472a-ae4e-a46d67e3c181/client-fetch-cache": {
+      "context": "ui-recipes-and-layout",
+      "subject": "client-fetch-cache",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T13:10:59.945Z",
+      "worker": "bf8c6b43-98c6-46e5-a5a8-f414a1d8657a",
+      "techniques": [
+        {
+          "technique": "prefetch-and-defer",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/ui/Defer.tsx:22 Defer component stages the DOM commit of already rendered children via requestIdleCallback without performing or scheduling network fetches."
+        },
+        {
+          "technique": "swr-design",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/ui/Defer.tsx:21 Context lacks network fetch handling and authority data storage, so stale-while-revalidate freshness zones do not apply."
+        },
+        {
+          "technique": "warm-remount-caches",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/ui/defer-policy.ts:14 Defers DOM tree insertion based on frame/idle/visible strategies rather than caching authority responses across route unmounts."
+        },
+        {
+          "technique": "cache-key-discipline",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/ui/recipes.ts:25 Context exports static Tailwind recipe strings with no cache key generation or hashing."
+        },
+        {
+          "technique": "in-flight-dedup",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/ui/Defer.tsx:56 Evaluates immediate DOM commit flags without network request dispatching or in-flight deduplication."
+        },
+        {
+          "technique": "parse-and-derive-caches",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/ui/useDateFormat.ts:36 Delegates date formatting to next-intl context without managing content-identity derivation caches."
+        },
+        {
+          "technique": "admission-hypothesis",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/ui/LoadingGap.tsx:36 Placeholder gap component serves purely as an accessible loading visual without caching or admission logic."
+        },
+        {
+          "technique": "similarity-keyed-admission",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/ui/defer-policy.ts:18 Layout viewport margins govern element visibility thresholds rather than similarity metrics for response admission."
+        },
+        {
+          "technique": "plural-policy-claims",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/ui/useTablist.ts:32 UI tablist hook manages local keyboard focus across tabs without reconciling multi-claimant cache policies."
+        },
+        {
+          "technique": "portable-read-definitions",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/ui/useTheme.ts:11 Subscribes to client theme store via useSyncExternalStore rather than binding network fetch queries or cache options."
+        },
+        {
+          "technique": "sibling-entry-warmth",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/ui/SectionTitle.tsx:11 Presentation title component renders heading text with CSS styling without referencing listing or detail cache entries."
+        }
+      ]
+    },
+    "5315fdef-5698-4668-9ba8-8ac3de782a75/client-fetch-cache": {
+      "context": "matrix-grid",
+      "subject": "client-fetch-cache",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T13:10:59.945Z",
+      "worker": "bf8c6b43-98c6-46e5-a5a8-f414a1d8657a",
+      "techniques": [
+        {
+          "technique": "warm-remount-caches",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/matrix/useMatrixTab.ts:84 Stores matrix grid data in component state which is destroyed on unmount, resulting in cold remounts instead of module-scoped warm paints."
+        },
+        {
+          "technique": "swr-design",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/matrix/useMatrixTab.ts:130 Direct fetch call lacks fresh window and stale ceiling boundaries, providing no background revalidation over cached data."
+        },
+        {
+          "technique": "in-flight-dedup",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/matrix/useMatrixTab.ts:397 Reasoning request deduplication is scoped to a component ref rather than the fetch layer, and closing the popover aborts the flight directly."
+        },
+        {
+          "technique": "cache-key-discipline",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/matrix/matrixSelection.ts:38 Defines canonical reasoning cache keys across candidate, position, and narrative locale axes to prevent stale-language cache collisions."
+        },
+        {
+          "technique": "parse-and-derive-caches",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/matrix/useMatrixTab.ts:257 Complex row sorting and fit floor calculations rely on React useMemo tied to component lifecycle rather than a bounded derivation cache."
+        },
+        {
+          "technique": "prefetch-and-defer",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/matrix/MatrixTab.tsx:268 Displays a quiet loading gap during initial fetch instead of prefetching matrix data on intent or deferring heavy calculations to idle time."
+        },
+        {
+          "technique": "portable-read-definitions",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/matrix/matrixReasoningFetch.ts:43 Reasoning fetcher handles network communication imperatively without bundling the cache key and default policies into a portable read definition."
+        },
+        {
+          "technique": "sibling-entry-warmth",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/matrix/useMatrixTab.ts:461 Popover click initiates a full remote reasoning fetch without borrowing summary score, knockout, or match context already present in the matrix cell."
+        }
+      ]
+    },
+    "6b065d33-5aa4-46b4-ad68-97ce316d0388/client-fetch-cache": {
+      "context": "analytics-dashboard",
+      "subject": "client-fetch-cache",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T13:10:59.945Z",
+      "worker": "bf8c6b43-98c6-46e5-a5a8-f414a1d8657a",
+      "techniques": [
+        {
+          "technique": "warm-remount-caches",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/AnalyticsTab.tsx:96 Analytics data is bound to component lifecycle via useJsonFetch; navigating away unmounts the tab, discarding data and forcing a cold remount."
+        },
+        {
+          "technique": "swr-design",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/AnalyticsTab.tsx:121 Renders aria-busy while data is absent and lacks stale-while-revalidate freshness zones or background revalidation."
+        },
+        {
+          "technique": "in-flight-dedup",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/AnalyticsTab.tsx:69 Changing cohort window replaces the URL and refires useJsonFetch without joining identical in-flight network requests."
+        },
+        {
+          "technique": "cache-key-discipline",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/analyticsJobScope.ts:58 Serializes days and job parameters canonically into URL query parameters, ensuring equivalent arguments map to identical request keys."
+        },
+        {
+          "technique": "portable-read-definitions",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/AnalyticsTab.tsx:17 Separates URL key formatting from the fetcher and component consumer rather than declaring a portable read triple callable across server and client boundaries."
+        },
+        {
+          "technique": "prefetch-and-defer",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/AnalyticsTab.tsx:151 Falls back to an unpopulated loading gap on initial mount rather than prefetching analytics on navigation intent or deferring secondary panels to idle."
+        },
+        {
+          "technique": "parse-and-derive-caches",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/AnalyticsTab.tsx:113 Calculates funnel maximum and conversion deltas on component render passes without an identity-keyed derivation cache."
+        }
+      ]
     }
   }
 }
