@@ -2247,6 +2247,267 @@
         "at": "2026-10-13T08:00:02.222841+00:00",
         "reason": "reviewer (sonnet): devcase-run.ts and devcase-run-cli.ts spawn the Python devcase CLI with buildLlmConfigEnv() and a signal, and a comment says Python 'defaults to the Claude CLI'. The context therefore touches CLI spawn and env wiring. The claim that the Python side handles availability is not traced in the context's"
       }
+    },
+    "92d1ca34-143b-4d61-8cd6-b9becd08d145/settings": {
+      "context": "models-keys-and-routing",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T08:46:08.759Z",
+      "techniques": [
+        {
+          "technique": "applied-defaults-ledger",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/models/ModelsRoutingPanel.tsx:16 A missing pin is one scalar default, which this technique excludes from the ledger."
+        },
+        {
+          "technique": "author-declared-include-graph",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/models/ModelsRoutingPanel.tsx:15 Routing is API rows. No config file names a parent file."
+        },
+        {
+          "technique": "config-backup-and-restore",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/models/ModelsKeysPanel.tsx:129 Keys are a server API resource, which this technique excludes in favor of a backend copy."
+        },
+        {
+          "technique": "cross-source-precedence-chain",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/models/modelsKeysPanelLogic.ts:53 The form sends the scope the operator picked. Resolution of that chain is outside this folder."
+        },
+        {
+          "technique": "in-place-document-patch",
+          "verdict": "deviation",
+          "evidence": "app/features/settings/models/modelsKeysPanelLogic.ts:27 Known fields are seeded back into the form, and the write is still a wholesale meta_json replace."
+        },
+        {
+          "technique": "inherited-default-override",
+          "verdict": "conformant",
+          "evidence": "app/features/settings/models/ModelsRoutingPanel.tsx:17 No row follows the * pin, then the built-in default. Reset deletes the row."
+        },
+        {
+          "technique": "key-registry",
+          "verdict": "conformant",
+          "evidence": "app/features/settings/models/modelsRoutingSections.test.ts:30 Section membership and the use-case catalog are one set, enforced by test."
+        },
+        {
+          "technique": "read-batching",
+          "verdict": "conformant",
+          "evidence": "app/features/settings/models/ModelsRoutingPanel.tsx:42 One response holds every pin; row lookup reads that payload."
+        },
+        {
+          "technique": "save-experience",
+          "verdict": "conformant",
+          "evidence": "app/features/settings/models/ModelsRoutingRow.tsx:116 Explicit save. Dirty is difference from the stored row. A failed save sets ok:false; a stale 409 reloads the server rows."
+        },
+        {
+          "technique": "setting-kinds",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/models/ModelsTab.tsx:14 Every pin shares one operational save/reset contract. No ceiling or flag is declared here."
+        },
+        {
+          "technique": "typed-accessors",
+          "verdict": "conformant",
+          "evidence": "app/features/settings/models/modelsRoutingActions.ts:71 Reset removes the pin row so the use case is absent again, and the save trims the model through one wrapper."
+        }
+      ],
+      "withdrawn": {
+        "worker": "a4cbcc5c-b8f2-4120-a26f-6d2020b3b857",
+        "state": "deviation",
+        "at": "2026-10-13T08:46:39.925469+00:00",
+        "reason": "reviewer (sonnet): modelsKeysPanelLogic.ts:27 is a comment describing a hazard the code already fixes: keyFormMetaFor seeds the metadata boxes from the stored row, and ModelsKeysPanel.tsx:69 calls it on provider/scope change, so a blank box now means a deliberate clear."
+      }
+    },
+    "6b5c4717-aa35-46d9-a266-50a296a27e09/settings": {
+      "context": "billing-plan-and-spend",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T08:46:08.759Z",
+      "techniques": [
+        {
+          "technique": "cross-source-precedence-chain",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/billing/useBillingPortal.ts:39 One portal endpoint. No ordered configuration sources."
+        },
+        {
+          "technique": "read-batching",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/billing/spend/useSpendData.ts:9 The coalesced reads are usage and ops payloads, not settings keys."
+        },
+        {
+          "technique": "save-experience",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/billing/billingTabState.ts:47 This guards a checkout redirect, not a settings write."
+        },
+        {
+          "technique": "setting-kinds",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/billing/BillingSelfHostPanel.tsx:11 Self-host is an explicit unmetered mode displayed to the operator, not a classified settings key."
+        }
+      ],
+      "withdrawn": {
+        "worker": "a4cbcc5c-b8f2-4120-a26f-6d2020b3b857",
+        "state": "not-applicable",
+        "at": "2026-10-13T08:46:39.980625+00:00",
+        "reason": "reviewer (sonnet): The not-applicable anchor, useBillingPortal.ts:39, is a plain POST to the portal endpoint. It does not show that the context has no settings key space, and the grep for keyRegistry, settingsStore and similar names is not proof of absence."
+      }
+    },
+    "0eeb3d35-3c43-4ac7-bcd9-3ae9ffffddcf/settings": {
+      "context": "llm-config-provider",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T08:46:08.759Z",
+      "worker": "a4cbcc5c-b8f2-4120-a26f-6d2020b3b857",
+      "techniques": [
+        {
+          "technique": "applied-defaults-ledger",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/llm-config.ts:357 An empty store emits nothing so the Claude CLI default stays outside the rows. That is the scalar case."
+        },
+        {
+          "technique": "author-declared-include-graph",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/llm-config.ts:389 The child receives one assembled JSON object. No file names a parent file."
+        },
+        {
+          "technique": "config-backup-and-restore",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/llm-secret.ts:17 KP_SECRET_PREVIOUS re-encrypts ciphertext. It is not a bounded backup of a settings file."
+        },
+        {
+          "technique": "cross-source-precedence-chain",
+          "verdict": "deviation",
+          "evidence": "app/_lib/provider-key-precedence.ts:59 Order is byom, then platform, then env, and a decrypt error throws. The return value does not name which source won, and buildLlmConfigEnv folds the rows into one map."
+        },
+        {
+          "technique": "inherited-default-override",
+          "verdict": "conformant",
+          "evidence": "app/_lib/llm-config.ts:294 A use case with no row follows the * pin, a sibling key, and is resolved again on read."
+        },
+        {
+          "technique": "key-registry",
+          "verdict": "conformant",
+          "evidence": "app/_lib/llm-config.ts:73 Providers are one closed list with a membership predicate. saveProviderKey itself is typed and does not call this predicate."
+        },
+        {
+          "technique": "presence-decides-precedence",
+          "verdict": "deviation",
+          "evidence": "app/_lib/provider-key-precedence.ts:63 The stored-row rung returns an empty key and stops. The env-alias rung uses truthiness, so a present blank name loses to the next alias."
+        },
+        {
+          "technique": "read-batching",
+          "verdict": "conformant",
+          "evidence": "app/_lib/llm-config.ts:365 Assembly lists both tables once. There is no cross-call cache, so a later resolve reads the store again."
+        },
+        {
+          "technique": "save-experience",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/llm-config.ts:192 The write door can report stale. No control is rendered in this module."
+        },
+        {
+          "technique": "typed-accessors",
+          "verdict": "conformant",
+          "evidence": "app/_lib/llm-config.ts:367 Nothing configured is omitted so the default is not stored. toUseCaseEntry keeps only positive integer maxTokens and timeoutS."
+        }
+      ],
+      "registryProposal": "Say that an alias list in a read-only source is presence-decides-precedence, and that an empty string is present. This chain already stops on an empty stored key and still truth-tests the env alias rung."
+    },
+    "12e121d6-6032-464b-a349-68911bfbdbba/settings": {
+      "context": "analytics-metrics",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T08:46:08.759Z",
+      "worker": "a4cbcc5c-b8f2-4120-a26f-6d2020b3b857",
+      "techniques": [
+        {
+          "technique": "applied-defaults-ledger",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsGoalsEditor.tsx:59 A blank goal is absence, not a shipped 50% entry reapplied into a collection."
+        },
+        {
+          "technique": "inherited-default-override",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/stageDwellGate.ts:123 A shipped role default is not painted as a team decision. The cadence input passes null team days unless cadenceSource is team, and a null save clears back to that default."
+        },
+        {
+          "technique": "read-batching",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/AnalyticsGoalsEditor.tsx:24 Every stage goal arrives on one prop. The editors do not fetch per metric."
+        },
+        {
+          "technique": "save-experience",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/AnalyticsInlineNumberSave.tsx:77 Blur-save is the right model and the alert is honest. The catch does not put the draft back to the stored value."
+        },
+        {
+          "technique": "setting-kinds",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/AnalyticsThresholdSuggestion.tsx:15 The auto-reject floor waits for Apply and is sealed in history. Goals and channel spend commit on blur. The split is per component, with no shared kind field."
+        },
+        {
+          "technique": "settings-audit-and-history",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/thresholdHistoryRows.ts:23 A sealed floor record carries previous, next, at, and approvedBy, and the strip renders it. Goal and spend edits have no such strip in these files."
+        },
+        {
+          "technique": "typed-accessors",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/inlineNumberSavePlan.ts:37 One planner parses, rejects non-finite and negative input, and turns blank or zero into null so the row is cleared."
+        }
+      ]
+    },
+    "05c81bc5-6671-4396-86c6-42f9d78ec20e/settings": {
+      "context": "organization-and-branding",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-13",
+      "evaluatedTs": "2026-10-13T08:46:08.759Z",
+      "worker": "a4cbcc5c-b8f2-4120-a26f-6d2020b3b857",
+      "techniques": [
+        {
+          "technique": "applied-defaults-ledger",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/branding/BrandingTab.tsx:160 Reset returns the last saved brand. There is no shipped collection of default entries."
+        },
+        {
+          "technique": "config-backup-and-restore",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/organization/OrganizationTab.tsx:28 Org settings are a cookie and a workspace default. The backup panel is an on-demand organization database export with a dry-run, not a rotation of a settings file before each save."
+        },
+        {
+          "technique": "in-place-document-patch",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/branding/BrandingTab.tsx:131 The brand payload is three named fields, a strict section, not a document that keeps unknown members."
+        },
+        {
+          "technique": "read-batching",
+          "verdict": "conformant",
+          "evidence": "app/features/settings/organization/OrganizationTab.tsx:152 The tab does not fetch each setting. Both values are already on the document."
+        },
+        {
+          "technique": "save-experience",
+          "verdict": "deviation",
+          "evidence": "app/features/settings/branding/BrandingTab.tsx:108 Dirty is compared to the saved baseline, and a failed currency write calls setCurrency(previous). The org name debounces and flushes on unmount. The branding explicit form does not prompt on in-app tab changes."
+        },
+        {
+          "technique": "setting-kinds",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/organization/OrganizationTab.tsx:27 Name, language, currency, and brand are identity preferences. No ceiling or flag is in these files."
+        },
+        {
+          "technique": "typed-accessors",
+          "verdict": "conformant",
+          "evidence": "app/features/settings/organization/OrganizationTab.tsx:109 An unknown locale is refused before write. An unrecognized app locale is shown as en. Branding blocks save when the accent is not a legible hex."
+        }
+      ]
     }
   }
 }
