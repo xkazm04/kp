@@ -28,6 +28,15 @@ function plain(v: unknown, max: number): string | null {
   return s.length > max ? `${s.slice(0, max - 1)}…` : s;
 }
 
+/** True when `html` still shows text once its tags are gone. The tag strip repeats
+ *  until nothing changes, so a tag split by another tag (`<scr<b>ipt>`) cannot
+ *  reassemble into one and read as markup that was never removed. */
+function hasVisibleText(html: string): boolean {
+  let text = html;
+  for (let next = text.replace(/<[^>]*>/g, ""); next !== text; next = text.replace(/<[^>]*>/g, "")) text = next;
+  return text.trim().length > 0;
+}
+
 function slug(v: unknown): string | null {
   if (typeof v !== "string") return null;
   const s = v.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
@@ -51,7 +60,7 @@ export function parseGigReportBody(raw: unknown): GigReportBody | null {
     const s = item as Record<string, unknown>;
     const title = plain(s.title, GIG_REPORT_LIMITS.titleChars);
     const html = typeof s.html === "string" ? sanitizeReportHtml(s.html.slice(0, GIG_REPORT_LIMITS.sectionHtmlChars)) : "";
-    if (!title || !html.replace(/<[^>]*>/g, "").trim()) continue;
+    if (!title || !hasVisibleText(html)) continue;
     const kind = isGigReportSectionKind(s.kind) ? s.kind : "other";
     let id = `s-${slug(s.id) ?? kind}`;
     for (let n = 2; ids.has(id); n++) id = `s-${slug(s.id) ?? kind}-${n}`;
