@@ -186,11 +186,52 @@ export function controlCharError(value) {
   return `control character U+${hex} in ${ctx} — a lost or mangled punctuation mark; restore it from the default locale`;
 }
 
+// ---- Carried literals ------------------------------------------------------------
+// URLs, email addresses and multi-digit numbers in the default-locale copy must reach
+// every translation by IDENTITY, not by count: a count passes a transposed digit and an
+// edited host, which is how this class fails. Direction is source to target only: a
+// single digit rendered as a word ("1" -> "un") and a spelled-out number rendered as
+// digits ("thirty" -> "30") are legitimate, so only the source's literals are demanded.
+// Placeholders are stripped first (they are the parity check's job), and a reserved
+// example domain is exempt because a translation localises it on purpose
+// (you@example.com -> vous@exemple.com). A key whose last segment ends in "Placeholder"
+// is exempt for the same reason: it is an illustrative sample for an input
+// (name@company.com, github.com/owner/repo) that every locale localises. Measured
+// 2026-10-14 on this repo's catalogs: without that exemption 7 keys per locale fire,
+// all samples; with it the shipped catalogs carry no literal drift.
+const URL_LITERAL = /https?:\/\/[\w-]+(?:\.[\w-]+)+[^\s)"'<>]*/g;
+const EMAIL_LITERAL = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g;
+const NUMBER_LITERAL = /\d{2,}/g;
+export function carriedLiterals(value) {
+  const bare = value.replace(/\{[^{}]*\}/g, " ");
+  const urls = bare.match(URL_LITERAL) ?? [];
+  const rest = bare.replace(URL_LITERAL, " ");
+  const emails = (rest.match(EMAIL_LITERAL) ?? []).filter((e) => !/@example\.[a-z]+$/i.test(e));
+  const numbers = rest.replace(EMAIL_LITERAL, " ").match(NUMBER_LITERAL) ?? [];
+  return [...urls.map((v) => ["URL", v]), ...emails.map((v) => ["email", v]), ...numbers.map((v) => ["number", v])];
+}
+export function literalErrors(baseValue, value) {
+  const have = value.replace(/\{[^{}]*\}/g, " ");
+  const out = [];
+  for (const [kind, literal] of carriedLiterals(baseValue)) {
+    if (!have.includes(literal)) out.push(`${kind} "${literal}" from the default locale is missing or altered`);
+  }
+  return out;
+}
+
+// A message whose syntax does not parse is ONE defect. Brace balance is the cheap
+// fast-fail for the ICU compile, so the compile does not also report it, and the
+// placeholder and literal checks (which read a parse that does not exist) are skipped
+// for that unit by the caller: see syntaxError().
+export function syntaxError(value, locale) {
+  return braceError(value) || icuError(value, locale);
+}
+
 function contentProblems(locale, address, value) {
   const out = [];
   const ctrl = controlCharError(value);
   if (ctrl) out.push(`${locale}: "${address}" — ${ctrl}`);
-  const err = braceError(value) || icuError(value, locale);
+  const err = syntaxError(value, locale);
   if (err) out.push(`${locale}: "${address}" — ${err}`);
   const dash = dashError(value);
   if (dash) out.push(`${locale}: "${address}" — ${dash}`);
@@ -260,6 +301,10 @@ export function checkCatalogs(catalogs, defaultLocale) {
       }
       const value = units.get(address);
       problems.push(...contentProblems(locale, address, value));
+      // Precondition: a unit that does not parse already has its one finding above.
+      if (syntaxError(value, locale)) continue;
+      const isSample = /Placeholder$/.test(address.split(".").pop().replace(/\[\d+\]$/, ""));
+      for (const e of isSample ? [] : literalErrors(baseValue, value)) problems.push(`${locale}: "${address}" — ${e}`);
       const baseVars = argNames(baseValue);
       const localeVars = argNames(value);
       for (const v of baseVars) {

@@ -119,3 +119,28 @@ test("a C0 control character fails, naming the code point and its neighbourhood;
   ok.landing.voice.transcript[1] = "Line one\nLine two\tcolumn";
   assert.deepEqual(run(clean(), ok).problems, []);
 });
+
+const withLiterals = (en: string, cs: string) => run({ a: { v: en } }, { a: { v: cs } }).problems;
+
+test("a carried number, URL or email must reach the translation by identity, not by count", () => {
+  assert.deepEqual(withLiterals("Closes in 48 hours", "Zavře se za 48 hodin"), []);
+  // transposed digit: same count, different value
+  assert.ok(withLiterals("Closes in 48 hours", "Zavře se za 84 hodin").some((p) => p.includes('number "48"')));
+  // edited host: same count, different value
+  assert.ok(withLiterals("Write to help@kp.example.org", "Napište na help@kp.example.com").some((p) => p.includes("email")));
+  assert.ok(withLiterals("See https://kp.io/terms", "Viz https://kp.io/term").some((p) => p.includes("URL")));
+});
+
+test("carried literals: a spelled-out number, a placeholder sample and a reserved example domain are legitimate", () => {
+  assert.deepEqual(withLiterals("Thirty-minute screens", "30minutové screeningy"), []);
+  assert.deepEqual(withLiterals("One seat", "1 místo"), []);
+  assert.deepEqual(withLiterals("Mail you@example.com", "Napište vy@priklad.example.com"), []);
+  const en = { f: { emailPlaceholder: "you@company.com" } };
+  const cs = { f: { emailPlaceholder: "vy@firma.cz" } };
+  assert.deepEqual(run(en, cs).problems, []);
+});
+
+test("a message that does not parse is one finding, not one per dependent check", () => {
+  const found = run({ a: "Hello {name}, 48 left" }, { a: "Ahoj {name, 48 zbývá" }).problems.filter((p) => p.includes('"a"'));
+  assert.equal(found.length, 1, found.join("\n"));
+});

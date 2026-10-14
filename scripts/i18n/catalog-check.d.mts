@@ -24,3 +24,6 @@ export declare function checkCatalogs(
   };
 };
 export declare function controlCharError(value: string): string | null;
+export declare function carriedLiterals(value: string): [string, string][];
+export declare function literalErrors(baseValue: string, value: string): string[];
+export declare function syntaxError(value: string, locale: string): string | null;
