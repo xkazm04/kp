@@ -144,3 +144,40 @@ test("a message that does not parse is one finding, not one per dependent check"
   const found = run({ a: "Hello {name}, 48 left" }, { a: "Ahoj {name, 48 zbývá" }).problems.filter((p) => p.includes('"a"'));
   assert.equal(found.length, 1, found.join("\n"));
 });
+
+const three = (en: unknown, cs: unknown, de: unknown) =>
+  checkCatalogs(
+    [
+      { locale: "en", data: en },
+      { locale: "cs", data: cs },
+      { locale: "de", data: de }
+    ],
+    "en"
+  );
+
+test("source suspects: one string failing in two locales is raised once, citing each locale and check", () => {
+  const en = { a: "{count} interviews a month", b: "Five seats" };
+  const result = three(en, { a: "interview měsíčně", b: "Pět míst" }, { a: "Interviews pro Monat", b: "Fünf Plätze" });
+  assert.equal(result.sourceSuspects.length, 1);
+  const [s] = result.sourceSuspects;
+  assert.equal(s.address, "a");
+  assert.deepEqual(s.locales, ["cs", "de"]);
+  assert.deepEqual(s.failures, [
+    { locale: "cs", checks: ["placeholder-missing"] },
+    { locale: "de", checks: ["placeholder-missing"] }
+  ]);
+});
+
+test("source suspects: a failure in one locale only is a target finding, not a suspect", () => {
+  const en = { a: "{count} interviews a month" };
+  const result = three(en, { a: "{count} pohovorů měsíčně" }, { a: "Interviews pro Monat" });
+  assert.deepEqual(result.sourceSuspects, []);
+  assert.ok(result.problems.some((p) => p.startsWith("de:")));
+});
+
+test("source suspects: a clean catalog and a target-local em dash raise none", () => {
+  const en = { a: "Five seats" };
+  assert.deepEqual(three(en, en, en).sourceSuspects, []);
+  const dashed = { a: "Pět — míst" };
+  assert.deepEqual(three(en, dashed, dashed).sourceSuspects, []);
+});

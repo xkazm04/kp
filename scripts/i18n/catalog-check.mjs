@@ -249,6 +249,12 @@ function contentProblems(locale, address, value) {
  */
 export function checkCatalogs(catalogs, defaultLocale) {
   const problems = [];
+  // Structured twin of the target-side problems that a SHARED SOURCE can cause:
+  // a placeholder the translation lost or invented, a message that will not
+  // compile, a key the locale lacks. Dash and orphan findings are excluded: they
+  // are the translator's own punctuation or leftovers, not what a source forces.
+  const targetFindings = [];
+  const note = (locale, address, check) => targetFindings.push({ locale, address, check });
   const walked = new Map();
   let totalUnits = 0;
   let totalCounted = 0;
@@ -296,11 +302,15 @@ export function checkCatalogs(catalogs, defaultLocale) {
 
     for (const [address, baseValue] of base.units) {
       if (!units.has(address)) {
-        if (!inMismatchedList(address)) problems.push(`${locale}: missing key "${address}" (present in ${defaultLocale})`);
+        if (!inMismatchedList(address)) {
+          problems.push(`${locale}: missing key "${address}" (present in ${defaultLocale})`);
+          note(locale, address, "missing-key");
+        }
         continue;
       }
       const value = units.get(address);
       problems.push(...contentProblems(locale, address, value));
+      if (braceError(value) || icuError(value, locale)) note(locale, address, "icu-syntax");
       // Precondition: a unit that does not parse already has its one finding above.
       if (syntaxError(value, locale)) continue;
       const isSample = /Placeholder$/.test(address.split(".").pop().replace(/\[\d+\]$/, ""));
@@ -308,10 +318,16 @@ export function checkCatalogs(catalogs, defaultLocale) {
       const baseVars = argNames(baseValue);
       const localeVars = argNames(value);
       for (const v of baseVars) {
-        if (!localeVars.has(v)) problems.push(`${locale}: "${address}" — missing placeholder {${v}}`);
+        if (!localeVars.has(v)) {
+          problems.push(`${locale}: "${address}" — missing placeholder {${v}}`);
+          note(locale, address, "placeholder-missing");
+        }
       }
       for (const v of localeVars) {
-        if (!baseVars.has(v)) problems.push(`${locale}: "${address}" — unexpected placeholder {${v}} (not in ${defaultLocale})`);
+        if (!baseVars.has(v)) {
+          problems.push(`${locale}: "${address}" — unexpected placeholder {${v}} (not in ${defaultLocale})`);
+          note(locale, address, "placeholder-unexpected");
+        }
       }
     }
     for (const [address, value] of units) {
@@ -327,6 +343,7 @@ export function checkCatalogs(catalogs, defaultLocale) {
 
   return {
     problems,
+    sourceSuspects: sourceSuspects(targetFindings),
     baseKeys: [...base.units.keys()],
     coverage: {
       locales: catalogs.length,
@@ -337,4 +354,32 @@ export function checkCatalogs(catalogs, defaultLocale) {
       totalCounted
     }
   };
+}
+
+/**
+ * Source defects from cross-language agreement: a source string whose targets fail
+ * checks in TWO OR MORE locales is more likely a defect of the shared source (an
+ * untyped placeholder, a fragment) than two translators slipping on one string.
+ * Advisory: it ranks triage, it does not block and it does not replace the
+ * per-locale findings. Every suspect cites each locale and the check that failed.
+ * The floor is an absolute count of distinct failing locales.
+ */
+export function sourceSuspects(findings, floor = 2) {
+  const byAddress = new Map();
+  for (const f of findings) {
+    if (!byAddress.has(f.address)) byAddress.set(f.address, new Map());
+    const perLocale = byAddress.get(f.address);
+    if (!perLocale.has(f.locale)) perLocale.set(f.locale, new Set());
+    perLocale.get(f.locale).add(f.check);
+  }
+  const out = [];
+  for (const [address, perLocale] of byAddress) {
+    if (perLocale.size < floor) continue;
+    out.push({
+      address,
+      locales: [...perLocale.keys()].sort(),
+      failures: [...perLocale].map(([locale, checks]) => ({ locale, checks: [...checks].sort() }))
+    });
+  }
+  return out.sort((a, b) => b.locales.length - a.locales.length || a.address.localeCompare(b.address));
 }
