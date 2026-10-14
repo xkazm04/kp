@@ -4293,6 +4293,235 @@
           "evidence": "app/features/insights/analytics/AnalyticsCalibrationHeader.tsx:42 The outcome vocabulary is advancement and hiring, not approving engineering reviews."
         }
       ]
+    },
+    "0124a9c7-731c-4ebd-a444-51cb4fd6ddf9/native-shell-integration": {
+      "context": "workspace-command-palette",
+      "subject": "native-shell-integration",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-14",
+      "evaluatedTs": "2026-10-14T23:30:03.799Z",
+      "worker": "293bce67-be5f-40e6-9cbe-9d96d326faa2",
+      "techniques": [
+        {
+          "technique": "capability-presence-contract",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/useWorkspaceCommandPaletteItems.ts:7 These capabilities describe application authorization, not platform capability presence."
+        },
+        {
+          "technique": "layout-resolved-input-synthesis",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/WorkspaceKeyboardShortcuts.tsx:78 Consumes received keyboard events for local navigation; synthesizes no foreign input."
+        },
+        {
+          "technique": "native-owned-stream",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/useWorkspaceCommandPaletteSearch.ts:80 Search uses an abortable request per query, not a persistent background stream."
+        },
+        {
+          "technique": "native-side-owns-the-target-set",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/WorkspaceCommandPalette.tsx:160 Palette destinations are application routes; this context exposes no native filesystem or process command."
+        },
+        {
+          "technique": "non-stealing-overlay",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/WorkspaceCommandPalette.tsx:231 The interactive dialog belongs to the product's own document."
+        },
+        {
+          "technique": "observer-perturbation",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/WorkspaceCommandPalette.tsx:150 Observes its own option element rather than another application's structure."
+        },
+        {
+          "technique": "permission-gate-vector",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/WorkspaceKeyboardShortcuts.tsx:100 Document keyboard listeners require no separate operating-system input grants."
+        },
+        {
+          "technique": "query-transparent-overlay",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/WorkspacePaletteLedger.tsx:38 Selection references the product's own listbox options, not a host point-under-cursor query."
+        },
+        {
+          "technique": "unexported-capability-ladder",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/workspaceChords.ts:36 Chord targets derive from application configuration without resolving private host entry points."
+        }
+      ]
+    },
+    "3f292c0f-e802-49de-8c2e-46bf992416d7/native-shell-integration": {
+      "context": "setup-studio",
+      "subject": "native-shell-integration",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-14",
+      "evaluatedTs": "2026-10-14T23:30:03.799Z",
+      "techniques": [
+        {
+          "technique": "capability-presence-contract",
+          "verdict": "not-applicable",
+          "evidence": "app/features/setup-studio/VoicePanel.tsx:11 Provider absence here concerns installable software availability, which this technique explicitly excludes."
+        },
+        {
+          "technique": "layout-resolved-input-synthesis",
+          "verdict": "not-applicable",
+          "evidence": "app/features/setup-studio/DecisionCards.tsx:241 Decisions invoke application callbacks rather than synthesized foreign keyboard commands."
+        },
+        {
+          "technique": "native-owned-stream",
+          "verdict": "not-applicable",
+          "evidence": "scripts/onboard-ui/server.mjs:231 The browser subscription renders replayable server-owned session state; disconnecting the view does not own or stop the CLI work."
+        },
+        {
+          "technique": "native-side-owns-the-target-set",
+          "verdict": "deviation",
+          "evidence": "scripts/onboard-ui/engine.mjs:1397 Rule three rejects warning-only safety layers: flushTripwire reports the approval bypass and clears the evidence without stopping the session."
+        },
+        {
+          "technique": "non-stealing-overlay",
+          "verdict": "not-applicable",
+          "evidence": "app/features/setup-studio/SetupStudio.tsx:367 The decision surface is interactive content within the setup page, not an inert window over another application."
+        },
+        {
+          "technique": "observer-perturbation",
+          "verdict": "not-applicable",
+          "evidence": "app/features/setup-studio/ProbePanel.tsx:39 Probe results are supplied diagnostic data rendered as rows, not accessibility observations of a covered foreign application."
+        },
+        {
+          "technique": "permission-gate-vector",
+          "verdict": "not-applicable",
+          "evidence": "app/features/setup-studio/protocol.ts:158 Permission cards authorize individual tool commands; they are not independently granted operating-system capabilities."
+        },
+        {
+          "technique": "query-transparent-overlay",
+          "verdict": "not-applicable",
+          "evidence": "app/features/setup-studio/ProbePanel.tsx:57 The page renders supplied probe rows and performs no host structural query underneath an overlay."
+        },
+        {
+          "technique": "unexported-capability-ladder",
+          "verdict": "not-applicable",
+          "evidence": "scripts/onboard-ui/engine.mjs:1230 Uses a configured public CLI executable rather than an unexported operating-system function."
+        }
+      ],
+      "withdrawn": {
+        "worker": "293bce67-be5f-40e6-9cbe-9d96d326faa2",
+        "state": "deviation",
+        "at": "2026-10-14T23:30:55.976621+00:00",
+        "reason": "reviewer (sonnet): flushTripwire (engine.mjs:1395-1400) is only a post-turn audit of the ask-hook gate at engine.mjs:1459, which is the actual rejecting layer, so calling it a warning-only safety layer misreads it; the anchor is also in scripts/onboard-ui, not in any of the setup-studio context files."
+      }
+    },
+    "3bdbe067-ad18-490f-b1a6-983e6eac8607/native-shell-integration": {
+      "context": "dev-inspector",
+      "subject": "native-shell-integration",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-14",
+      "evaluatedTs": "2026-10-14T23:30:03.799Z",
+      "worker": "293bce67-be5f-40e6-9cbe-9d96d326faa2",
+      "techniques": [
+        {
+          "technique": "capability-presence-contract",
+          "verdict": "not-applicable",
+          "evidence": "app/_dev-inspector/DevInspector.tsx:45 Inspector availability is a development-build condition, not a per-host native capability class."
+        },
+        {
+          "technique": "layout-resolved-input-synthesis",
+          "verdict": "not-applicable",
+          "evidence": "app/_dev-inspector/DevInspectorImpl.tsx:148 Handles a received browser key event without injecting input into another application."
+        },
+        {
+          "technique": "native-owned-stream",
+          "verdict": "not-applicable",
+          "evidence": "app/_dev-inspector/DevInspectorImpl.tsx:204 Inspection follows document pointer events; it has no persistent producer stream requiring native ownership."
+        },
+        {
+          "technique": "native-side-owns-the-target-set",
+          "verdict": "not-applicable",
+          "evidence": "app/_dev-inspector/DevInspectorImpl.tsx:42 Copies a source reference through the browser clipboard API without exposing native filesystem or process commands."
+        },
+        {
+          "technique": "non-stealing-overlay",
+          "verdict": "not-applicable",
+          "evidence": "app/_dev-inspector/devInspectorUi.tsx:39 The highlight is a DOM element inside the product's window, which the technique explicitly excludes."
+        },
+        {
+          "technique": "observer-perturbation",
+          "verdict": "not-applicable",
+          "evidence": "app/_dev-inspector/devLocate.ts:66 Walks the application's own DOM ancestors rather than a foreign application's accessibility provider."
+        },
+        {
+          "technique": "permission-gate-vector",
+          "verdict": "not-applicable",
+          "evidence": "app/_dev-inspector/DevInspectorImpl.tsx:55 Clipboard copying has a checked browser fallback, not a vector of silent operating-system grants."
+        },
+        {
+          "technique": "query-transparent-overlay",
+          "verdict": "not-applicable",
+          "evidence": "app/_dev-inspector/DevInspectorImpl.tsx:173 HUD exclusion uses a scoped DOM relationship within the owned document, not global host accessibility traversal."
+        },
+        {
+          "technique": "unexported-capability-ladder",
+          "verdict": "not-applicable",
+          "evidence": "app/_dev-inspector/DevInspector.tsx:47 Loads an ordinary JavaScript module without discovering private native entry points."
+        }
+      ]
+    },
+    "23edc789-314a-44a3-b30f-ee7353edfab4/native-shell-integration": {
+      "context": "about-product",
+      "subject": "native-shell-integration",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-14",
+      "evaluatedTs": "2026-10-14T23:30:03.799Z",
+      "worker": "293bce67-be5f-40e6-9cbe-9d96d326faa2",
+      "techniques": [
+        {
+          "technique": "capability-presence-contract",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/about/AboutTab.tsx:153 The conditional link depends on application authorization rather than native platform capability presence."
+        },
+        {
+          "technique": "layout-resolved-input-synthesis",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/about/ChapterRail.tsx:88 Navigation uses browser fragment links without synthesizing foreign keyboard input."
+        },
+        {
+          "technique": "native-owned-stream",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/about/stage/clock.ts:43 The animation clock intentionally stops when unseen; it is not a stream whose events must arrive in the background."
+        },
+        {
+          "technique": "native-side-owns-the-target-set",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/about/stage/Scene.tsx:64 Chapter handoffs are application URLs, not privileged native commands accepting filesystem targets."
+        },
+        {
+          "technique": "non-stealing-overlay",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/about/AboutTab.tsx:164 The explainer renders inside the application's document rather than over another application's work."
+        },
+        {
+          "technique": "observer-perturbation",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/about/ChapterRail.tsx:54 Observes owned chapter sections for reading position, not a foreign accessibility tree."
+        },
+        {
+          "technique": "permission-gate-vector",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/about/AboutTab.tsx:115 Remembers a reader's animation choice in browser storage; no multiple host grants arm this feature."
+        },
+        {
+          "technique": "query-transparent-overlay",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/about/stage/useSceneClock.ts:84 Visibility measurement is scoped to an owned element reference, without a global host point query."
+        },
+        {
+          "technique": "unexported-capability-ladder",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/about/AboutTab.tsx:45 Scene loading uses ordinary application module imports, not unexported native capabilities."
+        }
+      ]
     }
   }
 }

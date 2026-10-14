@@ -2441,7 +2441,11 @@
           "revision": 4,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/insights/about/ChapterRail.tsx:46 Context and repository searches found no SendInput, AXIsProcessTrusted or set_ignore_cursor_events integrations, while the explainer observes and animates its own document sections.",
+          "evaluatedAt": "2026-10-14",
+          "evaluatedAgainst": "sha256-b2:0ab230f2977430e7",
+          "evaluatedRevision": 4
         }
       ],
       "governance": "governed"
@@ -11366,7 +11370,11 @@
           "revision": 4,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_dev-inspector/devLocate.ts:61 Context and repository searches found no SendInput, AXIsProcessTrusted or set_ignore_cursor_events integrations, and inspection walks source-stamped elements within the product's own DOM.",
+          "evaluatedAt": "2026-10-14",
+          "evaluatedAgainst": "sha256-b2:0ab230f2977430e7",
+          "evaluatedRevision": 4
         }
       ],
       "governance": "governed"
@@ -32443,7 +32451,11 @@
           "revision": 4,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/shell/WorkspaceCommandPalette.tsx:96 Context and repository searches found no SendInput, AXIsProcessTrusted or set_ignore_cursor_events integrations, while the palette binds keyboard handling to its own browser document.",
+          "evaluatedAt": "2026-10-14",
+          "evaluatedAgainst": "sha256-b2:0ab230f2977430e7",
+          "evaluatedRevision": 4
         },
         {
           "subject": "search",
