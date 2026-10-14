@@ -107,6 +107,26 @@ test("bad data is clamped: selected > total cannot exceed a 100% rate", () => {
   assert.equal(b.adverseImpact, true);
 });
 
+// A clamp is a repair, and under a data-chosen reference a repair can move the verdict: the
+// result must say which rows were repaired and what rate the others were measured against.
+test("a clamped row is surfaced, and the reference rate is stated", () => {
+  const dirty = computeAdverseImpact([
+    { group: "A", selected: 200, total: 100 }, // clamped to 100/100, becomes the reference
+    { group: "B", selected: 60, total: 100 },
+  ]);
+  assert.equal(dirty.clampedRows, 1);
+  assert.equal(dirty.groups.find((g) => g.group === "A")!.clamped, true);
+  assert.equal(dirty.groups.find((g) => g.group === "B")!.clamped, false);
+  assert.equal(dirty.referenceRate, 1);
+  const clean = computeAdverseImpact([
+    { group: "A", selected: 50, total: 100 },
+    { group: "B", selected: 45, total: 100 },
+  ]);
+  assert.equal(clean.clampedRows, 0);
+  assert.equal(clean.referenceRate, 0.5);
+  assert.equal(computeAdverseImpact([{ group: "A", selected: 1, total: 1 }]).referenceRate, null);
+});
+
 // bug-ui-scan 2026-07-09 (analytics-calibration-dashboards #2): the four-fifths rule had NO
 // minimum-sample floor, so a 1-applicant group at 100% became the reference every other group
 // was measured against, flipping a legally-loaded verdict. Its siblings DO gate on cohort size

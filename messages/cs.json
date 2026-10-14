@@ -4156,6 +4156,8 @@
       "insufficientSample": "Nedostatečný vzorek: méně než dvě skupiny dosahují {min} uchazečů, takže nelze porovnat žádný poměr. Neznamená to, že nebyl zjištěn nepříznivý dopad.",
       "noAdverse": "Žádná skupina není pod prahem čtyř pětin (80 %).",
       "notAssessed": "{count, plural, one {# skupina má} few {# skupiny mají} other {# skupin má}} méně než {min} uchazečů a {count, plural, one {nebyla posouzena} few {nebyly posouzeny} other {nebylo posouzeno}}. Výsledek výše se na ně nevztahuje.",
+      "referenceRule": "Porovnáno se skupinou s nejvyšší mírou výběru, která má alespoň {min} uchazečů: {group}, {pct} %.",
+      "clampedRows": "{count, plural, one {# řádek měl} few {# řádky měly} other {# řádků mělo}} nemožné hodnoty (záporné nebo více vybraných než posuzovaných) a {count, plural, one {byl upraven} few {byly upraveny} other {bylo upraveno}} do přípustného rozsahu. Zkontrolujte vložená čísla: referenční míra výše může vycházet z opravených dat.",
       "detectable": "S těmito počty by skupina musela být vybírána nejvýše na {pct} % referenční míry, aby tato kontrola spolehlivě ukázala rozdíl. Výsledek, který není významný, neprokazuje, že jsou míry stejné.",
       "detectableBlind": "S těmito počty by tato kontrola nedokázala spolehlivě ukázat rozdíl ani u skupiny, která nebyla vybrána nikdy. Výsledek, který není významný, neprokazuje, že jsou míry stejné.",
       "shortfallValue": "{people} ({share} % skupiny)",

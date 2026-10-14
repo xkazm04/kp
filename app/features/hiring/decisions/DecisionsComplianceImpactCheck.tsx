@@ -158,6 +158,16 @@ export function DecisionsComplianceImpactCheck() {
                 : t("detectable", { pct: Math.floor(impact.detectableRatio * 100) })}
             </p>
           ) : null}
+          {impact.referenceRate !== null ? (
+            <p className="mt-1 text-meta text-steel">
+              {t("referenceRule", { group: impact.referenceGroup ?? "", pct: (impact.referenceRate * 100).toFixed(0), min: ADVERSE_IMPACT_MIN_COHORT })}
+            </p>
+          ) : null}
+          {impact.clampedRows > 0 ? (
+            <p role="status" aria-live="polite" className="mt-1 text-meta font-medium text-coral">
+              {t("clampedRows", { count: impact.clampedRows })}
+            </p>
+          ) : null}
           {impact.reliable && impact.unassessedGroups > 0 ? (
             <p className="mt-1 text-meta text-steel">
               {t("notAssessed", { count: impact.unassessedGroups, min: ADVERSE_IMPACT_MIN_COHORT })}

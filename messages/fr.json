@@ -4156,6 +4156,8 @@
       "insufficientSample": "Échantillon insuffisant : moins de deux groupes atteignent {min} candidats, aucun ratio ne peut donc être comparé. Cela ne signifie pas qu’aucun impact défavorable n’a été constaté.",
       "noAdverse": "Aucun groupe ne tombe sous le seuil des quatre cinquièmes de 80 %.",
       "notAssessed": "{count, plural, one {# groupe compte} other {# groupes comptent}} moins de {min} candidats et {count, plural, one {n’a pas été évalué} other {n’ont pas été évalués}}. Le résultat ci-dessus ne {count, plural, one {le} other {les}} couvre pas.",
+      "referenceRule": "Comparé au groupe au taux de sélection le plus élevé comptant au moins {min} candidats : {group}, {pct} %.",
+      "clampedRows": "{count, plural, one {# ligne contenait} other {# lignes contenaient}} des valeurs impossibles (négatives, ou plus de sélectionnés que d'examinés) et {count, plural, one {a été ramenée} other {ont été ramenées}} dans la plage valide. Vérifiez les chiffres collés : le taux de référence ci-dessus peut provenir de données corrigées.",
       "detectable": "Avec ces effectifs, un groupe devrait être sélectionné à {pct} % du taux de référence ou moins pour que ce contrôle montre un écart de façon fiable. Un résultat non significatif ne montre pas que les taux sont égaux.",
       "detectableBlind": "Avec ces effectifs, ce contrôle ne pourrait pas montrer un écart de façon fiable, même pour un groupe qui n’aurait jamais été sélectionné. Un résultat non significatif ne montre pas que les taux sont égaux.",
       "shortfallValue": "{people} ({share} % du groupe)",

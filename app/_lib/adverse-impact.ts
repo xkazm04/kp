@@ -198,6 +198,10 @@ export type GroupImpact = {
    *  meeting {@link ADVERSE_IMPACT_MIN_COHORT} can be the reference, and EXACTLY one
    *  row carries it — even when two pasted rows share a group name. */
   isReference: boolean;
+  /** True when the row's counts were impossible as supplied (negative, selected above
+   *  total, or non-finite) and were clamped into range. A clamped row can become the
+   *  reference at an invented rate, so the UI must say the analysis ran on repaired input. */
+  clamped: boolean;
   /** True when this group's own sample (total) meets {@link ADVERSE_IMPACT_MIN_COHORT}.
    *  When false the UI must render an "insufficient sample" state — NOT a verdict. */
   reliable: boolean;
@@ -226,6 +230,11 @@ export type AdverseImpactResult = {
   /** True when a group clears the threshold but still selects significantly less often
    *  than the reference: the large-sample gap the four-fifths screen alone misses. */
   anySignificantGapAboveThreshold: boolean;
+  /** Rows whose counts were clamped (see {@link GroupImpact.clamped}); 0 when the input was clean. */
+  clampedRows: number;
+  /** The selection rate the others were measured against, or null when none qualifies. A
+   *  reader who can see the yardstick was 100% over 31 people can discount the page. */
+  referenceRate: number | null;
   /** Rows that could not be assessed (below the floor). A headline that says "no group
    *  falls below" must also say how many groups it never measured. */
   unassessedGroups: number;
@@ -239,12 +248,14 @@ export type AdverseImpactResult = {
   reliable: boolean;
 };
 
-function clampCounts(g: GroupCount): { group: string; selected: number; total: number } {
+function clampCounts(g: GroupCount): { group: string; selected: number; total: number; clamped: boolean } {
   const total = Math.max(0, Math.floor(Number(g.total) || 0));
   // A selected count above the total (or negative) is bad data — clamp into range
   // rather than producing a >100% selection rate that would corrupt the reference.
   const selected = Math.min(total, Math.max(0, Math.floor(Number(g.selected) || 0)));
-  return { group: g.group, selected, total };
+  // Surface the repair: bad input moves a data-chosen reference, so it is fairness logic.
+  const clamped = selected !== g.selected || total !== g.total;
+  return { group: g.group, selected, total, clamped };
 }
 
 /**
@@ -307,6 +318,7 @@ export function computeAdverseImpact(rawGroups: readonly GroupCount[]): AdverseI
       impactRatio,
       adverseImpact,
       isReference,
+      clamped: g.clamped,
       reliable: g.reliable,
       shortfall,
       pValue,
@@ -330,6 +342,8 @@ export function computeAdverseImpact(rawGroups: readonly GroupCount[]): AdverseI
     anySignificantAdverse: reliable && groups.some((g) => g.adverseImpact && g.significant),
     anySignificantGapAboveThreshold:
       reliable && groups.some((g) => !g.adverseImpact && g.significant && (g.shortfall ?? 0) > 0),
+    clampedRows: groups.filter((g) => g.clamped).length,
+    referenceRate: reference ? referenceRate : null,
     unassessedGroups: groups.filter((g) => !g.reliable).length,
     detectableRatio: reliable ? weakestDetectable : null,
     reliable,
