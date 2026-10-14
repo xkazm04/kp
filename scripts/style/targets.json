@@ -26,6 +26,13 @@
       "minText": 200,
       "note": "Hiring -> Pipeline, the composition-kit surface (promoted at Gate K2)"
     },
+    "schedule": {
+      "path": "/?tab=schedule",
+      "tab": "schedule",
+      "root": "main#main",
+      "minText": 200,
+      "note": "Hiring -> Schedule (tab id `schedule`), /kit batch feature-1 BEFORE view"
+    },
     "offer": {
       "gate": true,
       "path": "/offer/{token}",
