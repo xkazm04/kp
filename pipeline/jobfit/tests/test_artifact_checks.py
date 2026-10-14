@@ -98,6 +98,35 @@ class BaselineSimilarity(unittest.TestCase):
         out = baseline_similarity(self._base(clipped), SEED, sub)
         self.assertEqual(out["bestSimilarity"], 1.0)
 
+    def test_baseline_clipped_at_the_budget_is_no_signal_not_a_low_number(self):
+        # A pure delegator whose full model output outgrew the generation budget used
+        # to read 0.144 (the clip dropped most of the baseline's additions). That is a
+        # broken ruler, so the path is dropped and the check reports unavailable.
+        from pipeline.jobfit.devcase.seed_materializer import MAX_FILE_CHARS
+
+        added = "".join(f"def handler_{i}(x):\n    return x + {i}\n" for i in range(600))
+        full = "RATE = 0.15\nX = 1\nY = 2\n" + added
+        self.assertGreater(len(full), MAX_FILE_CHARS)
+        base = self._base(full[:MAX_FILE_CHARS])
+        out = baseline_similarity(base, SEED, [{"path": "config.py", "contents": full}])
+        self.assertFalse(out["available"])
+        self.assertEqual(out["budgetExceededPaths"], ["config.py"])
+
+    def test_in_budget_files_are_unaffected_beside_an_over_budget_one(self):
+        from pipeline.jobfit.devcase.seed_materializer import MAX_FILE_CHARS
+
+        big = "".join(f"line_{i} = {i}\n" for i in range(2000))
+        small = "RATE = 0.15\nX = 1\nY = 2\nNEW = 9\n"
+        base = {"solutions": [{"files": [
+            {"path": "big.py", "contents": big[:MAX_FILE_CHARS]},
+            {"path": "config.py", "contents": small},
+        ]}]}
+        sub = [{"path": "big.py", "contents": big}, {"path": "config.py", "contents": small}]
+        out = baseline_similarity(base, SEED, sub)
+        self.assertTrue(out["available"])
+        self.assertEqual(out["bestSimilarity"], 1.0)
+        self.assertEqual(out["budgetExceededPaths"], ["big.py"])
+
     def test_unavailable_without_solutions_or_files(self):
         self.assertFalse(baseline_similarity({"solutions": []}, SEED, [{"path": "a", "contents": "x"}])["available"])
         self.assertFalse(baseline_similarity(self._base("x"), SEED, None)["available"])
