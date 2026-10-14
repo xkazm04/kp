@@ -22,6 +22,7 @@ export declare function checkCatalogs(
   defaultLocale: string
 ): {
   problems: string[];
+  sourceSuspects: SourceSuspect[];
   baseKeys: string[];
   coverage: {
     locales: number;
