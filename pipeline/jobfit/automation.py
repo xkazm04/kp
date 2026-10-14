@@ -1158,8 +1158,15 @@ def screen_candidate(
         if not isinstance(payload, dict):
             return det
         # Off-set / missing verdict falls back to the deterministic builder's own
-        # (context-aware) recommendation rather than a blind "hold".
-        rec = coerce_recommendation(payload.get("recommendation"), det["recommendation"])
+        # (context-aware) recommendation rather than a blind "hold" - EXCEPT its
+        # advance. The template's "advance" is a fixed 82 for any total >= 70, not a
+        # verdict the model gave; filled in here it rides the model's own confidence
+        # and the "llm" source label and reaches the unattended screeningGate="auto"
+        # ratify as "the model's ADVANCE". A partially parsed verdict is an unparsed
+        # one, so an unreadable verdict can hold or reject-then-gate, never advance.
+        rec = coerce_recommendation(payload.get("recommendation"), "")
+        if not rec:
+            rec = "hold" if det["recommendation"] == "advance" else det["recommendation"]
         try:
             conf = max(0, min(100, int(payload.get("confidence"))))
         except (TypeError, ValueError):
