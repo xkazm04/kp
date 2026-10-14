@@ -39,6 +39,7 @@ Complements lifecycle_eval.py (the design half).
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from concurrent.futures import ThreadPoolExecutor
@@ -47,10 +48,12 @@ from typing import Any
 
 from .._cli import configure_stdio
 from ..claude_cli import ClaudeCliProvider
+from .evaluate import CASE_EVAL_PROMPT_VERSION, FOLLOWUPS_PROMPT_VERSION, TRANSFER_PROMPT_VERSION
 from .evaluation_pipeline import EvaluationInputs, run_evaluation
 from .llm_judge import judge_independence, resolve_judge_provider, run_judge
 from .models import RUBRIC_DIMENSIONS, rubric_composite
 from .provenance import SOURCE_DETERMINISTIC, combine_source
+from .reflect import COMMIT_REFLECTION_PROMPT_VERSION, TOOLING_SIGNAL_PROMPT_VERSION
 from .submission_scenarios import SubScenario, generate_submissions
 
 # Derived from the canonical rubric (models.RUBRIC_DIMENSIONS) — mirroring evaluate._DIMS —
@@ -406,6 +409,40 @@ def signals(rows: list[Row]) -> dict[str, Any]:
     }
 
 
+def instrument_stamp(rows: list[Row], *, llm: bool) -> dict[str, Any]:
+    """What this run judged and with what - bound to the result so a stored report cannot be
+    reused after a rubric/prompt/model change, and so a constructed-cast figure is never read
+    as a measurement over real candidates (synthetic-candidate-behaviour-landscape).
+
+    ``castFingerprint`` hashes the scenario ids + labels, so a cast that was regenerated or
+    re-enriched shows up as a different cohort rather than as an instrument change.
+    """
+    cast = "|".join(f"{r.id}" for r in rows)
+    return {
+        "synthetic": True,
+        "mode": "llm" if llm else "deterministic",
+        "promptVersions": {
+            "caseEval": CASE_EVAL_PROMPT_VERSION,
+            "transfer": TRANSFER_PROMPT_VERSION,
+            "followups": FOLLOWUPS_PROMPT_VERSION,
+            "commitReflection": COMMIT_REFLECTION_PROMPT_VERSION,
+            "toolingSignal": TOOLING_SIGNAL_PROMPT_VERSION,
+        },
+        "rubricDimensions": sorted(_DIMS),
+        "castFingerprint": hashlib.sha256(cast.encode("utf-8")).hexdigest()[:12],
+    }
+
+
+def _stamp_line(stamp: dict[str, Any]) -> str:
+    pv = ", ".join(f"{k}={v}" for k, v in stamp["promptVersions"].items())
+    return (
+        f"> **SYNTHETIC cast** (constructed behaviours, not candidates): these rates measure the instrument's "
+        f"sensitivity to constructed differences, never separation of real people or group impact. "
+        f"Instrument: {pv} · mode: {stamp['mode']} · cast: {stamp['castFingerprint']}. "
+        "A result is reusable only while all of these match."
+    )
+
+
 # --- LLM-as-judge -----------------------------------------------------------
 
 
@@ -439,13 +476,15 @@ def _quality_summary(rows: list[Row]) -> dict[str, Any]:
     }
 
 
-def _report_md(rows: list[Row], sig: dict, qual: dict | None, independence: dict | None = None) -> str:
+def _report_md(rows: list[Row], sig: dict, qual: dict | None, independence: dict | None = None, stamp: dict | None = None) -> str:
     f = sig["fairness"]
     d = sig["discrimination"]
     L = [
         "# Dev pipeline — submission evaluation eval\n",
         f"Scenarios: {sig['scenarios']} · reliable: {sig['reliable']}/{sig['scenarios']} ({sig['reliability']:.0%}) · LLM rows: {sig['llm_rows']} · error-fallbacks: {sig['error_fallbacks']}\n",
     ]
+    if stamp is not None:
+        L.append(_stamp_line(stamp) + "\n")
     if sig["error_fallbacks"]:
         L.append(
             f"> **WARNING: {sig['error_fallbacks']} row(s) ran in LLM mode but ERROR-fell-back to deterministic** — "
@@ -530,6 +569,7 @@ def main(argv: list[str] | None = None) -> int:
     scenarios = [s for path in paths for s in generate_submissions(args.count, args.domain, path=path)]
     rows = run(scenarios, provider, workers=args.workers)
     sig = signals(rows)
+    stamp = instrument_stamp(rows, llm=provider is not None)
     qual = None
     independence = None
     if args.judge and provider is not None:
@@ -546,9 +586,9 @@ def main(argv: list[str] | None = None) -> int:
         qual = _quality_summary(rows)
 
     if args.json:
-        print(json.dumps({"signals": sig, "quality": qual, "judgeIndependence": independence, "rows": [{"id": r.id, "source": r.source, "reliable": r.reliable, "issues": r.issues, "judgment": r.judgment} for r in rows]}, indent=2, ensure_ascii=False))
+        print(json.dumps({"instrument": stamp, "signals": sig, "quality": qual, "judgeIndependence": independence, "rows": [{"id": r.id, "source": r.source, "reliable": r.reliable, "issues": r.issues, "judgment": r.judgment} for r in rows]}, indent=2, ensure_ascii=False))
     else:
-        print(_report_md(rows, sig, qual, independence))
+        print(_report_md(rows, sig, qual, independence, stamp))
 
     if args.strict:
         reasons = []

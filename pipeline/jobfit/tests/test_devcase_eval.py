@@ -362,3 +362,25 @@ class TestOverallIsTheCaseScore(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestInstrumentStamp:
+    """synthetic-candidate-behaviour-landscape: the report is bound to what it judged and
+    labelled synthetic, so a stored run cannot certify a changed instrument or real cohorts."""
+
+    def test_stamp_binds_versions_and_labels_synthetic(self):
+        from pipeline.jobfit.devcase import submission_eval as se
+        from pipeline.jobfit.devcase.submission_scenarios import generate_submissions
+
+        rows = se.run(generate_submissions(6, "it"), None, workers=1)
+        stamp = se.instrument_stamp(rows, llm=False)
+        assert stamp["synthetic"] is True and stamp["mode"] == "deterministic"
+        assert set(stamp["promptVersions"]) == {"caseEval", "transfer", "followups", "commitReflection", "toolingSignal"}
+        assert all(stamp["promptVersions"].values())
+        # a different cast is a different fingerprint (cohort change != instrument change)
+        other = se.instrument_stamp(rows[:-1], llm=False)
+        assert other["castFingerprint"] != stamp["castFingerprint"]
+        md = se._report_md(rows, se.signals(rows), None, None, stamp)
+        assert "SYNTHETIC cast" in md and stamp["castFingerprint"] in md
+        # unstamped callers (existing API) still render
+        assert "SYNTHETIC cast" not in se._report_md(rows, se.signals(rows), None)
