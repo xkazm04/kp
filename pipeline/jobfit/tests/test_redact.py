@@ -384,5 +384,27 @@ class IdentityTwinInvarianceTest(unittest.TestCase):
             self.assertEqual(redact_pii(body.format(name=name)).text, base)
 
 
+class RedactPreservesSubstanceTest(unittest.TestCase):
+    """Tenure ranges and grouped quantities match the phone shape but are evidence."""
+
+    def _mask(self, line: str) -> str:
+        return redact_pii("Jane Doe\n" + line).text
+
+    def test_year_ranges_survive(self) -> None:
+        for line in ("Acme 2015 - 2019 Engineer", "Acme 2015-2019", "2019 - 2023 Backend",
+                     "06/2018 - 07/2022"):
+            self.assertNotIn("[PHONE]", self._mask(line), line)
+
+    def test_grouped_quantities_survive(self) -> None:
+        for line in ("Led 12 000 000 requests per day", "Budget 1 200 000 EUR"):
+            self.assertNotIn("[PHONE]", self._mask(line), line)
+
+    def test_real_phones_still_masked(self) -> None:
+        for line in ("Call +420 777 123 456", "Tel 777 123 456", "Tel 777-123-456", "Tel (212) 555-0147"):
+            r = redact_pii("Jane Doe\n" + line)
+            self.assertIn("[PHONE]", r.text, line)
+            self.assertIn("phone", r.categories, line)
+
+
 if __name__ == "__main__":
     unittest.main()
