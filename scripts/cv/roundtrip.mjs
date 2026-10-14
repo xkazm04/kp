@@ -75,7 +75,7 @@ const imp = (p) => import(pathToFileURL(p).href);
 const [{ createElement }, { renderToStaticMarkup }] = await Promise.all([import("react"), import("react-dom/server")]);
 const { DesignedCv } = await imp(path.join(CV_DIR, "DesignedCv.tsx"));
 const { REFERENCE_CVS } = await imp(path.join(CV_DIR, "__fixtures__", "referenceCvs.ts"));
-const { checkRoundTrip, cvReadingLines, normText, ROUND_TRIP_CHECKS } = await imp(path.join(CV_DIR, "cvRoundTrip.ts"));
+const { checkRoundTrip, checkExportProperties, cvReadingLines, normText, ROUND_TRIP_CHECKS } = await imp(path.join(CV_DIR, "cvRoundTrip.ts"));
 const query = await imp(path.join(CV_DIR, "cvQuery.ts"));
 const docModule = await imp(path.join(CV_DIR, "cvDocument.ts"));
 const pdfModule = await imp(path.join(ROOT, "app", "_lib", "jobseeker", "cv-pdf.ts"));
@@ -220,11 +220,12 @@ for (const r of rendered) {
   const ex = extracted[r.file];
   const content = checkRoundTrip(r.ref.doc, ex.content.join("\n"));
   const positional = checkRoundTrip(r.ref.doc, ex.positional.join("\n"));
+  const file = checkExportProperties({ title: ex.title, tagged: ex.tagged, fonts: ex.fonts, bytes: ex.bytes }, pdfModule.cvPdfTitle(r.ref.doc.name));
   // How full the last page really is: its lowest text, inside the 10mm head and foot.
   const MM = 25.4 / 72;
   const lastBottom = Math.max(0, ...ex.spans.filter((s) => s.page === ex.pages).map((s) => s.y1));
   const lastFill = ex.pages === 1 ? 1 : Math.max(0, lastBottom * MM - 10) / budget.CV_NEXT_PAGE_MM;
-  rows.push({ template: r.template, cv: r.ref.id, pages: ex.pages, lengthMm: Math.round(r.lengthMm), estimate: r.estimate, lastFill, fonts: ex.fonts, tagged: ex.tagged, title: ex.title, bytes: ex.bytes, scale: typeScale(ex, r.ref.doc), content, positional, reading: readingMatches(ex, r.ref.doc), png: ex.png ?? [] });
+  rows.push({ template: r.template, cv: r.ref.id, pages: ex.pages, lengthMm: Math.round(r.lengthMm), estimate: r.estimate, lastFill, fonts: ex.fonts, tagged: ex.tagged, title: ex.title, bytes: ex.bytes, file, scale: typeScale(ex, r.ref.doc), content, positional, reading: readingMatches(ex, r.ref.doc), png: ex.png ?? [] });
 }
 
 if (flag("json")) {
@@ -257,6 +258,7 @@ if (flag("json")) {
   console.log("\nC: = content order (pypdf) · P: = positional (PyMuPDF words by y, then x) · * = the default template\n");
   for (const row of rows) {
     const f = [...row.content.findings.map((x) => `C ${x.check}: ${x.detail}`), ...row.positional.findings.map((x) => `P ${x.check}: ${x.detail}`)];
+    f.push(...row.file.findings.map((x) => `F ${x}`));
     if (f.length) console.log(`${row.template}/${row.cv}\n  ${f.slice(0, 8).join("\n  ")}${f.length > 8 ? `\n  ... ${f.length - 8} more` : ""}`);
   }
   console.log("\nexport properties (the file, not the page):");
@@ -271,7 +273,7 @@ if (flag("json")) {
   }
   const verdict = TEMPLATES.map((t) => {
     const mine = rows.filter((x) => x.template === t);
-    return mine.length ? `${t}: ${mine.every((x) => x.content.pass && x.positional.pass) ? "PASS" : "FAIL"}` : null;
+    return mine.length ? `${t}: ${mine.every((x) => x.content.pass && x.positional.pass && x.file.pass) ? "PASS" : "FAIL"}` : null;
   }).filter(Boolean);
   console.log(`\n${verdict.join(" · ")}`);
   if (type3)
@@ -283,5 +285,5 @@ if (flag("json")) {
     );
 }
 
-const defaultFails = rows.filter((x) => x.template === DEFAULT && !(x.content.pass && x.positional.pass));
+const defaultFails = rows.filter((x) => x.template === DEFAULT && !(x.content.pass && x.positional.pass && x.file.pass));
 process.exit(defaultFails.length ? 1 : 0);
