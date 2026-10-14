@@ -349,3 +349,26 @@ export function computeAdverseImpact(rawGroups: readonly GroupCount[]): AdverseI
     reliable,
   };
 }
+
+/**
+ * The headline state of a result. Five measured states plus two that are NOT findings:
+ * `insufficient` (no pair of groups clears the floor) and `cleanPartial` (the assessed
+ * groups show nothing, but some groups were never assessed). `cleanPartial` is its own
+ * state because a headline that says "no group falls below" over groups it never
+ * measured reads as a clean bill; the mix belongs in the headline, not a footnote.
+ */
+export type AdverseImpactVerdict =
+  | "insufficient"
+  | "adverse"
+  | "belowNotSignificant"
+  | "significantGap"
+  | "cleanPartial"
+  | "clean";
+
+export function adverseImpactVerdict(impact: AdverseImpactResult | null): AdverseImpactVerdict {
+  if (!impact || !impact.reliable) return "insufficient";
+  if (impact.anySignificantAdverse) return "adverse";
+  if (impact.anyAdverseImpact) return "belowNotSignificant";
+  if (impact.anySignificantGapAboveThreshold) return "significantGap";
+  return impact.unassessedGroups > 0 ? "cleanPartial" : "clean";
+}

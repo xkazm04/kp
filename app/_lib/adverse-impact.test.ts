@@ -6,6 +6,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  adverseImpactVerdict,
   computeAdverseImpact,
   parseGroupCounts,
   midPExactTwoSided,
@@ -424,4 +425,33 @@ test("a stated detectable ratio is honest: a group at that true ratio is shown a
     const seen = hits / trials;
     assert.ok(seen > DETECTABLE_POWER - 0.1 && seen < DETECTABLE_POWER + 0.1, `rate ${rate} n ${n}: shown ${seen}, stated power ${DETECTABLE_POWER}`);
   }
+});
+
+test("a result that left groups unassessed never reads as a clean bill", () => {
+  const mixed = computeAdverseImpact([
+    { group: "A", selected: 50, total: 100 },
+    { group: "B", selected: 48, total: 100 },
+    { group: "C", selected: 1, total: 5 },
+    { group: "D", selected: 0, total: 8 },
+  ]);
+  // Assessed groups show nothing, two groups were never measured: not "clean".
+  assert.equal(mixed.anyAdverseImpact, false);
+  assert.equal(mixed.unassessedGroups, 2);
+  assert.equal(adverseImpactVerdict(mixed), "cleanPartial");
+  // The same assessed groups with nothing left out are the affirmative verdict.
+  const full = computeAdverseImpact([
+    { group: "A", selected: 50, total: 100 },
+    { group: "B", selected: 48, total: 100 },
+  ]);
+  assert.equal(adverseImpactVerdict(full), "clean");
+  // Too small to assess stays its own state, and no result at all is the same state.
+  assert.equal(adverseImpactVerdict(computeAdverseImpact([{ group: "A", selected: 1, total: 5 }, { group: "B", selected: 2, total: 6 }])), "insufficient");
+  assert.equal(adverseImpactVerdict(null), "insufficient");
+  // A real finding still outranks the unassessed note.
+  const flagged = computeAdverseImpact([
+    { group: "A", selected: 60, total: 100 },
+    { group: "B", selected: 20, total: 100 },
+    { group: "C", selected: 1, total: 5 },
+  ]);
+  assert.equal(adverseImpactVerdict(flagged), "adverse");
 });

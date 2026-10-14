@@ -4155,6 +4155,7 @@
       "significantGap": "Žádná skupina není pod prahem 80 %, ale alespoň jeden rozdíl je statisticky významný. U velkých vzorků může nepříznivý dopad ukazovat i poměr nad 80 %.",
       "insufficientSample": "Nedostatečný vzorek: méně než dvě skupiny dosahují {min} uchazečů, takže nelze porovnat žádný poměr. Neznamená to, že nebyl zjištěn nepříznivý dopad.",
       "noAdverse": "Žádná skupina není pod prahem čtyř pětin (80 %).",
+      "noAdversePartial": "Mezi posouzenými skupinami žádná nepadá pod práh čtyř pětin (80 %). {count, plural, one {# skupina nebyla posouzena} few {# skupiny nebyly posouzeny} other {# skupin nebylo posouzeno}} (méně než {min} uchazečů), takže to není zjištění pro celý soubor.",
       "notAssessed": "{count, plural, one {# skupina má} few {# skupiny mají} other {# skupin má}} méně než {min} uchazečů a {count, plural, one {nebyla posouzena} few {nebyly posouzeny} other {nebylo posouzeno}}. Výsledek výše se na ně nevztahuje.",
       "referenceRule": "Porovnáno se skupinou s nejvyšší mírou výběru, která má alespoň {min} uchazečů: {group}, {pct} %.",
       "clampedRows": "{count, plural, one {# řádek měl} few {# řádky měly} other {# řádků mělo}} nemožné hodnoty (záporné nebo více vybraných než posuzovaných) a {count, plural, one {byl upraven} few {byly upraveny} other {bylo upraveno}} do přípustného rozsahu. Zkontrolujte vložená čísla: referenční míra výše může vycházet z opravených dat.",
