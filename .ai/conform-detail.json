@@ -6030,6 +6030,52 @@
           "evidence": "app/api/analytics/metric-pack/route.ts:126 Generates the metric pack artifact where thin metrics are explicitly labeled with their sample and floor rather than suppressed or promoted."
         }
       ]
+    },
+    "bb3b0815-c5cd-423f-b87b-8c3c78aaf77d/application-intake-and-conversion": {
+      "context": "candidate-apply-flow",
+      "subject": "application-intake-and-conversion",
+      "bundle": "recruiting",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T21:09:39.593Z",
+      "techniques": [
+        {
+          "technique": "eligibility-gate-versus-bot-defence",
+          "verdict": "deviation",
+          "evidence": "app/_lib/apply-intake.ts:39 Checks company_url, which is recognized by autofill heuristics, and records no trip metrics or false-positive telemetry."
+        },
+        {
+          "technique": "tonally-neutral-eligibility-questions",
+          "verdict": "conformant",
+          "evidence": "app/_lib/apply.ts:58 Refuses to render the archetype self-declaration question when fewer than two options exist, preventing coerced declarations."
+        },
+        {
+          "technique": "always-live-submit-that-names-the-blocker",
+          "verdict": "conformant",
+          "evidence": "app/_lib/apply-intake.ts:131 Single-sources the status code contract separating transient retryable server failures from actionable client correction errors."
+        },
+        {
+          "technique": "merge-dont-drop-on-reapplication",
+          "verdict": "conformant",
+          "evidence": "app/_lib/apply-intake.ts:352 Ensures prefilled facts from a verified lead take precedence over stale stored draft answers so passed gates are not overwritten."
+        },
+        {
+          "technique": "speed-to-lead-acknowledgement",
+          "verdict": "conformant",
+          "evidence": "app/_lib/candidate-link-locale.ts:14 Pins candidate-facing links to the candidate's language so outbound communications open in the correct locale outside application session context."
+        },
+        {
+          "technique": "recoverable-decline-and-no-dead-ends",
+          "verdict": "conformant",
+          "evidence": "app/_lib/apply.ts:305 Maps knockout step identifiers to plain-words must-have requirement names so adverse decisions explain what requirement ended the application."
+        }
+      ],
+      "withdrawn": {
+        "worker": "79f72322-9979-4946-be4e-88f216a35380",
+        "state": "deviation",
+        "at": "2026-10-15T21:10:22.216370+00:00",
+        "reason": "reviewer (sonnet): app/_lib/apply-intake.ts:39 only reads the company_url key, and nothing in the code shows autofill populating it; both forms set autoComplete=\"off\" and the tests pin that. The 'no trip metrics' claim is an absence claim the cited line does not show."
+      }
     }
   }
 }
