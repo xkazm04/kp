@@ -8098,7 +8098,11 @@
           "revision": 6,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/i18n/catalog-check.mjs:127 When the optional parsers are unavailable, the ASCII-only fallback misses unexpected non-Latin placeholders, allowing a decidable skeleton defect through the gate.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:126898c163a402a3",
+          "evaluatedRevision": 6
         },
         {
           "subject": "copy-quality-gates",
@@ -20615,7 +20619,11 @@
           "revision": 6,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "scripts/lint/ts-ratchet.mjs:142 Searches found no pretranslation or termbase occurrences in these lint, performance and design checks, which measure source suppressions and execution costs rather than translations.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:126898c163a402a3",
+          "evaluatedRevision": 6
         },
         {
           "subject": "invariant-placement",
@@ -22622,7 +22630,11 @@
           "revision": 6,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/settings/models/ModelsRoutingPanel.tsx:75 The routing panel assigns one posting_translate pin by use case, and its traced consumer resolves that pin without a language pair, preventing per-pair engine selection.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:126898c163a402a3",
+          "evaluatedRevision": 6
         },
         {
           "subject": "model-routing",
