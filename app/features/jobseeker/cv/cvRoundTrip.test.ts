@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { REFERENCE_CVS } from "./__fixtures__/referenceCvs";
-import { checkRoundTrip, cvReadingLines, ROUND_TRIP_CHECKS, type RoundTripCheck } from "./cvRoundTrip";
+import { checkExportProperties, checkRoundTrip, cvReadingLines, EXPORT_PROPERTY_CHECKS, ROUND_TRIP_CHECKS, type RoundTripCheck } from "./cvRoundTrip";
 
 // The pure half of the designed CV's round trip (registry
 // recruiting/cv-presentation-and-parseability, export-format-and-round-trip-verification).
@@ -83,4 +83,17 @@ test("the running head repeating the name on page two is not a finding", () => {
   const lines = cvReadingLines(doc);
   const paged = [...lines.slice(0, 30), doc.name, ...lines.slice(30)].join("\n");
   assert.equal(checkRoundTrip(doc, paged).pass, true);
+});
+
+test("the exported file's properties: a missing title, structure tree, font file or a heavy file each fail", () => {
+  const good = { title: "Jana Nováková – CV", tagged: true, fonts: [["ABCDEF+Inter-Regular", "ttf"]] as const, bytes: 90_000 };
+  assert.equal(checkExportProperties(good, "Jana Nováková – CV").pass, true);
+  const bad = (patch: object) => EXPORT_PROPERTY_CHECKS.filter((c) => !checkExportProperties({ ...good, ...patch }, "Jana Nováková – CV").checks[c]);
+  assert.deepEqual(bad({ title: "kp" }), ["title"]);
+  assert.deepEqual(bad({ title: null }), ["title"]);
+  assert.deepEqual(bad({ tagged: false }), ["tagged"]);
+  assert.deepEqual(bad({ fonts: [["Arial", "n/a"]] }), ["fontsEmbedded"]);
+  assert.deepEqual(bad({ bytes: 5 * 1024 * 1024 }), ["size"]);
+  // An unnamed Type 3 face is the text checks' business, not this one's.
+  assert.deepEqual(bad({ fonts: [["", "n/a"]] }), []);
 });

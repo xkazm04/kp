@@ -117,7 +117,9 @@ const FORBIDDEN_ARG_TOKENS = [
  */
 function enforcementSettingsPath() {
   const file = path.join(tmpdir(), `kp-onboard-enforce-${randomBytes(6).toString("hex")}.json`);
-  writeFileSync(file, JSON.stringify(ENFORCEMENT_SETTINGS, null, 2), "utf8");
+  // `wx` refuses a pre-planted file or symlink at this name in the shared temp dir; 0600
+  // keeps the hook settings readable by this user only.
+  writeFileSync(file, JSON.stringify(ENFORCEMENT_SETTINGS, null, 2), { encoding: "utf8", flag: "wx", mode: 0o600 });
   return file;
 }
 
@@ -142,7 +144,11 @@ export function buildArgs(settingsPath = enforcementSettingsPath()) {
  * splits in half is exactly the kind of failure that fails OPEN.
  */
 function quoteForShell(arg) {
-  return /[\s"]/.test(arg) ? `"${arg.replace(/"/g, '\\"')}"` : arg;
+  // CommandLineToArgvW rules: backslashes only matter before a quote (the closing
+  // one included), where each must be doubled; elsewhere a Windows path stays as is.
+  return /[\s"]/.test(arg)
+    ? `"${arg.replace(/(\\*)"/g, '$1$1\\"').replace(/(\\+)$/, "$1$1")}"`
+    : arg;
 }
 
 /**

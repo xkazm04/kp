@@ -133,6 +133,13 @@ which is the point. A route may legitimately grow; that should be a decision
 somebody made and a reviewer can disagree with, not a number that drifted. A
 ceiling without a `why` fails to load, so the reason cannot be skipped.
 
+**Drift is a reason too.** A tree can cross a ceiling with no module added: on
+2026-10-15 `app/page.tsx` read 11663 KB against 11660 KB, +3 KB spread over five
+correctness fixes to modules already on the graph. That is recorded as a raise
+with a `why` that names the cause and the step taken (here 10 KB), not
+hidden by trimming an unrelated file. The module count is the tell: unchanged
+means growth, not a new dependency edge.
+
 ## When it fails
 
 The message names the file, the measurement and the ceiling. In order of what

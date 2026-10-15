@@ -44,11 +44,26 @@ import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
  *  `opts.workspaceId`). Callers that still omit it get the default tenant's default,
  *  the historical behaviour. */
 export function resolveCommsLocale(locale: string | null | undefined, workspaceId?: string): Locale {
-  if (isLocale(locale)) return locale;
+  return resolveCommsLocaleWithSource(locale, workspaceId).locale;
+}
+
+/** Which step of the three-step authority supplied the locale: "recorded" (the entry's
+ *  own stored choice), "workspace" (read-time fallback for an unrecorded entry), or
+ *  "app-default" (the workspace row was unreadable). A message's audit row can carry
+ *  this so a wrong language is distinguishable from a right one nobody logged
+ *  (candidate-locale-resolution-authority: "records which step supplied it"). Same
+ *  order as resolveCommsLocale, which delegates here: one resolver, never two. */
+export type CommsLocaleSource = "recorded" | "workspace" | "app-default";
+
+export function resolveCommsLocaleWithSource(
+  locale: string | null | undefined,
+  workspaceId?: string
+): { locale: Locale; source: CommsLocaleSource } {
+  if (isLocale(locale)) return { locale, source: "recorded" };
   try {
-    return getWorkspaceDefaultLocale(workspaceId);
+    return { locale: getWorkspaceDefaultLocale(workspaceId), source: "workspace" };
   } catch {
-    return DEFAULT_LOCALE;
+    return { locale: DEFAULT_LOCALE, source: "app-default" };
   }
 }
 

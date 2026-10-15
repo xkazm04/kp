@@ -3223,7 +3223,7 @@
       "interview_reminder_sent": "dostal/a připomenutí pohovoru",
       "interviewer_brief_sent": "byl/a shrnut/a v podkladech pro tazatele",
       "interviewer_brief_skipped": "nemá odeslané podklady pro tazatele (chybí adresa)",
-      "interview_failover": "měl(a) pohovor přepnutý na jiného hlasového poskytovatele",
+      "interview_failover": "měl/a pohovor přepnutý na jiného hlasového poskytovatele",
       "offer_sent": "dostal/a nabídku",
       "comm_resent": "dostal/a zprávu znovu",
       "interview_scheduled": "potvrdil/a termín pohovoru",
@@ -3893,7 +3893,7 @@
       "transferTitle": "Skóre přenosu z pracovní ukázky, nikoli skóre shody. Říká, jak dobře se dovednosti předvedené na zadání přenášejí na tuto roli."
     },
     "add": {
-      "added": "{name} přidán(a) do pipeline.",
+      "added": "{name} přidán/a do pipeline.",
       "failed": "{name} se nepodařilo přidat do pipeline.",
       "failedAnnounce": "{name} se nepodařilo přidat do pipeline. {reason}"
     },
@@ -4155,7 +4155,10 @@
       "significantGap": "Žádná skupina není pod prahem 80 %, ale alespoň jeden rozdíl je statisticky významný. U velkých vzorků může nepříznivý dopad ukazovat i poměr nad 80 %.",
       "insufficientSample": "Nedostatečný vzorek: méně než dvě skupiny dosahují {min} uchazečů, takže nelze porovnat žádný poměr. Neznamená to, že nebyl zjištěn nepříznivý dopad.",
       "noAdverse": "Žádná skupina není pod prahem čtyř pětin (80 %).",
+      "noAdversePartial": "Mezi posouzenými skupinami žádná nepadá pod práh čtyř pětin (80 %). {count, plural, one {# skupina nebyla posouzena} few {# skupiny nebyly posouzeny} other {# skupin nebylo posouzeno}} (méně než {min} uchazečů), takže to není zjištění pro celý soubor.",
       "notAssessed": "{count, plural, one {# skupina má} few {# skupiny mají} other {# skupin má}} méně než {min} uchazečů a {count, plural, one {nebyla posouzena} few {nebyly posouzeny} other {nebylo posouzeno}}. Výsledek výše se na ně nevztahuje.",
+      "referenceRule": "Porovnáno se skupinou s nejvyšší mírou výběru, která má alespoň {min} uchazečů: {group}, {pct} %.",
+      "clampedRows": "{count, plural, one {# řádek měl} few {# řádky měly} other {# řádků mělo}} nemožné hodnoty (záporné nebo více vybraných než posuzovaných) a {count, plural, one {byl upraven} few {byly upraveny} other {bylo upraveno}} do přípustného rozsahu. Zkontrolujte vložená čísla: referenční míra výše může vycházet z opravených dat.",
       "detectable": "S těmito počty by skupina musela být vybírána nejvýše na {pct} % referenční míry, aby tato kontrola spolehlivě ukázala rozdíl. Výsledek, který není významný, neprokazuje, že jsou míry stejné.",
       "detectableBlind": "S těmito počty by tato kontrola nedokázala spolehlivě ukázat rozdíl ani u skupiny, která nebyla vybrána nikdy. Výsledek, který není významný, neprokazuje, že jsou míry stejné.",
       "shortfallValue": "{people} ({share} % skupiny)",
@@ -4214,16 +4217,16 @@
         "approvedByNote": "Schválil/a {who}.",
         "approverUnidentified": "Schvalovatel nebyl identifikován.",
         "autoRatifiedScreening": "Doporučení posunout dál ze screeningu bylo automaticky schváleno podle náborového plánu (brána screeningu: automatická).",
-        "sealFailed": "ponechán(a): záznam rozhodnutí odolný proti manipulaci se nepodařilo zapečetit, automatické zamítnutí se proto neprovedlo",
-        "reinstated": "ponechán(a): personálista dřívější automatické zamítnutí zrušil, stroj ho tedy nezopakuje",
-        "holdoutSealFailed": "ponechán(a), ale záznam kalibračního vzorku se nepodařilo zapečetit, tento kandidát proto není v čisté větvi",
+        "sealFailed": "ponechán/a: záznam rozhodnutí odolný proti manipulaci se nepodařilo zapečetit, automatické zamítnutí se proto neprovedlo",
+        "reinstated": "ponechán/a: personálista dřívější automatické zamítnutí zrušil, stroj ho tedy nezopakuje",
+        "holdoutSealFailed": "ponechán/a, ale záznam kalibračního vzorku se nepodařilo zapečetit, tento kandidát proto není v čisté větvi",
         "recruiterSpared": "ponecháno: v tomto náhledu jste kandidáta vyřadili z vlny, vlna ho tedy nezamítne (shoda {score}, práh {threshold})"
       },
       "spare": "Ušetřit",
       "unspare": "Vrátit",
       "spareTitle": "Vyřadit kandidáta {name} z této vlny. Schválení se pak vztahuje na výběr bez něj.",
       "unspareTitle": "Vrátit kandidáta {name} do této vlny",
-      "sparedCount": "{count, plural, one {# ušetřen(a) vámi.} few {# ušetřeni vámi.} other {# ušetřeno vámi.}}"
+      "sparedCount": "{count, plural, one {# ušetřen/a vámi.} few {# ušetřeni vámi.} other {# ušetřeno vámi.}}"
     },
     "summary": {
       "reject": "Zamítnout",
@@ -4405,7 +4408,7 @@
         "sealNote": "Zaznamená se přesně tak, jak je napsáno. Takto ho uvidí auditní stopa i pozdější revize.",
         "cancel": "Zrušit",
         "confirm": "Zamítnout a zaznamenat důvod",
-        "sealedToast": "{name} zamítnut(a). Důvod je v auditním záznamu."
+        "sealedToast": "{name} zamítnut/a. Důvod je v auditním záznamu."
       },
       "acceptConfirm": {
         "title": "Posunout {name} dál?",
@@ -4422,7 +4425,7 @@
         "sealNote": "Zaznamená se přesně tak, jak je napsáno. Takto ho uvidí auditní stopa i pozdější revize.",
         "cancel": "Zrušit",
         "confirm": "Posunout a zaznamenat důvod",
-        "sealedToast": "{name} posunut(a) dál. Důvod je v auditním záznamu."
+        "sealedToast": "{name} posunut/a dál. Důvod je v auditním záznamu."
       },
       "schemeSkillsShort": "D",
       "schemeCareerShort": "K",
@@ -5012,7 +5015,7 @@
         "audioDeleteFailed": "Záznam se nepodařilo smazat."
       },
       "duration": "{m, plural, =0 {{s} s} other {{s, plural, =0 {{m} min} other {{m} min {s} s}}}}",
-      "humanScorecardBy": "Hodnotil(a): {author}",
+      "humanScorecardBy": "Hodnotil/a: {author}",
       "humanScorecardUnnamed": "Hodnoceno bez přihlášeného tazatele",
       "humanScorecardLegacy": "Uloženo dříve, než se hodnoticí karty vedly pro každého tazatele zvlášť",
       "humanScorecardRound": "Kolo: {stage}"
@@ -7467,7 +7470,7 @@
     "added": "Přidáno do prostoru {workspace}.",
     "addFailed": "Do pracovního prostoru se ho nepodařilo přidat.",
     "crossOrg": "Tento pracovní prostor patří jiné organizaci.",
-    "removedFromWorkspace": "{name} odebrán(a) z prostoru {workspace}.",
+    "removedFromWorkspace": "{name} odebrán/a z prostoru {workspace}.",
     "removeFromWorkspaceFailed": "Z pracovního prostoru se ho nepodařilo odebrat.",
     "notInAnyWorkspace": "Zatím bez prostoru",
     "addToWorkspace": "Přidat do prostoru",
@@ -7720,7 +7723,7 @@
     "passwordHint": "Alespoň {minLength} znaků.",
     "passwordConfirm": "Potvrzení hesla",
     "passwordMismatch": "Hesla se neshodují.",
-    "legalAck": "Přečetl(a) jsem si <privacy>zásady ochrany soukromí</privacy> a <terms>podmínky používání</terms>.",
+    "legalAck": "Přečetl/a jsem si <privacy>zásady ochrany soukromí</privacy> a <terms>podmínky používání</terms>.",
     "submitting": "Nastavování…",
     "submit": "Přijmout pozvánku"
   },
@@ -14833,7 +14836,7 @@
       "notDispatchable": "Nelze předat agentovi",
       "noControl": "Podezřelý inzerát tu nemá žádné tlačítko pro předání, ani neaktivní.",
       "decline": "Odmítnout: nechat ho mimo pipeline",
-      "readIt": "Přečetl(a) jsem inzerát níže a považuji ho za legitimní",
+      "readIt": "Přečetl/a jsem inzerát níže a považuji ho za legitimní",
       "clear": "Zrušit označení (vrátí se mezi nové k roztřídění)",
       "urlAsText": "Adresa inzerátu, bez odkazu: {url}"
     },
@@ -14977,7 +14980,7 @@
       "termsIsReading": "Toto shrnutí je výklad podmínek poskytovatele podle kp, ověřený {date} a zobrazený v jazyce, ve kterém byl napsán. Rozhoduje původní znění.",
       "readOriginal": "Přečíst původní podmínky",
       "hash": "Hash podmínek (co vaše potvrzení zaznamená): {hash}",
-      "ackCheck": "Přečetl(a) jsem toto shrnutí. Tyto podmínky zavazují můj účet.",
+      "ackCheck": "Přečetl/a jsem toto shrnutí. Tyto podmínky zavazují můj účet.",
       "acknowledge": "Potvrdit a zapnout",
       "pause": "Pozastavit",
       "resume": "Obnovit",

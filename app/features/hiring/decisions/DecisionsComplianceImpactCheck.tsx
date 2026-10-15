@@ -6,21 +6,22 @@
 import { useMemo, useState } from "react";
 import { AlertTriangle, Check, HelpCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { computeAdverseImpact, parseGroupCounts, ADVERSE_IMPACT_MIN_COHORT } from "@/app/_lib/adverse-impact";
+import { adverseImpactVerdict, computeAdverseImpact, parseGroupCounts, ADVERSE_IMPACT_MIN_COHORT, type AdverseImpactVerdict } from "@/app/_lib/adverse-impact";
 import { TextArea } from "@/app/_components/TextArea";
 
-type Verdict = "insufficient" | "adverse" | "belowNotSignificant" | "significantGap" | "clean";
-const VERDICT_TONE: Record<Verdict, string> = {
+const VERDICT_TONE: Record<AdverseImpactVerdict, string> = {
   insufficient: "text-steel",
   adverse: "text-coral",
   belowNotSignificant: "text-steel",
   significantGap: "text-coral",
+  cleanPartial: "text-steel",
   clean: "text-moss",
 };
 const VERDICT_KEY = {
   adverse: "anyAdverse",
   belowNotSignificant: "belowNotSignificant",
   significantGap: "significantGap",
+  cleanPartial: "noAdversePartial",
   clean: "noAdverse",
 } as const;
 
@@ -33,15 +34,7 @@ export function DecisionsComplianceImpactCheck() {
   const [counts, setCounts] = useState("");
   const parsed = useMemo(() => parseGroupCounts(counts), [counts]);
   const impact = useMemo(() => (parsed.groups.length >= 2 ? computeAdverseImpact(parsed.groups) : null), [parsed]);
-  const verdict: Verdict = !impact || !impact.reliable
-    ? "insufficient"
-    : impact.anySignificantAdverse
-      ? "adverse"
-      : impact.anyAdverseImpact
-        ? "belowNotSignificant"
-        : impact.anySignificantGapAboveThreshold
-          ? "significantGap"
-          : "clean";
+  const verdict = adverseImpactVerdict(impact);
 
   return (
     <details className="rounded-md border border-stone-200 bg-white p-3">
@@ -136,7 +129,7 @@ export function DecisionsComplianceImpactCheck() {
               flag chance can explain is a pattern to watch, and a significant gap above
               0.8 is not a pass. */}
           <p className={`mt-2 flex items-center gap-1.5 text-sm font-medium ${VERDICT_TONE[verdict]}`}>
-            {verdict === "insufficient" ? (
+            {verdict === "insufficient" || verdict === "cleanPartial" ? (
               <HelpCircle size={14} />
             ) : verdict === "clean" ? (
               <Check size={14} />
@@ -145,17 +138,29 @@ export function DecisionsComplianceImpactCheck() {
             )}
             {verdict === "insufficient"
               ? t("insufficientSample", { min: ADVERSE_IMPACT_MIN_COHORT })
-              : t(VERDICT_KEY[verdict])}
+              : verdict === "cleanPartial"
+                ? t(VERDICT_KEY[verdict], { count: impact.unassessedGroups, min: ADVERSE_IMPACT_MIN_COHORT })
+                : t(VERDICT_KEY[verdict])}
           </p>
           {/* A verdict that found nothing owes what it could have found: a non-significant
               line is silent about every gap smaller than the detectable ratio, and at
               these cohort sizes that is most of them. Only the not-significant verdicts
               carry it; a significant gap needs no such statement. */}
-          {impact.detectableRatio !== null && (verdict === "clean" || verdict === "belowNotSignificant") ? (
+          {impact.detectableRatio !== null && (verdict === "clean" || verdict === "cleanPartial" || verdict === "belowNotSignificant") ? (
             <p className="mt-1 text-meta text-steel">
               {Math.floor(impact.detectableRatio * 100) < 1
                 ? t("detectableBlind")
                 : t("detectable", { pct: Math.floor(impact.detectableRatio * 100) })}
+            </p>
+          ) : null}
+          {impact.referenceRate !== null ? (
+            <p className="mt-1 text-meta text-steel">
+              {t("referenceRule", { group: impact.referenceGroup ?? "", pct: (impact.referenceRate * 100).toFixed(0), min: ADVERSE_IMPACT_MIN_COHORT })}
+            </p>
+          ) : null}
+          {impact.clampedRows > 0 ? (
+            <p role="status" aria-live="polite" className="mt-1 text-meta font-medium text-coral">
+              {t("clampedRows", { count: impact.clampedRows })}
             </p>
           ) : null}
           {impact.reliable && impact.unassessedGroups > 0 ? (

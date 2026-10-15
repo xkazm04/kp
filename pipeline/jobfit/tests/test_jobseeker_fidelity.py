@@ -106,6 +106,24 @@ class ScreenRewriteTest(unittest.TestCase):
         # A verb the line already carries is not a raise.
         self.assertEqual(screen_rewrite("Led the weekly sales report.", "Led the weekly sales reporting.", self.record)[0], "ok")
 
+    def test_an_outcome_is_not_sized_or_rounded_up_in_words(self) -> None:
+        # technique accomplishment-statements-without-invention: no estimate, no rounding up.
+        rec = _Record("Reduced manual regression effort.\nReduced regression effort by about 30%.")
+        self.assertEqual(screen_rewrite("Reduced manual regression effort.", "Significantly reduced manual regression effort.", rec), ("question", "number:"))
+        self.assertEqual(screen_rewrite("Reduced regression effort by about 30%.", "Cut regression effort by 30%+.", rec), ("question", "number:"))
+        self.assertEqual(screen_rewrite("Reduced regression effort by about 30%.", "Cut regression effort by over 30%.", rec), ("question", "number:"))
+        # A size the line already states passes untouched.
+        self.assertEqual(screen_rewrite("Reduced regression effort by 30%+.", "Cut regression effort by 30%+.", _Record("Reduced regression effort by 30%+."))[0], "ok")
+
+    def test_participation_and_we_are_not_raised_to_leadership_or_sole_authorship(self) -> None:
+        rec = _Record("Assisted with the billing migration.\nWe built the reporting pipeline.")
+        self.assertEqual(screen_rewrite("Assisted with the billing migration.", "Drove the billing migration.", rec), ("question", "raise:Drove"))
+        self.assertEqual(screen_rewrite("We built the reporting pipeline.", "I built the reporting pipeline.", rec), ("question", "raise:I"))
+        self.assertEqual(screen_rewrite("We built the reporting pipeline.", "Built the reporting pipeline.", rec)[0], "ok")
+        # What the seeker says in the dialog is a fact.
+        said = _Record("We built the reporting pipeline.", "I built it alone.")
+        self.assertEqual(screen_rewrite("We built the reporting pipeline.", "I built the reporting pipeline.", said)[0], "ok")
+
     def test_a_self_descriptor_is_dropped(self) -> None:
         verdict, detail = screen_rewrite(SUMMARY, "Results-driven data analyst with six years in retail reporting.", self.record)
         self.assertEqual((verdict, detail), ("drop", "descriptor:results-driven"))

@@ -53,3 +53,12 @@ test("sanitizing is idempotent", () => {
     assert.equal(sanitizeFreeText(sanitizeFreeText(raw)), sanitizeFreeText(raw), raw);
   }
 });
+
+test("a tag split by another tag cannot reassemble into markup that survives", () => {
+  assert.equal(sanitizeFreeText("<scr<b>ipt>bad()</scr</i>ipt>Jan"), "bad()Jan");
+  assert.equal(sanitizeFreeText("<<b>b>x</b>"), "x");
+  for (const hostile of ["<scr<b>ipt>x", "<<i>img src=x>y", "a<scr<b><i>ipt>b"]) {
+    const once = sanitizeFreeText(hostile);
+    assert.equal(sanitizeFreeText(once), once, hostile);
+  }
+});

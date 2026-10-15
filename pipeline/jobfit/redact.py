@@ -25,6 +25,34 @@ _EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 _URL = re.compile(r"\b(?:https?://|www\.)\S+|\b(?:linkedin\.com|github\.com|gitlab\.com)/\S+", re.IGNORECASE)
 # A run of digits with phone-ish separators (>= ~9 digits), not glued to a word.
 _PHONE = re.compile(r"(?<!\w)\+?\d[\d\s().\-]{7,}\d(?!\w)")
+# Digit runs that match the phone shape but are SUBSTANCE: a tenure ("2015 - 2019",
+# "06/2018 - 07/2022" matched as "2018 - 07") or a grouped quantity ("12 000 000
+# requests", "1 200 000 EUR"). Masking them deleted the career's dates and its scale
+# figures as "[PHONE]" while the CV still read fluently. A "+" prefix is always a phone.
+_YEAR_RANGE = re.compile(r"^(?:\d{1,2}[/.])?(?:19|20)\d{2}\s*[-.]\s*(?:(?:\d{1,2}[/.])?(?:19|20)\d{2}|\d{1,2})$")
+_GROUPED_QUANTITY = re.compile(r"^\d{1,2}(?:[ .]\d{3}){2,}$")
+
+
+def _is_phone_shaped(match: "re.Match[str]") -> bool:
+    """False when a phone-shaped digit run is a year range or a grouped quantity."""
+    s = match.group(0)
+    if s.startswith("+"):
+        return True
+    return not (_YEAR_RANGE.match(s) or _GROUPED_QUANTITY.match(s))
+
+
+def _sub_phone(text: str) -> tuple[str, int]:
+    """_PHONE.subn that leaves tenure ranges and grouped quantities untouched."""
+    n = 0
+
+    def repl(m: "re.Match[str]") -> str:
+        nonlocal n
+        if _is_phone_shaped(m):
+            n += 1
+            return "[PHONE]"
+        return m.group(0)
+
+    return _PHONE.sub(repl, text), n
 # Gender-coded STANDALONE pronouns, EN + CS, whole word, case-insensitive.
 # NOTE: Czech "on" (he) is deliberately EXCLUDED — it collides with the ubiquitous
 # English preposition "on", so \bon\b would redact every "on" in an English CV,
@@ -305,7 +333,7 @@ def redact_pii(text: str) -> RedactResult:
         (_PHONE, "[PHONE]", "phone"),
         (_AGE, "[REDACTED]", "age / birth year"),
     ):
-        new, n = pattern.subn(tag, redacted)
+        new, n = _sub_phone(redacted) if pattern is _PHONE else pattern.subn(tag, redacted)
         if n:
             redacted = new
             categories.append(cat)

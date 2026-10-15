@@ -163,6 +163,10 @@ const catalogs = [defaultFile, ...files.filter((f) => f !== defaultFile)].map((f
 // had to be said out loud.
 const catalogResult = checkCatalogs(catalogs, DEFAULT_LOCALE);
 problems.push(...catalogResult.problems);
+// Advisory, never blocking: a source string whose targets fail in two or more
+// locales is likelier a defect of the shared source than two translator slips.
+// File these against the source owner before fixing any target.
+const sourceSuspects = catalogResult.sourceSuspects;
 // The default catalog's string addresses. The error-code and archetype lookups below
 // resolve plain object paths, so a list-item address (`a.b[0]`) never matches one.
 const baseKeys = catalogResult.baseKeys;
@@ -521,7 +525,14 @@ const coverageLine =
   `${coverage.defaultStrings} strings per locale checked (${coverage.listStrings} of them inside ${coverage.lists} list(s)); ` +
   `${coverage.totalUnits} across ${coverage.locales} locale(s), independent string count ${coverage.totalCounted}`;
 
+const suspectLines = sourceSuspects.map(
+  (s) => `  ? "${s.address}" fails in ${s.locales.length} locales: ${s.failures.map((f) => `${f.locale} (${f.checks.join(", ")})`).join("; ")}`
+);
 if (problems.length) {
+  if (suspectLines.length) {
+    console.error(`[i18n-check] ${sourceSuspects.length} source suspect(s), fix the source string first (advisory):`);
+    for (const l of suspectLines) console.error(l);
+  }
   console.error(`[i18n-check] ${problems.length} problem(s):`);
   for (const p of problems) console.error(`  - ${p}`);
   console.error(`[i18n-check] catalog coverage: ${coverageLine}`);

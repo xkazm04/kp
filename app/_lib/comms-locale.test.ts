@@ -6,7 +6,7 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
-import { inferLocaleFromLanguages, inferProfileLocale, resolveCommsLocale } from "./comms-locale.ts";
+import { inferLocaleFromLanguages, inferProfileLocale, resolveCommsLocale, resolveCommsLocaleWithSource } from "./comms-locale.ts";
 import { ensureDb } from "./db/core.ts";
 import { clearWorkspaceLocaleOverride, getWorkspaceDefaultLocale, setWorkspaceDefaultLocale, DEFAULT_WORKSPACE_ID } from "./db/workspaces.ts";
 import { saveProfile } from "./db/profiles.ts";
@@ -82,4 +82,11 @@ test("inferProfileLocale reads the saved profile's CV languages; unknown/missing
   assert.equal(inferProfileLocale(english.id), "en");
   assert.equal(inferProfileLocale("no-such-profile"), null);
   assert.equal(inferProfileLocale(null), null);
+});
+
+test("the resolver names the step that supplied the locale, and an unrecorded entry is never reported as recorded", () => {
+  assert.deepEqual(resolveCommsLocaleWithSource("en"), { locale: "en", source: "recorded" });
+  assert.deepEqual(resolveCommsLocaleWithSource(null), { locale: "cs", source: "workspace" });
+  assert.deepEqual(resolveCommsLocaleWithSource("xx-KLINGON"), { locale: "cs", source: "workspace" });
+  assert.equal(resolveCommsLocale(null), resolveCommsLocaleWithSource(null).locale, "one resolver: the plain form delegates");
 });

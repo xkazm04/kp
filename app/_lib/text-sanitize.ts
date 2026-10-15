@@ -38,6 +38,16 @@ export const INVISIBLE =
  *  rest of the value. */
 export const HTML_TAG = /<\/?[A-Za-z][^<>\n]*>/g;
 
+/** Remove tags until none is left. One pass is not enough: stripping `<b>` out of
+ *  `<scr<b>ipt>` joins its neighbours into `<script>`, a tag that was never in the input
+ *  and that the first pass could not see. Each pass only shortens the string, so the
+ *  loop ends. This is what makes `sanitizeFreeText` idempotent, as its header claims. */
+export function stripTags(value: string): string {
+  let text = value;
+  for (let next = text.replace(HTML_TAG, ""); next !== text; next = text.replace(HTML_TAG, "")) text = next;
+  return text;
+}
+
 /** Markdown links and images: keep the LABEL, drop the destination. The destination is
  *  the part with reach (a recruiter clicking it, a prompt quoting it); the label is the
  *  only part that could plausibly be the candidate's own text. */
@@ -58,11 +68,10 @@ const MD_BLOCK = /^[ \t]*(?:>+|#{1,6}|[-+*])[ \t]+/gm;
  * already did.
  */
 export function sanitizeFreeText(value: string): string {
-  return value
+  return stripTags(value
     .replace(INVISIBLE, "")
     .replace(MD_BLOCK, "")
-    .replace(MD_LINK, "$1")
-    .replace(HTML_TAG, "")
+    .replace(MD_LINK, "$1"))
     .replace(MD_INLINE, "")
     .replace(/\s+/g, " ")
     .trim();

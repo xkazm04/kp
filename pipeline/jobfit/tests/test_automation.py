@@ -1114,6 +1114,22 @@ class AdverseActionBoundaryTest(unittest.TestCase):
         self.assertEqual(result["recommendation"], "reject")
         self.assertEqual(result["route"], "hold")
 
+    def test_unreadable_verdict_never_fills_in_the_templates_advance(self):
+        # The strong BAU's template verdict IS "advance" (92 >= 70, no missing
+        # must-have). A reply whose verdict is off-set or absent but whose confidence
+        # is high must not inherit that advance under the model's name: the route the
+        # unattended screeningGate="auto" ratify reads would be advance.
+        job = mkjob()
+        m = score_job(BAU, job)
+        for verdict in ("definitely-hire", "yes", "", None, 42):
+            cap = _CaptureProvider({"recommendation": verdict, "confidence": 95, "rationale": "fine"})
+            result, _ = automation.screen_candidate(BAU, job, m, provider=cap)
+            self.assertEqual(result["recommendation"], "hold", repr(verdict))
+            self.assertEqual(result["route"], "hold", repr(verdict))
+        legal = _CaptureProvider({"recommendation": "advance", "confidence": 95, "rationale": "fine"})
+        result, _ = automation.screen_candidate(BAU, job, m, provider=legal)
+        self.assertEqual(result["route"], "advance")
+
     def test_early_career_reject_verdict_is_rewritten_after_the_model(self):
         job = mkjob()
         cap = _CaptureProvider({"recommendation": "reject", "confidence": 99})

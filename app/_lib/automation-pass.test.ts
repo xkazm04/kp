@@ -357,3 +357,30 @@ test("a recruiter ratifying the queued reject with no note seals the policy's re
   assert.equal(inputs.aiReasonCode, null);
   assert.equal(inputs.approvalKind, "rejection_review");
 });
+
+// --- blocked rejection is an audited event (registry: blocked-rejection-as-an-audited-event)
+// The refusal names its proposer and its refusing rule as structured facts, not only
+// as a sentence the producing machine froze.
+
+test("a refused auto-reject records the policy pass as proposer and the rule as a stable id", () => {
+  const id = seedAt("Screened", 1);
+  const s = emptySummary();
+  const d = alertDecision(id, "fairness_gate_blocked_reject");
+  d.action = "reject";
+  d.reasonParams = { rule: "protected-cohort", proposed: "reject" };
+  recordDecisionAlerts(d, snap(id), s, false);
+  const row = ensureDb()
+    .prepare(`SELECT actor FROM pipeline_events WHERE entry_id = ? AND kind = ?`)
+    .get(id, "fairness_gate_blocked_reject") as { actor: string | null };
+  assert.equal(row.actor, "auto:policy-pass", "the proposer is named, never a null that reads as a person");
+  assert.equal(d.reasonParams.rule, "protected-cohort");
+});
+
+test("other alert kinds keep a null actor", () => {
+  const id = seedAt("Screened", 1);
+  recordDecisionAlerts(alertDecision(id, "aging_alert"), snap(id), emptySummary(), false);
+  const row = ensureDb().prepare(`SELECT actor FROM pipeline_events WHERE entry_id = ? AND kind = ?`).get(id, "aging_alert") as
+    | { actor: string | null }
+    | undefined;
+  if (row) assert.equal(row.actor, null);
+});

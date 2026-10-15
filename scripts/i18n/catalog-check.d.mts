@@ -8,11 +8,21 @@ export declare function stringUnits(catalog: unknown): {
 };
 export declare function countStrings(value: unknown): number;
 export declare function dashError(value: string): string | null;
+export type SourceSuspect = {
+  address: string;
+  locales: string[];
+  failures: { locale: string; checks: string[] }[];
+};
+export declare function sourceSuspects(
+  findings: { locale: string; address: string; check: string }[],
+  floor?: number
+): SourceSuspect[];
 export declare function checkCatalogs(
   catalogs: { locale: string; data: unknown }[],
   defaultLocale: string
 ): {
   problems: string[];
+  sourceSuspects: SourceSuspect[];
   baseKeys: string[];
   coverage: {
     locales: number;
@@ -23,3 +33,7 @@ export declare function checkCatalogs(
     totalCounted: number;
   };
 };
+export declare function controlCharError(value: string): string | null;
+export declare function carriedLiterals(value: string): [string, string][];
+export declare function literalErrors(baseValue: string, value: string): string[];
+export declare function syntaxError(value: string, locale: string): string | null;

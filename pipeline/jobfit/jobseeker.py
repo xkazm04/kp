@@ -1000,6 +1000,9 @@ _RAISE_WORDS = frozenset({
     "senior", "lead", "principal", "head", "chief", "director", "manager", "vp", "cto", "ceo", "cio", "cfo", "coo", "architect",
     "led", "owned", "spearheaded", "headed", "directed", "oversaw", "supervised", "founded", "pioneered", "championed",
     "architected", "orchestrated",
+    # participation into leadership (technique accomplishment-statements-without-invention:
+    # "a verb may not raise the claim") — "assisted with" / "helped" does not become these.
+    "drove", "launched", "managed", "initiated",
     "vedouci", "reditel", "reditelka", "manazer", "manazerka", "vedl", "vedla", "ridil", "ridila", "zalozil", "zalozila",
     "leiter", "leiterin", "leitete", "fuhrte", "verantwortete", "grundete", "geschaftsfuhrer",
     "directeur", "directrice", "dirige", "pilote", "fonde", "chef",
@@ -1026,6 +1029,16 @@ _NUMBER_WORDS: dict[str, str] = {
     "zwei": "2", "drei": "3", "vier": "4", "funf": "5", "sechs": "6", "sieben": "7", "acht": "8", "neun": "9", "zehn": "10",
     "deux": "2", "trois": "3", "quatre": "4", "cinq": "5", "sept": "7", "huit": "8", "neuf": "9", "dix": "10",
 }
+
+# An outcome the record states WITHOUT a size must not gain one in words, and a stated
+# figure must not be rounded up (technique accomplishment-statements-without-invention:
+# "about 30%" does not become "30%+"; "significant" is an estimate in disguise).
+_MAGNITUDE = re.compile(
+    r"(?<!\w)(significant(?:ly)?|substantial(?:ly)?|dramatic(?:ally)?|drastic(?:ally)?|massive(?:ly)?|"
+    r"considerabl[ey]|tremendous(?:ly)?|greatly)(?!\w)", re.IGNORECASE)
+_UPWARD_BOUND = re.compile(r"\d\s*%?\s*\+|(?<!\w)(?:over|more than|at least|upwards of)\s+\d", re.IGNORECASE)
+_WE = re.compile(r"(?<!\w)(?:we|our|us)(?!\w)", re.IGNORECASE)
+_FIRST_PERSON = re.compile(r"(?<!\w)(?:I|my)(?!\w)")
 
 _SCREEN_NUMBER = re.compile(r"\d{1,3}(?:[  .,]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)?")
 _SCREEN_TOKEN = re.compile(r"\w[\w.+#'’/-]*", re.UNICODE)
@@ -1201,6 +1214,13 @@ def screen_rewrite(before: str, after: str, record: _Record, target: str | None 
         if tok in _RAISE_WORDS and tok not in allowed:
             word = next((w for w in re.findall(r"\w+", after) if _fold_word(w) == tok), tok)
             return "question", f"raise:{word}"
+    # A magnitude word or an upward-rounded bound the line did not already carry: the
+    # size is the owner's to state, so the line becomes the number question.
+    if (_MAGNITUDE.search(after) and not _MAGNITUDE.search(before)) or (_UPWARD_BOUND.search(after) and not _UPWARD_BOUND.search(before)):
+        return "question", "number:"
+    # "we" in the record, "I" in the rewrite: team work claimed as sole authorship.
+    if _WE.search(before) and not _FIRST_PERSON.search(before) and _FIRST_PERSON.search(after) and not _FIRST_PERSON.search(record.owner_said):
+        return "question", "raise:I"
     german = _is_german(record.text)
     # A proper noun the record does not hold: an employer, a product, a tool.
     for tok in _specifics(after, german):

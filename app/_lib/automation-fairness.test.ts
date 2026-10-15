@@ -140,3 +140,13 @@ test("a custom archetype shielded in the LIVE registry is refused as protected, 
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("every refusal carries a stable rule id beside its sentence", () => {
+  const rules = new Set<string>();
+  for (const e of [null, { archetype: "student", matchScore: 10 }, { archetype: "zzz-unknown", matchScore: 10 }, { archetype: "bau", matchScore: 0 }, { archetype: "bau", matchScore: 80 }]) {
+    const v = assertAutoRejectFair(e as never);
+    assert.equal(v.allowed, false);
+    if (!v.allowed) rules.add(v.rule);
+  }
+  assert.deepEqual([...rules].sort(), ["at-or-above-floor", "entry-missing", "protected-cohort", "unknown-archetype", "unscored"]);
+});

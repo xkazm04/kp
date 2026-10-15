@@ -239,3 +239,43 @@ export function checkRoundTrip(doc: CvDocument, extracted: string): RoundTripRes
   const checks = Object.fromEntries(ROUND_TRIP_CHECKS.map((c) => [c, !findings.some((f) => f.check === c)])) as Record<RoundTripCheck, boolean>;
   return { pass: findings.length === 0, checks, findings };
 }
+
+// ── the file, not the text ─────────────────────────────────────────────────────────
+// Registry export-format-and-round-trip-verification: the file has a metadata title, a
+// structure tree, embedded fonts and a size, and each decides what a machine reader gets.
+// Until this check existed the round trip printed them and failed on none, so a change
+// that dropped `tagged` from CV_PDF_OPTIONS, or a title step that stopped running, exited 0.
+
+export const EXPORT_PROPERTY_CHECKS = ["title", "tagged", "fontsEmbedded", "size"] as const;
+export type ExportPropertyCheck = (typeof EXPORT_PROPERTY_CHECKS)[number];
+export type ExportProperties = {
+  title: string | null | undefined;
+  tagged: boolean;
+  /** [base font name, embedded file type] pairs; the type is "n/a" for a font the file does not carry. */
+  fonts: ReadonlyArray<readonly [string, string]>;
+  bytes: number;
+};
+export type ExportPropertyResult = { pass: boolean; checks: Record<ExportPropertyCheck, boolean>; findings: string[] };
+
+/** Upload forms commonly cap at a few MB and some parsers fail past two; a text CV is far
+ *  below it, so crossing it means an image or an unsubset font was embedded. */
+export const CV_PDF_MAX_BYTES = 2 * 1024 * 1024;
+
+/** The exported file's own properties against what the route promises. A NAMED font with no
+ *  embedded file is a substitute the reader's machine will pick; an unnamed one is a Type 3
+ *  face, whose damage the text checks already see, so it is not counted here. */
+export function checkExportProperties(file: ExportProperties, expectedTitle: string): ExportPropertyResult {
+  const findings: string[] = [];
+  const missingFonts = file.fonts.filter(([name, ext]) => name && ext === "n/a").map(([name]) => name);
+  const checks: Record<ExportPropertyCheck, boolean> = {
+    title: (file.title ?? "") === expectedTitle,
+    tagged: file.tagged,
+    fontsEmbedded: missingFonts.length === 0,
+    size: file.bytes <= CV_PDF_MAX_BYTES,
+  };
+  if (!checks.title) findings.push(`title: ${JSON.stringify(file.title ?? null)}, expected ${JSON.stringify(expectedTitle)}`);
+  if (!checks.tagged) findings.push("tagged: no structure tree");
+  if (!checks.fontsEmbedded) findings.push(`fontsEmbedded: not carried by the file: ${missingFonts.join(", ")}`);
+  if (!checks.size) findings.push(`size: ${file.bytes} bytes, over ${CV_PDF_MAX_BYTES}`);
+  return { pass: findings.length === 0, checks, findings };
+}

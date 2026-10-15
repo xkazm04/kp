@@ -22,6 +22,10 @@ import { nextStageOnAxis } from "./db/pipeline-core";
 // attribution map can never key it differently.
 export const FAIRNESS_BLOCKED_REJECT_ALERT = FAIRNESS_GATE_BLOCKED_REJECT;
 
+/** Actor stamped on the blocked-reject event: the policy pass is what proposed the
+ *  adverse action the gate refused (never a person, never a null that renders as one). */
+export const FAIRNESS_PROPOSER = "auto:policy-pass";
+
 // THE single encoding of the fairness-backstop downgrade, shared by the dry-run
 // preview loop and the commit loop so the preview provably shows the SAME verdict
 // the commit enforces (the spec-pinned "preview must match commit" guarantee —
@@ -106,7 +110,9 @@ function applyFairnessVerdict(
   d.action = "hold";
   d.outcome = "fairness_blocked";
   d.reasonCode = preview ? "fairnessWouldRefuse" : "fairnessRefused";
-  d.reasonParams = { verdict: verdict.reason, original: d.reason };
+  // Structured facts beside the sentence: the refusing rule by stable id and the
+  // proposed outcome, so the refusal is countable by rule and re-renderable.
+  d.reasonParams = { verdict: verdict.reason, original: d.reason, rule: verdict.rule, proposed: "reject" };
   d.reason = `Auto-reject ${preview ? "would be refused" : "refused"} by fairness backstop: ${verdict.reason}. Original policy decision: ${d.reason}`;
   d.alerts = (d.alerts ?? []).includes(FAIRNESS_BLOCKED_REJECT_ALERT)
     ? d.alerts
@@ -402,7 +408,9 @@ export function recordDecisionAlerts(
       ? hasEventSinceStageChange(d.entryId, alert, entrySnap?.stageChangedAt ?? null, ws)
       : hasEventToday(d.entryId, alert, ws);
     if (already) continue;
-    if (!dryRun) recordAutomationEvent(d.entryId, alert, d.reason, ws);
+    // The blocked-reject event names its proposer: the policy pass proposed the
+    // reject the gate refused. Other alert kinds keep their historic null actor.
+    if (!dryRun) recordAutomationEvent(d.entryId, alert, d.reason, ws, alert === FAIRNESS_BLOCKED_REJECT_ALERT ? FAIRNESS_PROPOSER : null);
     summary.alerts += 1;
   }
 }
