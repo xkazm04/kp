@@ -219,7 +219,7 @@
       },
       "v2": {
         "title": "Určení archetypu → profil V2",
-        "summary": "Směr #2: cesta CV nyní odvozuje signály archetypu a spouští detect_archetype, čímž extrahované CV mapuje na CandidateProfileV2 s proveniencí a potenciálem. Route kandidátů i match-candidate.ts čtou skutečný archetyp místo napevno zadaného BAU."
+        "summary": "Směr #2: cesta CV nyní odvozuje signály archetypu a spouští detect_archetype, čímž extrahované CV mapuje na CandidateProfileV2 s proveniencí a potenciálem. Route kandidátů i match-candidate.ts čtou skutečný archetyp místo napevno zadaného BAU."
       },
       "match": {
         "title": "Match: KO · skóre · zdůvodnění",
@@ -682,7 +682,7 @@
       "eyebrow": "Otevřená data, přehledně",
       "title": "Český trh práce, <emph>bez příkras</emph>.",
       "subtitle": "Referenční mzdy, poptávka po náboru ve všech 14 krajích a pozice, které rostou i slábnou. Všechno postavené výhradně na veřejných datech trhu práce.",
-      "updated": "{n, plural, one {# volné místo} few {# volná místa} other {# volných míst}} k {date} · {pct} % zveřejněno za posledních 90 dní",
+      "updated": "{n, plural, one {# volné místo} few {# volná místa} other {# volných míst}} k {date} · {pct} % zveřejněno za posledních 90 dní",
       "updatedNoPct": "{n, plural, one {# volné místo} few {# volná místa} other {# volných míst}} k {date}",
       "stale": "Tento snímek je starý {days, plural, one {# den} few {# dny} other {# dní}}. Živý registr se od jeho pořízení posunul."
     },
@@ -696,7 +696,7 @@
       "hintBody": "Zobrazí se jeho volná místa a medián mzdy.",
       "vacancies": "Volná místa",
       "median": "Medián výdělku",
-      "range": "Prostředních 50 % bere {lo}–{hi}",
+      "range": "Prostředních 50 % bere {lo}–{hi}",
       "a11yVacancies": "volných míst",
       "a11yMedian": "medián výdělku",
       "a11yMedianUnavailable": "medián mzdy není k dispozici",
@@ -722,7 +722,7 @@
       "byRole": "Top profese",
       "openings": "{n, plural, one {# místo} few {# místa} other {# míst}}",
       "share": "{pct} %",
-      "shareTiny": "< 1 %"
+      "shareTiny": "< 1 %"
     },
     "orgTypes": {
       "eyebrow": "Kdo nabírá",
@@ -936,7 +936,7 @@
         "selfhost": {
           "name": "Vlastní instalace",
           "tagline": "Provozujte celou aplikaci na vlastním stroji.",
-          "price": "0 Kč",
+          "price": "0 Kč",
           "cadence": "navždy",
           "usd": "otevřený kód, AGPL-3.0",
           "cta": "Získat zdrojový kód",
@@ -991,7 +991,7 @@
           ]
         }
       },
-      "footnote2": "došly minuty? balíčky 100 minut pohovorů · 790 Kč (kterýkoli hostovaný tarif)",
+      "footnote2": "došly minuty? balíčky 100 minut pohovorů · 790 Kč (kterýkoli hostovaný tarif)",
       "enterprise": {
         "eyebrow": "Pro celou firmu",
         "heading": "Nabíráte napříč celou organizací?",
@@ -1097,7 +1097,7 @@
       "screen": {
         "eyebrow": "Krok 04 · Screening",
         "title": "Každé CV opravdu přečtené",
-        "body": "Každý kandidát je oproti pozici obodován 0–100 s dohledatelnými důkazy. Nejdřív proběhne kontrola férovosti; jednoznačně silné shody postoupí samy a vše ostatní čeká na člověka."
+        "body": "Každý kandidát je oproti pozici obodován 0–100 s dohledatelnými důkazy. Nejdřív proběhne kontrola férovosti; jednoznačně silné shody postoupí samy a vše ostatní čeká na člověka."
       },
       "assignment": {
         "eyebrow": "Krok 05 · Pracovní ukázka",
@@ -1428,7 +1428,7 @@
     "POSTING_TEXT_REQUIRED": "Inzerát potřebuje alespoň několik odstavců textu.",
     "POSTING_OFFLINE": "Tento server běží offline, stránku nelze načíst. Vložte místo toho text.",
     "INTAKE_BRIEF_INVALID": "Tato úprava zadání nemá očekávaný tvar.",
-    "INTAKE_BRIEF_NOT_READY": "Zadání potřebuje název role a alespoň jeden vylučovací požadavek nebo cíl na 90 dní, než z něj vznikne inzerát.",
+    "INTAKE_BRIEF_NOT_READY": "Zadání potřebuje název role a alespoň jeden vylučovací požadavek nebo cíl na 90 dní, než z něj vznikne inzerát.",
     "INTAKE_ALREADY_OPEN": "Tato konzultace už je otevřená.",
     "INTAKE_ATTACHMENT_LIMIT": "Tato konzultace už nese maximum podkladů.",
     "INTAKE_ATTACHMENT_INDEX": "Tento podklad už ke konzultaci nepatří.",
@@ -1440,7 +1440,7 @@
     "TOO_MANY_REQUESTS": "Příliš mnoho požadavků. Zkuste to prosím za chvilku znovu.",
     "LOGIN_CREDENTIALS_INVALID": "Nesprávné přihlašovací údaje. Zkuste to znovu.",
     "UPLOAD_UNSUPPORTED_TYPE": "Použijte soubor PDF, DOCX, TXT nebo MD.",
-    "UPLOAD_TOO_LARGE": "Tento soubor překračuje limit 8 MB pro nahrání.",
+    "UPLOAD_TOO_LARGE": "Tento soubor překračuje limit 8 MB pro nahrání.",
     "ANALYZE_CV_REQUIRED": "Přiložte životopis nebo profil, který se má analyzovat.",
     "ANALYZE_TOO_MANY_VARIANTS": "V jednom běhu lze porovnat nejvýše 3 varianty životopisu.",
     "INTERVIEW_SUBMISSION_NOT_FOUND": "Toto odevzdání se nepodařilo najít.",
@@ -1474,7 +1474,7 @@
     "VOICE_REQUEST_INVALID": "Tento požadavek nebyl platný JSON.",
     "AUDIO_MISSING": "Přiložte nahrávku k přepisu.",
     "AUDIO_UNSUPPORTED_TYPE": "Pro nahrávku použijte WAV, MP3, M4A, WebM, OGG nebo FLAC.",
-    "AUDIO_TOO_LARGE": "Tato nahrávka překračuje limit 25 MB pro nahrání.",
+    "AUDIO_TOO_LARGE": "Tato nahrávka překračuje limit 25 MB pro nahrání.",
     "STT_TOO_LONG": "Tato nahrávka je delší, než dokáže tento engine přepsat najednou. Rozdělte ji a zkuste to znovu.",
     "JD_FIELDS_REQUIRED": "Název i popis jsou povinné.",
     "JD_BUILD_TITLE_TOO_SHORT": "Název pozice musí mít alespoň 2 znaky.",
@@ -2231,7 +2231,7 @@
       "studentAspirationsPrompt": "O jakou pozici usilujete na začátku své kariéry?",
       "studentAspirationsPlaceholder": "např. junior backend vývojář/ka",
       "switchPriorPrompt": "Z jakého oboru přicházíte a co jste tam dělali?",
-      "switchPriorPlaceholder": "např. 6 let ve financích jako analytik/čka",
+      "switchPriorPlaceholder": "např. 6 let ve financích jako analytik/čka",
       "switchAspirationsPrompt": "Co vás láká na tomto oboru a o jakou pozici usilujete?",
       "switchAspirationsPlaceholder": "např. přechod do datového inženýrství, protože…",
       "experiencePrompt": "Jaká je vaše nejrelevantnější nedávná zkušenost pro tuto pozici? Stačí jedna dvě věty.",
@@ -2390,7 +2390,7 @@
       "micTestSilent": "Nezachytili jsme žádný zvuk. Zkontrolujte, že mikrofon není ztlumený, a otestujte to znovu.",
       "saveFailed": "Váš pohovor se nepodařilo uložit. Ponechte prosím tuto kartu otevřenou. Vaše odpovědi se možná nezaznamenaly.",
       "errVoiceSession": "Chyba hlasové relace",
-      "errConnectTimeout": "Nepodařilo se připojit do 30 s. Zkontrolujte oprávnění mikrofonu, že je poskytovatel nastaven a (u ElevenLabs) že agent povoluje přepsání.",
+      "errConnectTimeout": "Nepodařilo se připojit do 30 s. Zkontrolujte oprávnění mikrofonu, že je poskytovatel nastaven a (u ElevenLabs) že agent povoluje přepsání.",
       "errStartCall": "Hovor se nepodařilo spustit",
       "retryAfterMinutes": "Zkusit znovu můžete asi za {minutes, plural, one {# minutu} few {# minuty} other {# minut}}.",
       "errElevenConnect": "ElevenLabs se nepodařilo připojit",
@@ -3269,7 +3269,7 @@
     "command": {
       "placeholder": "Napište příkaz… např. zamítni všechny pod 60 %",
       "run": "Spustit",
-      "examples": "Zkuste: „zamítni všechny pod 60 % na backend“, „posuň první 3“, „spusť průchod pravidel“.",
+      "examples": "Zkuste: „zamítni všechny pod 60 % na backend“, „posuň první 3“, „spusť průchod pravidel“.",
       "affects": "{count, plural, =0 {Žádní kandidáti neodpovídají} =1 {1 kandidát} few {# kandidáti} other {# kandidátů}}",
       "confirm": "Potvrdit",
       "running": "Spouštění…",
@@ -3452,7 +3452,7 @@
       "bulkMoveConfirm": "Potvrdit přesun ({count})",
       "bulkMoveOfferHeld": "{count, plural, one {# zadržen kvůli připravené nabídce, zůstává vybrán. Nejprve nabídku odešlete nebo zahoďte} few {# zadrženi kvůli připraveným nabídkám, zůstávají vybráni. Nejprve nabídky odešlete nebo zahoďte} other {# zadrženo kvůli připraveným nabídkám, zůstávají vybráni. Nejprve nabídky odešlete nebo zahoďte}}",
       "moveErrorDismiss": "Zavřít",
-      "activityWindow": "Posledních 7 dní",
+      "activityWindow": "Posledních 7 dní",
       "activityKindLabel": "Typ události",
       "activityAllKinds": "Všechny události",
       "candidateFallback": "Kandidát"
@@ -4134,7 +4134,7 @@
       "ceiling1": "Zákonné sledování nepříznivého dopadu na chráněné skupiny ({standard}) neprobíhá automaticky. Vyžaduje agregovaná demografická data, která tato platforma záměrně neshromažďuje.",
       "ceiling2": "Brána spravedlnosti pro automatické zamítnutí je štít podle archetypu (fáze kariéry), ne test chráněných skupin.",
       "aiCheckTitle": "Kontrola nepříznivého dopadu (pravidlo čtyř pětin)",
-      "aiCheckIntro": "Spusťte pravidlo 80 % na agregovaných počtech, které vaše organizace už má (např. z odděleného EEO průzkumu).",
+      "aiCheckIntro": "Spusťte pravidlo 80 % na agregovaných počtech, které vaše organizace už má (např. z odděleného EEO průzkumu).",
       "aiCheckPlaceholder": "Skupina, vybráno, celkem (jeden na řádek)\nŽeny, 40, 100\nMuži, 80, 100",
       "aiCheckPrivacy": "Počítá se ve vašem prohlížeči ze zadaných počtů. Nic se neodesílá ani neukládá. Platforma neuchovává žádná demografická data.",
       "aiCheckHint": "Zadejte alespoň dvě skupiny pro výpočet poměrů míry výběru.",
@@ -4146,15 +4146,15 @@
       "colStatus": "Stav",
       "statusReference": "referenční",
       "statusAdverse": "nepříznivý dopad",
-      "statusBelowNotSignificant": "pod 80 %, statisticky nevýznamné",
+      "statusBelowNotSignificant": "pod 80 %, statisticky nevýznamné",
       "statusSignificantGap": "významný rozdíl",
       "statusOk": "ok",
       "statusNa": "n/a",
-      "anyAdverse": "Možný nepříznivý dopad: alespoň jedna skupina je pod prahem 80 % a rozdíl je statisticky významný.",
-      "belowNotSignificant": "Alespoň jedna skupina je pod prahem 80 %, ale při této velikosti vzorku rozdíl není statisticky významný. Berte to jako vzorec ke sledování, ne jako zjištění nepříznivého dopadu.",
-      "significantGap": "Žádná skupina není pod prahem 80 %, ale alespoň jeden rozdíl je statisticky významný. U velkých vzorků může nepříznivý dopad ukazovat i poměr nad 80 %.",
+      "anyAdverse": "Možný nepříznivý dopad: alespoň jedna skupina je pod prahem 80 % a rozdíl je statisticky významný.",
+      "belowNotSignificant": "Alespoň jedna skupina je pod prahem 80 %, ale při této velikosti vzorku rozdíl není statisticky významný. Berte to jako vzorec ke sledování, ne jako zjištění nepříznivého dopadu.",
+      "significantGap": "Žádná skupina není pod prahem 80 %, ale alespoň jeden rozdíl je statisticky významný. U velkých vzorků může nepříznivý dopad ukazovat i poměr nad 80 %.",
       "insufficientSample": "Nedostatečný vzorek: méně než dvě skupiny dosahují {min} uchazečů, takže nelze porovnat žádný poměr. Neznamená to, že nebyl zjištěn nepříznivý dopad.",
-      "noAdverse": "Žádná skupina není pod prahem čtyř pětin (80 %).",
+      "noAdverse": "Žádná skupina není pod prahem čtyř pětin (80 %).",
       "notAssessed": "{count, plural, one {# skupina má} few {# skupiny mají} other {# skupin má}} méně než {min} uchazečů a {count, plural, one {nebyla posouzena} few {nebyly posouzeny} other {nebylo posouzeno}}. Výsledek výše se na ně nevztahuje.",
       "detectable": "S těmito počty by skupina musela být vybírána nejvýše na {pct} % referenční míry, aby tato kontrola spolehlivě ukázala rozdíl. Výsledek, který není významný, neprokazuje, že jsou míry stejné.",
       "detectableBlind": "S těmito počty by tato kontrola nedokázala spolehlivě ukázat rozdíl ani u skupiny, která nebyla vybrána nikdy. Výsledek, který není významný, neprokazuje, že jsou míry stejné.",
@@ -5246,14 +5246,14 @@
         "promoted": "Inzerát vytvořen. Najdete ho mezi uloženými.",
         "promoteMissing": {
           "title": "Zatím chybí název pozice.",
-          "substance": "Zatím chybí jedna nezbytná podmínka nebo cíl na 90 dní."
+          "substance": "Zatím chybí jedna nezbytná podmínka nebo cíl na 90 dní."
         },
         "promoteError": "Popis pozice se nepodařilo vytvořit. Zkuste to prosím znovu.",
         "brief": {
           "title": "Živé zadání",
           "writing": "Zapisuji…",
           "role": "Pozice",
-          "outcomes": "Hotovo za 90 dní",
+          "outcomes": "Hotovo za 90 dní",
           "dealbreakers": "Nezbytné",
           "niceToHave": "Výhodou",
           "learnable": "lze doučit",
@@ -5270,7 +5270,7 @@
           },
           "slot": {
             "role": "Název role",
-            "outcome": "Co má platit za 90 dní",
+            "outcome": "Co má platit za 90 dní",
             "dealbreaker": "Co kandidáta vyřadí",
             "nice": "Vítané, ale ne nutné",
             "context": "Proč teď, tým, rozpočet"
@@ -5380,7 +5380,7 @@
           "untitled": "Nepojmenovaná pozice",
           "level": "úroveň {seniority}",
           "aboutRole": "O pozici",
-          "outcomes": "Jak vypadá úspěch (prvních 90 dní)",
+          "outcomes": "Jak vypadá úspěch (prvních 90 dní)",
           "responsibilities": "Odpovědnosti",
           "whatBring": "Co byste měli mít",
           "niceToHave": "Výhodou",
@@ -6828,7 +6828,7 @@
         "archived_invalid": "Příznak archivace musí být true nebo false.",
         "registry_invalid": "Soubor registru archetypů je neplatný, nelze jej upravit. Zkontrolujte pipeline/jobfit/archetypes.json.",
         "registry_unreadable": "Soubor registru archetypů se nepodařilo načíst.",
-        "weight_out_of_range": "Váha pro {slot} musí být mezi 0 a 100 %.",
+        "weight_out_of_range": "Váha pro {slot} musí být mezi 0 a 100 %.",
         "id_reserved": "„{id}“ je vyhrazeno pro kandidáty, které nebylo možné zařadit; zvolte jiné id.",
         "edit_builtin_shield": "„{id}“ je vestavěný archetyp; jeho ochranu spravedlnosti ani model hodnocení nelze změnit."
       },
@@ -8118,7 +8118,7 @@
       "accrualHoldout": "Kontrolní vzorek se plní jen tehdy, když běží automatické zamítání: část kandidátů, které by zamítlo, se ušetří a sleduje se právě zde.",
       "skill": "Přínos proti základní míře",
       "skillValue": "{pct} %",
-      "skillHint": "0 % = nic navíc oproti tomu, kdyby se vždy tipovala základní míra této skupiny ({pct} % postoupilo, Brier {base}). Pod nulou je to horší.",
+      "skillHint": "0 % = nic navíc oproti tomu, kdyby se vždy tipovala základní míra této skupiny ({pct} % postoupilo, Brier {base}). Pod nulou je to horší.",
       "baseRateLegend": "Základní míra ({pct} % postoupilo)",
       "thresholdLegend": "Práh automatického zamítnutí ({threshold})",
       "srThreshold": "Práh automatického zamítnutí je vyznačen u předpovědi {threshold}.",
@@ -8140,7 +8140,7 @@
       "outcomeHiredScopeNote": "Rozpad podle pásem skóre i návrh prahu vycházejí z postupu za screening, takže zůstávají u tohoto nastavení. Přepněte zpět a uvidíte je.",
       "axisObservedHired": "Skutečná míra přijetí",
       "baseRateLegendHired": "Základní míra ({pct} % přijato)",
-      "skillHintHired": "0 % = nic navíc oproti tomu, kdyby se vždy tipovala základní míra této skupiny ({pct} % přijato, Brier {base}). Pod nulou je to horší.",
+      "skillHintHired": "0 % = nic navíc oproti tomu, kdyby se vždy tipovala základní míra této skupiny ({pct} % přijato, Brier {base}). Pod nulou je to horší.",
       "uncalibratedBodyHired": "Kalibrace potřebuje alespoň {min} kandidátů, kteří byli přijati, nebo zamítnuti. Zatím: {n}.",
       "leakageLevelHighRejects": "Zamítnutí způsobilo skóre",
       "leakageScoreCausedHiredNote": "K přijetí vede cesta přes pohovory, nabídku a její přijetí, o nichž toto skóre nerozhoduje, takže úspěchy zde skóre nevytvořilo. Zamítnutí zčásti ano: automatický screening zamítá podle skóre shody a každé takové zamítnutí se zde počítá jako nepřijetí. Tato osa je méně kruhová než screeningová, ne však čistá.",
@@ -8637,7 +8637,7 @@
     "byRoleFilterCount": "Zobrazeno {shown} z {total}",
     "byRoleNoMatch": "Žádná pozice v této tabulce neodpovídá výrazu „{q}“. Může jít o pozici pod hranicí objemu. <link>Prohledejte celou nástěnku pipeline</link>.",
     "byRoleCapNote": "{hidden, plural, one {# pozice je} few {# pozice jsou} other {# pozic je}} mimo tuto tabulku, která se řadí podle objemu a ponechává prvních {shown}. <link>Prohledejte raději nástěnku pipeline.</link>",
-    "windowDeltaHint": "Srovnání s předchozím obdobím se zobrazí po volbě 30 nebo 90 dní.",
+    "windowDeltaHint": "Srovnání s předchozím obdobím se zobrazí po volbě 30 nebo 90 dní.",
     "windowScopeReach": "Okno platí pro Výkon a Ekonomiku. Kvalita a audit a firemní srovnání se vždy počítají za celou dobu.",
     "windowScopeBlind": "Kvalita a audit se vždy počítá za celou dobu. Okno se zde neuplatní.",
     "briefBandDwell": "Kde se ztrácí čas",
@@ -9542,12 +9542,12 @@
       "queue": "fronta: běží {running} · čeká {queued}",
       "catalogEmpty": "zatím žádné pozice v katalogu",
       "cacheHitRate": "Úspěšnost cache",
-      "runs7d": "{count, plural, one {# běh · 7 dní} few {# běhy · 7 dní} other {# běhů · 7 dní}}",
+      "runs7d": "{count, plural, one {# běh · 7 dní} few {# běhy · 7 dní} other {# běhů · 7 dní}}",
       "noRuns": "tento týden žádné běhy",
       "avgAnalysis": "Průměrná analýza",
-      "engineRuns7d": "{count, plural, one {# běh enginu · 7 dní} few {# běhy enginu · 7 dní} other {# běhů enginu · 7 dní}}",
-      "stageTimings": "Průměrné časy fází (7 dní)",
-      "deadLetters": "{count, plural, one {# nedoručená zpráva · 7 dní} few {# nedoručené zprávy · 7 dní} other {# nedoručených zpráv · 7 dní}}",
+      "engineRuns7d": "{count, plural, one {# běh enginu · 7 dní} few {# běhy enginu · 7 dní} other {# běhů enginu · 7 dní}}",
+      "stageTimings": "Průměrné časy fází (7 dní)",
+      "deadLetters": "{count, plural, one {# nedoručená zpráva · 7 dní} few {# nedoručené zprávy · 7 dní} other {# nedoručených zpráv · 7 dní}}",
       "reconcileFailures": "{count, plural, one {# selhání synchronizace plánování} few {# selhání synchronizace plánování} other {# selhání synchronizace plánování}}",
       "bookedStalls": "{count, plural, one {# zablokování kvůli plnému kalendáři} few {# zablokování kvůli plnému kalendáři} other {# zablokování kvůli plnému kalendáři}}",
       "alarmOpen": "Otevřít: {tab}",
@@ -9612,7 +9612,7 @@
         "malformedOverride": "{name} není číslo, proto platí odhad",
         "remedyService": "Spusťte místní hlasovou službu nebo zkontrolujte {vars}",
         "remedyRetry": "Zkuste to později",
-        "failedOver": "{count, plural, one {# pohovor přešel na {to} za 7 dní} few {# pohovory přešly na {to} za 7 dní} other {# pohovorů přešlo na {to} za 7 dní}}",
+        "failedOver": "{count, plural, one {# pohovor přešel na {to} za 7 dní} few {# pohovory přešly na {to} za 7 dní} other {# pohovorů přešlo na {to} za 7 dní}}",
         "preference": "KP_VOICE_PROVIDER požaduje {requested}, který není nastaven, proto nové odkazy na pohovor používají {used}."
       }
     },
@@ -10016,7 +10016,7 @@
       "titleSaved": "Váš pracovní prostor je nastavený",
       "titlePartial": "Váš pracovní prostor je nastavený, ale některé odpovědi se neuložily",
       "linksTitle": "{count, plural, one {Sdílejte tento odkaz s pozvánkou} few {Sdílejte tyto # odkazy s pozvánkou} other {Sdílejte těchto # odkazů s pozvánkou}}",
-      "linksBody": "Žádný e-mail s pozvánkou se neodesílá. Pošlete každému kolegovi jeho vlastní odkaz: přidá ho do tohoto pracovního prostoru a platí 14 dní. Odkaz může použít kdokoli, kdo ho má, proto ho sdílejte jen s danou osobou.",
+      "linksBody": "Žádný e-mail s pozvánkou se neodesílá. Pošlete každému kolegovi jeho vlastní odkaz: přidá ho do tohoto pracovního prostoru a platí 14 dní. Odkaz může použít kdokoli, kdo ho má, proto ho sdílejte jen s danou osobou.",
       "copy": "Kopírovat odkaz",
       "copyFor": "Kopírovat odkaz s pozvánkou pro {email}",
       "copyAll": "Kopírovat všechny odkazy",
@@ -10623,7 +10623,7 @@
     "jobLink": {
       "linked": "Pozice: {title}",
       "openTitle": "Otevřít tuto pozici v záložce Pozice",
-      "unsourced": "Popis \"{slug}\" zatím nemá pozici",
+      "unsourced": "Popis „{slug}“ zatím nemá pozici",
       "unsourcedTitle": "Toto zadání vzniklo z uloženého popisu práce, který nikdy nebyl převeden na pozici, takže zatím není na co odkazovat. Převědte jej v knihovně popisů a odkaz se objeví zde."
     },
     "emptyLedger": {
@@ -11053,7 +11053,7 @@
         "approve_in_personas": "Schvalte v Personas: {hours, plural, one {zbývá # hodina} few {zbývají # hodiny} other {zbývá # hodin}}",
         "approve_no_clock": "Čeká na schválení v Personas",
         "review_probation": "V Personas je třeba vyhodnotit zkušební dobu",
-        "check_reporter_silent": "Personas neposlalo hlášení déle než 7 dní",
+        "check_reporter_silent": "Personas neposlalo hlášení déle než 7 dní",
         "check_reporter_rejected": "Personas hlášení posílá, ale žádné nebylo přijato",
         "redispatch": "Tento nábor neproběhl"
       },
@@ -11141,7 +11141,7 @@
       },
       "ring": {
         "needs": "potřebuje vás",
-        "budget": "100 % rozpočtu",
+        "budget": "100 % rozpočtu",
         "budgetLine": "hranice rozpočtu",
         "spend": "útrata",
         "state": "stav"
@@ -11354,7 +11354,7 @@
         "show": "Zobrazit",
         "all": "Vše",
         "keyLabel": "Jak číst kartu na ciferníku",
-        "block": "blok: jeho stav · pruh: útrata tento měsíc vůči jeho vlastnímu rozpočtu podle poskytovatele; čárkovaný kruh je 100 %",
+        "block": "blok: jeho stav · pruh: útrata tento měsíc vůči jeho vlastnímu rozpočtu podle poskytovatele; čárkovaný kruh je 100 %",
         "stub": "čárkovaný pahýl: zatím nic nenaúčtováno, což není 0 $",
         "needs": "potřebuje vás",
         "appMaster": "App master (hranatá hlavička)"
@@ -14269,7 +14269,7 @@
         "stalled": "Utichlo"
       },
       "pathNote": "Cesta je to, co cesty kandidátů dělaly nejčastěji. Nikdo ji nevyhlásil.",
-      "timeNote": "Čas je kalendářní čas mezi zaznamenanými událostmi; cesta bez novinky 21 dní se počítá jako utichlá.",
+      "timeNote": "Čas je kalendářní čas mezi zaznamenanými událostmi; cesta bez novinky 21 dní se počítá jako utichlá.",
       "capped": "Zobrazeno prvních {n} z {total} cest.",
       "empty": "V tomto pohledu nejsou žádné cesty.",
       "loadError": "Pohled na proces se nepodařilo načíst."
@@ -14387,7 +14387,7 @@
       "role-shape": "Zadavatel popsal podobu role",
       "backfill-reason": "Zadavatel vysvětlil, proč je místo volné",
       "role-title": "Zadavatel pojmenoval roli vlastními slovy",
-      "first-90-days": "Tazatel se zeptal, co musí přinést prvních 90 dní",
+      "first-90-days": "Tazatel se zeptal, co musí přinést prvních 90 dní",
       "must-have-skills": "Zadavatel uvedl nezbytné dovednosti",
       "seniority": "Zadavatel určil úroveň seniority",
       "team-context": "Zadavatel popsal tým, do kterého nástup směřuje",
@@ -15429,7 +15429,7 @@
       "hires": "{count, plural, one {# nábor} few {# nábory} many {# náboru} other {# náborů}}",
       "noSpecialists": "Zatím není najatý žádný specialista.",
       "notZero": "ne nula",
-      "unmeasuredTip": "{name}: neměřeno, zatím nic nerozhodnuto. Není to 0 %.",
+      "unmeasuredTip": "{name}: neměřeno, zatím nic nerozhodnuto. Není to 0 %.",
       "measuredTip": "{name}: přijato {accepted} z {resolved}",
       "small": "malý vzorek",
       "knownLabel": "Co dnes víme",
@@ -17041,7 +17041,7 @@
         "comparable": "Srovnáno v {currency} za {period}",
         "notComparable": "Nesrovnatelné: {currency} za {period}",
         "basisRole": "Hodnoceno vůči mzdovému pásmu role. Hranice pásma nejsou součástí tohoto pohledu, proto každý řádek uvádí jen to, zda jeho střed leží uvnitř.",
-        "basisCohort": "Hodnoceno vůči mediánu této skupiny: vystínované okno je medián ± 15 %.",
+        "basisCohort": "Hodnoceno vůči mediánu této skupiny: vystínované okno je medián ± 15 %.",
         "notComparableWhy": "Jiná měna nebo jiný základ mzdy: vlastní stupnice, nikdy se nepřepočítává.",
         "range": "{name}: {min} až {max} {currency} za {period}, střed {mid}",
         "inBand": "v pásmu",
