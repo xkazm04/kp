@@ -1,0 +1,105 @@
+{
+ "schema": "conform-run/1",
+ "worker": "346892e7-a348-442e-9a84-49365bb05e96",
+ "subject": "docs-sync",
+ "evaluatedAt": "2026-10-15T00:05:23.813065+00:00",
+ "provider": "agy",
+ "model": "gemini-3.8-flash-high",
+ "pairs": [
+  {
+   "context": "ci-doc-gates",
+   "subject": "docs-sync",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "scripts/docs/check-doc-sync.mjs:120 Touching any documentation directory prefix discharges the sync obligation for any changed source file, allowing changes to satisfy the check without updating their specific coupled document.",
+   "techniques": [
+    {
+     "technique": "same-change-enforcement",
+     "verdict": "deviation",
+     "evidence": "scripts/docs/check-doc-sync.mjs:120 Satisfaction is computed by directory prefix rather than the named target document."
+    },
+    {
+     "technique": "source-doc-mapping",
+     "verdict": "deviation",
+     "evidence": "scripts/docs/__tests__/check-doc-sync.test.mjs:88 Unmapped source files are pinned as silently passing, leaving 34.6% of tracked source files uncovered by construction."
+    },
+    {
+     "technique": "coupled-surface-inventory",
+     "verdict": "deviation",
+     "evidence": "scripts/docs/feature-doc-map.json:5 Entries declare only a single markdown file rather than an inventory of coupled prose surfaces (reference, tours, marketing) checked independently."
+    },
+    {
+     "technique": "checked-vs-skipped-denominators",
+     "verdict": "deviation",
+     "evidence": "scripts/docs/check-doc-sync-diff.mjs:65 When no comparable git base exists, the script announces a skip but exits 0 rather than reporting an empty denominator."
+    },
+    {
+     "technique": "doc-rot-detection",
+     "verdict": "deviation",
+     "evidence": "scripts/docs/check-adrs.mjs:148 Validates that sources cited in ADRs exist on disk, but lacks the unverifiable verdict rung and broader corpus rot scanning."
+    },
+    {
+     "technique": "source-as-data-without-the-app",
+     "verdict": "conformant",
+     "evidence": "scripts/docs/__tests__/keyless-e2e-pin.test.mjs:17 Parses source configuration as text without importing dependencies, asserting a non-empty population floor."
+    },
+    {
+     "technique": "named-duplication-points",
+     "verdict": "conformant",
+     "evidence": "scripts/docs/__tests__/keyless-e2e-pin.test.mjs:73 Asserts mechanically that the hand-maintained list restated in guidance prose matches the source configuration in both directions."
+    },
+    {
+     "technique": "prose-as-an-execution-surface",
+     "verdict": "conformant",
+     "evidence": "scripts/docs/check-guidance.mjs:374 Enforces that runnable command paths printed in hook refusal messages and guidance files resolve relative to repo root."
+    }
+   ],
+   "registryProposal": "While same-change enforcement properly recommends commit-range git diff checks with countable commit-trailer dismissals, satisfaction by directory prefix remains an exceptionally sticky defect when teams generalize the rule across multiple documentation folders."
+  }
+ ],
+ "declined": [
+  {
+   "subject": "docs-sync",
+   "context": "review-gates",
+   "reason": "Change-review and constitution diff-scanning lenses (quality gates); does not implement docs-as-code synchronization."
+  },
+  {
+   "subject": "docs-sync",
+   "context": "github-repo-intelligence",
+   "reason": "Developer intelligence and repository scanning library; does not implement docs-as-code synchronization."
+  },
+  {
+   "subject": "docs-sync",
+   "context": "jobseeker-sources-scans",
+   "reason": "Jobseeker candidate portal UI components and scan tasks; does not implement docs-as-code synchronization."
+  },
+  {
+   "subject": "docs-sync",
+   "context": "pipeline-api",
+   "reason": "Pipeline management REST API endpoints and command execution; does not implement docs-as-code synchronization."
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-15T00:05:23.813065+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "docs-sync"
+   ],
+   "techniques": [
+    "checked-vs-skipped-denominators",
+    "coupled-surface-inventory",
+    "doc-rot-detection",
+    "named-duplication-points",
+    "prose-as-an-execution-surface",
+    "same-change-enforcement",
+    "source-as-data-without-the-app",
+    "source-doc-mapping"
+   ],
+   "deviations": 1,
+   "context": "ci-doc-gates",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  }
+ ]
+}

@@ -8005,12 +8005,11 @@
           "changedAt": "2026-09-25",
           "confidence": "strong",
           "state": "deviation",
-          "evidence": "deviation, re-judged at rev 12: same-change-enforcement has moved onto the version-control record (.github/workflows/ci.yml:321 runs check-doc-sync-diff.mjs over a git range, with a countable \"Doc-sync:\" commit-trailer dismissal), meeting the corrected rule - but satisfaction is still by directory prefix at scripts/docs/check-doc-sync.mjs:120, the shape the technique measures as the wrong document 54.3% of the time. source-doc-mapping's coverage wall is still unbuilt: scripts/docs/feature-doc-map.json declares 356 globs over 41 entries, none dead, while 748 of 2,551 non-skipped tracked source files (29.3%) match no entry at all, and scripts/docs/__tests__/check-doc-sync.test.mjs:88 pins \"unmapped source edit => silent\" as intended - so nearly a third of the tree owes no document by construction.",
-          "evaluatedAt": "2026-09-20",
-          "evaluatedAgainst": "sha256:e0debca9966dc4a7",
-          "evaluatedRevision": 12,
-          "revisionsBehind": 2,
-          "stale": true
+          "evidence": "scripts/docs/check-doc-sync.mjs:120 Touching any documentation directory prefix discharges the sync obligation for any changed source file, allowing changes to satisfy the check without updating their specific coupled document.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:fd96220db75846a1",
+          "evaluatedRevision": 14,
+          "revisionsBehind": 2
         },
         {
           "subject": "translation-pipeline-topology",

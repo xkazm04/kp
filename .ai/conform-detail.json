@@ -4522,6 +4522,67 @@
           "evidence": "app/features/insights/about/AboutTab.tsx:45 Scene loading uses ordinary application module imports, not unexported native capabilities."
         }
       ]
+    },
+    "65792460-c7df-4a0e-ad4b-224ea3acd82b/docs-sync": {
+      "context": "ci-doc-gates",
+      "subject": "docs-sync",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T00:05:23.813Z",
+      "worker": "346892e7-a348-442e-9a84-49365bb05e96",
+      "techniques": [
+        {
+          "technique": "same-change-enforcement",
+          "verdict": "deviation",
+          "evidence": "scripts/docs/check-doc-sync.mjs:120 Satisfaction is computed by directory prefix rather than the named target document."
+        },
+        {
+          "technique": "source-doc-mapping",
+          "verdict": "deviation",
+          "evidence": "scripts/docs/__tests__/check-doc-sync.test.mjs:88 Unmapped source files are pinned as silently passing, leaving 34.6% of tracked source files uncovered by construction."
+        },
+        {
+          "technique": "coupled-surface-inventory",
+          "verdict": "deviation",
+          "evidence": "scripts/docs/feature-doc-map.json:5 Entries declare only a single markdown file rather than an inventory of coupled prose surfaces (reference, tours, marketing) checked independently."
+        },
+        {
+          "technique": "checked-vs-skipped-denominators",
+          "verdict": "deviation",
+          "evidence": "scripts/docs/check-doc-sync-diff.mjs:65 When no comparable git base exists, the script announces a skip but exits 0 rather than reporting an empty denominator."
+        },
+        {
+          "technique": "doc-rot-detection",
+          "verdict": "deviation",
+          "evidence": "scripts/docs/check-adrs.mjs:148 Validates that sources cited in ADRs exist on disk, but lacks the unverifiable verdict rung and broader corpus rot scanning."
+        },
+        {
+          "technique": "source-as-data-without-the-app",
+          "verdict": "conformant",
+          "evidence": "scripts/docs/__tests__/keyless-e2e-pin.test.mjs:17 Parses source configuration as text without importing dependencies, asserting a non-empty population floor."
+        },
+        {
+          "technique": "named-duplication-points",
+          "verdict": "conformant",
+          "evidence": "scripts/docs/__tests__/keyless-e2e-pin.test.mjs:73 Asserts mechanically that the hand-maintained list restated in guidance prose matches the source configuration in both directions."
+        },
+        {
+          "technique": "prose-as-an-execution-surface",
+          "verdict": "conformant",
+          "evidence": "scripts/docs/check-guidance.mjs:374 Enforces that runnable command paths printed in hook refusal messages and guidance files resolve relative to repo root."
+        }
+      ],
+      "registryProposal": "While same-change enforcement properly recommends commit-range git diff checks with countable commit-trailer dismissals, satisfaction by directory prefix remains an exceptionally sticky defect when teams generalize the rule across multiple documentation folders.",
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "deviation, re-judged at rev 12: same-change-enforcement has moved onto the version-control record (.github/workflows/ci.yml:321 runs check-doc-sync-diff.mjs over a git range, with a countable \"Doc-sync:\" commit-trailer dismissal), meeting the corrected rule - but satisfaction is still by directory prefix at scripts/docs/check-doc-sync.mjs:120, the shape the technique measures as the wrong document 54.3% of the time. source-doc-mapping's coverage wall is still unbuilt: scripts/docs/feature-doc-map.json declares 356 globs over 41 entries, none dead, while 748 of 2,551 non-skipped tracked source files (29.3%) match no entry at all, and scripts/docs/__tests__/check-doc-sync.test.mjs:88 pins \"unmapped source edit => silent\" as intended - so nearly a third of the tree owes no document by construction.",
+          "evaluatedAt": "2026-09-20",
+          "worker": null,
+          "reason": "replaced by 346892e7-a348-442e-9a84-49365bb05e96"
+        }
+      ]
     }
   }
 }
