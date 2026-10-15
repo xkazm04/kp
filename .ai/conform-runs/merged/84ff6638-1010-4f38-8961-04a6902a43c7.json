@@ -1,0 +1,240 @@
+{
+ "schema": "conform-run/1",
+ "worker": "84ff6638-1010-4f38-8961-04a6902a43c7",
+ "subject": "comparative-shortlist-evaluation",
+ "evaluatedAt": "2026-10-15T01:00:30.114312+00:00",
+ "provider": "agy",
+ "model": "gemini-3.8-flash-high",
+ "pairs": [
+  {
+   "context": "jobs-candidates-compare",
+   "subject": "comparative-shortlist-evaluation",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/library/jobs/jobsRecruiterCandidatesLogic.ts:197 The candidates tab re-ranks candidates by their centroid cross-scheme mean score under the banner of 'Fair Rank' without verifying whether schemes varied or testing rank stability.",
+   "techniques": [
+    {
+     "technique": "cross-scheme-weight-robustness",
+     "verdict": "deviation",
+     "evidence": "app/features/library/jobs/jobsRecruiterCandidatesLogic.ts:197 Ranks candidates by the cross-scheme mean score as 'fairRank' without testing whether the order is stable across schemes or checking if schemes varied."
+    },
+    {
+     "technique": "robustness-status-taxonomy",
+     "verdict": "deviation",
+     "evidence": "app/features/library/jobs/JobsRecruiterCandidatesFairness.tsx:67 Labels the cross-scheme mean column as robust without deriving or presenting the five closed robustness statuses."
+    },
+    {
+     "technique": "confidence-band-lead-separation",
+     "verdict": "deviation",
+     "evidence": "app/features/library/jobs/jobsRecruiterCandidatesLogic.ts:198 Shortlist candidates are sorted strictly by point estimates without evaluating confidence band overlap between leader and runner-up."
+    },
+    {
+     "technique": "minimum-cohort-before-a-comparative-claim",
+     "verdict": "deviation",
+     "evidence": "app/features/library/jobs/JobsCompareInterviews.tsx:35 The interview compare surface only gates on zero candidates, permitting a single candidate to be rendered in the comparative cohort table."
+    },
+    {
+     "technique": "role-relevant-exclusive-differentiators",
+     "verdict": "deviation",
+     "evidence": "app/features/library/jobs/JobsCompareInterviewsCohortTable.tsx:154 Displays raw observed skills rather than role-relevant exclusive differentiators that no rival in the cohort matches."
+    },
+    {
+     "technique": "refuse-a-cross-currency-comparison",
+     "verdict": "conformant",
+     "evidence": "app/features/library/jobs/jobsCompareCohorts.ts:19 Refuses to compare candidates evaluated under different scoring models/rubrics, partitioning them into distinct cohorts."
+    }
+   ]
+  },
+  {
+   "context": "group-eval-shared",
+   "subject": "comparative-shortlist-evaluation",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/shared/groupEvalTypes.ts:165 The shared summary facts type explicitly encodes omitting separation unless the lead is overlapping, leaving unknown separation silent contrary to the standard.",
+   "techniques": [
+    {
+     "technique": "robustness-status-taxonomy",
+     "verdict": "conformant",
+     "evidence": "app/features/shared/groupEvalTypes.ts:46 Defines the closed 5-status taxonomy capturing whether weights varied, data was unavailable, or sample was insufficient."
+    },
+    {
+     "technique": "cross-scheme-weight-robustness",
+     "verdict": "conformant",
+     "evidence": "app/features/shared/groupEvalTypes.ts:120 Inspects scheme vectors directly to prevent the uniform-weight no-op trap from masquerading as a robustness pass."
+    },
+    {
+     "technique": "minimum-cohort-before-a-comparative-claim",
+     "verdict": "conformant",
+     "evidence": "app/features/shared/groupEvalArm.ts:43 Rejects pre-arming comparison selection when fewer than the minimum cohort of two candidates are provided."
+    },
+    {
+     "technique": "confidence-band-lead-separation",
+     "verdict": "deviation",
+     "evidence": "app/features/shared/groupEvalTypes.ts:165 SummaryFacts defines separation as present only when overlapping, mirroring the server's empty-unless-overlapping rule and keeping unknown silent."
+    }
+   ]
+  },
+  {
+   "context": "group-eval-comparison",
+   "subject": "comparative-shortlist-evaluation",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/hiring/decisions/groupEval/GroupEvalComparisonTable.tsx:199 The comparison table displays an unhedged lead crown when separation is unknown because tiedLead only checks for overlapping separation, keeping uncertainty silent.",
+   "techniques": [
+    {
+     "technique": "confidence-band-lead-separation",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/decisions/groupEval/GroupEvalComparisonTable.tsx:199 The comparison table only qualifies a crowned lead when separation is overlapping, displaying a lead whose separation is unknown without hedge or notice."
+    },
+    {
+     "technique": "robustness-status-taxonomy",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/decisions/groupEval/GroupEvalFairnessPanel.tsx:79 Consumes the 5-status robustness taxonomy and renders honest not-tested and could-not-assess states rather than reporting a false pass."
+    },
+    {
+     "technique": "refuse-a-cross-currency-comparison",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/decisions/groupEval/GroupEvalSalaryCell.tsx:35 Filters cross-currency salary expectations from the shared comparison scale and displays an explicit not-comparable badge instead of converting."
+    },
+    {
+     "technique": "cross-scheme-weight-robustness",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/decisions/groupEval/GroupEvalFairnessPanel.tsx:144 Renders the full cross-scheme matrix, explicitly marking the own-weighting diagonal and reporting robust order agreement."
+    },
+    {
+     "technique": "minimum-cohort-before-a-comparative-claim",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/decisions/groupEval/GroupEvalFairnessPanel.tsx:38 Renders an explicit insufficient sample message and suppresses comparative ranking when the cohort has fewer than two candidates."
+    },
+    {
+     "technique": "role-relevant-exclusive-differentiators",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/decisions/groupEval/GroupEvalPerCandidateTabs.tsx:118 Exclusive differentiators are only surfaced for the top pick while rivals receive no differentiator list, and an empty differentiator list remains silent."
+    },
+    {
+     "technique": "counterbalanced-candidate-order",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/decisions/groupEval/GroupEvalAiVerdict.tsx:69 Displays the comparison narrative headline and points directly without counterbalanced evaluation across multiple candidate orders."
+    }
+   ],
+   "registryProposal": "The standard should require separation status to be a non-nullable discriminant whenever a lead is crowned, preventing schema designs where 'unknown' is omitted and falls back to an unhedged lead display."
+  },
+  {
+   "context": "matrix-focus",
+   "subject": "comparative-shortlist-evaluation",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/insights/matrix/focus/MatchJobCompare.tsx:40 The candidate focus compare table crowns the winning role by maximum point total without testing whether its confidence band clears the runner-up.",
+   "techniques": [
+    {
+     "technique": "confidence-band-lead-separation",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/matrix/focus/MatchJobCompare.tsx:40 The transposed compare table tints the lead cell based strictly on maximum point score without testing confidence-band separation against runner-up roles."
+    },
+    {
+     "technique": "minimum-cohort-before-a-comparative-claim",
+     "verdict": "conformant",
+     "evidence": "app/features/insights/matrix/focus/MatchResultsGroupEvalBanner.tsx:23 Gates offering the Decisions group-eval comparative handoff on having at least 2 candidates filed for the same role."
+    },
+    {
+     "technique": "cross-scheme-weight-robustness",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/matrix/focus/MatchWeightsPanel.tsx:117 Allows ad-hoc weight slider re-ranking without evaluating order stability across alternative schemes or reporting robustness."
+    },
+    {
+     "technique": "role-relevant-exclusive-differentiators",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/matrix/focus/MatchJobCompare.tsx:122 Truncates matched skills to the first 8 items without filtering for exclusive differentiators or prioritizing must-have requirements."
+    },
+    {
+     "technique": "refuse-a-cross-currency-comparison",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/matrix/focus/MatchJobCompare.tsx:159 Displays salary bands across compared roles without checking or withholding cross-currency mismatches."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "comparative-shortlist-evaluation",
+   "context": "candidate-profile",
+   "reason": "The candidate-profile context (profile editor, completeness scoring, archetype taxonomy manager, and candidate population board grouped by archetype lanes) does not implement comparative shortlist evaluation, head-to-head candidate comparisons, lead crowning, or robustness checking."
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-15T01:00:30.114312+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "comparative-shortlist-evaluation"
+   ],
+   "techniques": [
+    "confidence-band-lead-separation",
+    "cross-scheme-weight-robustness",
+    "minimum-cohort-before-a-comparative-claim",
+    "refuse-a-cross-currency-comparison",
+    "robustness-status-taxonomy",
+    "role-relevant-exclusive-differentiators"
+   ],
+   "deviations": 1,
+   "context": "jobs-candidates-compare",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-15T01:00:30.114312+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "comparative-shortlist-evaluation"
+   ],
+   "techniques": [
+    "confidence-band-lead-separation",
+    "cross-scheme-weight-robustness",
+    "minimum-cohort-before-a-comparative-claim",
+    "robustness-status-taxonomy"
+   ],
+   "deviations": 1,
+   "context": "group-eval-shared",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-15T01:00:30.114312+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "comparative-shortlist-evaluation"
+   ],
+   "techniques": [
+    "confidence-band-lead-separation",
+    "counterbalanced-candidate-order",
+    "cross-scheme-weight-robustness",
+    "minimum-cohort-before-a-comparative-claim",
+    "refuse-a-cross-currency-comparison",
+    "robustness-status-taxonomy",
+    "role-relevant-exclusive-differentiators"
+   ],
+   "deviations": 1,
+   "context": "group-eval-comparison",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-15T01:00:30.114312+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "comparative-shortlist-evaluation"
+   ],
+   "techniques": [
+    "confidence-band-lead-separation",
+    "cross-scheme-weight-robustness",
+    "minimum-cohort-before-a-comparative-claim",
+    "refuse-a-cross-currency-comparison",
+    "role-relevant-exclusive-differentiators"
+   ],
+   "deviations": 1,
+   "context": "matrix-focus",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  }
+ ]
+}

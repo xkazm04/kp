@@ -14920,7 +14920,11 @@
           "revision": 2,
           "changedAt": "2026-09-27",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/hiring/decisions/groupEval/GroupEvalComparisonTable.tsx:199 The comparison table displays an unhedged lead crown when separation is unknown because tiedLead only checks for overlapping separation, keeping uncertainty silent.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:b430bb5e1d99181c",
+          "evaluatedRevision": 2
         },
         {
           "subject": "agent-memory",
@@ -15094,7 +15098,11 @@
           "revision": 2,
           "changedAt": "2026-09-27",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/shared/groupEvalTypes.ts:165 The shared summary facts type explicitly encodes omitting separation unless the lead is overlapping, leaving unknown separation silent contrary to the standard.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:b430bb5e1d99181c",
+          "evaluatedRevision": 2
         },
         {
           "subject": "agent-memory",
@@ -18724,7 +18732,11 @@
           "revision": 2,
           "changedAt": "2026-09-27",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/library/jobs/jobsRecruiterCandidatesLogic.ts:197 The candidates tab re-ranks candidates by their centroid cross-scheme mean score under the banner of 'Fair Rank' without verifying whether schemes varied or testing rank stability.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:b430bb5e1d99181c",
+          "evaluatedRevision": 2
         },
         {
           "subject": "adverse-impact-and-proxy-neutrality",
@@ -22090,7 +22102,11 @@
           "revision": 2,
           "changedAt": "2026-09-27",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/insights/matrix/focus/MatchJobCompare.tsx:40 The candidate focus compare table crowns the winning role by maximum point total without testing whether its confidence band clears the runner-up.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:b430bb5e1d99181c",
+          "evaluatedRevision": 2
         }
       ],
       "governance": "governed"
