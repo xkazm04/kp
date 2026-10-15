@@ -6825,7 +6825,11 @@
           "revision": 2,
           "changedAt": "2026-09-26",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/registry.py:327 When no detection signal fires, the router this context calls records the registry default archetype instead of a distinct unrouted class.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:a2c5b1bf2e5d6fce",
+          "evaluatedRevision": 2
         },
         {
           "subject": "eval-harness",
@@ -7103,7 +7107,11 @@
           "revision": 2,
           "changedAt": "2026-09-26",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/tools/profile/ProfileForm.ts:94 Opening a saved profile pins its stored archetype as the routing choice that later saves submit as a self-declaration, so a prior inference can be re-filed as the person's own statement.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:a2c5b1bf2e5d6fce",
+          "evaluatedRevision": 2
         },
         {
           "subject": "mcp-tools",
@@ -25443,7 +25451,11 @@
           "revision": 2,
           "changedAt": "2026-09-26",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/tools/profile/ProfileForm.ts:91 The editor pins a saved archetype back into the routing choice and submits that choice as selfDeclared, which promotes a stored class to the declaration tier.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:a2c5b1bf2e5d6fce",
+          "evaluatedRevision": 2
         },
         {
           "subject": "markdown-vault",
@@ -25626,7 +25638,11 @@
           "revision": 2,
           "changedAt": "2026-09-26",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "app/features/tools/profile/candidateMatrixView.test.ts:53 The roster matrix shows an unrecognized archetype as one unrouted lane, and the archetype manager retires entries without removing them while refusing a weight total that is not 100.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:a2c5b1bf2e5d6fce",
+          "evaluatedRevision": 2
         },
         {
           "subject": "people-analytics-ethics",
@@ -30990,7 +31006,11 @@
           "revision": 2,
           "changedAt": "2026-09-26",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_archetype_sanity.py:15 The classifier suite documents and locks the no-signal route as the experienced class, so these tests protect the collapsed default rather than an unrouted state.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:a2c5b1bf2e5d6fce",
+          "evaluatedRevision": 2
         },
         {
           "subject": "eval-harness",

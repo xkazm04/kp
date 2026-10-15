@@ -6412,6 +6412,207 @@
           "evidence": "app/features/library/jobs/JobsRecruiterCandidates.tsx:110 Renders early-career cohort protection as fairness-shielded without any disclaimer that it is not a protected-class test."
         }
       ]
+    },
+    "e69ea8c8-1943-4054-97d1-78001e6d4530/candidate-archetype-routing": {
+      "context": "candidate-matching",
+      "subject": "candidate-archetype-routing",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T23:38:47.338Z",
+      "worker": "3abb1894-43db-4fb0-876b-f2f4ab8f78b4",
+      "techniques": [
+        {
+          "technique": "signal-scored-routing-not-rule-matching",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/registry.py:330 Signals are a weighted table and all that fire accumulate, but confidence is the winner's share of mass with no mass scaling and no cap under the 0.9 declaration tier, so unanimous signals read 1.0."
+        },
+        {
+          "technique": "self-declaration-trusted-contradictions-flagged",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/archetypes.json:80 The declared class is kept, and bau and career_switcher have contradiction rules too, but this ceiling is 0.65 and the others are 0.65 and 0.7, all above lowConfidenceThreshold 0.55. pipeline.py:936 still flags contradiction_fired, which is the special path the technique says not to use in place of a cap below the threshold."
+        },
+        {
+          "technique": "confidence-always-returned-with-a-review-threshold",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/pipeline.py:1735 A confidence is always returned and the unguided 0.4 sits under the 0.55 threshold, but this OK branch accepts any share at or above the threshold. The enrolled plus under-one-year case is asserted as 100% OK, above the 0.9 declaration tier."
+        },
+        {
+          "technique": "conservative-default-and-the-unrouted-state",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/registry.py:327 defaultArchetype is bau. matching.py keeps a caller-supplied unknown out of the seniority knockout and only borrows bau weights, but the detector itself never emits an unrouted id."
+        },
+        {
+          "technique": "population-specific-weights-and-dimension-renaming",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/group_compare.py:191 Early-career slots are renamed and rescored (Foundation/Potential/Fit versus Skills/Career/Personal), and weights come from the registry, but this sort still crowns one overall-fit leader across those totals. A later sentence only says to judge early-career separately."
+        },
+        {
+          "technique": "one-registry-shared-across-runtimes",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/soft_signals.py:205 Weights, labels, and matching._EARLY_CAREER are read from archetypes.json, but this strength gate is a handwritten pair of ids, so an archetype added only in the registry never reaches it."
+        }
+      ],
+      "registryProposal": "Say whether a parallel contradiction_fired review flag satisfies the cap-below-threshold rule. These ceilings are 0.65 and 0.7 against lowConfidenceThreshold 0.55, and pipeline._archetype_needs_review still returns contradiction."
+    },
+    "09520f54-a3ff-4d23-add2-af0340c1e505/candidate-archetype-routing": {
+      "context": "candidate-profile",
+      "subject": "candidate-archetype-routing",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T23:38:47.338Z",
+      "worker": "3abb1894-43db-4fb0-876b-f2f4ab8f78b4",
+      "techniques": [
+        {
+          "technique": "signal-scored-routing-not-rule-matching",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/profile/ProfileEditorArchetypeOptions.tsx:2 These files build the routing picker and the matrix. They do not accumulate archetype signals."
+        },
+        {
+          "technique": "self-declaration-trusted-contradictions-flagged",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/profile/ProfileForm.ts:94 The comment above this line says intake booleans are not stored, so edit mode pins choice to the stored archetype to keep re-routing stable. That pin is what gets sent as selfDeclared."
+        },
+        {
+          "technique": "confidence-always-returned-with-a-review-threshold",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/profile/ProfileEditorAiDraft.tsx:69 messages/en.json draftedAs reads as a percent of routing signals that agree and tells the recruiter to review and edit before save. This view does not compare the number to the registry threshold."
+        },
+        {
+          "technique": "conservative-default-and-the-unrouted-state",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/profile/candidateMatrixView.ts:48 An unknown or unrecognized archetype is shown as one unrouted column, not as a raw id and not relabeled as experienced."
+        },
+        {
+          "technique": "population-specific-weights-and-dimension-renaming",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/profile/ArchetypeManagerTypes.ts:69 The editor stores per-archetype weight percents and dimension name strings, and refuses a save whose three slots do not sum to 100."
+        },
+        {
+          "technique": "one-registry-shared-across-runtimes",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/profile/ProfileEditorArchetypeOptions.tsx:42 When the live registry list is empty the picker falls back to the handwritten ARCHETYPE_CHOICES ids. ProfileForm.ts also special-cases bau and career_switcher for which fields appear, with no fallthrough for a new id."
+        }
+      ]
+    },
+    "4c01cda6-93db-4db4-a5fa-d5153653d9c6/candidate-archetype-routing": {
+      "context": "tests-matching-taxonomy",
+      "subject": "candidate-archetype-routing",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T23:38:47.338Z",
+      "worker": "3abb1894-43db-4fb0-876b-f2f4ab8f78b4",
+      "techniques": [
+        {
+          "technique": "signal-scored-routing-not-rule-matching",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_archetype_sanity.py:48 The suite treats confidence as a share of the winning archetype, and the enrolled plus zero-years case is expected to read routing OK at 100% confidence."
+        },
+        {
+          "technique": "self-declaration-trusted-contradictions-flagged",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_archetype_sanity.py:103 A self-declared student whose reasons include a contradiction is still reviewed at confidence 0.65, above the 0.55 threshold, via a separate contradiction code rather than because the cap sits under the threshold."
+        },
+        {
+          "technique": "confidence-always-returned-with-a-review-threshold",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_archetype_sanity.py:43 Document inference that agrees with itself is required to be an OK routing at 100%, which is above the 0.9 self-declared tier. The unguided default at 40% is flagged, including when signals are absent."
+        },
+        {
+          "technique": "conservative-default-and-the-unrouted-state",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_archetype_sanity.py:22 The no-signal call with years at 2.0, where neither experience signal fires, is required to come back as bau. A separate matching test does keep a caller-supplied unknown off the seniority knockout."
+        },
+        {
+          "technique": "population-specific-weights-and-dimension-renaming",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_matching.py:250 The suite pins the early-career breakdown labels as Foundation, Potential, and Fit against Skills, Career, and Personal for bau."
+        },
+        {
+          "technique": "one-registry-shared-across-runtimes",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_archetype_sanity.py:40 This assertion reads the review cutoff from the shared registry. A source scan for a shadow taxonomy is not in this file list."
+        }
+      ]
+    },
+    "e6b85437-3bfd-4a78-828e-ce67fb2e6114/candidate-archetype-routing": {
+      "context": "profile-roster-matrix",
+      "subject": "candidate-archetype-routing",
+      "bundle": "recruiting",
+      "state": "conformant",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T23:38:47.338Z",
+      "worker": "3abb1894-43db-4fb0-876b-f2f4ab8f78b4",
+      "techniques": [
+        {
+          "technique": "signal-scored-routing-not-rule-matching",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/profile/candidateMatrixView.ts:7 The board groups people who already have an archetype. It does not classify careers."
+        },
+        {
+          "technique": "confidence-always-returned-with-a-review-threshold",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/profile/candidateMatrixView.ts:41 The lane bands the fit score. These files do not return or threshold a routing confidence."
+        },
+        {
+          "technique": "conservative-default-and-the-unrouted-state",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/profile/candidateMatrixView.test.ts:53 Unknown and made-up archetype ids fold into one unrouted column and are not rendered as a raw id."
+        },
+        {
+          "technique": "population-specific-weights-and-dimension-renaming",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/profile/ArchetypeManager.tsx:112 Each archetype has its own weight percents and dimension labels, and a total that is not 100 disables save. The matrix ranks inside an archetype lane, not across lanes on one list."
+        },
+        {
+          "technique": "one-registry-shared-across-runtimes",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/profile/ArchetypeManager.tsx:85 Retired archetypes leave the active picker and stay in the archived list so existing routings still resolve. The manager does not keep a second archetype id list."
+        }
+      ]
+    },
+    "9f3047cf-311d-487b-89d3-7035a61e7433/candidate-archetype-routing": {
+      "context": "profile-editor",
+      "subject": "candidate-archetype-routing",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T23:38:47.338Z",
+      "worker": "3abb1894-43db-4fb0-876b-f2f4ab8f78b4",
+      "techniques": [
+        {
+          "technique": "signal-scored-routing-not-rule-matching",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/profile/profileReadiness.ts:136 The live preview ports the registry signal table and accumulates every fired rule, then sets confidence to the uncapped winner's share."
+        },
+        {
+          "technique": "self-declaration-trusted-contradictions-flagged",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/profile/useProfileEditorSubmit.ts:70 On edit, choice was hydrated from the stored archetype so re-routing stays stable. Submitting it as selfDeclared gives that stored class the declaration tier."
+        },
+        {
+          "technique": "confidence-always-returned-with-a-review-threshold",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/profile/profileReadiness.test.ts:109 An auto route with enrollment and an expected graduation year, not a declaration, is required to come back at confidence 1, above selfDeclaredConfidence 0.9. The preview's Detection type does not carry the review threshold."
+        },
+        {
+          "technique": "conservative-default-and-the-unrouted-state",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/profile/profileReadiness.ts:131 A blank auto form is routed to the default archetype (bau at 0.4), not to an unrouted member. The same case is pinned in profileReadiness.test.ts."
+        },
+        {
+          "technique": "population-specific-weights-and-dimension-renaming",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/profile/ProfileForm.ts:19 This chooses which intake fields show. The editor does not define per-population score dimensions or weights."
+        },
+        {
+          "technique": "one-registry-shared-across-runtimes",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/profile/ProfileEditorArchetypeOptions.tsx:9 The live preview reads detection from archetypes.json, but a failed registry load falls back to the handwritten baseline ids, and field visibility special-cases bau and career_switcher."
+        }
+      ]
     }
   }
 }
