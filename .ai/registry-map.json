@@ -18370,7 +18370,11 @@
           "revision": 3,
           "changedAt": "2026-09-27",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/salary-benchmark.ts:76 The thin-sample threshold gates an advisory UI caveat rather than gating publication, allowing benchmark rows with null or sub-floor samples to emit usable anchor bands instead of refusing.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:65e7b4a1c18fb94c",
+          "evaluatedRevision": 3
         },
         {
           "subject": "inclusive-job-advertising",
@@ -18855,7 +18859,11 @@
           "revision": 3,
           "changedAt": "2026-09-27",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/market_salary_cli.py:133 A missing or unmapped role family automatically defaults to software_engineering, forcing a figure to be returned instead of refusing to price an uncalibrated role.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:65e7b4a1c18fb94c",
+          "evaluatedRevision": 3
         },
         {
           "subject": "structured-interview-scorecards",
@@ -21573,7 +21581,11 @@
           "revision": 3,
           "changedAt": "2026-09-27",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/apply-market-salaries.mjs:156 Families lacking empirical ISPV survey coverage or falling below MIN_SAMPLE_K are retained as published benchmark bands under a manual source label rather than being rejected.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:65e7b4a1c18fb94c",
+          "evaluatedRevision": 3
         }
       ],
       "governance": "governed"
@@ -29805,7 +29817,11 @@
           "revision": 3,
           "changedAt": "2026-09-27",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/landing/spark/market/parts.tsx:175 Uncalibrated role families lacking an empirical median are dropped silently from the visualization instead of rendering a visible refusal that explains the omission.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:65e7b4a1c18fb94c",
+          "evaluatedRevision": 3
         },
         {
           "subject": "pre-publish-fillability-forecast",
@@ -30598,7 +30614,11 @@
           "revision": 3,
           "changedAt": "2026-09-27",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_market_salary_cli.py:87 Tests verify and assert that a taxonomy miss on an uncalibrated role family returns degenerate zeros rather than asserting a structured, reasoned refusal.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:65e7b4a1c18fb94c",
+          "evaluatedRevision": 3
         },
         {
           "subject": "eval-harness",
