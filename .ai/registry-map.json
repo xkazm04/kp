@@ -8349,7 +8349,11 @@
           "revision": 4,
           "changedAt": "2026-09-23",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/companion-run.ts:193 The companion turn runner returns a monolithic Promise result rather than an event stream and lacks host capability injection and conversation locking.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:7a0b336cac31d173",
+          "evaluatedRevision": 4
         },
         {
           "subject": "companion-identity",
@@ -8536,7 +8540,11 @@
           "revision": 4,
           "changedAt": "2026-09-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/companion_cli.py:362 The companion CLI resolves model calls with an ambient use-case string without requiring a situational leg kind argument distinguishing interactive turns from background cycles.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:7a0b336cac31d173",
+          "evaluatedRevision": 4
         },
         {
           "subject": "agent-instruction-files",

@@ -5737,6 +5737,120 @@
           "evidence": "app/features/shell/simulation/SimulationProvider.tsx:102 Pagehide and normal run completion release leases, but provider unmount has no stop/wake/release cleanup; useSimulationWalk supplies no effect cleanup to cover that ending."
         }
       ]
+    },
+    "c0265e6e-9274-43db-9929-822cb417b96d/companion-runtime": {
+      "context": "companion-ai",
+      "subject": "companion-runtime",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T04:04:17.963Z",
+      "worker": "32542591-3f59-45c8-a0f5-f8359d805e86",
+      "techniques": [
+        {
+          "technique": "action-catalog-single-source",
+          "verdict": "conformant",
+          "evidence": "app/_lib/companion-actions.ts:141 COMPANION_ACTIONS declares the closed action catalog as a single array from which prompt addenda, validators, and executors derive."
+        },
+        {
+          "technique": "host-seam-contracts",
+          "verdict": "deviation",
+          "evidence": "app/_lib/companion-run.ts:93 Directly imports and queries host store listPipeline instead of receiving store capabilities via a construction-time seam contract."
+        },
+        {
+          "technique": "headless-turn-stream",
+          "verdict": "deviation",
+          "evidence": "app/_lib/companion-run.ts:193 runCompanionTurn returns a Promise resolving to a final result rather than returning a stream of typed turn events ending in a verdict."
+        },
+        {
+          "technique": "autonomous-cycle-hosting",
+          "verdict": "deviation",
+          "evidence": "app/_lib/companion-digest-run.ts:52 Digest cycle runs against the latest conversation without verifying whether a turn is currently live on that thread or companion."
+        },
+        {
+          "technique": "signal-economy-contract",
+          "verdict": "deviation",
+          "evidence": "app/_lib/companion-digest-run.ts:62 Autonomous digest cycle directly appends the turn to the conversation without a typed report-or-absorb decision at production time."
+        },
+        {
+          "technique": "metered-llm-seam",
+          "verdict": "deviation",
+          "evidence": "app/_lib/companion-run.ts:284 Model invocation delegates to an external process spawn rather than funneling through an in-runtime metered seam with required leg kinds."
+        },
+        {
+          "technique": "operative-working-set",
+          "verdict": "deviation",
+          "evidence": "app/_lib/companion-run.ts:90 Grounding information about present activity is gathered on-demand from database queries rather than from an in-memory operative working set."
+        }
+      ]
+    },
+    "3fbaa8cf-25f9-4c19-9b05-f06cd4aac151/companion-runtime": {
+      "context": "shell-companion",
+      "subject": "companion-runtime",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T04:04:17.963Z",
+      "techniques": [
+        {
+          "technique": "headless-turn-stream",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/companion/useCompanionThread.ts:119 Client hook fetches a full non-streaming HTTP JSON response instead of consuming a headless stream of typed turn events."
+        },
+        {
+          "technique": "action-catalog-single-source",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/companion/CompanionProposalCard.tsx:73 Proposal card renders action summaries via dynamic fallback rather than build-time exhaustive typing over the single-source catalog."
+        },
+        {
+          "technique": "host-seam-contracts",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/companion/useCompanionRuntime.ts:24 The runtime seam is conflated with a client-side React UI state container rather than an isolated host capability contract."
+        }
+      ],
+      "registryProposal": "In applications with client-side localization catalogs, exhaustive typing over the single-source catalog is frequently bypassed in favour of dynamic key lookups with fallbacks (e.g. t.has).",
+      "withdrawn": {
+        "worker": "32542591-3f59-45c8-a0f5-f8359d805e86",
+        "state": "deviation",
+        "at": "2026-10-15T04:05:26.276515+00:00",
+        "reason": "reviewer (sonnet): The deviation anchors on app/features/shell/companion/useCompanionThread.ts:119, which does not appear in the shell-companion context's path list in registry-map.json (it occurs only in the evidence text), so the verdict is about a file outside this context."
+      }
+    },
+    "7f1cebc0-2929-4145-8eeb-c0b7c7ceaa8f/companion-runtime": {
+      "context": "companion-appmaster",
+      "subject": "companion-runtime",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T04:04:17.963Z",
+      "worker": "32542591-3f59-45c8-a0f5-f8359d805e86",
+      "techniques": [
+        {
+          "technique": "action-catalog-single-source",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/companion_cli.py:246 Teaching prompt renders dynamically from the shipped wire catalog without hardcoding action identifiers in the Python process."
+        },
+        {
+          "technique": "metered-llm-seam",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/companion_cli.py:362 Model invocation resolves the provider using a feature label rather than requiring a situational leg kind argument distinguishing interactive turns from background passes."
+        },
+        {
+          "technique": "headless-turn-stream",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/companion_cli.py:497 run_turn returns a static dictionary payload instead of an event stream of typed events and lacks conversation concurrency locks."
+        },
+        {
+          "technique": "host-seam-contracts",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/companion_brain.py:84 Storage locations are resolved via process-global environment variables and ambient paths rather than through an injected store capability."
+        },
+        {
+          "technique": "autonomous-cycle-hosting",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/companion_cli.py:548 Autonomous digest runs without checking whether a conversational turn is live on the companion and without declared spend ceilings."
+        }
+      ]
     }
   }
 }
