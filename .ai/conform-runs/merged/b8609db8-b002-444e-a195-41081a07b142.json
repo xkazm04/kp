@@ -1,0 +1,201 @@
+{
+ "schema": "conform-run/1",
+ "worker": "b8609db8-b002-444e-a195-41081a07b142",
+ "subject": "app-shell",
+ "evaluatedAt": "2026-10-15T03:45:53.068898+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "shell-nav",
+   "subject": "app-shell",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/shell/nav/NavRailPreferences.tsx:98 Icon-only preference triggers rely on native title text for visual name discovery, which does not provide the keyboard-accessible, dismissible reveal the technique requires.",
+   "techniques": [
+    {
+     "technique": "badge-and-attention",
+     "verdict": "deviation",
+     "evidence": "app/features/shell/nav/NavPanelItem.tsx:85 The renderer displays the uncapped inventory count directly; neither this branch nor the slice-button branch provides a threshold display such as 99+."
+    },
+    {
+     "technique": "entitlement-gating",
+     "verdict": "conformant",
+     "evidence": "app/features/shell/nav/NavPanelItem.tsx:96 This renderer consumes the shared lock policy and renders focusable lock doors with a lock icon rather than disabled entries; activation reaches the destination's explanation panel."
+    },
+    {
+     "technique": "lazy-section-loading",
+     "verdict": "conformant",
+     "evidence": "app/features/shell/nav/NavPanelItem.tsx:149 The navigation's intent-warming responsibility is realized on pointer entry and keyboard focus, using the shared idempotent chunk prefetcher."
+    },
+    {
+     "technique": "nav-hierarchy",
+     "verdict": "deviation",
+     "evidence": "app/features/shell/nav/NavRailPreferences.tsx:98 The trigger has an accessible name, but its visual name reveal uses only the native title mechanism."
+    }
+   ]
+  },
+  {
+   "context": "workspace-shell-core",
+   "subject": "app-shell",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/shell/WorkspaceTabChunks.tsx:127 Every destination switch remounts the animated wrapper, so warm returns repeat entrance choreography and tear down healthy section subtrees.",
+   "techniques": [
+    {
+     "technique": "entitlement-gating",
+     "verdict": "deviation",
+     "evidence": "app/features/shell/navCapabilities.ts:33 Requirements occupy a separate TAB_CAPABILITY table, outside the navigation registry, and mirror independently declared server requirements rather than deriving both boundaries from one declaration."
+    },
+    {
+     "technique": "lazy-section-loading",
+     "verdict": "deviation",
+     "evidence": "app/features/shell/WorkspaceTabChunks.tsx:127 The location key remounts the subtree and replays animate-tab-in on every return, without a first-visit condition."
+    },
+    {
+     "technique": "navigation-model",
+     "verdict": "deviation",
+     "evidence": "app/features/shell/tabs.ts:204 NAV_GROUPS independently re-lists identities already enumerated in WORKSPACE_TAB_IDS; the vocabulary and its metadata are maintained as parallel lists rather than one destination registry."
+    },
+    {
+     "technique": "shell-hosted-services",
+     "verdict": "deviation",
+     "evidence": "app/features/shell/useAttention.ts:44 An error-bearing response only increments a private backoff ref while previous counts remain displayed; network and server failures expose no stale/degraded state, and the session-status channel handles only 401."
+    }
+   ]
+  },
+  {
+   "context": "analytics-sections",
+   "subject": "app-shell",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/insights/analytics/sections/QualityInstrument.tsx:131 Quality's unconditionally animated root remounts through the keyed analytics section switch, so returning repeats first-arrival choreography.",
+   "techniques": [
+    {
+     "technique": "lazy-section-loading",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/analytics/sections/QualityInstrument.tsx:131 AnalyticsTab keys the enclosing subtree by section; this unconditional entrance animation therefore runs again on warm return, and component-local table filters also reset."
+    },
+    {
+     "technique": "nav-hierarchy",
+     "verdict": "conformant",
+     "evidence": "app/features/insights/analytics/sections/AnalyticsSectionNav.tsx:30 The three stable peer destinations are rendered as a page-owned segmented control inside Analytics, keeping further subdivision out of the shell hierarchy."
+    }
+   ]
+  },
+  {
+   "context": "spark-landing-shell",
+   "subject": "app-shell",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/landing/site/chrome/Header.tsx:65 The current landing header manually repeats destinations in separate desktop and phone lists, allowing the product map to drift between consumers.",
+   "techniques": [
+    {
+     "technique": "navigation-model",
+     "verdict": "deviation",
+     "evidence": "app/landing/site/chrome/Header.tsx:65 The phone list repeats the desktop destinations written at lines 39\u201350 instead of deriving both presentations from one registry."
+    },
+    {
+     "technique": "shell-hosted-services",
+     "verdict": "not-applicable",
+     "evidence": "app/landing/site/chrome/Header.tsx:18 Landing/About navigation deliberately replaces the document through plain anchors; the standard's surviving React mount-point hosting privilege does not apply."
+    }
+   ]
+  },
+  {
+   "context": "shell-simulation-engine",
+   "subject": "app-shell",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/shell/simulation/SimulationProvider.tsx:102 Provider unmount removes the pagehide handler without stopping or waking the running walk or releasing its lease, leaving component teardown without a complete reaper.",
+   "techniques": [
+    {
+     "technique": "shell-hosted-services",
+     "verdict": "deviation",
+     "evidence": "app/features/shell/simulation/SimulationProvider.tsx:102 Pagehide and normal run completion release leases, but provider unmount has no stop/wake/release cleanup; useSimulationWalk supplies no effect cleanup to cover that ending."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-15T03:45:53.068898+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "app-shell"
+   ],
+   "techniques": [
+    "badge-and-attention",
+    "entitlement-gating",
+    "lazy-section-loading",
+    "nav-hierarchy"
+   ],
+   "deviations": 1,
+   "context": "shell-nav",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-15T03:45:53.068898+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "app-shell"
+   ],
+   "techniques": [
+    "entitlement-gating",
+    "lazy-section-loading",
+    "navigation-model",
+    "shell-hosted-services"
+   ],
+   "deviations": 1,
+   "context": "workspace-shell-core",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-15T03:45:53.068898+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "app-shell"
+   ],
+   "techniques": [
+    "lazy-section-loading",
+    "nav-hierarchy"
+   ],
+   "deviations": 1,
+   "context": "analytics-sections",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-15T03:45:53.068898+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "app-shell"
+   ],
+   "techniques": [
+    "navigation-model",
+    "shell-hosted-services"
+   ],
+   "deviations": 1,
+   "context": "spark-landing-shell",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-15T03:45:53.068898+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "app-shell"
+   ],
+   "techniques": [
+    "shell-hosted-services"
+   ],
+   "deviations": 1,
+   "context": "shell-simulation-engine",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

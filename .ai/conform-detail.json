@@ -5599,6 +5599,144 @@
           "evidence": "pipeline/jobfit/companion_brain.py:319 Markdown-first writes and embedded episode IDs exist, but the CLI exposes no total reindex operation; repository searches and docs/features/companion/README.md:1294 confirm the missing rebuild command."
         }
       ]
+    },
+    "1ccaf35e-353e-439f-8a7a-dece524eb98c/app-shell": {
+      "context": "shell-nav",
+      "subject": "app-shell",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T03:45:53.068Z",
+      "worker": "b8609db8-b002-444e-a195-41081a07b142",
+      "techniques": [
+        {
+          "technique": "badge-and-attention",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/nav/NavPanelItem.tsx:85 The renderer displays the uncapped inventory count directly; neither this branch nor the slice-button branch provides a threshold display such as 99+."
+        },
+        {
+          "technique": "entitlement-gating",
+          "verdict": "conformant",
+          "evidence": "app/features/shell/nav/NavPanelItem.tsx:96 This renderer consumes the shared lock policy and renders focusable lock doors with a lock icon rather than disabled entries; activation reaches the destination's explanation panel."
+        },
+        {
+          "technique": "lazy-section-loading",
+          "verdict": "conformant",
+          "evidence": "app/features/shell/nav/NavPanelItem.tsx:149 The navigation's intent-warming responsibility is realized on pointer entry and keyboard focus, using the shared idempotent chunk prefetcher."
+        },
+        {
+          "technique": "nav-hierarchy",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/nav/NavRailPreferences.tsx:98 The trigger has an accessible name, but its visual name reveal uses only the native title mechanism."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "Architecture check first: this is a Next.js SPA-shell (app/page.tsx mounts Workspace.tsx once; tab switches are client state, not route navigation), so the golden path's literal 'shell never unmounts' property holds and the hosting/nav-hierarchy rules apply without the frame-continuity correction's alternate reading. nav-hierarchy is mostly realized (NavSectionRail.tsx:163-219 two-level rail+panel, section-scoped; aria-pressed on preview vs aria-current=\"page\" only on the real destination — NavSectionRail.tsx:147, NavPanelItem.tsx:79,85) but NavRailPreferences.tsx:98 exposes the appearance/language triggers' name reveal via the native `title` attribute only, which fails SC 1.4.13 (not Dismissible/Hoverable/Persistent) — the technique's own 'name for AT vs reveal for the eye are two obligations' correction, unmet on the second obligation. badge-and-attention also falls short: WorkspaceNav.tsx/NavPanelItem.tsx render exactly one severity grade (a coral count pill) folding 'failed, needs a decision' and 'N things waiting' into the same integer, and NavSectionRail.tsx's level-one rail button shows no parent-aggregated roll-up of its group's badges, so an unpreviewed section's attention is invisible.",
+          "evaluatedAt": "2026-08-31",
+          "worker": null,
+          "reason": "replaced by b8609db8-b002-444e-a195-41081a07b142"
+        }
+      ]
+    },
+    "1bf08cae-f1e4-42c6-b461-ba844cd10d0b/app-shell": {
+      "context": "workspace-shell-core",
+      "subject": "app-shell",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T03:45:53.068Z",
+      "worker": "b8609db8-b002-444e-a195-41081a07b142",
+      "techniques": [
+        {
+          "technique": "entitlement-gating",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/navCapabilities.ts:33 Requirements occupy a separate TAB_CAPABILITY table, outside the navigation registry, and mirror independently declared server requirements rather than deriving both boundaries from one declaration."
+        },
+        {
+          "technique": "lazy-section-loading",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/WorkspaceTabChunks.tsx:127 The location key remounts the subtree and replays animate-tab-in on every return, without a first-visit condition."
+        },
+        {
+          "technique": "navigation-model",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/tabs.ts:204 NAV_GROUPS independently re-lists identities already enumerated in WORKSPACE_TAB_IDS; the vocabulary and its metadata are maintained as parallel lists rather than one destination registry."
+        },
+        {
+          "technique": "shell-hosted-services",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/useAttention.ts:44 An error-bearing response only increments a private backoff ref while previous counts remain displayed; network and server failures expose no stale/degraded state, and the session-status channel handles only 401."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "Same architecture as shell-nav: Workspace.tsx is the persistent client-state shell (never unmounts, literally). shell-hosted-services is largely conformant (TasksProvider/SimulationProvider/CompanionDockProvider mounted in one declared order at Workspace.tsx:164-169, and the companion dock is deliberately a SIBLING of the re-keyed tab panel rather than a child of it, Workspace.tsx:166-168 comment) but has no named reaper for session-end (sign-out hard-navigates away; nothing enumerates what must flush) and useAttention.ts:29-32 swallows poll failures so a dead attention source is indistinguishable from a healthy quiet one. navigation-model is a deliberate, documented partial: the single-navigate door (shallow-nav.ts) and closed vocabulary (tabs.ts WORKSPACE_TAB_IDS) are real, but back-navigation does not push per-switch history (useUrlInboxState.ts:31-36) and there is no restore-last-location on relaunch (always DEFAULT_TAB, tabs.ts:122) — both explicit violations of the technique's history and restore contracts. lazy-section-loading fixed the placeholder-mismatch flicker (WorkspaceTabChunks.tsx TabChunkGap now deliberately empty) but warm return still re-keys/remounts the destination subtree every switch (WorkspaceTabChunks.tsx:61-62/89) and chunk failure has no automatic retry or version-skew cure.",
+          "evaluatedAt": "2026-08-31",
+          "worker": null,
+          "reason": "replaced by b8609db8-b002-444e-a195-41081a07b142"
+        }
+      ]
+    },
+    "56800c7a-3ea2-492d-93a2-06fb994b5137/app-shell": {
+      "context": "analytics-sections",
+      "subject": "app-shell",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T03:45:53.068Z",
+      "worker": "b8609db8-b002-444e-a195-41081a07b142",
+      "techniques": [
+        {
+          "technique": "lazy-section-loading",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/sections/QualityInstrument.tsx:131 AnalyticsTab keys the enclosing subtree by section; this unconditional entrance animation therefore runs again on warm return, and component-local table filters also reset."
+        },
+        {
+          "technique": "nav-hierarchy",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/sections/AnalyticsSectionNav.tsx:30 The three stable peer destinations are rendered as a page-owned segmented control inside Analytics, keeping further subdivision out of the shell hierarchy."
+        }
+      ]
+    },
+    "ddc2d696-7a1f-482b-af74-4b5f89e5b6a0/app-shell": {
+      "context": "spark-landing-shell",
+      "subject": "app-shell",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T03:45:53.068Z",
+      "worker": "b8609db8-b002-444e-a195-41081a07b142",
+      "techniques": [
+        {
+          "technique": "navigation-model",
+          "verdict": "deviation",
+          "evidence": "app/landing/site/chrome/Header.tsx:65 The phone list repeats the desktop destinations written at lines 39–50 instead of deriving both presentations from one registry."
+        },
+        {
+          "technique": "shell-hosted-services",
+          "verdict": "not-applicable",
+          "evidence": "app/landing/site/chrome/Header.tsx:18 Landing/About navigation deliberately replaces the document through plain anchors; the standard's surviving React mount-point hosting privilege does not apply."
+        }
+      ]
+    },
+    "e09b50cc-6de9-4f28-a548-d93ca898a7f0/app-shell": {
+      "context": "shell-simulation-engine",
+      "subject": "app-shell",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T03:45:53.068Z",
+      "worker": "b8609db8-b002-444e-a195-41081a07b142",
+      "techniques": [
+        {
+          "technique": "shell-hosted-services",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/simulation/SimulationProvider.tsx:102 Pagehide and normal run completion release leases, but provider unmount has no stop/wake/release cleanup; useSimulationWalk supplies no effect cleanup to cover that ending."
+        }
+      ]
     }
   }
 }

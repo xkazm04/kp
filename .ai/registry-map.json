@@ -3786,7 +3786,11 @@
           "revision": 6,
           "changedAt": "2026-09-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/insights/analytics/sections/QualityInstrument.tsx:131 Quality's unconditionally animated root remounts through the keyed analytics section switch, so returning repeats first-arrival choreography.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:62a9a7fc993ea8b5",
+          "evaluatedRevision": 6
         },
         {
           "subject": "quality-gates",
@@ -28361,12 +28365,11 @@
           "changedAt": "2026-09-23",
           "confidence": "strong",
           "state": "deviation",
-          "evidence": "Architecture check first: this is a Next.js SPA-shell (app/page.tsx mounts Workspace.tsx once; tab switches are client state, not route navigation), so the golden path's literal 'shell never unmounts' property holds and the hosting/nav-hierarchy rules apply without the frame-continuity correction's alternate reading. nav-hierarchy is mostly realized (NavSectionRail.tsx:163-219 two-level rail+panel, section-scoped; aria-pressed on preview vs aria-current=\"page\" only on the real destination — NavSectionRail.tsx:147, NavPanelItem.tsx:79,85) but NavRailPreferences.tsx:98 exposes the appearance/language triggers' name reveal via the native `title` attribute only, which fails SC 1.4.13 (not Dismissible/Hoverable/Persistent) — the technique's own 'name for AT vs reveal for the eye are two obligations' correction, unmet on the second obligation. badge-and-attention also falls short: WorkspaceNav.tsx/NavPanelItem.tsx render exactly one severity grade (a coral count pill) folding 'failed, needs a decision' and 'N things waiting' into the same integer, and NavSectionRail.tsx's level-one rail button shows no parent-aggregated roll-up of its group's badges, so an unpreviewed section's attention is invisible.",
-          "evaluatedAt": "2026-08-31",
-          "evaluatedAgainst": "sha256:ae100598f7bfe8ef",
-          "evaluatedRevision": 4,
-          "revisionsBehind": 2,
-          "stale": true
+          "evidence": "app/features/shell/nav/NavRailPreferences.tsx:98 Icon-only preference triggers rely on native title text for visual name discovery, which does not provide the keyboard-accessible, dismissible reveal the technique requires.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:62a9a7fc993ea8b5",
+          "evaluatedRevision": 6,
+          "revisionsBehind": 2
         },
         {
           "subject": "accessibility",
@@ -29151,7 +29154,11 @@
           "revision": 6,
           "changedAt": "2026-09-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/shell/simulation/SimulationProvider.tsx:102 Provider unmount removes the pagehide handler without stopping or waking the running walk or releasing its lease, leaving component teardown without a complete reaper.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:62a9a7fc993ea8b5",
+          "evaluatedRevision": 6
         },
         {
           "subject": "hitl-approval",
@@ -29767,7 +29774,11 @@
           "revision": 6,
           "changedAt": "2026-09-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/landing/site/chrome/Header.tsx:65 The current landing header manually repeats destinations in separate desktop and phone lists, allowing the product map to drift between consumers.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:62a9a7fc993ea8b5",
+          "evaluatedRevision": 6
         },
         {
           "subject": "translation-pipeline-topology",
@@ -32950,12 +32961,11 @@
           "changedAt": "2026-09-23",
           "confidence": "strong",
           "state": "deviation",
-          "evidence": "Same architecture as shell-nav: Workspace.tsx is the persistent client-state shell (never unmounts, literally). shell-hosted-services is largely conformant (TasksProvider/SimulationProvider/CompanionDockProvider mounted in one declared order at Workspace.tsx:164-169, and the companion dock is deliberately a SIBLING of the re-keyed tab panel rather than a child of it, Workspace.tsx:166-168 comment) but has no named reaper for session-end (sign-out hard-navigates away; nothing enumerates what must flush) and useAttention.ts:29-32 swallows poll failures so a dead attention source is indistinguishable from a healthy quiet one. navigation-model is a deliberate, documented partial: the single-navigate door (shallow-nav.ts) and closed vocabulary (tabs.ts WORKSPACE_TAB_IDS) are real, but back-navigation does not push per-switch history (useUrlInboxState.ts:31-36) and there is no restore-last-location on relaunch (always DEFAULT_TAB, tabs.ts:122) — both explicit violations of the technique's history and restore contracts. lazy-section-loading fixed the placeholder-mismatch flicker (WorkspaceTabChunks.tsx TabChunkGap now deliberately empty) but warm return still re-keys/remounts the destination subtree every switch (WorkspaceTabChunks.tsx:61-62/89) and chunk failure has no automatic retry or version-skew cure.",
-          "evaluatedAt": "2026-08-31",
-          "evaluatedAgainst": "sha256:ae100598f7bfe8ef",
-          "evaluatedRevision": 4,
-          "revisionsBehind": 2,
-          "stale": true
+          "evidence": "app/features/shell/WorkspaceTabChunks.tsx:127 Every destination switch remounts the animated wrapper, so warm returns repeat entrance choreography and tear down healthy section subtrees.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:62a9a7fc993ea8b5",
+          "evaluatedRevision": 6,
+          "revisionsBehind": 2
         },
         {
           "subject": "voice-io",
