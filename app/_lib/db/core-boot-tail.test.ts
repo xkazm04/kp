@@ -19,7 +19,8 @@
 // runs BEFORE the PK rebuilds and the NULL backfills, which is safe today and was stated
 // nowhere. Temp files live under this file's own private root, which is deliberately NOT
 // removed in an after() hook.
-import { test } from "node:test";
+import { test, after } from "node:test";
+import { removeTempDirs } from "../testing/tmp-cleanup.ts";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
@@ -30,6 +31,7 @@ import Database from "better-sqlite3";
 import { runBootMaintenance } from "./core.ts";
 
 const ROOT = mkdtempSync(path.join(os.tmpdir(), "kp-boot-tail-"));
+after(() => removeTempDirs(ROOT));
 
 /** Run `body` with console.log/warn/error captured, and return every line it wrote. */
 function captureConsole(body: () => void): { out: string; threw: unknown } {

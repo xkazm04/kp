@@ -1,6 +1,7 @@
 // The Personas run sync (sync.ts) with an injected fetchExecution - no network.
 // unit-db.ts must be the first project import.
 import { cleanupUnitDb } from "../testing/unit-db.ts";
+import { removeTempDirs } from "../testing/tmp-cleanup.ts";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import type { Gig, GigAttempt } from "./types.ts";
@@ -18,6 +19,8 @@ import type { GigSpecialist } from "./types.ts";
 import { fixtureAcceptedPlan } from "./__fixtures__/accepted-plan.ts";
 
 after(() => cleanupUnitDb());
+const tempDirs: string[] = [];
+after(() => removeTempDirs(...tempDirs));
 
 const FENCE = "`".repeat(3);
 const GOOD_OUTPUT = [
@@ -304,6 +307,7 @@ test("resolveGigDeliverable: the output's block wins; the file is read only when
 
 test("readGigDeliverableFile: a regular file written after the attempt started; older, absent or oversized is null", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "kp-deliv-"));
+  tempDirs.push(dir);
   const file = path.join(dir, "kp-deliverable.json");
   assert.equal(readGigDeliverableFile(dir, "2026-01-01T00:00:00Z"), null, "absent");
 
@@ -316,10 +320,12 @@ test("readGigDeliverableFile: a regular file written after the attempt started; 
   assert.equal(readGigDeliverableFile(dir, new Date(written.getTime() - 60_000).toISOString()), null, "an earlier attempt's file is never this attempt's draft");
 
   const asDir = mkdtempSync(path.join(tmpdir(), "kp-deliv-dir-"));
+  tempDirs.push(asDir);
   mkdirSync(path.join(asDir, "kp-deliverable.json"));
   assert.equal(readGigDeliverableFile(asDir, "2026-01-01T00:00:00Z"), null, "a directory is not a deliverable");
 
   const big = mkdtempSync(path.join(tmpdir(), "kp-deliv-big-"));
+  tempDirs.push(big);
   writeFileSync(path.join(big, "kp-deliverable.json"), "x".repeat(512 * 1024 + 1));
   assert.equal(readGigDeliverableFile(big, "2026-01-01T00:00:00Z"), null, "oversized");
 });

@@ -4,6 +4,7 @@
 // the body, a null session user is stored NULL, the bounds, workspace isolation both
 // ways, the author name resolving at READ time, and the route staying a thin pass.
 import { test, after } from "node:test";
+import { removeTempDirs } from "../testing/tmp-cleanup.ts";
 import assert from "node:assert/strict";
 import os from "node:os";
 import path from "node:path";
@@ -43,13 +44,7 @@ const { appendEntryNoteFromBody, listEntryNotes, MAX_NOTES_LENGTH } = await impo
 const { createUser, updateUserName } = await import("./users.ts");
 const { ensureDb } = await import("./core.ts");
 
-after(() => {
-  try {
-    fs.rmSync(TMP_DIR, { recursive: true, force: true });
-  } catch {
-    /* file locked — the unique dir means a leftover can never poison a later run */
-  }
-});
+after(() => removeTempDirs(TMP_DIR));
 
 let seq = 0;
 function entryIn(workspaceId?: string) {

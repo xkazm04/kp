@@ -25,10 +25,11 @@
 // The CLI below always points that at a throwaway directory; an in-process caller (the
 // unit test) must have done the same before this module touches the DB.
 
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { removeTempDirs } from "../app/_lib/testing/tmp-cleanup.ts";
 
 export const BRIEF_SNAPSHOT_SCHEMA = 1;
 export const BRIEF_SNAPSHOT_PATH = "pipeline/jobfit/eval/interview_briefs.json";
@@ -241,17 +242,9 @@ async function main(argv: string[]): Promise<void> {
       process.stderr.write(`wrote ${BRIEF_SNAPSHOT_PATH}\n`);
     }
   } finally {
-    const holder = globalThis as typeof globalThis & { __kpDb?: { close(): void } };
-    try {
-      holder.__kpDb?.close();
-    } catch {
-      /* already closed — the directory removal below is best-effort either way */
-    }
-    try {
-      rmSync(dir, { recursive: true, force: true });
-    } catch {
-      /* Windows keeps an isolated store's handle open; the OS temp sweep reclaims it */
-    }
+    // Closes the main connection AND every isolated store's private handle (tmp-cleanup.ts
+    // tracks them), so Windows lets the directory go instead of leaking one per run.
+    removeTempDirs(dir);
   }
 }
 

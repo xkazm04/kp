@@ -25,6 +25,7 @@ import { mkdtempSync } from "node:fs";
 // Side-effect import: sets KP_DB_PATH to a throwaway file BEFORE ./route.ts pulls in
 // the db layer. Keep it first (ESM evaluates imports in source order).
 import "../../_lib/testing/unit-db.ts";
+import { removeTempDirs } from "../../_lib/testing/tmp-cleanup.ts";
 import { POST } from "./route.ts";
 import { hasEvidenceIncomplete, type GithubNote } from "../../_lib/github-evidence.ts";
 
@@ -158,8 +159,11 @@ function repo(owner: string, name: string, description: string | null, language:
   };
 }
 
+let logDir = "";
+
 before(() => {
-  process.env.KP_LOG_DIR = mkdtempSync(path.join(os.tmpdir(), "kp-gh-log-"));
+  logDir = mkdtempSync(path.join(os.tmpdir(), "kp-gh-log-"));
+  process.env.KP_LOG_DIR = logDir;
   // Trust one forwarding hop so `postFrom` really does key its own limiter bucket.
   process.env.KP_TRUSTED_PROXY = "1";
   // Deterministic: no Gemini key by default, so the deep review short-circuits to
@@ -177,6 +181,7 @@ before(() => {
 
 after(() => {
   globalThis.fetch = realFetch;
+  if (logDir) removeTempDirs(logDir);
   delete process.env.KP_TRUSTED_PROXY;
   delete process.env.GEMINI_API_KEY;
   delete process.env.GOOGLE_API_KEY;

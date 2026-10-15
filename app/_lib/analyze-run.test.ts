@@ -18,6 +18,7 @@
 // MUST be the first project import (it sets KP_DB_PATH before any db-path import).
 // Run: node scripts/run-unit-tests.mjs "app/_lib/analyze-run.test.ts"
 import { cleanupUnitDb } from "./testing/unit-db.ts";
+import { removeTempDirs } from "./testing/tmp-cleanup.ts";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
@@ -112,6 +113,7 @@ const { currentPeriod } = await import("./billing/plans.ts");
 const { ensureDb } = await import("./db/core.ts");
 
 after(() => cleanupUnitDb());
+after(() => removeTempDirs(...tempBaseDirs));
 
 // A minimal payload that clears analysisSchema. Deliberately thin: this file is about
 // ordering and deadlines, not about the analysis shape.
@@ -149,8 +151,11 @@ const PAYLOAD = {
 // Each case gets CV bytes of its own. computeCacheKey hashes the CV content, so two
 // cases sharing a fixture would make the second a CACHE HIT — which delivers without
 // spawning and bills nothing, quietly passing the debit assertions for the wrong reason.
+const tempBaseDirs: string[] = [];
+
 function tempCv(marker: string): { baseDir: string; cvPath: string } {
   const baseDir = mkdtempSync(path.join(os.tmpdir(), "kp-analyze-run-test-"));
+  tempBaseDirs.push(baseDir);
   const cvPath = path.join(baseDir, "cv.txt");
   writeFileSync(cvPath, `Ada Lovelace - Go, Postgres. Fixture: ${marker}.`, "utf8");
   return { baseDir, cvPath };

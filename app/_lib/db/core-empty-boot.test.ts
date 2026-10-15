@@ -20,8 +20,9 @@
 //
 // Child `node` processes: a genuine boot is the subject and ensureDb() memoizes for the
 // life of a process, so one boot per verdict. Throwaway files under this file's own
-// private root, deliberately NOT removed in an after() hook.
-import { test } from "node:test";
+// private root, removed in an after() hook (KP_KEEP_TMP=1 keeps it for debugging).
+import { test, after } from "node:test";
+import { removeTempDirs } from "../testing/tmp-cleanup.ts";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
@@ -30,6 +31,7 @@ import { mkdtempSync } from "node:fs";
 import Database from "better-sqlite3";
 
 const ROOT = mkdtempSync(path.join(os.tmpdir(), "kp-empty-boot-"));
+after(() => removeTempDirs(ROOT));
 
 const BOOT_CHILD = `
 import path from "node:path";

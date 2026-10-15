@@ -10,7 +10,8 @@
 // COLUMN` issued, and reports the count. Every database here is a throwaway temp file under
 // this file's own private root; none of them is data/kp.sqlite. The root is not removed in an
 // after() hook — the isolated stores hold handles Windows will not let us unlink.
-import { test } from "node:test";
+import { test, after } from "node:test";
+import { removeTempDirs } from "../testing/tmp-cleanup.ts";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
@@ -136,6 +137,7 @@ test("case 4b: 'duplicate column name' with the column STILL absent after re-pro
 
 // ---- child-process harness for the boot cases -----------------------------------------
 const ROOT = mkdtempSync(path.join(os.tmpdir(), "kp-add-columns-"));
+after(() => removeTempDirs(ROOT));
 
 const CHILD = `
 import path from "node:path";

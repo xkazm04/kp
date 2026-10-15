@@ -1,11 +1,14 @@
-import { test, before } from "node:test";
+import { test, before, after } from "node:test";
+import { removeTempDirs } from "../../../_lib/testing/tmp-cleanup.ts";
 import assert from "node:assert/strict";
 import path from "node:path";
 import os from "node:os";
 import { mkdtempSync } from "node:fs";
 
 // Isolate onto a throwaway DB BEFORE the route (and its db layer) loads.
-process.env.KP_DB_PATH = path.join(mkdtempSync(path.join(os.tmpdir(), "kp-comms-")), "kp.sqlite");
+const DB_DIR = mkdtempSync(path.join(os.tmpdir(), "kp-comms-"));
+process.env.KP_DB_PATH = path.join(DB_DIR, "kp.sqlite");
+after(() => removeTempDirs(DB_DIR));
 delete process.env.DATABASE_URL;
 
 let GET: (typeof import("./route.ts"))["GET"];

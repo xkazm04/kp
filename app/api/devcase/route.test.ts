@@ -1,4 +1,5 @@
-import { test, before } from "node:test";
+import { test, before, after } from "node:test";
+import { removeTempDirs } from "../../_lib/testing/tmp-cleanup.ts";
 import assert from "node:assert/strict";
 import path from "node:path";
 import os from "node:os";
@@ -13,7 +14,9 @@ import { mkdtempSync } from "node:fs";
 // resolved at module-load from KP_DB_PATH, and static imports evaluate before any
 // top-level statement, so the route + dev-control are pulled in via dynamic import in
 // `before()` — after this assignment — so `npm run test:unit` never touches the real DB.
-process.env.KP_DB_PATH = path.join(mkdtempSync(path.join(os.tmpdir(), "kp-devcase-")), "kp.sqlite");
+const DB_DIR = mkdtempSync(path.join(os.tmpdir(), "kp-devcase-"));
+process.env.KP_DB_PATH = path.join(DB_DIR, "kp.sqlite");
+after(() => removeTempDirs(DB_DIR));
 delete process.env.DATABASE_URL;
 
 let POST: (typeof import("./route.ts"))["POST"];

@@ -25,9 +25,10 @@
 // Driven in child `node` processes like core-integrity.test.ts: a genuine BOOT is the
 // subject and ensureDb() memoizes on globalThis for the life of a process. Every DB here
 // is a throwaway temp file under this file's own private root; none of them is
-// data/kp.sqlite. The root is deliberately NOT removed in an after() hook — the isolated
-// stores hold handles Windows will not let us unlink, and a failed run's file is evidence.
-import { test } from "node:test";
+// data/kp.sqlite. The root is removed in an after() hook once the tracked
+// handles are closed (tmp-cleanup.ts); KP_KEEP_TMP=1 keeps a failed run's file as evidence.
+import { test, after } from "node:test";
+import { removeTempDirs } from "../testing/tmp-cleanup.ts";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
@@ -36,6 +37,7 @@ import { mkdtempSync } from "node:fs";
 import Database from "better-sqlite3";
 
 const ROOT = mkdtempSync(path.join(os.tmpdir(), "kp-index-catches-"));
+after(() => removeTempDirs(ROOT));
 
 const BOOT_CHILD = `
 import path from "node:path";
