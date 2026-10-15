@@ -5189,6 +5189,99 @@
           "evidence": "app/features/hiring/schedule/ScheduleInterviewTranscriptModal.tsx:28 The read retrieves an interview record, not external free/busy information."
         }
       ]
+    },
+    "bfeaddc0-56a8-4128-9a38-f1a7f89428e7/pipeline-stage-modelling": {
+      "context": "pipeline-move-bulk-operations",
+      "subject": "pipeline-stage-modelling",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T02:36:51.155Z",
+      "worker": "b0ca6ebe-45bf-406e-ada6-2bf259190883",
+      "techniques": [
+        {
+          "technique": "entry-and-terminal-role-requirements",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/pipeline/pipelineMoveTargets.test.ts:44 Board move target calculation permits moving candidates out of Hired, violating the absorbing terminal requirement."
+        },
+        {
+          "technique": "stage-role-vocabulary-not-stage-names",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/pipeline/pipelineMoveTargets.ts:30 Resolves the terminal stage through stageWithRole rather than matching literal stage name 'Hired'."
+        },
+        {
+          "technique": "off-axis-candidate-recovery",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/pipeline/pipelineBoardLayout.ts:51 Separates entries on retired or unrecognised stages into an off-axis strip rather than folding them into column zero."
+        }
+      ]
+    },
+    "a84a06f8-4280-473d-acc3-0cdcf6f98cad/pipeline-stage-modelling": {
+      "context": "pipeline-board-ui",
+      "subject": "pipeline-stage-modelling",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T02:36:51.155Z",
+      "worker": "b0ca6ebe-45bf-406e-ada6-2bf259190883",
+      "techniques": [
+        {
+          "technique": "off-axis-candidate-recovery",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/pipeline/usePipelineFilters.ts:69 resolveStageFilter was provided to detect off-board stage filters, but the board UI has no caller and renders a generic empty state instead of an off-axis notice."
+        },
+        {
+          "technique": "stage-role-vocabulary-not-stage-names",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/pipeline/usePipelineTabState.ts:110 Board stat counts resolve terminal and interview stages by role using stageHasRole and stagesWithRole on board.axis."
+        },
+        {
+          "technique": "entry-and-terminal-role-requirements",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/pipeline/usePipelineTabState.ts:121 Excludes terminal-role occupants from the active count by role rather than stage name."
+        }
+      ]
+    },
+    "ea210994-45ae-4cb6-8143-23633254094a/pipeline-stage-modelling": {
+      "context": "pipeline-actions-commands",
+      "subject": "pipeline-stage-modelling",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T02:36:51.155Z",
+      "worker": "b0ca6ebe-45bf-406e-ada6-2bf259190883",
+      "techniques": [
+        {
+          "technique": "stage-role-vocabulary-not-stage-names",
+          "verdict": "conformant",
+          "evidence": "app/_lib/pipeline-stages.ts:57 Defines the closed role vocabulary separating semantic meaning from stage labels."
+        },
+        {
+          "technique": "screening-gate-index",
+          "verdict": "conformant",
+          "evidence": "app/_lib/pipeline-stages.ts:171 Derives the screening gate from the first interview, offer, or terminal role stage."
+        },
+        {
+          "technique": "retired-stage-tombstones-and-migration",
+          "verdict": "conformant",
+          "evidence": "app/_lib/pipeline-axis.ts:20 Maintains tombstones for retired stages on the resolved axis so dropped columns remain resolvable."
+        },
+        {
+          "technique": "off-axis-candidate-recovery",
+          "verdict": "conformant",
+          "evidence": "app/_lib/pipeline-axis.ts:73 Computes stage IDs that sit on neither live nor retired axis so they can be surfaced."
+        },
+        {
+          "technique": "entry-and-terminal-role-requirements",
+          "verdict": "deviation",
+          "evidence": "app/_lib/pipeline-entry-action.ts:411 Manual set_stage does not refuse moves whose source stage is terminal, failing the absorbing terminal stage invariant."
+        },
+        {
+          "technique": "one-sentence-meaning-per-stage",
+          "verdict": "deviation",
+          "evidence": "app/_lib/pipeline-stages.ts:79 StageDef defines id, label, role, actions, slaDays but omits an authored one-sentence meaning per stage."
+        }
+      ]
     }
   }
 }

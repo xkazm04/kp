@@ -1,0 +1,197 @@
+{
+ "schema": "conform-run/1",
+ "worker": "b0ca6ebe-45bf-406e-ada6-2bf259190883",
+ "subject": "pipeline-stage-modelling",
+ "evaluatedAt": "2026-10-15T02:36:51.155124+00:00",
+ "provider": "agy",
+ "model": "gemini-3.8-flash-high",
+ "pairs": [
+  {
+   "context": "pipeline-move-bulk-operations",
+   "subject": "pipeline-stage-modelling",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/hiring/pipeline/pipelineMoveTargets.ts:31 The moveTargetStages function returns non-terminal stages when called with the terminal stage, allowing candidates in Hired to be moved out.",
+   "techniques": [
+    {
+     "technique": "entry-and-terminal-role-requirements",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/pipeline/pipelineMoveTargets.test.ts:44 Board move target calculation permits moving candidates out of Hired, violating the absorbing terminal requirement."
+    },
+    {
+     "technique": "stage-role-vocabulary-not-stage-names",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/pipeline/pipelineMoveTargets.ts:30 Resolves the terminal stage through stageWithRole rather than matching literal stage name 'Hired'."
+    },
+    {
+     "technique": "off-axis-candidate-recovery",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/pipeline/pipelineBoardLayout.ts:51 Separates entries on retired or unrecognised stages into an off-axis strip rather than folding them into column zero."
+    }
+   ]
+  },
+  {
+   "context": "pipeline-api",
+   "subject": "pipeline-stage-modelling",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/api/pipeline/[id]/route.ts:226 The pipeline entry action route delegates set_stage without checking if the current stage is terminal, allowing moves out of the terminal stage without refusal.",
+   "techniques": [
+    {
+     "technique": "retired-stage-tombstones-and-migration",
+     "verdict": "conformant",
+     "evidence": "app/api/pipeline/stage-migration/route.ts:130 The migration route recomputes stage occupancy and refuses removals with unmapped occupants, returning 409 with exact counts."
+    },
+    {
+     "technique": "stage-role-vocabulary-not-stage-names",
+     "verdict": "conformant",
+     "evidence": "app/api/pipeline/stage-migration/route.ts:110 Resolves the terminal constraint on migration targets using stageHasRole rather than matching the literal name Hired."
+    },
+    {
+     "technique": "entry-and-terminal-role-requirements",
+     "verdict": "deviation",
+     "evidence": "app/api/pipeline/[id]/route.ts:226 Allows manual stage overrides out of terminal stages without enforcing an absorbing terminal refusal."
+    }
+   ]
+  },
+  {
+   "context": "pipeline-board-ui",
+   "subject": "pipeline-stage-modelling",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/hiring/pipeline/usePipelineFilters.ts:69 Stale stage deep links do not render an off-axis notice because resolveStageFilter is uncalled by the board UI.",
+   "techniques": [
+    {
+     "technique": "off-axis-candidate-recovery",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/pipeline/usePipelineFilters.ts:69 resolveStageFilter was provided to detect off-board stage filters, but the board UI has no caller and renders a generic empty state instead of an off-axis notice."
+    },
+    {
+     "technique": "stage-role-vocabulary-not-stage-names",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/pipeline/usePipelineTabState.ts:110 Board stat counts resolve terminal and interview stages by role using stageHasRole and stagesWithRole on board.axis."
+    },
+    {
+     "technique": "entry-and-terminal-role-requirements",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/pipeline/usePipelineTabState.ts:121 Excludes terminal-role occupants from the active count by role rather than stage name."
+    }
+   ]
+  },
+  {
+   "context": "pipeline-actions-commands",
+   "subject": "pipeline-stage-modelling",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_lib/pipeline-entry-action.ts:411 The set_stage action permits moving candidates out of a terminal stage because it does not check if the source stage has role terminal.",
+   "techniques": [
+    {
+     "technique": "stage-role-vocabulary-not-stage-names",
+     "verdict": "conformant",
+     "evidence": "app/_lib/pipeline-stages.ts:57 Defines the closed role vocabulary separating semantic meaning from stage labels."
+    },
+    {
+     "technique": "screening-gate-index",
+     "verdict": "conformant",
+     "evidence": "app/_lib/pipeline-stages.ts:171 Derives the screening gate from the first interview, offer, or terminal role stage."
+    },
+    {
+     "technique": "retired-stage-tombstones-and-migration",
+     "verdict": "conformant",
+     "evidence": "app/_lib/pipeline-axis.ts:20 Maintains tombstones for retired stages on the resolved axis so dropped columns remain resolvable."
+    },
+    {
+     "technique": "off-axis-candidate-recovery",
+     "verdict": "conformant",
+     "evidence": "app/_lib/pipeline-axis.ts:73 Computes stage IDs that sit on neither live nor retired axis so they can be surfaced."
+    },
+    {
+     "technique": "entry-and-terminal-role-requirements",
+     "verdict": "deviation",
+     "evidence": "app/_lib/pipeline-entry-action.ts:411 Manual set_stage does not refuse moves whose source stage is terminal, failing the absorbing terminal stage invariant."
+    },
+    {
+     "technique": "one-sentence-meaning-per-stage",
+     "verdict": "deviation",
+     "evidence": "app/_lib/pipeline-stages.ts:79 StageDef defines id, label, role, actions, slaDays but omits an authored one-sentence meaning per stage."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "pipeline-stage-modelling",
+   "context": "about-product",
+   "reason": "The subject pipeline-stage-modelling specifies requirements for candidate hiring pipeline boards and progression coordinates; about-product is an interactive product explainer walkthrough that models animation timeline stages (ModuleStage: ghost/shell/body/detail/chosen) and does not implement or govern candidate hiring pipeline stages."
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-15T02:36:51.155124+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "pipeline-stage-modelling"
+   ],
+   "techniques": [
+    "entry-and-terminal-role-requirements",
+    "off-axis-candidate-recovery",
+    "stage-role-vocabulary-not-stage-names"
+   ],
+   "deviations": 1,
+   "context": "pipeline-move-bulk-operations",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-15T02:36:51.155124+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "pipeline-stage-modelling"
+   ],
+   "techniques": [
+    "entry-and-terminal-role-requirements",
+    "retired-stage-tombstones-and-migration",
+    "stage-role-vocabulary-not-stage-names"
+   ],
+   "deviations": 1,
+   "context": "pipeline-api",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-15T02:36:51.155124+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "pipeline-stage-modelling"
+   ],
+   "techniques": [
+    "entry-and-terminal-role-requirements",
+    "off-axis-candidate-recovery",
+    "stage-role-vocabulary-not-stage-names"
+   ],
+   "deviations": 1,
+   "context": "pipeline-board-ui",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-15T02:36:51.155124+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "pipeline-stage-modelling"
+   ],
+   "techniques": [
+    "entry-and-terminal-role-requirements",
+    "off-axis-candidate-recovery",
+    "one-sentence-meaning-per-stage",
+    "retired-stage-tombstones-and-migration",
+    "screening-gate-index",
+    "stage-role-vocabulary-not-stage-names"
+   ],
+   "deviations": 1,
+   "context": "pipeline-actions-commands",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  }
+ ]
+}

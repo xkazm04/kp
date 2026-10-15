@@ -23426,7 +23426,11 @@
           "revision": 5,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/pipeline-entry-action.ts:411 The set_stage action permits moving candidates out of a terminal stage because it does not check if the source stage has role terminal.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:99756265cc6fc4e7",
+          "evaluatedRevision": 5
         },
         {
           "subject": "test-harness",
@@ -23969,7 +23973,11 @@
           "revision": 5,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/hiring/pipeline/usePipelineFilters.ts:69 Stale stage deep links do not render an off-axis notice because resolveStageFilter is uncalled by the board UI.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:99756265cc6fc4e7",
+          "evaluatedRevision": 5
         },
         {
           "subject": "portable-hiring-records",
@@ -24559,7 +24567,11 @@
           "revision": 5,
           "changedAt": "2026-09-29",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/hiring/pipeline/pipelineMoveTargets.ts:31 The moveTargetStages function returns non-terminal stages when called with the terminal stage, allowing candidates in Hired to be moved out.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:99756265cc6fc4e7",
+          "evaluatedRevision": 5
         },
         {
           "subject": "quality-gates",
