@@ -2901,7 +2901,11 @@
           "revision": 3,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/benchmarks/route.ts:31 The benchmark endpoint exposes team and organization benchmarks that coerce unmeasured or withheld rates into zeroes rather than returning typed refusals.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:f9ec04ea75914e2f",
+          "evaluatedRevision": 3
         },
         {
           "subject": "selection-score-calibration",
@@ -3085,7 +3089,11 @@
           "revision": 3,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/insights/analytics/AnalyticsScoreBands.tsx:86 Individual score bins display observed advance rates as bare rounded percentages down to single-candidate counts without intervals or cell-level gating, despite the aggregate calibration curve having a floor.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:f9ec04ea75914e2f",
+          "evaluatedRevision": 3
         },
         {
           "subject": "prompt-assembly",
@@ -3396,12 +3404,11 @@
           "changedAt": "2026-09-29",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "AnalyticsByRoleTable.tsx:113-118 shows hireRatePct at any n>0 in moss; the sort excludes only total===0, so a 1-of-3 role outranks 40-of-200. No thin state anywhere.",
-          "evaluatedAt": "2026-08-23",
-          "evaluatedAgainst": "sha256-b2:c3b68501227b54dc",
-          "evaluatedRevision": 1,
-          "revisionsBehind": 2,
-          "stale": true
+          "evidence": "app/features/insights/analytics/AnalyticsByRoleTable.tsx:161 The by-role breakdown renders hireRatePct as a formatted percentage and highlights it in green moss whenever hired > 0, publishing unsubstantiated rates on cohorts as small as one candidate without a minimum sample, thin state, or interval.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:f9ec04ea75914e2f",
+          "evaluatedRevision": 3,
+          "revisionsBehind": 2
         },
         {
           "subject": "people-analytics-ethics",
@@ -3593,7 +3600,11 @@
           "revision": 3,
           "changedAt": "2026-09-29",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/insights/analytics/statGoalChip.ts:35 The time-to-hire goal chip evaluates whether a target was met on any non-null average even when computed over a single hire, rendering a green success verdict with no sample floor.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:f9ec04ea75914e2f",
+          "evaluatedRevision": 3
         },
         {
           "subject": "settings",
@@ -9748,7 +9759,11 @@
           "revision": 3,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/db/analytics.ts:513 The analytics repository coerces empty-denominator hire rates to zero rather than returning an unmeasurable state, and evaluates raw percentage rates on cohorts with as few as one candidate.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:f9ec04ea75914e2f",
+          "evaluatedRevision": 3
         },
         {
           "subject": "analytics-time-windows",

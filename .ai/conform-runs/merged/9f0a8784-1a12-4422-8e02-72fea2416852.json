@@ -1,0 +1,261 @@
+{
+ "schema": "conform-run/1",
+ "worker": "9f0a8784-1a12-4422-8e02-72fea2416852",
+ "subject": "small-sample-honesty-in-hiring-analytics",
+ "evaluatedAt": "2026-10-15T04:29:32.575844+00:00",
+ "provider": "agy",
+ "model": "gemini-3.8-flash-high",
+ "pairs": [
+  {
+   "context": "analytics-dashboard",
+   "subject": "small-sample-honesty-in-hiring-analytics",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/insights/analytics/AnalyticsByRoleTable.tsx:161 The by-role breakdown renders hireRatePct as a formatted percentage and highlights it in green moss whenever hired > 0, publishing unsubstantiated rates on cohorts as small as one candidate without a minimum sample, thin state, or interval.",
+   "techniques": [
+    {
+     "technique": "a-named-minimum-per-claim",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/analytics/AnalyticsOrgBenchmarkPanel.tsx:114 Considers any team with more than zero total entries measured without applying a named minimum sample size before claiming interview and hire rates."
+    },
+    {
+     "technique": "gate-each-cohort-not-only-the-headline",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/analytics/AnalyticsByRoleTable.tsx:158 Filters out only total === 0, leaving every individual role cohort cell with total > 0 ungated and displaying raw percentages."
+    },
+    {
+     "technique": "thin-but-real-as-a-labelled-state",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/analytics/AnalyticsByRoleTable.tsx:161 Lacks a labeled thin state or raw observation fallback for small sample roles, rendering rates directly with positive verdict styling."
+    },
+    {
+     "technique": "not-measurable-versus-zero",
+     "verdict": "conformant",
+     "evidence": "app/features/insights/analytics/AnalyticsOrgBenchmarkPanel.tsx:28 Formats null rates as em-dashes rather than coercing unmeasurable metrics to zero."
+    },
+    {
+     "technique": "state-what-the-sample-could-have-seen",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/analytics/AnalyticsOrgBenchmarkPanel.tsx:63 Emits ahead/behind verdict labels and moss/coral styling without calculating confidence intervals or testing for statistically significant separation."
+    }
+   ]
+  },
+  {
+   "context": "analytics-metrics",
+   "subject": "small-sample-honesty-in-hiring-analytics",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/insights/analytics/statGoalChip.ts:35 The time-to-hire goal chip evaluates whether a target was met on any non-null average even when computed over a single hire, rendering a green success verdict with no sample floor.",
+   "techniques": [
+    {
+     "technique": "a-named-minimum-per-claim",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/analytics/statGoalChip.ts:35 Evaluates goal attainment against recruiter targets for any non-null average without enforcing a minimum sample size."
+    },
+    {
+     "technique": "thin-but-real-as-a-labelled-state",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/analytics/AnalyticsOfferLegPanel.tsx:44 Suppresses offer counts and outcomes behind a generic insufficient-data message rather than listing raw observations."
+    },
+    {
+     "technique": "not-measurable-versus-zero",
+     "verdict": "conformant",
+     "evidence": "app/features/insights/analytics/stageDwellGate.ts:127 Keeps medianDays as null when the sample is thin rather than falling back to zero."
+    },
+    {
+     "technique": "state-what-the-sample-could-have-seen",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/analytics/AnalyticsOfferLegPanel.tsx:47 Renders the offer acceptance rate as a headline percentage in moss at n=5 without an interval or uncertainty bound."
+    }
+   ]
+  },
+  {
+   "context": "analytics-calibration",
+   "subject": "small-sample-honesty-in-hiring-analytics",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/insights/analytics/AnalyticsScoreBands.tsx:86 Individual score bins display observed advance rates as bare rounded percentages down to single-candidate counts without intervals or cell-level gating, despite the aggregate calibration curve having a floor.",
+   "techniques": [
+    {
+     "technique": "gate-each-cohort-not-only-the-headline",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/analytics/AnalyticsScoreBands.tsx:86 While the parent calibration curve gates on minOutcomes, individual score bands underneath it render observed rates as percentages on counts as small as 1."
+    },
+    {
+     "technique": "insufficient-sample-is-not-a-pass",
+     "verdict": "conformant",
+     "evidence": "app/features/insights/analytics/calibrationVerdict.ts:73 Returns an explicit unknown refusal verdict when the sample is below the floor rather than passing or guessing."
+    },
+    {
+     "technique": "not-measurable-versus-zero",
+     "verdict": "conformant",
+     "evidence": "app/features/insights/analytics/calibrationVerdict.ts:77 Treats a degenerate cohort where skill cannot be measured as unknown rather than falling back to zero."
+    },
+    {
+     "technique": "state-the-accrual-horizon",
+     "verdict": "conformant",
+     "evidence": "app/features/insights/analytics/AnalyticsCalibrationHeader.tsx:245 Reports the remaining outcome shortfall needed to reach the calibration floor alongside current progress."
+    },
+    {
+     "technique": "thin-but-real-as-a-labelled-state",
+     "verdict": "conformant",
+     "evidence": "app/features/insights/analytics/calibrationVerdict.ts:138 Identifies a thin-but-real pre-change history as a distinct state and prevents publishing an unearned before-vs-after delta."
+    },
+    {
+     "technique": "state-what-the-sample-could-have-seen",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/analytics/AnalyticsDeltaChip.tsx:28 Applies directional green/red verdict colors to rate deltas without stating confidence intervals or checking whether the movement separates from noise."
+    },
+    {
+     "technique": "a-named-minimum-per-claim",
+     "verdict": "conformant",
+     "evidence": "app/features/insights/analytics/calibrationVerdict.ts:124 Enforces minOutcomes symmetrically on both sides of a threshold comparison before allowing a delta claim."
+    }
+   ]
+  },
+  {
+   "context": "db-analytics-billing-llm",
+   "subject": "small-sample-honesty-in-hiring-analytics",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_lib/db/analytics.ts:513 The analytics repository coerces empty-denominator hire rates to zero rather than returning an unmeasurable state, and evaluates raw percentage rates on cohorts with as few as one candidate.",
+   "techniques": [
+    {
+     "technique": "not-measurable-versus-zero",
+     "verdict": "deviation",
+     "evidence": "app/_lib/db/analytics.ts:513 Falls back to 0 when total is 0 instead of returning null or a typed refusal, asserting a zero percent hire rate where no candidates entered."
+    },
+    {
+     "technique": "a-named-minimum-per-claim",
+     "verdict": "conformant",
+     "evidence": "app/_lib/db/analytics.ts:98 Tracks the exact observation count of complete timestamps behind time-to-hire separately from total hires to prevent clearing floors on excluded rows."
+    },
+    {
+     "technique": "gate-each-cohort-not-only-the-headline",
+     "verdict": "deviation",
+     "evidence": "app/_lib/db/analytics.ts:541 Derives advanceRatePct for each archetype cohort without gating individual cells against a minimum sample threshold."
+    }
+   ]
+  },
+  {
+   "context": "analytics-api",
+   "subject": "small-sample-honesty-in-hiring-analytics",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/api/benchmarks/route.ts:31 The benchmark endpoint exposes team and organization benchmarks that coerce unmeasured or withheld rates into zeroes rather than returning typed refusals.",
+   "techniques": [
+    {
+     "technique": "not-measurable-versus-zero",
+     "verdict": "deviation",
+     "evidence": "app/api/benchmarks/route.ts:31 Returns payload from teamBenchmark which sets interviewRatePct and hireRatePct to 0 when below k-anonymity floors or when total is 0."
+    },
+    {
+     "technique": "state-the-accrual-horizon",
+     "verdict": "conformant",
+     "evidence": "app/api/analytics/metric-pack/route.ts:116 Threads empirical hiring pace into the metric pack to compute dates for when thin metrics will reach their accrual horizon."
+    },
+    {
+     "technique": "a-named-minimum-per-claim",
+     "verdict": "conformant",
+     "evidence": "app/api/analytics/metric-pack/route.ts:102 Passes the narrower complete-record sample count to buildMetricPack so the median time-to-hire floor is evaluated on usable observations."
+    },
+    {
+     "technique": "thin-but-real-as-a-labelled-state",
+     "verdict": "conformant",
+     "evidence": "app/api/analytics/metric-pack/route.ts:126 Generates the metric pack artifact where thin metrics are explicitly labeled with their sample and floor rather than suppressed or promoted."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-15T04:29:32.575844+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "small-sample-honesty-in-hiring-analytics"
+   ],
+   "techniques": [
+    "a-named-minimum-per-claim",
+    "gate-each-cohort-not-only-the-headline",
+    "not-measurable-versus-zero",
+    "state-what-the-sample-could-have-seen",
+    "thin-but-real-as-a-labelled-state"
+   ],
+   "deviations": 1,
+   "context": "analytics-dashboard",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-15T04:29:32.575844+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "small-sample-honesty-in-hiring-analytics"
+   ],
+   "techniques": [
+    "a-named-minimum-per-claim",
+    "not-measurable-versus-zero",
+    "state-what-the-sample-could-have-seen",
+    "thin-but-real-as-a-labelled-state"
+   ],
+   "deviations": 1,
+   "context": "analytics-metrics",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-15T04:29:32.575844+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "small-sample-honesty-in-hiring-analytics"
+   ],
+   "techniques": [
+    "a-named-minimum-per-claim",
+    "gate-each-cohort-not-only-the-headline",
+    "insufficient-sample-is-not-a-pass",
+    "not-measurable-versus-zero",
+    "state-the-accrual-horizon",
+    "state-what-the-sample-could-have-seen",
+    "thin-but-real-as-a-labelled-state"
+   ],
+   "deviations": 1,
+   "context": "analytics-calibration",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-15T04:29:32.575844+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "small-sample-honesty-in-hiring-analytics"
+   ],
+   "techniques": [
+    "a-named-minimum-per-claim",
+    "gate-each-cohort-not-only-the-headline",
+    "not-measurable-versus-zero"
+   ],
+   "deviations": 1,
+   "context": "db-analytics-billing-llm",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-15T04:29:32.575844+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "small-sample-honesty-in-hiring-analytics"
+   ],
+   "techniques": [
+    "a-named-minimum-per-claim",
+    "not-measurable-versus-zero",
+    "state-the-accrual-horizon",
+    "thin-but-real-as-a-labelled-state"
+   ],
+   "deviations": 1,
+   "context": "analytics-api",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  }
+ ]
+}
