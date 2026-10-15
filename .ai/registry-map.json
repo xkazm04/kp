@@ -8361,7 +8361,11 @@
           "revision": 7,
           "changedAt": "2026-09-25",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/companion-actions.ts:269 The companion derives capability descriptions from its executable catalog but supplies no exercise ledger distinguishing working, broken, and unexercised capabilities.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:ff529a6dc44bf233",
+          "evaluatedRevision": 7
         },
         {
           "subject": "prompt-assembly",
@@ -8508,7 +8512,11 @@
           "revision": 7,
           "changedAt": "2026-09-25",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/companion_brain.py:319 Opening a missing index creates an empty database without replaying the Markdown episodes, and no implemented total rebuild command restores their discoverability.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:ff529a6dc44bf233",
+          "evaluatedRevision": 7
         },
         {
           "subject": "companion-runtime",

@@ -1,0 +1,121 @@
+{
+ "schema": "conform-run/1",
+ "worker": "eb9ac7d5-abdd-4275-9ec5-4259f1d8a48d",
+ "subject": "companion-identity",
+ "evaluatedAt": "2026-10-15T03:26:01.786176+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "companion-ai",
+   "subject": "companion-identity",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/companion-actions.ts:269 The companion derives capability descriptions from its executable catalog but supplies no exercise ledger distinguishing working, broken, and unexercised capabilities.",
+   "techniques": [
+    {
+     "technique": "anchored-identity-diffs",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/companion-actions.ts:296 The closed catalog contains screening, digest, JD drafting, and outreach drafting; none proposes changes to the companion's description."
+    },
+    {
+     "technique": "brain-adoption-consent",
+     "verdict": "conformant",
+     "evidence": "app/_lib/companion-brain.ts:77 The preceding explicit-consent check and this workspace-scoped own-write check form the consent rule passed to both message and digest turns; brain presence alone grants nothing."
+    },
+    {
+     "technique": "capability-exercise-ledger",
+     "verdict": "deviation",
+     "evidence": "app/_lib/companion-actions.ts:269 Catalog derivation is implemented, but the wire inventory contains only IDs, descriptions, and parameters; searches found no dated capability-exercise ledger, evidence states, or ageing policy."
+    },
+    {
+     "technique": "one-mind-many-mouths",
+     "verdict": "conformant",
+     "evidence": "app/_lib/companion-run.ts:283 Typed exchanges and generated digests use this same spawn door, consent rule, and Python episode writer rather than separate channel memories."
+    },
+    {
+     "technique": "operator-profile-synthesis",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/companion-run.ts:93 Grounding comprises workspace attention and pipeline summaries; searches found no operator-character synthesis or profile-writing pass."
+    }
+   ]
+  },
+  {
+   "context": "companion-appmaster",
+   "subject": "companion-identity",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/companion_brain.py:319 Opening a missing index creates an empty database without replaying the Markdown episodes, and no implemented total rebuild command restores their discoverability.",
+   "techniques": [
+    {
+     "technique": "anchored-identity-diffs",
+     "verdict": "not-applicable",
+     "evidence": "pipeline/jobfit/companion_brain.py:165 The identity write found is seed-if-absent initialization; no agent-authored identity-edit proposal path was found."
+    },
+    {
+     "technique": "brain-adoption-consent",
+     "verdict": "conformant",
+     "evidence": "pipeline/jobfit/companion_cli.py:302 Memory-off turns use shipped law and the empty identity skeleton, skip recall and episode writes, and report memoryEnabled; the separate probe creates nothing and opens no index."
+    },
+    {
+     "technique": "disk-truth-db-index",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/companion_brain.py:319 Markdown-first writes and embedded episode IDs exist, but the CLI exposes no total reindex operation; repository searches and docs/features/companion/README.md:1294 confirm the missing rebuild command."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "companion-identity",
+   "context": "shell-companion",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "companion-identity",
+   "context": "agents-api",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "companion-identity",
+   "context": "db-org-users-channels",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-15T03:26:01.786176+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "companion-identity"
+   ],
+   "techniques": [
+    "anchored-identity-diffs",
+    "brain-adoption-consent",
+    "capability-exercise-ledger",
+    "one-mind-many-mouths",
+    "operator-profile-synthesis"
+   ],
+   "deviations": 1,
+   "context": "companion-ai",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-15T03:26:01.786176+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "companion-identity"
+   ],
+   "techniques": [
+    "anchored-identity-diffs",
+    "brain-adoption-consent",
+    "disk-truth-db-index"
+   ],
+   "deviations": 1,
+   "context": "companion-appmaster",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

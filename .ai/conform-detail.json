@@ -5537,6 +5537,68 @@
         "at": "2026-10-15T03:02:16.880924+00:00",
         "reason": "reviewer (sonnet): Anchor test_tech_bilingual_parity.py:56 is an incidental requirements-list line, and the context includes test_i18n.py, which exercises language_directive/normalize_lang and the cs/de/fr translation behavior, so the not-applicable claim is not supported."
       }
+    },
+    "c0265e6e-9274-43db-9929-822cb417b96d/companion-identity": {
+      "context": "companion-ai",
+      "subject": "companion-identity",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T03:26:01.786Z",
+      "worker": "eb9ac7d5-abdd-4275-9ec5-4259f1d8a48d",
+      "techniques": [
+        {
+          "technique": "anchored-identity-diffs",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/companion-actions.ts:296 The closed catalog contains screening, digest, JD drafting, and outreach drafting; none proposes changes to the companion's description."
+        },
+        {
+          "technique": "brain-adoption-consent",
+          "verdict": "conformant",
+          "evidence": "app/_lib/companion-brain.ts:77 The preceding explicit-consent check and this workspace-scoped own-write check form the consent rule passed to both message and digest turns; brain presence alone grants nothing."
+        },
+        {
+          "technique": "capability-exercise-ledger",
+          "verdict": "deviation",
+          "evidence": "app/_lib/companion-actions.ts:269 Catalog derivation is implemented, but the wire inventory contains only IDs, descriptions, and parameters; searches found no dated capability-exercise ledger, evidence states, or ageing policy."
+        },
+        {
+          "technique": "one-mind-many-mouths",
+          "verdict": "conformant",
+          "evidence": "app/_lib/companion-run.ts:283 Typed exchanges and generated digests use this same spawn door, consent rule, and Python episode writer rather than separate channel memories."
+        },
+        {
+          "technique": "operator-profile-synthesis",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/companion-run.ts:93 Grounding comprises workspace attention and pipeline summaries; searches found no operator-character synthesis or profile-writing pass."
+        }
+      ]
+    },
+    "7f1cebc0-2929-4145-8eeb-c0b7c7ceaa8f/companion-identity": {
+      "context": "companion-appmaster",
+      "subject": "companion-identity",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T03:26:01.786Z",
+      "worker": "eb9ac7d5-abdd-4275-9ec5-4259f1d8a48d",
+      "techniques": [
+        {
+          "technique": "anchored-identity-diffs",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/companion_brain.py:165 The identity write found is seed-if-absent initialization; no agent-authored identity-edit proposal path was found."
+        },
+        {
+          "technique": "brain-adoption-consent",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/companion_cli.py:302 Memory-off turns use shipped law and the empty identity skeleton, skip recall and episode writes, and report memoryEnabled; the separate probe creates nothing and opens no index."
+        },
+        {
+          "technique": "disk-truth-db-index",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/companion_brain.py:319 Markdown-first writes and embedded episode IDs exist, but the CLI exposes no total reindex operation; repository searches and docs/features/companion/README.md:1294 confirm the missing rebuild command."
+        }
+      ]
     }
   }
 }
