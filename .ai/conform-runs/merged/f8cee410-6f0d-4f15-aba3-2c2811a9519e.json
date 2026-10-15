@@ -1,0 +1,218 @@
+{
+  "schema": "conform-run/1",
+  "worker": "f8cee410-6f0d-4f15-aba3-2c2811a9519e",
+  "subject": "interview-run-of-show",
+  "evaluatedAt": "2026-10-15T21:44:06.676848+00:00",
+  "provider": "agy",
+  "model": "gemini-3.8-flash-high",
+  "pairs": [
+    {
+      "context": "interview-planning-rubric",
+      "subject": "interview-run-of-show",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evidence": "app/_lib/run-of-show.ts:47 The module shortens per-question minutes to 3 when there are six questions instead of cutting questions to protect the four-minute floor.",
+      "techniques": [
+        {
+          "technique": "duration-band-and-clamping",
+          "verdict": "conformant",
+          "evidence": "app/_lib/run-of-show.ts:31 Clamps the computed plan duration within the documented 15–30 minute duration band."
+        },
+        {
+          "technique": "fixed-opening-and-closing-blocks",
+          "verdict": "deviation",
+          "evidence": "app/_lib/run-of-show.ts:37 Allocates 4 minutes instead of the required 5-minute minimum for closing, and does not provide an explicit two-minute warning boundary."
+        },
+        {
+          "technique": "per-question-time-budget-that-tightens",
+          "verdict": "deviation",
+          "evidence": "app/_lib/run-of-show.ts:47 Flips per-question minutes to 3 once questions exceed 5, breaching the ~4-minute floor instead of cutting questions."
+        },
+        {
+          "technique": "slack-absorbing-open-block",
+          "verdict": "deviation",
+          "evidence": "app/_lib/run-of-show.ts:133 The open-discussion block is only conditionally inserted as padding for 0-1 questions rather than being a dedicated block in every plan with explicit min/max bounds and casualty designation."
+        },
+        {
+          "technique": "question-kit-grounded-in-named-evidence-gaps",
+          "verdict": "deviation",
+          "evidence": "app/_lib/run-of-show.ts:15 Questions carry answer scaffolds but lack the required four-bucket taxonomy (behavioural, technical, defence, catch-all) and dedicated defence question handling."
+        },
+        {
+          "technique": "regenerate-without-destroying-human-notes",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-prep.ts:194 Applies the inverted merge on regeneration so human-authored keys are preserved by default and only generator-owned keys are overwritten."
+        }
+      ],
+      "registryProposal": "For machine-conducted interview rounds, the duration ceiling is bounded by the audio/voice provider timeout and headroom rather than human attention spans alone; the standard should document provider cut-off constraints as an additional ceiling condition."
+    },
+    {
+      "context": "schedule-interview-prep",
+      "subject": "interview-run-of-show",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evidence": "app/features/hiring/schedule/ScheduleInterviewPrepRunOfShow.tsx:56 The run-of-show displays block minute ranges but lacks the explicit two-minute warning boundary required before the closing block starts.",
+      "techniques": [
+        {
+          "technique": "duration-band-and-clamping",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewPrepRunOfShow.tsx:35 Displays the plan duration header but does not display whether a duration clamp bound or the original pre-clamp duration."
+        },
+        {
+          "technique": "fixed-opening-and-closing-blocks",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewPrepRunOfShow.tsx:56 Renders block minute ranges without presenting an explicit two-minute warning boundary for when the closing block must start."
+        },
+        {
+          "technique": "per-question-time-budget-that-tightens",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewPrepRunOfShow.tsx:59 Renders questions within block chronology but does not publish individual per-question allocated minutes."
+        },
+        {
+          "technique": "slack-absorbing-open-block",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewPrepRunOfShow.tsx:43 Chronology blocks are rendered uniformly without designating the open block as the designated casualty that absorbs overrun."
+        },
+        {
+          "technique": "question-kit-grounded-in-named-evidence-gaps",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewPrepQuestions.tsx:77 Renders imported questions in an unassigned list without grouping them into the four required taxonomy buckets."
+        },
+        {
+          "technique": "regenerate-without-destroying-human-notes",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/schedule/scheduleInterviewPrepProgress.ts:69 Keying progress checkboxes to positional array indices causes tick marks to detach or shift when blocks are reordered on regeneration."
+        }
+      ]
+    },
+    {
+      "context": "interview-execution-scoring",
+      "subject": "interview-run-of-show",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evidence": "app/_lib/interview-run.ts:159 The automated interviewer's closing turn defers to an open-ended human review without providing a concrete date or timeline for next steps.",
+      "techniques": [
+        {
+          "technique": "duration-band-and-clamping",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-run.ts:184 Falls back to ungrounded default instructions with durationMin when no plan exists."
+        },
+        {
+          "technique": "fixed-opening-and-closing-blocks",
+          "verdict": "deviation",
+          "evidence": "app/_lib/interview-run.ts:159 The closing instruction defers to an open-ended review by a recruiter rather than stating a concrete date or timeline for next steps."
+        },
+        {
+          "technique": "per-question-time-budget-that-tightens",
+          "verdict": "deviation",
+          "evidence": "app/_lib/interview-run.ts:209 Instructs the agent to roughly time-box topics rather than enforcing per-question minute budgets or planned follow-up allocations."
+        },
+        {
+          "technique": "slack-absorbing-open-block",
+          "verdict": "deviation",
+          "evidence": "app/_lib/interview-run.ts:189 Formats chronology blocks into prompt instructions without designating an open-discussion block to absorb drift and protect closing."
+        },
+        {
+          "technique": "question-kit-grounded-in-named-evidence-gaps",
+          "verdict": "deviation",
+          "evidence": "app/_lib/interview-run.ts:356 Candidate-facing run-of-show scrubs topics for safety but the runtime brief lacks the four-bucket gap taxonomy and defence questions."
+        },
+        {
+          "technique": "regenerate-without-destroying-human-notes",
+          "verdict": "conformant",
+          "evidence": "app/_lib/interview-run.ts:104 States the cap in prose when imported questions exceed the limit so the interviewer knows what was held back."
+        }
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "interview-run-of-show",
+      "context": "devcase-eval",
+      "reason": "devcase-eval evaluates developer case submissions, code integrity, and reflection cards; it does not construct, schedule, or enforce interview run-of-show timing contracts or question kits."
+    },
+    {
+      "subject": "interview-run-of-show",
+      "context": "interview-tools-api",
+      "reason": "withdrawn after review: reviewer (sonnet): importMerge.ts:88 is a payload-size cap (the comment at line 6 says so), and imported questions are unscheduled reference material outside the timed chronology, so the claim that 40 imports break the 15–30 minute band is unsupported; the 'silently truncates' claim is also weak because the POST respo"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-15T21:44:06.676848+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "interview-run-of-show"
+      ],
+      "techniques": [
+        "duration-band-and-clamping",
+        "fixed-opening-and-closing-blocks",
+        "per-question-time-budget-that-tightens",
+        "question-kit-grounded-in-named-evidence-gaps",
+        "regenerate-without-destroying-human-notes",
+        "slack-absorbing-open-block"
+      ],
+      "deviations": 1,
+      "context": "interview-planning-rubric",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-15T21:44:06.676848+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "interview-run-of-show"
+      ],
+      "techniques": [
+        "duration-band-and-clamping",
+        "fixed-opening-and-closing-blocks",
+        "per-question-time-budget-that-tightens",
+        "question-kit-grounded-in-named-evidence-gaps",
+        "regenerate-without-destroying-human-notes",
+        "slack-absorbing-open-block"
+      ],
+      "deviations": 1,
+      "context": "schedule-interview-prep",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-15T21:44:06.676848+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "interview-run-of-show"
+      ],
+      "techniques": [
+        "duration-band-and-clamping",
+        "fixed-opening-and-closing-blocks",
+        "per-question-time-budget-that-tightens",
+        "question-kit-grounded-in-named-evidence-gaps",
+        "regenerate-without-destroying-human-notes",
+        "slack-absorbing-open-block"
+      ],
+      "deviations": 1,
+      "context": "interview-tools-api",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-15T21:44:06.676848+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "interview-run-of-show"
+      ],
+      "techniques": [
+        "duration-band-and-clamping",
+        "fixed-opening-and-closing-blocks",
+        "per-question-time-budget-that-tightens",
+        "question-kit-grounded-in-named-evidence-gaps",
+        "regenerate-without-destroying-human-notes",
+        "slack-absorbing-open-block"
+      ],
+      "deviations": 1,
+      "context": "interview-execution-scoring",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    }
+  ]
+}
