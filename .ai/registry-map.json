@@ -6185,7 +6185,11 @@
           "revision": 3,
           "changedAt": "2026-09-29",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/calendar/google-calendar.ts:178 Missing or malformed busy data can become an empty calendar subsequently labeled checked, instead of making the entire lookup unavailable.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:293e8ac1c60f9a41",
+          "evaluatedRevision": 3
         },
         {
           "subject": "agent-memory",
@@ -26636,7 +26640,11 @@
           "revision": 3,
           "changedAt": "2026-09-29",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/hiring/schedule/scheduleInviteLifecycleBuckets.ts:105 Confirmed interviews disappear after the fixed four-hour window instead of entering an awaiting-outcome bucket, violating the required total partition.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:293e8ac1c60f9a41",
+          "evaluatedRevision": 3
         },
         {
           "subject": "scheduling",
@@ -26856,7 +26864,11 @@
           "revision": 3,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/hiring/schedule/useScheduleInterviewPrep.ts:201 Searches for fetchBusy, slotStillFree and proposeFreeSlots found no hits in the context's directory and located implementations elsewhere in calendar/API code, while these modules generate preparation material and capture assessments.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:293e8ac1c60f9a41",
+          "evaluatedRevision": 3
         },
         {
           "subject": "interview-round-design",

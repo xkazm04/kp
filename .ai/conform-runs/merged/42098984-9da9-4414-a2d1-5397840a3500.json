@@ -1,0 +1,256 @@
+{
+ "schema": "conform-run/1",
+ "worker": "42098984-9da9-4414-a2d1-5397840a3500",
+ "subject": "interview-calendar-integrity",
+ "evaluatedAt": "2026-10-15T02:06:20.971087+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "schedule-calendar-invites",
+   "subject": "interview-calendar-integrity",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/hiring/schedule/scheduleInviteLifecycleBuckets.ts:105 Confirmed interviews disappear after the fixed four-hour window instead of entering an awaiting-outcome bucket, violating the required total partition.",
+   "techniques": [
+    {
+     "technique": "audience-scoped-calendar-disclosure",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/schedule/ScheduleCalendarStatus.tsx:24 The recruiter surface displays the operational aggregate alongside the lookup status."
+    },
+    {
+     "technique": "idempotent-event-lifecycle-with-orphan-surfacing",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/schedule/ScheduleCalendarEventChip.tsx:34 For its presentation responsibility, the UI prominently distinguishes orphaned and failed writes and reserves the event link for written state."
+    },
+    {
+     "technique": "lifecycle-bucketing-with-a-post-start-grace",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/schedule/scheduleInviteLifecycleBuckets.ts:105 The default window is four hours from start, independent of duration; older confirmed rows receive no bucket, explicitly reinforced by the tests."
+    },
+    {
+     "technique": "re-check-at-confirm-time",
+     "verdict": "not-applicable",
+     "evidence": "app/features/hiring/schedule/ScheduleTabPendingList.tsx:283 This control delegates booking; the external confirm-time check belongs to the server context."
+    },
+    {
+     "technique": "real-duration-conflict-window",
+     "verdict": "not-applicable",
+     "evidence": "app/features/hiring/schedule/scheduleCalendarSlotParts.ts:7 Hour parsing places display chips; it does not decide booking collisions."
+    },
+    {
+     "technique": "three-valued-free-busy-unknown-is-not-free",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/schedule/ScheduleCalendarStatus.tsx:23 Recruiter copy follows the returned status, preserving unavailable and needs-reconnect distinctions."
+    }
+   ]
+  },
+  {
+   "context": "interview-scheduling-api",
+   "subject": "interview-calendar-integrity",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/api/schedule/[token]/route.ts:369 A positive calendar conflict returns the invite without current alternatives, requiring a separate request despite the standard requiring alternatives in the refusal response.",
+   "techniques": [
+    {
+     "technique": "audience-scoped-calendar-disclosure",
+     "verdict": "conformant",
+     "evidence": "app/api/schedule/[token]/route.ts:181 The public projection exposes the checked bit while withholding lookup reasons and hidden-slot counts; the recruiter route exposes those details."
+    },
+    {
+     "technique": "idempotent-event-lifecycle-with-orphan-surfacing",
+     "verdict": "deviation",
+     "evidence": "app/api/calendar/google/route.ts:53 Disconnect revokes the grant and deletes its connection without marking existing invite events orphaned, allowing their stored state to remain written."
+    },
+    {
+     "technique": "lifecycle-bucketing-with-a-post-start-grace",
+     "verdict": "not-applicable",
+     "evidence": "app/api/schedule/route.ts:105 This route returns bounded records; the working-agenda partition is implemented in the Schedule UI."
+    },
+    {
+     "technique": "re-check-at-confirm-time",
+     "verdict": "deviation",
+     "evidence": "app/api/schedule/[token]/route.ts:369 A fresh check correctly blocks only definite busy, but its refusal omits current slots; client-side refetching does not satisfy the same-response rule."
+    },
+    {
+     "technique": "real-duration-conflict-window",
+     "verdict": "conformant",
+     "evidence": "app/api/schedule/[token]/route.ts:367 Confirmation uses the stored interview duration; suggestion and recruiter booking paths also thread that duration into the shared engine."
+    },
+    {
+     "technique": "three-valued-free-busy-unknown-is-not-free",
+     "verdict": "conformant",
+     "evidence": "app/api/schedule/route.ts:86 The recruiter API preserves the engine's status rather than collapsing unknown into a successful check."
+    }
+   ]
+  },
+  {
+   "context": "calendar-scheduling",
+   "subject": "interview-calendar-integrity",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_lib/calendar/google-calendar.ts:178 Missing or malformed busy data can become an empty calendar subsequently labeled checked, instead of making the entire lookup unavailable.",
+   "techniques": [
+    {
+     "technique": "audience-scoped-calendar-disclosure",
+     "verdict": "conformant",
+     "evidence": "app/_lib/calendar/available-slots.ts:102 The service supplies an operational aggregate with slots and status, without returning conflicting event titles or attendees."
+    },
+    {
+     "technique": "idempotent-event-lifecycle-with-orphan-surfacing",
+     "verdict": "deviation",
+     "evidence": "app/_lib/calendar/google-calendar.ts:263 Creation supplies neither a stable interview-derived event ID nor an idempotency key, so an accepted write with a lost response can duplicate on another sync; create and PATCH also omit explicit sendUpdates=none."
+    },
+    {
+     "technique": "lifecycle-bucketing-with-a-post-start-grace",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/calendar/available-slots.ts:89 The engine filters proposed availability; it does not partition a working agenda into upcoming and past."
+    },
+    {
+     "technique": "re-check-at-confirm-time",
+     "verdict": "deviation",
+     "evidence": "app/_lib/schedule-store.ts:435 The store accepts no confirm-time calendar verdict and its schema persists none, leaving unknown and checked-free confirmations indistinguishable to recruiters."
+    },
+    {
+     "technique": "real-duration-conflict-window",
+     "verdict": "conformant",
+     "evidence": "app/_lib/schedule-store.ts:464 Inside the immediate transaction, the shared predicate refuses real-duration overlap or the same interview-zone hour; rescheduling uses the same authority."
+    },
+    {
+     "technique": "three-valued-free-busy-unknown-is-not-free",
+     "verdict": "deviation",
+     "evidence": "app/_lib/calendar/google-calendar.ts:178 A non-array busy field becomes empty, malformed members are filtered, and invalid bounds are later dropped without invalidating the checked status."
+    }
+   ]
+  },
+  {
+   "context": "schedule-interview-prep",
+   "subject": "interview-calendar-integrity",
+   "bundle": "recruiting",
+   "state": "not-applicable",
+   "evidence": "app/features/hiring/schedule/useScheduleInterviewPrep.ts:201 Searches for fetchBusy, slotStillFree and proposeFreeSlots found no hits in the context's directory and located implementations elsewhere in calendar/API code, while these modules generate preparation material and capture assessments.",
+   "techniques": [
+    {
+     "technique": "audience-scoped-calendar-disclosure",
+     "verdict": "not-applicable",
+     "evidence": "app/features/hiring/schedule/ScheduleInterviewPrepHeader.tsx:50 The displayed provenance concerns preparation generation, not calendar availability."
+    },
+    {
+     "technique": "idempotent-event-lifecycle-with-orphan-surfacing",
+     "verdict": "not-applicable",
+     "evidence": "app/features/hiring/schedule/useScheduleInterviewPrep.ts:108 The write persists preparation progress rather than external calendar events."
+    },
+    {
+     "technique": "lifecycle-bucketing-with-a-post-start-grace",
+     "verdict": "not-applicable",
+     "evidence": "app/features/hiring/schedule/scheduleInterviewPrepProgress.ts:89 Progress counts checked preparation items, not interviews partitioned by start time."
+    },
+    {
+     "technique": "re-check-at-confirm-time",
+     "verdict": "not-applicable",
+     "evidence": "app/features/hiring/schedule/ScheduleHumanScorecardPanel.tsx:197 Submission records an assessment rather than confirming a slot."
+    },
+    {
+     "technique": "real-duration-conflict-window",
+     "verdict": "not-applicable",
+     "evidence": "app/features/hiring/schedule/ScheduleInterviewPrepRunOfShow.tsx:35 Duration describes the preparation plan; no collision decision is made here."
+    },
+    {
+     "technique": "three-valued-free-busy-unknown-is-not-free",
+     "verdict": "not-applicable",
+     "evidence": "app/features/hiring/schedule/ScheduleInterviewTranscriptModal.tsx:28 The read retrieves an interview record, not external free/busy information."
+    }
+   ],
+   "absenceTerms": [
+    "fetchBusy",
+    "slotStillFree",
+    "proposeFreeSlots"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "interview-calendar-integrity",
+   "context": "candidate-self-scheduling-page",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-15T02:06:20.971087+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "interview-calendar-integrity"
+   ],
+   "techniques": [
+    "audience-scoped-calendar-disclosure",
+    "idempotent-event-lifecycle-with-orphan-surfacing",
+    "lifecycle-bucketing-with-a-post-start-grace",
+    "re-check-at-confirm-time",
+    "real-duration-conflict-window",
+    "three-valued-free-busy-unknown-is-not-free"
+   ],
+   "deviations": 1,
+   "context": "schedule-calendar-invites",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-15T02:06:20.971087+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "interview-calendar-integrity"
+   ],
+   "techniques": [
+    "audience-scoped-calendar-disclosure",
+    "idempotent-event-lifecycle-with-orphan-surfacing",
+    "lifecycle-bucketing-with-a-post-start-grace",
+    "re-check-at-confirm-time",
+    "real-duration-conflict-window",
+    "three-valued-free-busy-unknown-is-not-free"
+   ],
+   "deviations": 1,
+   "context": "interview-scheduling-api",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-15T02:06:20.971087+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "interview-calendar-integrity"
+   ],
+   "techniques": [
+    "audience-scoped-calendar-disclosure",
+    "idempotent-event-lifecycle-with-orphan-surfacing",
+    "lifecycle-bucketing-with-a-post-start-grace",
+    "re-check-at-confirm-time",
+    "real-duration-conflict-window",
+    "three-valued-free-busy-unknown-is-not-free"
+   ],
+   "deviations": 1,
+   "context": "calendar-scheduling",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-15T02:06:20.971087+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "interview-calendar-integrity"
+   ],
+   "techniques": [
+    "audience-scoped-calendar-disclosure",
+    "idempotent-event-lifecycle-with-orphan-surfacing",
+    "lifecycle-bucketing-with-a-post-start-grace",
+    "re-check-at-confirm-time",
+    "real-duration-conflict-window",
+    "three-valued-free-busy-unknown-is-not-free"
+   ],
+   "deviations": 0,
+   "context": "schedule-interview-prep",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}
