@@ -117,7 +117,9 @@ const FORBIDDEN_ARG_TOKENS = [
  */
 function enforcementSettingsPath() {
   const file = path.join(tmpdir(), `kp-onboard-enforce-${randomBytes(6).toString("hex")}.json`);
-  writeFileSync(file, JSON.stringify(ENFORCEMENT_SETTINGS, null, 2), "utf8");
+  // `wx` refuses a pre-planted file or symlink at this name in the shared temp dir; 0600
+  // keeps the hook settings readable by this user only.
+  writeFileSync(file, JSON.stringify(ENFORCEMENT_SETTINGS, null, 2), { encoding: "utf8", flag: "wx", mode: 0o600 });
   return file;
 }
 
