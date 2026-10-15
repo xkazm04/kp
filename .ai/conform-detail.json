@@ -6246,6 +6246,120 @@
           "evidence": "app/_lib/interview-run.ts:104 States the cap in prose when imported questions exceed the limit so the interviewer knows what was held back."
         }
       ]
+    },
+    "777cb8a1-955a-471f-8ce9-35c55ce69066/selection-score-calibration": {
+      "context": "analytics-calibration",
+      "subject": "selection-score-calibration",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T22:31:14.634Z",
+      "worker": "e2bdedbe-bbdd-4618-8f96-6f2b3488b914",
+      "techniques": [
+        {
+          "technique": "base-rate-skill-score",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/AnalyticsCalibrationPanel.tsx:213 The cohort baseline and signed arithmetic are implemented, but small-sample skill renders without an uncertainty interval or the required indicative qualification."
+        },
+        {
+          "technique": "label-leakage-taxonomy",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/calibrationVerdict.ts:79 Only high leakage is barred on the preceding line; medium and missing provenance can reach trustworthy."
+        },
+        {
+          "technique": "outcome-axis-selection-advance-versus-hire",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/AnalyticsCalibrationHeader.tsx:117 The selector duplicates narrowing instead of calling the shared asCalibrationOutcome function required for every producer and consumer."
+        },
+        {
+          "technique": "reliability-bins-and-proper-scoring",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/AnalyticsReliabilityDiagram.tsx:61 Every nonempty bin becomes a plotted point, including bins below the required per-bin sample floor."
+        }
+      ]
+    },
+    "cb276b0e-97aa-483b-9f18-5cbd0dbb4140/selection-score-calibration": {
+      "context": "cv-analysis-archetypes",
+      "subject": "selection-score-calibration",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T22:31:14.634Z",
+      "worker": "e2bdedbe-bbdd-4618-8f96-6f2b3488b914",
+      "techniques": [
+        {
+          "technique": "deterministic-holdout-clean-arm",
+          "verdict": "conformant",
+          "evidence": "app/_lib/calibration-holdout-arm.test.ts:89 The inspected store subtracts automated rejection records from sealed sparings, and this context explicitly covers that integration."
+        },
+        {
+          "technique": "label-leakage-taxonomy",
+          "verdict": "deviation",
+          "evidence": "app/_lib/calibration.ts:497 The holdout branch assigns low leakage even though its own ceiling text explicitly says the human reviewer still saw the score; the standard requires medium until score-blind review exists."
+        },
+        {
+          "technique": "outcome-axis-selection-advance-versus-hire",
+          "verdict": "conformant",
+          "evidence": "app/_lib/calibration.ts:435 This module defines the closed axis vocabulary and shared narrowing function; the traced pipeline producer distinguishes historical advancement from current hire position."
+        },
+        {
+          "technique": "reliability-bins-and-proper-scoring",
+          "verdict": "deviation",
+          "evidence": "app/_lib/calibration.ts:97 The global floor only changes calibrated; it does not prevent computation or return of below-floor error statistics."
+        }
+      ]
+    },
+    "80b0c56c-d9e3-4842-bdb4-f46cbaa565ca/selection-score-calibration": {
+      "context": "analytics-api",
+      "subject": "selection-score-calibration",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T22:31:14.634Z",
+      "worker": "e2bdedbe-bbdd-4618-8f96-6f2b3488b914",
+      "techniques": [
+        {
+          "technique": "deterministic-holdout-clean-arm",
+          "verdict": "conformant",
+          "evidence": "app/api/analytics/calibration/route.ts:83 The holdout endpoint restricts the same workspace-scoped label producer using recorded sparings rather than recomputing membership from today's threshold."
+        },
+        {
+          "technique": "outcome-axis-selection-advance-versus-hire",
+          "verdict": "conformant",
+          "evidence": "app/api/analytics/calibration/route.ts:62 The route uses the shared normalizer, limits analysis dispositions to advancement, and echoes the axis actually applied."
+        },
+        {
+          "technique": "reliability-bins-and-proper-scoring",
+          "verdict": "deviation",
+          "evidence": "app/api/analytics/calibration/route.ts:147 The serialized response includes numerical calibration statistics even when n is below minOutcomes."
+        }
+      ]
+    },
+    "01537eaf-44d0-4058-8141-9172d479c156/selection-score-calibration": {
+      "context": "screening-fairness",
+      "subject": "selection-score-calibration",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T22:31:14.634Z",
+      "worker": "e2bdedbe-bbdd-4618-8f96-6f2b3488b914",
+      "techniques": [
+        {
+          "technique": "base-rate-skill-score",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/adverse-impact.ts:129 This fairness instrument compares supplied group selection counts, not screening predictions against a no-model baseline."
+        },
+        {
+          "technique": "deterministic-holdout-clean-arm",
+          "verdict": "deviation",
+          "evidence": "app/_lib/screen-wave.ts:267 Sampling and removal of held-out IDs occur at lines 258–259 before this reviewer-exclusion step, contrary to the required exclusion-before-draw order."
+        },
+        {
+          "technique": "reliability-bins-and-proper-scoring",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/adverse-impact.ts:308 This is a group selection-rate ratio, which the standard explicitly separates from reliability curves and proper prediction scoring."
+        }
+      ]
     }
   }
 }
