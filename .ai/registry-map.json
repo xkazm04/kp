@@ -17478,12 +17478,11 @@
           "changedAt": "2026-10-14",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "app/features/library/jds/JdsLedgerTable.tsx:111 keys the tbody on sort.col|sort.dir, so a sort remounts the body and replays the entrance animation for rows that merely changed position - sorting \"what sorting must not disturb\" forbids exactly this, and the remount also drops row focus. The row window is bounded and disclosed (app/_lib/db/jobs.ts:240 caps at 200, jdsLibrary.test.ts:130 pins that a truncated page never reads as complete).",
-          "evaluatedAt": "2026-09-20",
-          "evaluatedAgainst": "sha256:9ac911984c10d3d5",
-          "evaluatedRevision": 5,
-          "revisionsBehind": 9,
-          "stale": true
+          "evidence": "app/features/library/jds/JdsLedgerTable.tsx:111 Changing sort remounts the tbody and its rows, discarding row focus and replaying arrival animation for records that merely changed position.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:c587a204413d5373",
+          "evaluatedRevision": 14,
+          "revisionsBehind": 9
         },
         {
           "subject": "audit-logging",
@@ -19183,7 +19182,11 @@
           "revision": 14,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/library/jobs/JobsTable.tsx:58 Typing immediately changes server-query state and schedules a debounced request while previous rows remain visible, violating explicit text-filter commit and applied-predicate requirements.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:c587a204413d5373",
+          "evaluatedRevision": 14
         },
         {
           "subject": "engine-host-contract",
@@ -22125,7 +22128,11 @@
           "revision": 14,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/insights/matrix/matrixRows.ts:85 Column sorting has no identity tiebreaker, so equal-scoring candidates change order when the incoming sequence changes.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:c587a204413d5373",
+          "evaluatedRevision": 14
         },
         {
           "subject": "eval-harness",
@@ -29922,12 +29929,11 @@
           "changedAt": "2026-10-14",
           "confidence": "strong",
           "state": "deviation",
-          "evidence": "app/_components/table/useTableSort.ts:126 sorts with no immutable identity tiebreaker (useTableSort.test.ts:22 pins ties at 0 and leans on Array.prototype.sort stability), so equal-keyed rows order by whatever sequence the caller supplied - a shared kit for seven surfaces cannot see that order and nothing pins it; pageWindow.ts:26 also clamps the page on a filter change where filtering requires a reset to page one.",
-          "evaluatedAt": "2026-09-20",
-          "evaluatedAgainst": "sha256:9ac911984c10d3d5",
-          "evaluatedRevision": 5,
-          "revisionsBehind": 9,
-          "stale": true
+          "evidence": "app/_components/table/useTableSort.ts:130 The shared sort compares only the selected cell value, so distinct rows with equal values retain input order instead of receiving the required immutable identity tiebreaker.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:c587a204413d5373",
+          "evaluatedRevision": 14,
+          "revisionsBehind": 9
         },
         {
           "subject": "agent-memory",

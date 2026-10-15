@@ -1,0 +1,199 @@
+{
+  "schema": "conform-run/1",
+  "worker": "95d463f0-a56d-418b-828e-a6ffd4ba75a6",
+  "subject": "table",
+  "evaluatedAt": "2026-10-15T00:32:59.670370+00:00",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "pairs": [
+    {
+      "context": "table-components",
+      "subject": "table",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/_components/table/useTableSort.ts:130 The shared sort compares only the selected cell value, so distinct rows with equal values retain input order instead of receiving the required immutable identity tiebreaker.",
+      "techniques": [
+        {
+          "technique": "filtering",
+          "verdict": "deviation",
+          "evidence": "app/_components/table/pageWindow.ts:28 The documented filter-change policy clamps rather than resets; clampPage(2, 25, 20) returns 1, whereas a committed filter change requires page 0."
+        },
+        {
+          "technique": "performance",
+          "verdict": "deviation",
+          "evidence": "app/_components/table/useTableSort.ts:136 The memo excludes the supplied accessors, so changing an accessor while these dependencies remain unchanged leaves the presentation sequence stale."
+        },
+        {
+          "technique": "sorting",
+          "verdict": "deviation",
+          "evidence": "app/_components/table/useTableSort.ts:130 No immutable unique row identity participates in tie resolution."
+        }
+      ]
+    },
+    {
+      "context": "jd-ledger",
+      "subject": "table",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/features/library/jds/JdsLedgerTable.tsx:111 Changing sort remounts the tbody and its rows, discarding row focus and replaying arrival animation for records that merely changed position.",
+      "techniques": [
+        {
+          "technique": "client-server-split",
+          "verdict": "deviation",
+          "evidence": "app/features/library/jds/jdsLedgerLogic.ts:139 The client filters and orders a server-capped JD page; the controls are presented as role search and library facets rather than explicitly as finding within the loaded window."
+        },
+        {
+          "technique": "loading-and-empty-states",
+          "verdict": "deviation",
+          "evidence": "app/features/library/jds/jdsHooks.ts:41 User-triggered reload calls load without the silent option, replacing existing rows with the loading body; only polling uses the preserving refresh path."
+        },
+        {
+          "technique": "sorting",
+          "verdict": "deviation",
+          "evidence": "app/features/library/jds/JdsLedgerTable.tsx:111 Sort state changes the tbody identity, defeating preservation of row focus and preventing reuse of existing rows."
+        }
+      ]
+    },
+    {
+      "context": "matrix-grid",
+      "subject": "table",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/features/insights/matrix/matrixRows.ts:85 Column sorting has no identity tiebreaker, so equal-scoring candidates change order when the incoming sequence changes.",
+      "techniques": [
+        {
+          "technique": "export-escapes-for-its-consumer",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/matrix/useMatrixTab.ts:563 Candidate and position labels reach the shared CSV encoder whose missing formula guards were reproduced in the checks described in notes."
+        },
+        {
+          "technique": "grid-keyboard-model",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/matrix/MatrixGridRow.tsx:82 The candidate rowheader has no focus target and is excluded from the roving rectangle, although the standard requires every body cell, including text cells, to take focus."
+        },
+        {
+          "technique": "loading-and-empty-states",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/matrix/MatrixToolbar.tsx:60 The known min-fit filter controls are conditional on loaded candidates, so this part of the query chrome is absent during initial loading."
+        },
+        {
+          "technique": "sorting",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/matrix/matrixRows.ts:85 A direct invocation with equal scores returned [a,b] for one input order and [b,a] for the reversed input."
+        }
+      ]
+    },
+    {
+      "context": "jobs-table-core",
+      "subject": "table",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/features/library/jobs/JobsTable.tsx:58 Typing immediately changes server-query state and schedules a debounced request while previous rows remain visible, violating explicit text-filter commit and applied-predicate requirements.",
+      "techniques": [
+        {
+          "technique": "filtering",
+          "verdict": "deviation",
+          "evidence": "app/features/library/jobs/JobsTable.tsx:58 The text control writes q on each change; useJobsList fetches after 180ms rather than waiting for submit or Enter, and retains rows from the previous predicate."
+        },
+        {
+          "technique": "loading-and-empty-states",
+          "verdict": "deviation",
+          "evidence": "app/features/library/jobs/useJobsList.ts:72 A successful response with a missing or non-array jobs field becomes an empty catalog instead of a distinct payload-shape failure."
+        },
+        {
+          "technique": "sorting",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/jobs.ts:607 The Jobs endpoint sorts text through locale-independent folding rather than the reader's locale; the adjacent implementation comments explicitly identify its disagreement with Czech collation."
+        }
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "table",
+      "context": "analytics-metrics",
+      "reason": "withdrawn after review: reviewer (sonnet): toCsv in export-utils.ts does lack leading LF and full-width triggers, but funnelCsvRows emits only translated enum stage labels, numbers, percent strings, an em dash and provenance values, so I could not confirm any operator-supplied text reaches this export."
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-15T00:32:59.670370+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "table"
+      ],
+      "techniques": [
+        "filtering",
+        "performance",
+        "sorting"
+      ],
+      "deviations": 1,
+      "context": "table-components",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-15T00:32:59.670370+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "table"
+      ],
+      "techniques": [
+        "client-server-split",
+        "loading-and-empty-states",
+        "sorting"
+      ],
+      "deviations": 1,
+      "context": "jd-ledger",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-15T00:32:59.670370+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "table"
+      ],
+      "techniques": [
+        "export-escapes-for-its-consumer",
+        "grid-keyboard-model",
+        "loading-and-empty-states",
+        "sorting"
+      ],
+      "deviations": 1,
+      "context": "matrix-grid",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-15T00:32:59.670370+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "table"
+      ],
+      "techniques": [
+        "filtering",
+        "loading-and-empty-states",
+        "sorting"
+      ],
+      "deviations": 1,
+      "context": "jobs-table-core",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-15T00:32:59.670370+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "table"
+      ],
+      "techniques": [
+        "export-escapes-for-its-consumer"
+      ],
+      "deviations": 1,
+      "context": "analytics-metrics",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    }
+  ]
+}
