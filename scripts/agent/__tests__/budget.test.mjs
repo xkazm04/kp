@@ -45,10 +45,20 @@ const BUDGET = {
   prices: { models: { 'priced-model': { inputPerMTok: 3, outputPerMTok: 15 } } },
 };
 
+const tempDirs = [];
+process.on('exit', () => {
+  for (const d of tempDirs) fs.rmSync(d, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+});
+function makeTempDir(prefix) {
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  tempDirs.push(d);
+  return d;
+}
+
 // --- the budget file ----------------------------------------------------------
 
 check('a budget that cannot be believed throws rather than widening the lane', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kp-agent-budget-'));
+  const dir = makeTempDir('kp-agent-budget-');
   const write = (o) => fs.writeFileSync(path.join(dir, BUDGET_FILE), JSON.stringify(o));
   const bad = (o, re) => {
     write(o);
@@ -133,7 +143,7 @@ check('a lane the budget never declared is reported, not folded in silently', ()
 });
 
 check('a ledger line that is not JSON is dropped, never crashes the report', () => {
-  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'kp-agent-ledger-')), 'l.jsonl');
+  const file = path.join(makeTempDir('kp-agent-ledger-'), 'l.jsonl');
   fs.writeFileSync(file, '{"lane":"dispatch","model":"m","usage":null}\nnot json\n\n');
   assert.equal(readLedger(file).length, 1);
   assert.deepEqual(readLedger(null), []);

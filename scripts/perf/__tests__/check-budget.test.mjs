@@ -81,10 +81,20 @@ check('a specifier that resolves nowhere is not silently treated as free', () =>
   assert.equal(resolveSpecifier('next/server', path.join(REPO_ROOT, 'app/page.tsx')), null, 'node_modules is not first-party');
 });
 
+const tempDirs = [];
+process.on('exit', () => {
+  for (const d of tempDirs) fs.rmSync(d, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+});
+function makeTempDir(prefix) {
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  tempDirs.push(d);
+  return d;
+}
+
 // --- the budget file must be believable ---------------------------------------
 
 check('a budget that cannot be believed throws rather than widening the ceiling', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kp-perf-budget-'));
+  const dir = makeTempDir('kp-perf-budget-');
   const write = (o) => fs.writeFileSync(path.join(dir, BUDGET_FILE), JSON.stringify(o));
   const bad = (o, re) => {
     write(o);
@@ -111,13 +121,13 @@ check('a budget that cannot be believed throws rather than widening the ceiling'
 // surface as a raw ENOENT, which says the file is gone and not that `--record`
 // is the thing that writes it.
 check('a missing budget names its own fix', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kp-perf-empty-'));
+  const dir = makeTempDir('kp-perf-empty-');
   assert.throws(() => loadBudget(dir), /--record/);
   assert.throws(() => loadBudget(dir), /does not exist/);
 });
 
 check('--record refuses to overwrite a budget somebody already signed', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kp-perf-existing-'));
+  const dir = makeTempDir('kp-perf-existing-');
   fs.writeFileSync(path.join(dir, BUDGET_FILE), '{}');
   assert.equal(record(dir), 1, 'raising a ceiling is an edit somebody makes, never a re-record');
 });
