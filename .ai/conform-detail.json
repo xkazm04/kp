@@ -6360,6 +6360,58 @@
           "evidence": "app/_lib/adverse-impact.ts:308 This is a group selection-rate ratio, which the standard explicitly separates from reliability curves and proper prediction scoring."
         }
       ]
+    },
+    "01537eaf-44d0-4058-8141-9172d479c156/adverse-impact-and-proxy-neutrality": {
+      "context": "screening-fairness",
+      "subject": "adverse-impact-and-proxy-neutrality",
+      "bundle": "recruiting",
+      "state": "conformant",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T22:57:38.814Z",
+      "worker": "e77391bb-2654-4756-b33f-7323025c51c9",
+      "techniques": [
+        {
+          "technique": "selection-rate-ratio-testing",
+          "verdict": "conformant",
+          "evidence": "app/_lib/adverse-impact.ts:308 Computes selection rate ratio against the reference rate, returning null when unmeasurable."
+        },
+        {
+          "technique": "reference-group-selection",
+          "verdict": "conformant",
+          "evidence": "app/_lib/adverse-impact.ts:293 Selects highest selection rate group meeting min-cohort floor as reference, breaking ties deterministically."
+        },
+        {
+          "technique": "minimum-cohort-before-a-ratio-is-asserted",
+          "verdict": "conformant",
+          "evidence": "app/_lib/adverse-impact.ts:39 Enforces a minimum floor of 30 considered candidates per group before a selection rate is deemed reliable."
+        },
+        {
+          "technique": "too-small-to-assess-as-a-distinct-verdict",
+          "verdict": "conformant",
+          "evidence": "app/_lib/adverse-impact.ts:369 Returns an explicit insufficient sample verdict rather than treating sub-floor cohorts as clean."
+        },
+        {
+          "technique": "cohort-shield-is-not-a-protected-class-test",
+          "verdict": "conformant",
+          "evidence": "app/_lib/automation-fairness.ts:57 Shields protected and unknown career archetypes from automated rejection without claiming protected-class fairness."
+        }
+      ]
+    },
+    "6e4380dc-8992-4f22-8017-d42ce053a5ca/adverse-impact-and-proxy-neutrality": {
+      "context": "jobs-candidates-compare",
+      "subject": "adverse-impact-and-proxy-neutrality",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T22:57:38.814Z",
+      "worker": "e77391bb-2654-4756-b33f-7323025c51c9",
+      "techniques": [
+        {
+          "technique": "cohort-shield-is-not-a-protected-class-test",
+          "verdict": "deviation",
+          "evidence": "app/features/library/jobs/JobsRecruiterCandidates.tsx:110 Renders early-career cohort protection as fairness-shielded without any disclaimer that it is not a protected-class test."
+        }
+      ]
     }
   }
 }

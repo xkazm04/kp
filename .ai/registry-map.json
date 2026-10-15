@@ -18819,7 +18819,11 @@
           "revision": 4,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/library/jobs/JobsRecruiterCandidatesFairness.tsx:55 Presents candidate weight robustness and career cohort protections under a fairness audit label without disclaiming that they are not protected-class tests.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:a6b772b8ebe7f352",
+          "evaluatedRevision": 4
         },
         {
           "subject": "eval-harness",
@@ -27268,7 +27272,11 @@
           "revision": 4,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "app/_lib/adverse-impact.ts:19 Implements the four-fifths adverse impact screen alongside significance testing, shortfall counts, and minimum cohort floors.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:a6b772b8ebe7f352",
+          "evaluatedRevision": 4
         },
         {
           "subject": "automated-screening-fairness-gates",
