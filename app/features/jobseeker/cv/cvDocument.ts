@@ -228,7 +228,7 @@ export function findContacts(text: string): CvContact[] {
   }
   for (const m of head.match(URLISH) ?? []) {
     const bare = m.replace(/^https?:\/\//i, "").replace(/^www\./i, "").replace(/\/$/, "");
-    const kind = /linkedin\.com/i.test(bare) ? "linkedin" : /github\.com/i.test(bare) ? "github" : "url";
+    const kind = /^linkedin\.com\//i.test(bare) ? "linkedin" : /^github\.com\//i.test(bare) ? "github" : "url";
     push({ kind, value: bare, href: `https://${bare}` });
   }
   return out;

@@ -97,7 +97,7 @@ export type NeedAnalysisResult = {
 // analysis is internal, so callers that don't care can omit it).
 export async function runNeedAnalysis(need: DevNeed, signal?: AbortSignal, lang?: string | null): Promise<NeedAnalysisResult> {
   const ghRefs = (need.codebaseRefs ?? [])
-    .filter((r) => r.kind === "github" || /github\.com/.test(r.ref))
+    .filter((r) => r.kind === "github" || /^(?:https?:\/\/|ssh:\/\/git@|git@)?(?:www\.)?github\.com[/:]/i.test(r.ref))
     .slice(0, MAX_CODEBASES);
   const snapshots = (await Promise.all(ghRefs.map((r) => buildRepoSnapshot(r.ref)))).filter(
     (s): s is RepoSnapshot => s !== null,

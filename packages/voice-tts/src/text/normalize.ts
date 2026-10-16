@@ -63,5 +63,5 @@ export function speechReady(input: string, opts: SpeechReadyOptions = {}): strin
     // A line break in prose is usually a paragraph/list boundary: terminate it.
     out.push(terminate(t));
   }
-  return out.join(" ").replace(/\s+([,.;:!?])/g, "$1").replace(/\s{2,}/g, " ").trim();
+  return out.join(" ").replace(/\s{2,}/g, " ").replace(/\s([,.;:!?])/g, "$1").trim();
 }

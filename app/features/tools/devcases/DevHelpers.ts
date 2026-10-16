@@ -80,7 +80,7 @@ export function approveFallbackFor(
 export function isSupportedRepoRef(raw: string): boolean {
   const ref = raw.trim();
   if (!ref) return true; // empty = no codebase, that's fine
-  if (/github\.com/i.test(ref)) return true;
+  if (/^(?:https?:\/\/|ssh:\/\/git@|git@)?(?:www\.)?github\.com[/:]/i.test(ref)) return true;
   if (/^[^/\s]+\/[^/\s]+$/.test(ref)) return true; // bare owner/repo
   return false;
 }
