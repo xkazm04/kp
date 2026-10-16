@@ -1,7 +1,7 @@
 // Pure, render-free logic for the AnalysisProgress panel. Split out of the
 // .tsx so it can be unit-tested under Node's built-in runner (which strips .ts
-// types but cannot load JSX). AnalysisProgress.tsx re-exports every symbol here,
-// so existing `@/app/_components/AnalysisProgress` imports keep working.
+// types but cannot load JSX). AnalysisProgress.tsx does not re-export it: import this
+// module directly.
 //
 // Direction 3 — HONEST stages. The strip used to animate six Python-INTERNAL
 // stages (extract→gemini→profile→scoring→salary→insights) on a fixed cosmetic

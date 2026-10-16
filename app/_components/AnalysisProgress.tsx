@@ -13,18 +13,6 @@ import {
   type StageState,
 } from "./analysis-progress-logic";
 
-// Re-export the pure stage logic so existing `@/app/_components/AnalysisProgress`
-// imports (useAnalyzeForm, runAnalysis, AnalyzeApi, AnalyzeTypes) keep resolving
-// after it moved into the testable sibling module.
-export {
-  STAGE_ORDER,
-  initialStageState,
-  applyStageEvent,
-  deriveProgressDisplay,
-  headlineStageOf,
-} from "./analysis-progress-logic";
-export type { StageId, StageStatus, StageState, ProgressDisplay } from "./analysis-progress-logic";
-
 // Literal-key maps (next-intl rejects template-literal keys, so we can't build
 // `stages.${id}Title` inline) → the catalog lives under analyze.stages.*. Direction
 // 3 — three HONEST, observable phases replace the six cosmetic Python-internal ones.

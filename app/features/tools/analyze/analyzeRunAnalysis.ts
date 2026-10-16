@@ -4,7 +4,7 @@ import {
   applyStageEvent,
   STAGE_ORDER,
   type StageState,
-} from "@/app/_components/AnalysisProgress";
+} from "@/app/_components/analysis-progress-logic";
 import { type Analysis } from "@/app/_lib/schemas";
 import { submitAnalysis, watchAnalysis, type VariantProgress } from "./AnalyzeApi";
 import type { AnalyzeErrorInfo } from "./AnalyzeTypes";
