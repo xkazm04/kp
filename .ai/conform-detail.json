@@ -7418,6 +7418,129 @@
           "evidence": "app/features/settings/billing/BillingPlanCatalog.tsx:137 The plan catalog view maps over data.catalog.plans, rendering limits and tiers directly from the shared single-source catalog."
         }
       ]
+    },
+    "e69ea8c8-1943-4054-97d1-78001e6d4530/skill-adjacency-and-normalization": {
+      "context": "candidate-matching",
+      "subject": "skill-adjacency-and-normalization",
+      "bundle": "recruiting",
+      "state": "conformant",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T22:04:20.402Z",
+      "worker": "fa957f32-abaf-43e1-951f-5e65172e80e1",
+      "techniques": [
+        {
+          "technique": "bilingual-surface-parity-and-coverage-floors",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/taxonomy_check.py:108 Defines per-family skill term floors as regression ratchets across all role domains."
+        },
+        {
+          "technique": "canonical-term-with-surface-aliases",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/taxonomy.py:1030 Maps surface forms to canonical term IDs before hierarchy walks or scoring."
+        },
+        {
+          "technique": "hierarchy-credit-specialization-and-generalization",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/taxonomy.py:739 Encodes asymmetric directional credit where specialization is 0.9 and generalization is 0.55."
+        },
+        {
+          "technique": "sibling-adjacency-below-the-match-threshold",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/taxonomy.py:749 Pins sibling credit to 0.4, strictly below the 0.5 match threshold so cousin skills cannot become reported matches."
+        },
+        {
+          "technique": "unmodelled-term-graceful-fallback",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/taxonomy.py:1208 Caps unmodelled token overlap at 0.3, strictly below sibling credit and the match threshold."
+        },
+        {
+          "technique": "whole-token-matching-over-substring",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/taxonomy.py:437 Aligns compact fallback matches to the word grid of the original text with suffix allowance only for single plain tokens."
+        }
+      ]
+    },
+    "4c01cda6-93db-4db4-a5fa-d5153653d9c6/skill-adjacency-and-normalization": {
+      "context": "tests-matching-taxonomy",
+      "subject": "skill-adjacency-and-normalization",
+      "bundle": "recruiting",
+      "state": "conformant",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T22:04:20.402Z",
+      "worker": "fa957f32-abaf-43e1-951f-5e65172e80e1",
+      "techniques": [
+        {
+          "technique": "bilingual-surface-parity-and-coverage-floors",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_taxonomy_coverage_gate.py:35 Asserts that per-family skill coverage never regresses below recorded floors."
+        },
+        {
+          "technique": "canonical-term-with-surface-aliases",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_taxonomy_graph.py:11 Tests resolution of surface aliases and acronyms to stable canonical term IDs."
+        },
+        {
+          "technique": "hierarchy-credit-specialization-and-generalization",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_taxonomy_graph.py:59 Asserts asymmetric hierarchy credit for specialization (0.9) versus generalization (0.55)."
+        },
+        {
+          "technique": "sibling-adjacency-below-the-match-threshold",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_sibling_credit.py:33 Asserts that sibling credit sits strictly below the match threshold."
+        },
+        {
+          "technique": "unmodelled-term-graceful-fallback",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_taxonomy_graph.py:80 Verifies that identical strings outside the taxonomy still match with exact string credit."
+        },
+        {
+          "technique": "whole-token-matching-over-substring",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_false_skill_credit.py:41 Verifies that compacted prose substring accidents do not award false skill credit."
+        }
+      ]
+    },
+    "10943bc8-3713-4897-a618-ac1437d7c455/skill-adjacency-and-normalization": {
+      "context": "tests-scoring-fairness",
+      "subject": "skill-adjacency-and-normalization",
+      "bundle": "recruiting",
+      "state": "conformant",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T22:04:20.402Z",
+      "worker": "fa957f32-abaf-43e1-951f-5e65172e80e1",
+      "techniques": [
+        {
+          "technique": "bilingual-surface-parity-and-coverage-floors",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_tech_bilingual_parity.py:26 Tests that Czech technical terms resolve to canonical identities at parity with English."
+        },
+        {
+          "technique": "canonical-term-with-surface-aliases",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_tech_bilingual_parity.py:90 Asserts that adding new language aliases causes no ranking drift or resolution changes on existing terms."
+        },
+        {
+          "technique": "hierarchy-credit-specialization-and-generalization",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_unproven_boundary.py:74 Tests that generalization clears the partial match threshold at strong provenance while preserving strength."
+        },
+        {
+          "technique": "sibling-adjacency-below-the-match-threshold",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_unproven_boundary.py:88 Verifies that sibling matches land in the unproven bucket tagged with reason 'adjacency' rather than missing."
+        },
+        {
+          "technique": "unmodelled-term-graceful-fallback",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_fallback_stopwords_multilingual.py:92 Tests bounded distinctive-token overlap below the fallback cap across English, Czech, German, and French."
+        },
+        {
+          "technique": "whole-token-matching-over-substring",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_whole_token_classification.py:59 Asserts whole-token matching excludes short taxonomy surfaces from matching inside unrelated words."
+        }
+      ]
     }
   }
 }

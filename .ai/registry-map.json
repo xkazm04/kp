@@ -6821,7 +6821,11 @@
           "revision": 3,
           "changedAt": "2026-08-24",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "pipeline/jobfit/taxonomy.py:1311 skill_match_score orchestrates canonical term resolution, hierarchy traversal with directional credit, sub-threshold sibling adjacency, and bounded token-overlap fallback before discounting by provenance.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:4afcb15fd36942fa",
+          "evaluatedRevision": 3
         },
         {
           "subject": "candidate-archetype-routing",
@@ -31022,7 +31026,11 @@
           "revision": 3,
           "changedAt": "2026-08-24",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_sibling_credit.py:21 This test suite pins the taxonomy hierarchy contract, validating that sibling adjacency earns the documented sub-threshold score and cannot cross into reported matches.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:4afcb15fd36942fa",
+          "evaluatedRevision": 3
         },
         {
           "subject": "test-harness",
@@ -31381,7 +31389,11 @@
           "revision": 3,
           "changedAt": "2026-08-24",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_unproven_boundary.py:41 Asserts the honesty boundary in candidate scoring by testing the matrix of exact, specialization, generalization, and sibling matches across provenance levels.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:4afcb15fd36942fa",
+          "evaluatedRevision": 3
         },
         {
           "subject": "voice-interview-fidelity",
