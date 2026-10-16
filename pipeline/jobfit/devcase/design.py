@@ -16,8 +16,6 @@ import threading
 from typing import Any
 
 from .models import (
-    DEFAULT_TIMEBOX_HOURS,
-    MAX_TIMEBOX_HOURS,
     RUBRIC_DIMENSIONS,
     DevNeed,
     NeedAnalysis,
@@ -39,12 +37,13 @@ CASE_DESIGN_PROMPT_VERSION = "case-design-v7"  # v7: the role's must-haves reach
 # level. A half-day take-home drives a 40–60% drop-off among strong seniors, the exact
 # pool this case is for. Seniority scales DEPTH / ambiguity (see the prompt), not hours.
 
-# Seniority-scaled timebox, every value bounded by MAX_TIMEBOX_HOURS.
-_TIMEBOX = {"junior": 1.0, "medior": DEFAULT_TIMEBOX_HOURS, "senior": MAX_TIMEBOX_HOURS, "lead": MAX_TIMEBOX_HOURS}
+# One flat box for every level: seniority scales depth and ambiguity through the prompt,
+# never hours, so a senior never gets a longer unpaid case than a junior.
+CASE_TIMEBOX_HOURS = 1.0
 
 
 def _timebox(seniority: str) -> float:
-    return _TIMEBOX.get((seniority or "medior").lower(), DEFAULT_TIMEBOX_HOURS)
+    return CASE_TIMEBOX_HOURS
 
 
 _CORPUS_CACHE: list | None = None
@@ -510,7 +509,8 @@ def design_case(
         # routinely echoes a longer take-home back, and this number is shown to the
         # candidate. The bound itself is models.clamp_timebox_hours — one rule, shared
         # with the CaseScenario validator and (via codegen) with the TS approve route.
-        tb = clamp_timebox_hours(tb)
+        # The prompt calls the box a HARD cap, so the model may propose less, never more.
+        tb = min(clamp_timebox_hours(tb), timebox)
         # Mid-flight update (v6): keep only a well-formed one — a non-empty candidate-facing
         # `update` with a sane fire time (clamped inside the timebox so it can actually land).
         mfu_raw = payload.get("midFlightUpdate")
