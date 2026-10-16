@@ -134,7 +134,12 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
     const jobId = jdJobId(slug);
     if (getJob(jobId, ws)) {
       try {
-        const { job } = await ingestJobAd(fields.body, jobId);
+        const { job, source } = await ingestJobAd(fields.body, jobId);
+        // A keyless install parses deterministically (no requirements). Overwriting a
+        // matchable job with that would erase the requirements it already has, so a
+        // re-sync only proceeds on an LLM parse; otherwise the job keeps its fields
+        // and jobResynced stays false (the truth).
+        if (source !== "llm") return NextResponse.json({ ok: true, jobResynced: false });
         // The re-parse reads the pay figure out of the edited WORDING, and
         // insertJob's upsert writes salary_min/salary_max from whatever it got — so
         // this write used to replace the analysis-grounded band the first ingest

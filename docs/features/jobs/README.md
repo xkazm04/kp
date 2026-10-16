@@ -287,6 +287,8 @@ The command palette's library preview reads `countTemplates`, a real COUNT, rath
 the bounded page's length — reporting a page size as a library total is the exact bug the
 JD figure beside it was already fixed for (`app/_lib/palette-preview/resolve-library-tools.ts`).
 
+**Keyless prose-ad ingest.** `jobs_cli ingest` (`POST /api/jobs/ingest`, `POST /api/jds/[slug]/ingest-job`) no longer 500s when no LLM provider is available: it falls back to `ingest_ad_deterministic` (`pipeline/jobfit/jobs.py`) -- title from the first non-empty line, the ad as the description, no invented requirements -- and answers `source: "deterministic"` with every unstated field listed in `defaultedFields`. The two re-sync doors (`PATCH /api/jds/[slug]`, the revision revert) only overwrite the linked job on `source: "llm"`, so a keyless edit can never erase a job's parsed requirements (`jobResynced` stays `false`).
+
 ## Save vs. ingest — a draft can exist without a matchable Job
 
 `POST /api/jds/save` does two things, and only the first is authoritative:

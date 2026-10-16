@@ -60,7 +60,12 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
     const jobId = jdJobId(slug);
     if (getJob(jobId, ws)) {
       try {
-        const { job } = await ingestJobAd(restored.body, jobId);
+        const { job, source } = await ingestJobAd(restored.body, jobId);
+        // A keyless install parses deterministically (no requirements). Overwriting a
+        // matchable job with that would erase the requirements it already has, so a
+        // re-sync only proceeds on an LLM parse; otherwise the job keeps its fields
+        // and jobResynced stays false (the truth).
+        if (source !== "llm") return NextResponse.json({ ok: true, restored, jobResynced: false });
         insertJob({ ...job, id: jobId }, undefined, "draft", ws);
         jobResynced = true;
       } catch (ingestError) {
