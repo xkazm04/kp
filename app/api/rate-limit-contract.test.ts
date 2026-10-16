@@ -1883,6 +1883,31 @@ const ROUTES: RouteSpec[] = [
     servedBefore: "validateScreeningOverride(body.override)",
   },
   // ------------------------------------------------------------------
+  // ADDED with the routes (role-run gate doors, ADR-0011 §3). Preview and commit share ONE
+  // budget key: a commit is always preceded by a preview. The malformed-body 400 and the
+  // unknown-run 404 are served ahead of the throttle, so a request that could never act
+  // spends none of the window.
+  {
+    rel: "./role-runs/[id]/gate/preview/route.ts",
+    key: "`role-run-gate:${clientIpFrom(request.headers)}`",
+    limit: 120,
+    optsSrc: "GATE_RATE_LIMIT",
+    optsDef: "const GATE_RATE_LIMIT = { limit: 120, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "previewRoleRunGate(id",
+    servedBefore: 'jsonRefusal("ROLE_RUN_NOT_FOUND", 404)',
+  },
+  {
+    rel: "./role-runs/[id]/gate/commit/route.ts",
+    key: "`role-run-gate:${clientIpFrom(request.headers)}`",
+    limit: 120,
+    optsSrc: "GATE_RATE_LIMIT",
+    optsDef: "const GATE_RATE_LIMIT = { limit: 120, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "resolveRoleRunGateSubject(id",
+    servedBefore: 'jsonRefusal("ROLE_RUN_NOT_FOUND", 404)',
+  },
+  // ------------------------------------------------------------------
   // ADDED with the routes (spark interview-feedback-letter, WP-beta). The recruiter's three
   // feedback-letter doors. Operator-gated with `pipeline:write`, but open mode makes the
   // operator gate a documented no-op, so each self-limits. Every limiter sits AFTER the

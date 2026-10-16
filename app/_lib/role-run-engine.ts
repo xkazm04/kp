@@ -451,6 +451,33 @@ export type CommitGateInput = {
   now?: number;
 };
 
+/** The branch is not parked at the gate it was asked to resolve. A class so the HTTP
+ *  doors can answer 409 with a code instead of a 500. */
+export class RoleRunGateNotParkedError extends Error {
+  constructor(branchRef: string, gate: RoleRunGate) {
+    super(`branch ${branchRef} is not parked at the ${gate} gate`);
+    this.name = "RoleRunGateNotParkedError";
+  }
+}
+
+/** The artifact a branch is parked on at `gate`, or a RoleRunGateNotParkedError. The
+ *  resolution is only a legal next row from `<kind>:awaiting_approval`, so the chain's
+ *  HEAD (re-read, not remembered) must be exactly that row. Shared by the preview and
+ *  the commit so the two can never disagree about what "parked here" means. */
+export function readParkedGate(
+  runId: string,
+  gate: RoleRunGate,
+  branchRef: string,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): RoleRunStageArtifact {
+  const parked = latestStageArtifact(runId, GATE_STAGE[gate], branchRef, workspaceId);
+  const { head } = replayRoleRunChain(listStageArtifacts(runId, workspaceId), branchRef);
+  if (!parked || parked.status !== "awaiting_approval" || head !== stageStateOf(parked)) {
+    throw new RoleRunGateNotParkedError(branchRef, gate);
+  }
+  return parked;
+}
+
 /** Resolve a parked branch with a human's decision.
  *
  *  The approval is verified and SPENT first (commitRoleRunGate), so a replayed request
@@ -469,15 +496,10 @@ export function commitRoleRunStageGate(
   const run = getRoleRun(input.runId, workspaceId);
   if (!run) throw new Error(`role run ${input.runId} does not exist in this workspace`);
 
+  // The branch's HEAD must be this gate, not merely some artifact of this kind: checked
+  // before the approval is spent, so a refused commit does not burn the recruiter's token.
   const kind = GATE_STAGE[input.gate];
-  const parked = latestStageArtifact(input.runId, kind, input.branchRef, workspaceId);
-  // The branch's HEAD must be this gate, not merely some artifact of this kind: the
-  // resolution is only a legal next row from `<kind>:awaiting_approval`. Checked before
-  // the approval is spent, so a refused commit does not burn the recruiter's token.
-  const { head } = replayRoleRunChain(listStageArtifacts(input.runId, workspaceId), input.branchRef);
-  if (!parked || parked.status !== "awaiting_approval" || head !== stageStateOf(parked)) {
-    throw new Error(`branch ${input.branchRef} is not parked at the ${input.gate} gate`);
-  }
+  const parked = readParkedGate(input.runId, input.gate, input.branchRef, workspaceId);
 
   const receipt = commitRoleRunGate({
     runId: input.runId,

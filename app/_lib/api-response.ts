@@ -299,6 +299,8 @@ export const STORE_ERRORS = {
   AGENT_HIRE_FROM_NEED_FAILED: "Could not compose and dispatch a role from that need. Please try again.",
   // ADR-0012 — the role slate read (people + AI agents on one board).
   ROLE_SLATE_FAILED: "Could not load this role's candidate slate. Please try again.",
+  // ADR-0011 — the role-run gate preview/commit doors.
+  ROLE_RUN_GATE_FAILED: "Could not load or record this role-run gate. Please try again.",
   // The LLM usage ledger's row-level read (Insights -> Activity). It sits on
   // better-sqlite3, so a thrown message can carry the DB path and the failing SQL;
   // this route was the one door in the Models/Insights surface still forwarding
@@ -1225,6 +1227,12 @@ export const REFUSAL_ERRORS = {
   SCREEN_WAVE_APPROVAL_SPENT: "This review was already used. Re-preview and approve the current set before committing.",
   /** Commit with no named approver (409). Sign in or set KP_OPERATOR_NAME. */
   SCREEN_WAVE_APPROVAL_UNATTRIBUTED: "Sign in or set the operator name so this review can be attributed.",
+  /** A role-run gate door named a run that is not this tenant's (404). */
+  ROLE_RUN_NOT_FOUND: "That role run could not be found.",
+  /** A role-run gate door got no usable gate / branch / decision (400). */
+  ROLE_RUN_GATE_INVALID: "Name the gate (rejection, interview invite or offer), the candidate branch and, to commit, your decision.",
+  /** The branch is not parked at the named gate (409). Nothing was spent. */
+  ROLE_RUN_GATE_NOT_PARKED: "That candidate is not waiting at this gate. Reload the run to see where it stands.",
   /** The board's column axis changed since the composer read it (409) — refused BEFORE
    *  anybody is moved, since the stage ids the mapping names may no longer exist. */
   PIPELINE_AXIS_STALE: "Someone saved a newer version of this pipeline. Reload and make your change again.",
