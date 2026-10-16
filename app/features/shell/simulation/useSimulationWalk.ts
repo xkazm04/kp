@@ -20,6 +20,7 @@ import { SIM_COMPANY, SIM_ROLE, SIM_SALARY, SIM_SCREEN_POLICY, SIM_TITLE, type S
 import { applyCompanyTemplate } from "./simCompanyTemplate";
 import { CLEAR_OVERLAYS, JSON_HEADERS, SimStop, type SimState, type StepOpts } from "./simulationProviderTypes";
 import { claimInit, leaseFromClaim, releaseInit, renewInit, storeLease, storedLease, tabStorage, type SimRunLease } from "./simRunLease";
+import { createLedger, type SimLedger } from "./simRunLedger";
 import { chaptersFrom, type SimResumePoint } from "./simWalkResume";
 import { matchHalt, offerHalt, simChapter } from "./simWalkSteps";
 import { hiredEffect, type SimMoveId, type SimMoveLog, type SimMoveOutcome } from "./simMove";
@@ -77,6 +78,10 @@ export function useSimulationWalk({
   // will need when it moves off the walk (see docs/features/simulation/README.md).
   const leaseRef = useRef<SimRunLease>(null);
 
+  // THIS run's step ledger (simRunLedger.ts): minted in run(), written by step() and by
+  // the chapters that know who did the work. A ref for the same reason as the lease.
+  const ledgerRef = useRef<SimLedger | null>(null);
+
   // Renew at every phase gate. Step mode is the DEFAULT, so a presenter talking
   // through a phase used to outlive the five-minute lease and a colleague's Start
   // could wipe the board mid-presentation. Cheap by construction: the route's renew
@@ -117,17 +122,27 @@ export function useSimulationWalk({
         jdHandoff: o.jdHandoff ?? null,
       });
       log(o.caption);
-      // Every chapter is a BARE tab switch: the walk carries its own data in state
-      // now, so the address bar stays `/?tab=<chapter>` from the first step to the
-      // last. Clearing the canonical tab-scoped allowlist also drops whatever
-      // selection the operator's URL happened to hold when they pressed Start
-      // (a `?job=`, a `?profile=`, a board filter), which would otherwise ride
-      // along through the tour exactly as it does not through a sidebar click.
-      nav({ tab: o.tab, ...clearedTabScopedParams() });
-      await beat(o.readMs ?? 1600);
-      if (o.action) await o.action();
-      notifyDataChanged(); // reflect this phase's mutations in any open view
-      await beat(o.settleMs ?? 1000);
+      const ledger = ledgerRef.current;
+      ledger?.begin(o.id);
+      try {
+        // Every chapter is a BARE tab switch: the walk carries its own data in state
+        // now, so the address bar stays `/?tab=<chapter>` from the first step to the
+        // last. Clearing the canonical tab-scoped allowlist also drops whatever
+        // selection the operator's URL happened to hold when they pressed Start
+        // (a `?job=`, a `?profile=`, a board filter), which would otherwise ride
+        // along through the tour exactly as it does not through a sidebar click.
+        nav({ tab: o.tab, ...clearedTabScopedParams() });
+        await beat(o.readMs ?? 1600);
+        if (o.action) await o.action();
+        notifyDataChanged(); // reflect this phase's mutations in any open view
+        await beat(o.settleMs ?? 1000);
+        ledger?.end("passed"); // before the gate: a presenter's pause is not the chapter's work
+      } catch (e) {
+        ledger?.end(e instanceof SimStop ? "stopped" : "failed");
+        throw e;
+      } finally {
+        if (ledger) patch({ ledger: ledger.steps() });
+      }
       await gate();
       // AFTER the gate, not before: the gate is where a presenter stops to talk, so
       // the freshest possible moment to restart the five-minute clock is the instant
@@ -149,7 +164,13 @@ export function useSimulationWalk({
     // How each scripted move of THIS run reached the app (simMove.ts), mirrored into
     // state so the route and its reason are readable beside the log.
     const moves: SimMoveLog = {};
+    const ledger = createLedger();
+    ledgerRef.current = ledger;
+    patch({ runId: ledger.runId, ledger: [] });
     const recordMove = (id: SimMoveId, out: SimMoveOutcome) => {
+      // A move that fell back from the real click to the checked API call is the
+      // scripted path failing: the ledger counts it as a manual-fallback chapter.
+      if (out.route === "api") ledger.note("manual-fallback");
       moves[id] = { route: out.route, reason: out.reason };
       patch({ moves: { ...moves } });
     };
@@ -436,6 +457,7 @@ export function useSimulationWalk({
                 body: JSON.stringify({ ...screenWaveBody, approvalToken: wavePreview.approvalToken, approvedBy: DEMO_APPROVER }),
               })
             ));
+            ledger.note("approval"); // the Art. 22 gate: a recorded approval, not a silent commit
             patch({ screenWave: { decisions: wave.decisions, rejected: wave.rejected, kept: wave.kept, cohort: wave.cohort } });
             notifyDataChanged();
             await beat(3400); // let the viewer read the audit
@@ -519,6 +541,7 @@ export function useSimulationWalk({
               }
             }
             if (!scheduled) {
+              ledger.note("manual-fallback");
               // MANUAL fallback: the recruiter confirms a slot on the shared calendar.
               recordMove(
                 "confirmSlot",
