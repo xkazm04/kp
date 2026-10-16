@@ -46,6 +46,12 @@ export const POST = route(withRateLimit({ key: ({ request }) => `tts:${clientKey
 argument and its own arguments after it, unchanged. The workspace step is always the
 outermost layer of a chain: it cannot be left out of `route(...)`.
 
+A handler that needs no tenant takes `withSession` (same session step, no workspace
+argument). The gate links are `withOperator` (the `requireOperator` 401) and
+`withCapability(cap)` (403 `FORBIDDEN_CAPABILITY`); written ahead of `withRateLimit`, an
+unauthorised caller is refused without spending the budget, the order the hand-written
+routes kept.
+
 ### 2. Refusal order (uniform, and the part that changed)
 
 1. **Session.** `KP_OPERATOR_PASSWORD` set and no live session (missing, forged,

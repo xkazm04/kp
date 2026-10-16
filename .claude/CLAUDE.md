@@ -292,6 +292,14 @@ The ones that actually bite:
   — a row count cannot tell "never seeded" from "seeded, then legitimately
   emptied", and the difference is demo data reappearing in a real install
   (`app/_lib/db/seed-marks.ts`).
+- **Every non-public route enters through `app/_lib/auth/workspace-context.ts`.**
+  `export const GET = withWorkspace(async (ws: string, request: Request) => {...})` (or
+  `withSession` when no tenant is needed, or `route(withOperator, withCapability(c),
+  withRateLimit({...}))(handler)` for a gated, throttled door). The handler is handed the
+  workspace; it never calls `currentWorkspace()` itself. Session 401 comes first, then the
+  chain's guards in written order, then the handler's own gates (draft ADR
+  `route-chain-refusal-order`). Public token routes are NOT wrapped. Ratchet:
+  `app/api/route-workspace-coverage.test.ts` (its allowlist can only shrink).
 - **Rate-limit contract tests pin limiter call sites.**
   `app/api/rate-limit-contract.test.ts` asserts which open/paid routes call
   `rateLimit()` and how — adding, moving, or re-keying a limiter means updating

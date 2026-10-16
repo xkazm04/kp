@@ -1,4 +1,7 @@
-import { jsonRefusal } from "../api-response";
+import { jsonRefusal, requireCapabilityCoded } from "../api-response";
+import { requireOperator } from "./require-operator";
+import { requireCapability } from "./current-user";
+import type { Capability } from "./roles";
 import { clientIpFrom, rateLimit, rateLimitRetryAfterMs } from "../rate-limit";
 import { jsonThrottled } from "../throttle-response";
 import { meterGate } from "../billing/enforce";
@@ -57,6 +60,26 @@ export function withMeterGate(meter: Meter, config: MeterGuardConfig = {}): Guar
       const request = args[0] as Request;
       const verdict = meterGate(meter, { workspace: ws, minUnits: config.minUnits?.({ ws, request }) });
       if (verdict) return jsonRefusal("BILLING_QUOTA_EXCEEDED", 402, { meter: verdict.meter, plan: verdict.plan });
+      return next(ws, ...args);
+    };
+}
+
+/** The operator gate as a chain link: `requireOperator()`'s own 401 (a trusted session, not
+ *  the anonymous demo cookie). Written ahead of withRateLimit so an unauthorised caller is
+ *  refused before it spends the budget, exactly the order the hand-written routes kept. */
+export const withOperator: Guard = <A extends unknown[]>(next: WsHandler<A>): WsHandler<A> =>
+  async (ws, ...args) => {
+    const denied = await requireOperator();
+    if (denied) return denied;
+    return next(ws, ...args);
+  };
+
+/** A capability seat as a chain link: 403 FORBIDDEN_CAPABILITY (coded), 401 for no session. */
+export function withCapability(capability: Capability): Guard {
+  return <A extends unknown[]>(next: WsHandler<A>): WsHandler<A> =>
+    async (ws, ...args) => {
+      const denied = await requireCapabilityCoded(capability, requireCapability);
+      if (denied) return denied;
       return next(ws, ...args);
     };
 }

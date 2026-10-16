@@ -1,10 +1,11 @@
 import { getServerLocale } from "@/i18n/server";
 import { isLocale } from "@/i18n/locales";
-import { withWorkspace } from "@/app/_lib/auth/workspace-context";
+import { route, withWorkspace } from "@/app/_lib/auth/workspace-context";
+import { withCapability, withOperator, withRateLimit } from "@/app/_lib/auth/route-guards";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jsonOk, jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
-import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { clientIpFrom } from "@/app/_lib/rate-limit";
 import { meterGate } from "@/app/_lib/billing";
 import { listRecentTasks } from "@/app/_lib/db/tasks";
 import { startTask } from "@/app/_lib/tasks";
@@ -71,16 +72,15 @@ export const GET = withWorkspace(async (ws: string) => {
 // a per-IP limiter ahead of any spend, the ai_candidates billing gate for the members that
 // would be analysed FRESH (a reused analysis spends nothing; an unmetered self-hosted
 // install stays unmetered — meterGate answers null there), then the row and the task.
-export const POST = withWorkspace(async (ws: string, request: Request) => {
-  const opDenied = await requireOperator();
-  if (opDenied) return opDenied;
-  const denied = await requireCapabilityCoded("pipeline:write", requireCapability);
-  if (denied) return denied;
-  // 10/10min per IP: a cohort is up to COHORT_CAP paid analyses plus a comparative pass
-  // run twice, so one start is a whole screening session, not a click.
-  if (!rateLimit(`analyze-cohort:${clientIpFrom(request.headers)}`, { limit: 10, windowMs: 10 * 60_000 })) {
-    return jsonRefusal("TOO_MANY_REQUESTS", 429);
-  }
+// The gates and the throttle are the CHAIN, in the order they refuse: operator (401), the
+// recruiter seat (403), then 10/10min per IP - a cohort is up to COHORT_CAP paid analyses plus
+// a comparative pass run twice, so one start is a whole screening session, not a click.
+// (rate-limit-contract.test.ts pins the chain declaration, not a call in the body.)
+export const POST = route(
+  withOperator,
+  withCapability("pipeline:write"),
+  withRateLimit({ key: ({ request }) => `analyze-cohort:${clientIpFrom(request.headers)}`, limit: 10, windowMs: 10 * 60_000 }),
+)(async (ws: string, request: Request) => {
   try {
     const body = parseCohortRunRequest(await request.json().catch(() => null));
     if (!body || body.members.length < COHORT_MIN || body.members.length > COHORT_CAP) {

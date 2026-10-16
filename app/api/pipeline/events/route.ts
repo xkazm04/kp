@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listPipelineEvents, listPipelineEventsSince } from "@/app/_lib/db/pipeline";
 import { toPublicPipelineEvent } from "@/app/_lib/pipeline-events-public";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 
