@@ -68,6 +68,10 @@ export const PAGE_HEADER =
 /** Section eyebrow above a display title ("PIPELINE", "INTERVIEW SIM"…). */
 export const EYEBROW = "text-meta uppercase text-coral";
 
+/** Quiet coral text link/button ending in an arrow ("Analyze a CV →"). Append the
+ *  ArrowRight icon yourself; shared by ChainEmptyState and CompletionCta. */
+export const ARROW_LINK = "focus-ring inline-flex items-center gap-1 text-sm font-semibold text-coral hover:underline";
+
 /** Display title under an eyebrow. */
 export const TITLE_DISPLAY = "font-serif text-display text-ink";
 

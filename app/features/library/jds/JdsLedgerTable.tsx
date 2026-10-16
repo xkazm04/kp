@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import type { SortState } from "@/app/_components/table/useTableSort";
 import type { JdRow, JdSortCol, StatusFilter } from "./jdsLibrary";
-import { LibraryEmptyStates } from "./JdsEmptyStates";
+import { LibraryEmptyShelf } from "./JdsEmptyShelf";
 import type { FilterOption } from "./JdsLedgerFilterMenu";
 import { JdsLedgerTableHead } from "./JdsLedgerTableHead";
 import { JdsLedgerRow } from "./JdsLedgerRow";
@@ -128,7 +128,7 @@ export function JdsLedgerTable({
             // affordance: the Generate panel already mounted beside this table.
             <tr>
               <td colSpan={COLS} className="p-0">
-                <LibraryEmptyStates onStartGenerate={onStartGenerate} />
+                <LibraryEmptyShelf onStartGenerate={onStartGenerate} />
               </td>
             </tr>
           ) : visible.length === 0 ? (
