@@ -276,7 +276,6 @@ const LEAK_CEILING = new Map<string, number>([
   // billing/webhook's single leak was FIXED, not ceilinged: the 500 answers safeJsonError(..., "BILLING_WEBHOOK_FAILED"). The row is deleted so the win is locked.
   ["comms/relay/route.ts", 1],
   ["jobs/[id]/campaign/route.ts", 1],
-  ["jobs/[id]/candidates/outreach/route.ts", 1],
   ["jobs/[id]/candidates/route.ts", 1],
   ["repo-scan/route.ts", 1],
   ["analytics/route.ts", 1],

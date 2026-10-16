@@ -3,6 +3,7 @@ import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
 import { createPipelineEntry } from "@/app/_lib/db/pipeline";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { AutomationError, runAutomationTask } from "@/app/_lib/automation-run";
+import { REFUSAL_FOR } from "@/app/_lib/automation-refusal-codes";
 import { inferProfileLocale } from "@/app/_lib/comms-locale";
 import { withheldCandidateIds } from "@/app/_lib/rediscovery-eligibility";
 import { linkTerminalPriorsToTarget } from "@/app/_lib/rediscovery-prior-link";
@@ -149,11 +150,15 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const result = await runAutomationTask(entry.id, "outreach", "", undefined, undefined, ws);
     return NextResponse.json({ entryId: entry.id, created, reopened, applied: result.applied });
   } catch (error) {
-    // AutomationError carries a client-safe business message + status (e.g. the
-    // candidate has no saved profile to draft from → 400); everything else goes
-    // through the generic safe responder so raw internals never cross the wire.
+    // A refusal THIS module decided is answered as a code the client resolves in the
+    // reader's language. Any other AutomationError is the spawned engine failing: its
+    // message (parseStderrError) can be a traceback or the workdir path, so it goes to
+    // the server log and the engine's STATUS is preserved (a user-fixable 400 stays 400).
+    if (error instanceof AutomationError && error.refusal) {
+      return jsonRefusal(REFUSAL_FOR[error.refusal], error.status);
+    }
     if (error instanceof AutomationError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
+      return safeJsonError(error, "api:jobs:candidates:outreach", "OUTREACH_FAILED", error.status);
     }
     // A letter over the length cap is refused deterministically in sendComm; a 500 would read as retryable.
     if (error instanceof CommsBodyRejectedError) return jsonRefusal("OUTREACH_BODY_TOO_LONG", 422);

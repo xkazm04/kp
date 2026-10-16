@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AutomationError, runAutomationTask, type AutomationRefusal } from "@/app/_lib/automation-run";
+import { AutomationError, runAutomationTask } from "@/app/_lib/automation-run";
+import { REFUSAL_FOR } from "@/app/_lib/automation-refusal-codes";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
-import { jsonRefusal, requireCapabilityCoded, safeJsonError, type RefusalErrorCode } from "@/app/_lib/api-response";
+import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { getServerLocale } from "@/i18n/server";
@@ -16,16 +17,6 @@ import { getServerLocale } from "@/i18n/server";
 // bound. 20/10min per IP: a recruiter working a shortlist legitimately fires a
 // handful of tasks in a sitting, a scripted loop always exceeds it.
 const AUTOMATION_TASK_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
-
-// This module's own refusals → the coded answer the reader sees in their language.
-// Anything WITHOUT a refusal token is an engine failure and takes the STORE path.
-const REFUSAL_FOR: Record<AutomationRefusal, RefusalErrorCode> = {
-  unknown_task: "AUTOMATION_TASK_UNKNOWN",
-  entry_not_found: "AUTOMATION_ENTRY_NOT_FOUND",
-  entry_has_no_profile: "AUTOMATION_ENTRY_NO_PROFILE",
-  task_not_offered: "AUTOMATION_TASK_NOT_OFFERED",
-};
-
 
 // Synchronous convenience wrapper. The hardened/background path is /api/tasks
 // with kind "automation" (tracked, dedup'd, refresh-safe); both share runAutomationTask.
