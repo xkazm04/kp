@@ -612,6 +612,10 @@
       "body": "Bonjour {name},\n\nPetit rappel : votre entretien pour {role} approche, le {slot}.{length} Nous avons hâte d’échanger avec vous. À bientôt !\n\n{team}",
       "slotFallback": "votre créneau convenu"
     },
+    "interviewNudge": {
+      "subject": "Il manque encore un créneau : choisissez votre entretien pour {role}",
+      "body": "Bonjour {name},\n\nVous n'avez pas encore choisi de créneau pour votre entretien pour le poste {role}. Choisissez celui qui vous convient ici :\n{link}\n\nLe lien n'est valable que pour une durée limitée, il vaut donc mieux réserver rapidement. Si aucun créneau ne convient, répondez simplement et nous trouverons une solution.\n\n{team}"
+    },
     "offerReminder": {
       "subject": "Rappel : votre offre pour {role} est toujours ouverte",
       "body": "Bonjour {name},\n\nPetit rappel : votre offre pour {role} est toujours ouverte et attend votre décision. Pour la conserver, merci de nous répondre avant le {deadline}.\n\nConsultez les détails et répondez ici :\n{link}\n\nSi vous avez des questions avant de décider, répondez simplement. Nous sommes là pour aider.\n\n{team}"

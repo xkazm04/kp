@@ -924,6 +924,32 @@ export async function dispatchInterviewReminder(
   }
 }
 
+/** The one "book your interview" nudge to a candidate whose self-scheduling link is
+ *  still un-booked (schedule-nudge sweep, interview-reminders.ts). `link` must be
+ *  ABSOLUTE. Like the reminder, a throw means delivery did not complete; the
+ *  sweep's bounded retry owns what happens next. No automation event: the Outbox row
+ *  (kind schedule_nudge) is the audit record, and the pipeline event catalog is a
+ *  published vocabulary this nudge does not extend. */
+export async function dispatchScheduleNudge(
+  entry: { id?: string | null; candidateLabel?: string | null; jobTitle?: string | null; locale?: string | null },
+  link: string,
+  opts?: { workspaceId?: string | null }
+): Promise<void> {
+  const locale = candidateLocale(entry.locale, opts?.workspaceId);
+  const t = await commsTranslator(locale);
+  const name = greetName(entry, t);
+  const role = entry.jobTitle ?? t("theRole");
+  const subject = t("interviewNudge.subject", { role });
+  const body = t("interviewNudge.body", { name, role, link: pinLinkLocale(link, locale), team: t("team") });
+  await sendCandidateComm(entry, t, {
+    subject,
+    body,
+    kind: "schedule_nudge",
+    ref: entry.id ?? link,
+    workspaceId: opts?.workspaceId,
+  }, locale);
+}
+
 /** Deliver the freshly-minted voice-screen link TO the candidate. Without this the
  *  link only ever opened in the recruiter's own browser tab — the headline voice
  *  feature was undeliverable end-to-end. Routes through the same sendComm channel

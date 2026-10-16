@@ -25,9 +25,14 @@ type JobOutcome = { status: "ok" | "skipped"; summary: unknown; log?: string } |
 const JOB_HANDLERS: Record<Exclude<SchedulerJobName, "policy_pass">, () => Promise<JobOutcome>> = {
   // Interview reminders (AUTO6) — verbatim the body the hand-written block ran.
   reminders: async () => {
-    const { sendDueInterviewReminders } = await import("./app/_lib/interview-reminders");
+    const { sendDueInterviewReminders, sendDueScheduleNudges } = await import("./app/_lib/interview-reminders");
     const n = await sendDueInterviewReminders();
-    return n ? { status: "ok", summary: { sent: n }, log: `interview reminders sent: ${n}` } : null;
+    // The pending-link "book your interview" nudge rides the same heartbeat; its
+    // count is reported separately so the summary stays honest about what was sent.
+    const nudges = await sendDueScheduleNudges();
+    return n || nudges
+      ? { status: "ok", summary: { sent: n, nudges }, log: `interview reminders sent: ${n}, booking nudges sent: ${nudges}` }
+      : null;
   },
   // The seeker's job-market scan (WP4c, app/_lib/jobseeker/scan.ts). Fan-out is per
   // WORKSPACE: the one cross-tenant read is the id list (`-- tenancy:global`, ids only);

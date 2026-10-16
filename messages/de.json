@@ -612,6 +612,10 @@
       "body": "Hallo {name},\n\nnur eine kurze Erinnerung, dass Ihr Interview für {role} um {slot} ansteht.{length} Wir freuen uns auf das Gespräch mit Ihnen. Bis dahin!\n\n{team}",
       "slotFallback": "Ihr vereinbarter Termin"
     },
+    "interviewNudge": {
+      "subject": "Noch kein Termin? Wählen Sie Ihr Interview für {role}",
+      "body": "Hallo {name},\n\nSie haben noch keinen Termin für Ihr Interview zu {role} gewählt. Hier können Sie einen passenden Zeitpunkt auswählen:\n{link}\n\nDer Link ist nur begrenzte Zeit gültig, buchen Sie daher am besten bald. Falls kein Termin passt, antworten Sie einfach, dann finden wir eine Lösung.\n\n{team}"
+    },
     "offerReminder": {
       "subject": "Erinnerung: Ihr Angebot für {role} ist noch offen",
       "body": "Hallo {name},\n\nnur eine kurze Erinnerung, dass Ihr Angebot für {role} noch offen ist und auf Ihre Entscheidung wartet. Damit es gültig bleibt, geben Sie uns bitte bis {deadline} Bescheid.\n\nDetails ansehen und hier antworten:\n{link}\n\nWenn Sie vor Ihrer Entscheidung Fragen haben, antworten Sie einfach. Wir helfen gern.\n\n{team}"

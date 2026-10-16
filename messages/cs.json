@@ -612,6 +612,10 @@
       "body": "Dobrý den, {name},\n\njen krátká připomínka, že váš pohovor na pozici {role} se blíží, a to {slot}.{length} Těšíme se na rozhovor s vámi. Na viděnou!\n\n{team}",
       "slotFallback": "váš domluvený termín"
     },
+    "interviewNudge": {
+      "subject": "Stále potřebujeme termín: vyberte si pohovor na pozici {role}",
+      "body": "Dobrý den, {name},\n\nzatím jste si nevybrali termín pohovoru na pozici {role}. Vyberte si čas, který vám vyhovuje, zde:\n{link}\n\nOdkaz je platný jen omezenou dobu, proto doporučujeme rezervovat brzy. Pokud vám žádný z termínů nevyhovuje, stačí odpovědět a něco domluvíme.\n\n{team}"
+    },
     "offerReminder": {
       "subject": "Připomínka: vaše nabídka na pozici {role} stále platí",
       "body": "Dobrý den, {name},\n\njen krátká připomínka, že vaše nabídka na pozici {role} stále platí a čeká na vaše rozhodnutí. Pokud ji chcete přijmout, dejte nám prosím vědět do {deadline}.\n\nDetaily si prohlédněte a odpovězte zde:\n{link}\n\nPokud máte před rozhodnutím jakékoli dotazy, stačí odpovědět. Rádi pomůžeme.\n\n{team}"
