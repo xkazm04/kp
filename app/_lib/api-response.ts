@@ -369,6 +369,10 @@ export const STORE_ERRORS = {
   /** The metric pack could not be assembled — it reads four stores over the shared
    *  connection, and it is the one analytics read that is also a DOWNLOAD. */
   ANALYTICS_METRIC_PACK_FAILED: "Could not build the metric pack. Please try again.",
+  ANALYTICS_READ_FAILED: "Could not build the analytics. Please try again.",
+  ANALYTICS_CALIBRATION_READ_FAILED: "Could not compute the calibration. Please try again.",
+  ANALYTICS_SCORE_BAND_READ_FAILED: "Could not load the score band. Please try again.",
+  ANALYTICS_THRESHOLD_HISTORY_READ_FAILED: "Could not load the threshold history. Please try again.",
   // The candidate-focus ranking (/api/match, /perfect 2026-09-03). The third route in
   // the matrix family and the last one still answering `{ error: err.message }` — where
   // that message was `parseStderrError`'s RAW STDERR: match_cli's Python traceback and
