@@ -162,6 +162,11 @@ export const BTN_PRIMARY =
 export const BTN_AFFIRM =
   "focus-ring inline-flex items-center gap-1.5 rounded-md bg-moss font-semibold text-white shadow-sticker-xs transition-all hover:bg-moss/90 hover:translate-x-[0.5px] hover:translate-y-[0.5px] hover:shadow-none disabled:opacity-50 dark:rounded-lg dark:shadow-sticker-sm dark:hover:translate-x-[1px] dark:hover:translate-y-[1px] dark:hover:shadow-sticker-xs";
 
+/** The confirm half of an IRREVERSIBLE action (erase, delete): BTN_PRIMARY's press-down on
+ *  an ink fill. Coral fill + white label is 3.87:1, under the 4.5:1 AA floor for body-size
+ *  text, so a destructive confirm that must be legible takes ink instead. */
+export const BTN_CONFIRM_INK = `${BTN_PRIMARY} bg-ink hover:bg-steel`;
+
 /** Secondary action. Same pairing rule + press-down as BTN_PRIMARY. */
 export const BTN_SECONDARY =
   "focus-ring inline-flex items-center gap-1 rounded-md border border-stone-200 font-medium text-ink transition-all hover:border-coral/40 disabled:opacity-50 dark:rounded-lg dark:border-stone-300 dark:shadow-sticker-sm dark:hover:translate-x-[1px] dark:hover:translate-y-[1px] dark:hover:shadow-sticker-xs";

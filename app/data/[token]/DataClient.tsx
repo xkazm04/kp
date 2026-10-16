@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
 import { Skeleton } from "@/app/_components/Skeleton";
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
-import { BTN_PRIMARY, BTN_SECONDARY } from "@/app/_components/ui/recipes";
+import { BTN_CONFIRM_INK, BTN_SECONDARY } from "@/app/_components/ui/recipes";
 import { useDateFormat } from "@/app/_components/ui/useDateFormat";
 import { renderableHeldCategories } from "@/app/_lib/data-held";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
@@ -315,7 +315,7 @@ function EraseConfirm({ busy, onCancel, onConfirm }: { busy: boolean; onCancel: 
         <button type="button" onClick={onCancel} disabled={busy} className={`${BTN_SECONDARY} h-11 px-4`}>
           {t("cancel")}
         </button>
-        <button type="button" onClick={onConfirm} disabled={busy} aria-busy={busy} className={`${BTN_PRIMARY} h-11 px-4`}>
+        <button type="button" onClick={onConfirm} disabled={busy} aria-busy={busy} className={`${BTN_CONFIRM_INK} h-11 px-4`}>
           <Trash2 size={15} /> {busy ? t("erasing") : t("eraseConfirm")}
         </button>
       </div>

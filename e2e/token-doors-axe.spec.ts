@@ -262,7 +262,7 @@ test("/invite/[token] passes axe on the set-your-password form", async ({ browse
   try {
     // The form appears only after the preview GET resolves; before that the page
     // is one line of loading copy, which is not the state worth gating.
-    await expect(colleague.locator('input[type="password"]')).toBeVisible({ timeout: 30_000 });
+    await expect(colleague.locator('input[type="password"]').first()).toBeVisible({ timeout: 30_000 });
     await expectNoSeriousA11yViolations(colleague);
   } finally {
     await close();
