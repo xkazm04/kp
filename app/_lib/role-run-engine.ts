@@ -29,6 +29,10 @@ import {
   type RoleRunStageArtifact,
 } from "./db/role-runs.ts";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces.ts";
+import { sumRoleRunUsage } from "./db/llm.ts";
+import { withLlmRoleRun } from "./llm-request-context.ts";
+import { budgetBreach, resolveRoleRunBudget, type RoleRunBudget, type RoleRunBudgetBreach, type RoleRunUsage } from "./role-run-budget.ts";
+import { opsLog } from "./ops-telemetry.ts";
 import { getJob } from "./db/jobs.ts";
 import { listEntriesForJob } from "./db/pipeline.ts";
 import { resolveOfferTtlDays } from "./offer-policy.ts";
@@ -293,6 +297,12 @@ export type AdvanceOptions = {
    *  and the next call picks up exactly where it stopped, which is what keeps a slate of
    *  twenty inside the 20-minute execution ceiling instead of being killed mid-stage. */
   maxStages?: number;
+  /** The per-run LLM ceiling (role-run-budget.ts). Absent => the deployment default from
+   *  the KP_ROLE_RUN_MAX_LLM_* env vars. Checked before EVERY stage. */
+  budget?: RoleRunBudget;
+  /** Reads what this run's own llm_usage rows add up to. Injected by tests; the default
+   *  is the ledger itself (sumRoleRunUsage). */
+  readUsage?: (runId: string) => RoleRunUsage;
   now?: number;
 };
 
@@ -305,6 +315,10 @@ export type AdvanceResult = {
   awaiting: { branchRef: string; gate: RoleRunGate }[];
   /** True when the pass stopped on maxStages rather than because nothing was runnable. */
   ceilingHit: boolean;
+  /** Non-null when the pass PARKED the run because its LLM budget is spent (not a crash:
+   *  the run stays `running`, nothing is half-written, and the next pass re-reads the
+   *  ledger - so raising the ceiling, or a new cycle, resumes it). Null otherwise. */
+  budgetExceeded: RoleRunBudgetBreach | null;
 };
 
 function gateForStage(kind: RoleRunStageKind): RoleRunGate | null {
@@ -343,9 +357,24 @@ export async function advanceRoleRun(
   const now = opts.now ?? Date.now();
   const produced: AdvanceResult["produced"] = [];
   let ceilingHit = false;
+  let budgetExceeded: RoleRunBudgetBreach | null = null;
+  const budget = opts.budget ?? resolveRoleRunBudget();
+  const readUsage = opts.readUsage ?? sumRoleRunUsage;
+
+  /** Ceiling check BEFORE a stage runs, never mid-stage: a stage that has started is
+   *  allowed to finish and write its artifact, so a breach never leaves a half-written
+   *  branch. Sticky for the pass - once breached, no later stage starts. */
+  const overBudget = (): boolean => {
+    if (budgetExceeded) return true;
+    budgetExceeded = budgetBreach(readUsage(run.id), budget);
+    if (budgetExceeded) opsLog("warn", "role-run:budget-exceeded", { runId: run.id, ...budgetExceeded });
+    return budgetExceeded !== null;
+  };
 
   const runStage = async (kind: RoleRunStageKind, branchRef: string | null, previous: RoleRunStageArtifact | null) => {
-    const outcome = await runners[kind]({ run, kind, branchRef, previous, workspaceId, now });
+    // Every metered LLM call the runner makes, at any async depth, is attributed to this
+    // run in llm_usage.role_run_id (llm-request-context.ts) - which is what overBudget reads.
+    const outcome = await withLlmRoleRun(run.id, () => runners[kind]({ run, kind, branchRef, previous, workspaceId, now }));
     // The runner seam is where the richer engines attach, so it is also where a gate
     // could be skipped: a screen runner that returns `complete` has rejected nobody and
     // advanced everybody without a human. The transition table is checked against the
@@ -366,7 +395,7 @@ export async function advanceRoleRun(
     // A terminal run-wide artifact (no job, for instance) ends the run: there are no
     // branches to fan out to, and re-running S0 every pass would just re-fail.
     setRoleRunStatus(run.id, "cancelled", workspaceId);
-    return { runId: run.id, status: "cancelled", produced, awaiting: [], ceilingHit };
+    return { runId: run.id, status: "cancelled", produced, awaiting: [], ceilingHit, budgetExceeded };
   };
 
   if (run.status === "running") {
@@ -378,6 +407,7 @@ export async function advanceRoleRun(
         ceilingHit = true;
         break;
       }
+      if (overBudget()) break;
       const previous = next.kind === "slate" ? latestStageArtifact(run.id, "role_spec", null, workspaceId) : null;
       await runStage(next.kind, null, previous);
     }
@@ -390,7 +420,7 @@ export async function advanceRoleRun(
     // the per-stage barrier this design exists to avoid, just rotated ninety degrees.
     const branches = branchesOf(run, workspaceId);
     let movedThisRound = true;
-    while (movedThisRound && produced.length < maxStages) {
+    while (movedThisRound && produced.length < maxStages && !budgetExceeded) {
       movedThisRound = false;
       for (const branchRef of branches) {
         if (produced.length >= maxStages) {
@@ -400,6 +430,7 @@ export async function advanceRoleRun(
         const next = resumeRead(run, branchRef, workspaceId);
         // Parked, over, or a chain whose rows cannot be true: this pass does not touch it.
         if (next.action !== "produce") continue;
+        if (overBudget()) break;
         const previous = latestBranchArtifact(run.id, branchRef, workspaceId) ?? latestStageArtifact(run.id, "slate", null, workspaceId);
         await runStage(next.kind, branchRef, previous);
         movedThisRound = true;
@@ -432,7 +463,7 @@ export async function advanceRoleRun(
   // run, and reading it as unfinished would leave it in the recruiter's queue forever.
   const status = allTerminal && run.status === "running" ? (setRoleRunStatus(run.id, "complete", workspaceId)?.status ?? "complete") : (getRoleRun(run.id, workspaceId)?.status ?? run.status);
 
-  return { runId: run.id, status, produced, awaiting, ceilingHit };
+  return { runId: run.id, status, produced, awaiting, ceilingHit, budgetExceeded };
 }
 
 // --- THE GATE COMMIT ---------------------------------------------------------

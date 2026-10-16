@@ -128,6 +128,65 @@ stage-wiring increments independent of each other — and it is why the defaults
 keyless: the two-minute keyless start means the run's *sequencing* must be
 demonstrable with no provider configured.
 
+### The producer seam (`app/_lib/role-run-producers/`)
+
+`producerRunners(producers)` turns a list of `{ kind, usesLlm, run }` into the `runners`
+map, and is the one place that decides which runner a stage gets:
+
+| Situation | The stage runs |
+| --- | --- |
+| LLM producer, provider available | the producer |
+| LLM producer, no provider / `KP_OFFLINE` / `KP_ROLE_RUN_LLM=0` | the keyless default, unchanged |
+| any producer throws | the keyless default (logged by error name only - a provider message can echo a prompt) |
+| local producer (a policy engine, no model) | the producer |
+
+"Provider available" is `roleRunLlmAvailable()`: the `claude` CLI on PATH or a Gemini key,
+and not offline. The LLM layer is the existing Python provider registry (`claude_cli`
+adapter included), reached through the existing `*-run.ts` runners with
+`env: buildLlmConfigEnv()`; a producer never spawns `claude` itself. The engine opens the
+`withLlmRoleRun` scope around each runner, so a producer's metered calls are attributed to
+the run and count against its budget. Producers write no PII and resolve no gate.
+
+### The producers wired so far
+
+Compose them with `producerRunners([roleSpecProducer(), slateProducer(), screenProducer()])`
+and pass the result as `advanceRoleRun(id, { runners })`. Nothing composes them yet, so the
+default stays the keyless floor.
+
+| Stage | Producer | Uses a model? | What it adds over the floor |
+| --- | --- | --- | --- |
+| S0 `role_spec` | `role-run-producers/role-spec.ts` | yes (JD builder) | When the job states **no** graded requirement but has a description, generates a rubric (`rubric_generated_from_description`). A job that already states requirements is reused as is. Nothing is written back to the job. |
+| S1 `slate` | `role-run-producers/slate.ts` | no (local ranker) | Board entries first, then the role's rediscovered silver medalists under `SLATE_CAP`, each with `origin: "rediscovery"` and a `prior:<kind>:<stage>` ref. The consent/opt-out predicate (`withheldCandidateIds`) is asked again right before a board entry is minted for a rediscovered candidate; a candidate who already has an entry for this role is never revived. |
+| S2 `screen` | `role-run-producers/screen.ts` | no (policy pass) | The automation policy pass as a **scoped dry run** (`runAutomationPass({ dryRun: true, entryIds })`): read-only, one branch. Its route, score and codes become the parked proposal; the pass's prose is never copied. It can propose `reject_proposed`, still only a proposal for the rejection gate, and the fairness backstop's downgrade-to-hold is preserved (`fairnessAlerts`). |
+
+Not wired: S3 to S6 (no producer yet), and the stale-rubric re-score on the board (it has
+no evidence source to re-run until a producer supplies rubric-versioned evaluations).
+
+## The per-run LLM budget
+
+Cost per run is unbounded by construction (S1 fan-out x S2 LLM calls), so `advanceRoleRun`
+checks a ceiling **before every stage** (`app/_lib/role-run-budget.ts`). The run's own
+spend is read from `llm_usage.role_run_id`, which the engine stamps by opening a
+`withLlmRoleRun(run.id, ...)` scope around each stage runner. On a breach the pass stops
+cleanly: the stage that was running finishes and writes its artifact, no later stage
+starts, and the result carries `budgetExceeded: { dimension, used, ceiling }`. The run is
+**parked, not cancelled** - it stays `running`, and a later pass (after the ceiling is
+raised) resumes exactly where it stood.
+
+Units are calls and tokens, because the default provider (the Claude Code CLI) is
+subscription-billed and has no dollar cost: its rows keep `cost_usd` NULL and are counted
+as `unpricedCalls`, never converted into a dollar figure. A dollar ceiling is optional and
+compares only against priced spend. Deployment defaults, overridable per call with
+`AdvanceOptions.budget`:
+
+| Env var | Default | Meaning |
+| --- | --- | --- |
+| `KP_ROLE_RUN_MAX_LLM_CALLS` | `400` | metered LLM calls per run (failed attempts count) |
+| `KP_ROLE_RUN_MAX_LLM_TOKENS` | `4000000` | input + output tokens per run |
+| `KP_ROLE_RUN_MAX_COST_USD` | unset | dollars, priced calls only |
+
+A non-numeric or non-positive value falls back to the default.
+
 ## Measuring it
 
 Per ADR-0011's consequences, do **not** report a single "time to hire" over a run.

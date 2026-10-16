@@ -2018,6 +2018,13 @@ export function ensureDb(): Database.Database {
     // on every pre-migration row = "no reason recorded".
     "ALTER TABLE llm_usage ADD COLUMN outcome TEXT NOT NULL DEFAULT 'ok'",
     "ALTER TABLE llm_usage ADD COLUMN reason TEXT",
+    // Which role run (role_runs.id) this metered call was made for. Nullable: NULL on
+    // every pre-migration row and on every call outside a role run (the common case).
+    // Stamped from the ambient llm-request-context scope the role-run engine opens
+    // around a stage runner, so the per-run budget ceiling can sum a run's own spend.
+    // Not a foreign key: llm_usage is the tenancy-exempt metering ledger and must keep
+    // its rows if a run is ever deleted.
+    "ALTER TABLE llm_usage ADD COLUMN role_run_id TEXT",
     // A team's EXPLICIT language; NULL = follow organizations.default_locale (see
     // db/workspaces.ts). default_locale stays as the legacy mirror.
     "ALTER TABLE workspaces ADD COLUMN locale_override TEXT",
@@ -2028,6 +2035,9 @@ export function ensureDb(): Database.Database {
   // tokened apply POST — index it like the interview token. Created AFTER the
   // ALTER loop above so a legacy DB already holds the column.
   db.exec(`CREATE INDEX IF NOT EXISTS idx_pipeline_lead_token ON pipeline_entries (lead_token)`);
+  // The per-run budget read (db/llm.ts sumRoleRunUsage) filters on role_run_id; partial,
+  // because nearly every ledger row is outside a run. After the ALTER loop for legacy DBs.
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_llm_usage_role_run ON llm_usage (role_run_id) WHERE role_run_id IS NOT NULL`);
   // Tenant scope: the board chip / disposition echo filter pipeline_entries by workspace.
   db.exec(`CREATE INDEX IF NOT EXISTS idx_pipeline_workspace ON pipeline_entries (workspace_id)`);
   // Same single-row public lookup for the self-service erasure token.
