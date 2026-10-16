@@ -16475,7 +16475,11 @@
       "hired": "recrutés",
       "hiredOf": "sur {target, number}",
       "open": "postes ouverts, sans personne pour l’instant",
-      "drafts": "+ {count, plural, one {# brouillon} other {# brouillons}}"
+      "drafts": "+ {count, plural, one {# brouillon} other {# brouillons}}",
+      "automated": "actions automatisées cette semaine",
+      "autoScreens": "{count, plural, one {# présélection effectuée} other {# présélections effectuées}}",
+      "autoOutreach": "{count, plural, one {# message envoyé} other {# messages envoyés}}",
+      "autoInvites": "{count, plural, one {# invitation envoyée} other {# invitations envoyées}}"
     },
     "lit": {
       "aria": "Mis en évidence sur l’orbite",

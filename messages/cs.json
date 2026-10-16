@@ -16475,7 +16475,11 @@
       "hired": "přijato",
       "hiredOf": "z {target, number}",
       "open": "otevřené pozice, zatím bez lidí",
-      "drafts": "+ {count, plural, one {# koncept} few {# koncepty} other {# konceptů}}"
+      "drafts": "+ {count, plural, one {# koncept} few {# koncepty} other {# konceptů}}",
+      "automated": "automatizovaných akcí za tento týden",
+      "autoScreens": "{count, plural, one {# provedený screening} few {# provedené screeningy} other {# provedených screeningů}}",
+      "autoOutreach": "{count, plural, one {# odeslaná zpráva} few {# odeslané zprávy} other {# odeslaných zpráv}}",
+      "autoInvites": "{count, plural, one {# odeslané pozvání} few {# odeslaná pozvání} other {# odeslaných pozvání}}"
     },
     "lit": {
       "aria": "Zvýrazněno na orbitu",
