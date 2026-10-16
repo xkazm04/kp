@@ -157,6 +157,10 @@ export type AutomationDecision = {
   commitVerdict?: CommitVerdict;
   plannedAction?: AutomationDecision["action"];
   plannedToStage?: string | null;
+  /** The entry's match score as the policy step saw it (after the in-memory scoring of
+   *  a dry run). Stamped ONLY on a scoped dry run (`entryIds`), the role-run screen
+   *  stage's read; absent on every board-wide pass and every persisted run row. */
+  matchScore?: number | null;
 };
 // `evaluated` = how many active entries the pass actually scanned. It distinguishes a
 // healthy idle pass (evaluated N, 0 actions) from a pass that saw NOTHING (evaluated 0 —
@@ -218,7 +222,12 @@ export function isPassInFlight(): boolean {
  *  A selection that finds a pass already in flight JOINS it like any other caller; the
  *  route reports that as `selectionHonored: false`, because the joined pass was planned
  *  without it. */
-export function runAutomationPass(opts?: { dryRun?: boolean; selection?: CommitSelection }): Promise<AutomationPassResult> {
+export function runAutomationPass(opts?: { dryRun?: boolean; selection?: CommitSelection; entryIds?: readonly string[] }): Promise<AutomationPassResult> {
+  // A SCOPED pass (one role-run branch) is read-only by construction: it exists to PROPOSE
+  // a route for named entries, never to move them. Applying a pass to a subset of the board
+  // would skip the board-wide single-flight and the selection plan that make a commit safe.
+  if (opts?.entryIds && !opts.dryRun) throw new AutomationPassError("entryIds scopes a dry run only", 400);
+  if (opts?.entryIds) return executeAutomationPass(true, undefined, opts.entryIds);
   // AUTO3 — a dry run is read-only (no applies, no dispatches, no score writes),
   // so it neither joins nor blocks the single-flight: previewing must never
   // return an already-APPLIED pass's result as if it were a preview.
@@ -559,6 +568,14 @@ export function applyPassDecisions(
   return decisions;
 }
 
+/** Narrow a pass's entries to the named ids (a scoped dry run). Pure. An id that is not an
+ *  active entry is simply absent from the result - the caller sees no decision for it. */
+export function scopeToEntryIds(entries: AutomationEntry[], entryIds?: readonly string[]): AutomationEntry[] {
+  if (!entryIds) return entries;
+  const wanted = new Set(entryIds);
+  return entries.filter((e) => wanted.has(e.id));
+}
+
 /** The entries one pass evaluates: every team's (the global sweep) or, for a commit
  *  that carries one team's selection, that team's only. */
 export function entriesForPass(entries: AutomationEntry[], workspace?: string): AutomationEntry[] {
@@ -606,8 +623,8 @@ export function withPolicyStageFacts<E extends { stage: string; workspaceId: str
   });
 }
 
-async function executeAutomationPass(dryRun: boolean, selection?: CommitSelection): Promise<AutomationPassResult> {
-  const entries = entriesForPass(listActiveEntriesForAutomation(), selection?.workspace);
+async function executeAutomationPass(dryRun: boolean, selection?: CommitSelection, entryIds?: readonly string[]): Promise<AutomationPassResult> {
+  const entries = scopeToEntryIds(entriesForPass(listActiveEntriesForAutomation(), selection?.workspace), entryIds);
   const summary: AutomationSummary = { advanced: 0, rejected: 0, held: 0, alerts: 0, errors: 0, evaluated: entries.length };
   if (entries.length === 0) return { summary, decisions: [] };
 
@@ -679,6 +696,7 @@ async function executeAutomationPass(dryRun: boolean, selection?: CommitSelectio
         // — its dedupe reads are pure, so the dry run stays read-only: it writes no
         // event, it only declines to count one it wouldn't write.
         recordDecisionAlerts(d, entrySnap, summary, true);
+        if (entryIds) d.matchScore = entrySnap?.matchScore ?? null;
       }
       return { summary, decisions };
     }

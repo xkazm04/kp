@@ -147,6 +147,21 @@ adapter included), reached through the existing `*-run.ts` runners with
 `withLlmRoleRun` scope around each runner, so a producer's metered calls are attributed to
 the run and count against its budget. Producers write no PII and resolve no gate.
 
+### The producers wired so far
+
+Compose them with `producerRunners([roleSpecProducer(), slateProducer(), screenProducer()])`
+and pass the result as `advanceRoleRun(id, { runners })`. Nothing composes them yet, so the
+default stays the keyless floor.
+
+| Stage | Producer | Uses a model? | What it adds over the floor |
+| --- | --- | --- | --- |
+| S0 `role_spec` | `role-run-producers/role-spec.ts` | yes (JD builder) | When the job states **no** graded requirement but has a description, generates a rubric (`rubric_generated_from_description`). A job that already states requirements is reused as is. Nothing is written back to the job. |
+| S1 `slate` | `role-run-producers/slate.ts` | no (local ranker) | Board entries first, then the role's rediscovered silver medalists under `SLATE_CAP`, each with `origin: "rediscovery"` and a `prior:<kind>:<stage>` ref. The consent/opt-out predicate (`withheldCandidateIds`) is asked again right before a board entry is minted for a rediscovered candidate; a candidate who already has an entry for this role is never revived. |
+| S2 `screen` | `role-run-producers/screen.ts` | no (policy pass) | The automation policy pass as a **scoped dry run** (`runAutomationPass({ dryRun: true, entryIds })`): read-only, one branch. Its route, score and codes become the parked proposal; the pass's prose is never copied. It can propose `reject_proposed`, still only a proposal for the rejection gate, and the fairness backstop's downgrade-to-hold is preserved (`fairnessAlerts`). |
+
+Not wired: S3 to S6 (no producer yet), and the stale-rubric re-score on the board (it has
+no evidence source to re-run until a producer supplies rubric-versioned evaluations).
+
 ## The per-run LLM budget
 
 Cost per run is unbounded by construction (S1 fan-out x S2 LLM calls), so `advanceRoleRun`
