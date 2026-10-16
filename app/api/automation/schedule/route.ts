@@ -15,12 +15,11 @@ import { schedulerJobOffered } from "@/app/_lib/jobseeker/enabled";
 import { tickScheduler } from "@/app/_lib/scheduler";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { ensureDb } from "@/app/_lib/db/core";
 import { schedulerLiveness, schedulerLivenessReason } from "@/app/_lib/scheduler-health";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
-import { withSession } from "@/app/_lib/auth/workspace-context";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 
 // Forcing a tick runs a FULL policy pass — a Python-spawning sweep over every
 // active entry that drafts outreach and mutates the board. It is operator-gated,
@@ -50,8 +49,8 @@ const JOB_RUNS = 5;
 // filtered to the caller's own workspace here. `scheduleScope` says out loud that the
 // toggle the UI renders is installation-wide; `decisionsWorkspace` (per run) says
 // which tenant the rows were narrowed to, next to a summary that stays global.
-async function schedulePayload() {
-  const workspace = await currentWorkspace();
+async function schedulePayload(ws: string) {
+  const workspace = ws;
   // A job whose module this install leaves off (the seeker's scan without
   // KP_JOBSEEKER=1, app/_lib/jobseeker/enabled.ts) is not listed — and not created.
   const jobs = SCHEDULER_JOBS.filter((job) => schedulerJobOffered(job.name)).map((job) => ({
@@ -103,14 +102,14 @@ function clockLiveness() {
 
 // Control surface for the automation clock: read status + recent runs, toggle it
 // on/off, set the cadence, or force an immediate tick.
-export const GET = withSession(async () => {
+export const GET = withWorkspace(async (chainWs: string) => {
   // Operator-only: exposes the automation clock state + recent run history.
   const denied = await requireOperator();
   if (denied) return denied;
-  return NextResponse.json(await schedulePayload());
+  return NextResponse.json(await schedulePayload(chainWs));
 });
 
-export const POST = withSession(async (request: NextRequest) => {
+export const POST = withWorkspace(async (chainWs: string, request: NextRequest) => {
   // Operator-only: toggling the clock / forcing a tick arms autonomous outreach.
   const denied = await requireOperator();
   if (denied) return denied;
@@ -174,7 +173,7 @@ export const POST = withSession(async (request: NextRequest) => {
       setEnabled(REMINDERS_JOB, body.remindersEnabled);
     }
     const tick = body.tick ? await tickScheduler({ force: true, trigger: "manual" }) : undefined;
-    return NextResponse.json({ ...(await schedulePayload()), tick });
+    return NextResponse.json({ ...(await schedulePayload(chainWs)), tick });
   } catch (error) {
     // The thrown error here is a better-sqlite3 / spawned-pass exception: it quotes
     // the db file path, SQLite constraint text and Python tracebacks. Server log

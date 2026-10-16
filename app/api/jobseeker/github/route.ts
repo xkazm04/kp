@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { currentSession, requireCapability } from "@/app/_lib/auth/current-user";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { currentUserId } from "@/app/_lib/auth/session";
@@ -11,7 +10,7 @@ import { portfolioCandidates, readSeekerGithub } from "@/app/_lib/jobseeker/gith
 import { GITHUB_PROJECTS_MAX, githubStateOf, type GithubState } from "@/app/_lib/jobseeker/githubEvidence";
 import { runPythonCli } from "@/app/_lib/jobseeker/python-cli";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
-import { withSession } from "@/app/_lib/auth/workspace-context";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 
 // /api/jobseeker/github - the seeker's OWN GitHub account as a second source of skill
 // evidence and of CV Projects (app/_lib/jobseeker/github.ts reads, pipeline/jobfit/
@@ -33,8 +32,8 @@ import { withSession } from "@/app/_lib/auth/workspace-context";
 
 type Owner = { profileId: string; ws: string; cvText: string; claims: string[] };
 
-async function owner(): Promise<Owner | NextResponse> {
-  const [session, ws] = await Promise.all([currentSession(), currentWorkspace()]);
+async function owner(ws: string): Promise<Owner | NextResponse> {
+  const session = await currentSession();
   const profile = getJobseekerProfile(currentUserId(session), ws);
   if (!profile) return jsonRefusal("JOBSEEKER_PROFILE_MISSING", 409);
   const claims = (profile.profile.skillClaims ?? []).map((c) => c.skill?.trim()).filter((s): s is string => !!s);
@@ -52,11 +51,11 @@ function stored(o: Owner): GithubState | null {
   return githubStateOf(getGithubState(o.profileId, o.ws)?.value);
 }
 
-export const GET = withSession(async (): Promise<NextResponse> => {
+export const GET = withWorkspace(async (chainWs: string): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
-    const o = await owner();
+    const o = await owner(chainWs);
     if (o instanceof NextResponse) return o;
     return NextResponse.json({ state: stored(o), suggestion: suggestionOf(o.cvText) });
   } catch (error) {
@@ -64,7 +63,7 @@ export const GET = withSession(async (): Promise<NextResponse> => {
   }
 });
 
-export const POST = withSession(async (request: Request): Promise<NextResponse> => {
+export const POST = withWorkspace(async (chainWs: string, request: Request): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -78,7 +77,7 @@ export const POST = withSession(async (request: Request): Promise<NextResponse> 
     const body = (await request.json().catch(() => null)) as { handle?: unknown } | null;
     const handle = typeof body?.handle === "string" ? body.handle.trim().slice(0, 200) : "";
     if (!handle) return jsonRefusal("JOBSEEKER_REQUEST_INVALID", 400);
-    const o = await owner();
+    const o = await owner(chainWs);
     if (o instanceof NextResponse) return o;
     const before = stored(o);
     const read = await readSeekerGithub(handle);
@@ -119,7 +118,7 @@ export const POST = withSession(async (request: Request): Promise<NextResponse> 
   }
 });
 
-export const PUT = withSession(async (request: Request): Promise<NextResponse> => {
+export const PUT = withWorkspace(async (chainWs: string, request: Request): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -130,7 +129,7 @@ export const PUT = withSession(async (request: Request): Promise<NextResponse> =
   try {
     const body = (await request.json().catch(() => null)) as { confirmed?: unknown; use?: unknown; projects?: unknown } | null;
     if (!body || typeof body !== "object") return jsonRefusal("JOBSEEKER_REQUEST_INVALID", 400);
-    const o = await owner();
+    const o = await owner(chainWs);
     if (o instanceof NextResponse) return o;
     const current = stored(o);
     if (!current) return jsonRefusal("JOBSEEKER_REQUEST_INVALID", 409);
@@ -153,7 +152,7 @@ export const PUT = withSession(async (request: Request): Promise<NextResponse> =
   }
 });
 
-export const DELETE = withSession(async (request: Request): Promise<NextResponse> => {
+export const DELETE = withWorkspace(async (chainWs: string, request: Request): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -162,7 +161,7 @@ export const DELETE = withSession(async (request: Request): Promise<NextResponse
     return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
   try {
-    const o = await owner();
+    const o = await owner(chainWs);
     if (o instanceof NextResponse) return o;
     // Scores computed with the repositories must be re-run without them: with the row gone,
     // only the profile's own time can say the inputs moved.

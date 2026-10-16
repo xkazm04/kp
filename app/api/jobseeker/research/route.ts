@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { currentSession, requireCapability } from "@/app/_lib/auth/current-user";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { currentUserId } from "@/app/_lib/auth/session";
@@ -18,7 +17,7 @@ import {
 } from "@/app/_lib/jobseeker/roleResearch";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { isLocale } from "@/i18n/locales";
-import { withSession } from "@/app/_lib/auth/workspace-context";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 
 // /api/jobseeker/research - what the seeker's target titles ask for NOW, researched on the
 // web (app/_lib/jobseeker/roleResearch.ts; the engine is pipeline/jobfit/role_research_cli.py,
@@ -46,8 +45,8 @@ const RESEARCH_TIMEOUT_MS = 290_000;
 
 type Scope = { profileId: string; ws: string; titles: string[]; markets: string[]; seniority: string | null; key: string };
 
-async function scope(): Promise<Scope | NextResponse> {
-  const [session, ws] = await Promise.all([currentSession(), currentWorkspace()]);
+async function scope(ws: string): Promise<Scope | NextResponse> {
+  const session = await currentSession();
   const profile = getJobseekerProfile(currentUserId(session), ws);
   if (!profile) return jsonRefusal("JOBSEEKER_PROFILE_MISSING", 409);
   const titles = researchTitles(profile.preferences.targetTitles ?? []);
@@ -55,11 +54,11 @@ async function scope(): Promise<Scope | NextResponse> {
   return { profileId: profile.id, ws, titles, markets, seniority: profile.preferences.seniority ?? null, key: roleResearchKey(titles, markets) };
 }
 
-export const GET = withSession(async (): Promise<NextResponse> => {
+export const GET = withWorkspace(async (chainWs: string): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
-    const s = await scope();
+    const s = await scope(chainWs);
     if (s instanceof NextResponse) return s;
     if (s.titles.length === 0) return NextResponse.json({ record: null, titles: [], markets: s.markets, fresh: false });
     const record = roleResearchRecordOf(getRoleResearch(s.profileId, s.key, s.ws)?.value);
@@ -69,7 +68,7 @@ export const GET = withSession(async (): Promise<NextResponse> => {
   }
 });
 
-export const POST = withSession(async (request: Request): Promise<NextResponse> => {
+export const POST = withWorkspace(async (chainWs: string, request: Request): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   // A model spend behind a seat, like every other jobseeker write (route-capability-coverage).
@@ -81,7 +80,7 @@ export const POST = withSession(async (request: Request): Promise<NextResponse> 
   try {
     const body = (await request.json().catch(() => ({}))) as { force?: unknown } | null;
     const force = body?.force === true;
-    const s = await scope();
+    const s = await scope(chainWs);
     if (s instanceof NextResponse) return s;
     if (s.titles.length === 0) return jsonRefusal("JOBSEEKER_REQUEST_INVALID", 409);
     const existing = roleResearchRecordOf(getRoleResearch(s.profileId, s.key, s.ws)?.value);
