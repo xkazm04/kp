@@ -27,6 +27,7 @@ import {
 } from "./screen-wave-approval.ts";
 import { type ApprovalKind } from "./approval-kinds.ts";
 import { STAGE_GATE, type RoleRunStageKind } from "./role-run-stages.ts";
+import { mintGateReceipt, type RoleRunGateReceipt } from "./role-run-gate-receipt.ts";
 
 /** The three gates, named by the decision rather than by the stage — because the
  *  decision is what the candidate feels, and a stage could be renamed. */
@@ -121,11 +122,12 @@ export type GateCommitInput = {
  *  token once every other check has passed — a commit refused for a missing approver
  *  must not burn the recruiter's review.
  *
- *  Returns nothing on success; throws ScreenWaveApprovalError with the machine-readable
+ *  Returns the gate RECEIPT on success (the write door refuses a gate resolution
+ *  without one); throws ScreenWaveApprovalError with the machine-readable
  *  reason otherwise, so the route can answer 409 with WHICH of the five refusals it was
  *  (a spent token is not a changed cohort, and a client that cannot tell them apart
  *  tells the recruiter to re-review a set that did not move). */
-export function commitRoleRunGate(input: GateCommitInput): void {
+export function commitRoleRunGate(input: GateCommitInput): RoleRunGateReceipt {
   const now = input.now ?? Date.now();
   if (!input.token) {
     throw new ScreenWaveApprovalError(`the ${input.gate} gate requires a human approval token`, "required");
@@ -147,6 +149,7 @@ export function commitRoleRunGate(input: GateCommitInput): void {
   if (!consumeScreenWaveApprovalToken(input.token, now)) {
     throw new ScreenWaveApprovalError(`this ${input.gate} approval has already been committed`, "spent");
   }
+  return mintGateReceipt(input.runId, GATE_STAGE[input.gate]);
 }
 
 export { ScreenWaveApprovalError };

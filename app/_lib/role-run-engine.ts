@@ -479,7 +479,7 @@ export function commitRoleRunStageGate(
     throw new Error(`branch ${input.branchRef} is not parked at the ${input.gate} gate`);
   }
 
-  commitRoleRunGate({
+  const receipt = commitRoleRunGate({
     runId: input.runId,
     gate: input.gate,
     policyVersion: input.policyVersion,
@@ -505,6 +505,7 @@ export function commitRoleRunStageGate(
       kind,
       branchRef: input.branchRef,
       status,
+      gateReceipt: receipt,
       payload: {
         ...(typeof parked.payload === "object" && parked.payload !== null ? parked.payload : {}),
         gate: input.gate,
