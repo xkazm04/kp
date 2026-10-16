@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
@@ -28,7 +28,7 @@ import { startTask } from "@/app/_lib/tasks";
 const MAX_GIGS = 50;
 const ID_MAX = 200;
 
-export async function POST(request: Request): Promise<NextResponse> {
+export const POST = withWorkspace(async (ws: string, request: Request): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -47,11 +47,10 @@ export async function POST(request: Request): Promise<NextResponse> {
       new Set(raw).size === raw.length;
     if (!valid) return jsonRefusal("GIG_INPUT_INVALID", 400, { field: "gigIds" });
     const gigIds = raw as string[];
-    const ws = await currentWorkspace();
     // workspaceId rides in params for the dedupe builder (task-dedupe.ts sees params only).
     const task = startTask("gig_plans", { workspaceId: ws, gigIds }, ws);
     return NextResponse.json({ taskId: task.id, queued: gigIds.length }, { status: 202 });
   } catch (error) {
     return safeJsonError(error, "api:gigs/plans", "GIG_STORE_FAILED");
   }
-}
+});

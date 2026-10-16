@@ -11,6 +11,7 @@ import { mergePreferencePatch, parsePreferencesPatch } from "@/app/_lib/jobseeke
 import { EMPTY_PREFERENCES } from "@/app/_lib/jobseeker/types";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import type { ProfilePayload } from "@/app/features/shared/profileTypes";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 // The seeker's OWN profile (docs/features/jobseeker/README.md, "Profile and CV
 // studio"). One row per (workspace, user): the CandidateProfileV2 the pipeline
@@ -29,7 +30,7 @@ async function principal(): Promise<{ userId: string | null; ws: string }> {
   return { userId: currentUserId(session), ws };
 }
 
-export async function GET(): Promise<NextResponse> {
+export const GET = withSession(async (): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
@@ -40,7 +41,7 @@ export async function GET(): Promise<NextResponse> {
   } catch (err) {
     return safeJsonError(err, "api:jobseeker/profile", "JOBSEEKER_STORE_FAILED");
   }
-}
+});
 
 // PUT — create or replace. `profile` is the profile_draft output (the recruiter-side
 // shape, reused verbatim); `preferences` is a PARTIAL merged over what is stored;
@@ -55,7 +56,7 @@ export async function GET(): Promise<NextResponse> {
 // THROTTLE (rate-limit-contract.test.ts): the route is a store write behind the
 // operator gate, but in open mode the gate is a no-op, so it self-limits per IP at a
 // budget no human meets (60/10min — the import flow writes once per CV).
-export async function PUT(request: Request): Promise<NextResponse> {
+export const PUT = withSession(async (request: Request): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   // The seeker's own data, but still a WRITE behind a seat: a viewer seat may read the
@@ -89,7 +90,7 @@ export async function PUT(request: Request): Promise<NextResponse> {
   } catch (err) {
     return safeJsonError(err, "api:jobseeker/profile", "JOBSEEKER_STORE_FAILED");
   }
-}
+});
 
 // DELETE — the seeker's "delete everything about me" door (GDPR Art. 17 onto their OWN
 // record; docs/features/jobseeker/README.md). eraseJobseekerData removes the profile,
@@ -109,7 +110,7 @@ export async function PUT(request: Request): Promise<NextResponse> {
 // scan read BEFORE the erasure and writes after it — a known limit of this door.
 const ERASE_RATE_LIMIT = { limit: 5, windowMs: 10 * 60_000 };
 
-export async function DELETE(request: Request): Promise<NextResponse> {
+export const DELETE = withSession(async (request: Request): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -128,4 +129,4 @@ export async function DELETE(request: Request): Promise<NextResponse> {
   } catch (err) {
     return safeJsonError(err, "api:jobseeker/profile", "JOBSEEKER_STORE_FAILED");
   }
-}
+});

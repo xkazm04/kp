@@ -18,6 +18,7 @@ import {
 } from "@/app/_lib/jobseeker/roleResearch";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { isLocale } from "@/i18n/locales";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 // /api/jobseeker/research - what the seeker's target titles ask for NOW, researched on the
 // web (app/_lib/jobseeker/roleResearch.ts; the engine is pipeline/jobfit/role_research_cli.py,
@@ -54,7 +55,7 @@ async function scope(): Promise<Scope | NextResponse> {
   return { profileId: profile.id, ws, titles, markets, seniority: profile.preferences.seniority ?? null, key: roleResearchKey(titles, markets) };
 }
 
-export async function GET(): Promise<NextResponse> {
+export const GET = withSession(async (): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
@@ -66,9 +67,9 @@ export async function GET(): Promise<NextResponse> {
   } catch (error) {
     return safeJsonError(error, "api:jobseeker/research", "JOBSEEKER_STORE_FAILED");
   }
-}
+});
 
-export async function POST(request: Request): Promise<NextResponse> {
+export const POST = withSession(async (request: Request): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   // A model spend behind a seat, like every other jobseeker write (route-capability-coverage).
@@ -121,4 +122,4 @@ export async function POST(request: Request): Promise<NextResponse> {
   } catch (error) {
     return safeJsonError(error, "api:jobseeker/research", "JOBSEEKER_STORE_FAILED");
   }
-}
+});

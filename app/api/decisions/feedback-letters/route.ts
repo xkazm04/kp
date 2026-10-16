@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { feedbackLetterQueue } from "@/app/_lib/interview-letter-review";
@@ -17,13 +17,12 @@ import { feedbackLetterQueue } from "@/app/_lib/interview-letter-review";
 // every read, and a letter from another team is simply not in this list. A read, so no
 // capability beyond the operator session (the Reconsider queue's posture); the WRITE
 // doors under ./[id]/ each ask `pipeline:write`.
-export async function GET() {
+export const GET = withWorkspace(async (ws: string) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
-    const ws = await currentWorkspace();
     return NextResponse.json(feedbackLetterQueue(ws));
   } catch (error) {
     return safeJsonError(error, "api:decisions/feedback-letters", "FEEDBACK_LETTERS_LIST_FAILED");
   }
-}
+});

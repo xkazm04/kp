@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAgentAggregates, getAgentLifecycleMarks, getLatestAgentRollupRaw, listHiredAgents } from "@/app/_lib/db/agents";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { backboneFreshness, backboneFromRollup, backboneScore, hasBackboneFields } from "@/app/_lib/app-master/backbone";
@@ -50,11 +50,10 @@ function autopilotOf(raw: unknown): AutopilotMode | null {
   return typeof mode === "string" && (AUTOPILOT_MODES as readonly string[]).includes(mode) ? (mode as AutopilotMode) : null;
 }
 
-export async function GET() {
+export const GET = withWorkspace(async (ws: string) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
-    const ws = await currentWorkspace();
     const agents = listHiredAgents(ws).map((agent) => {
       const { reportToken, ...rest } = agent;
       void reportToken; // stripped: the token is the report route's auth capability
@@ -117,4 +116,4 @@ export async function GET() {
   } catch (error) {
     return safeJsonError(error, "api:agents", "AGENT_LIST_FAILED");
   }
-}
+});

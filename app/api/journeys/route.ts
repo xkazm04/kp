@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { JOURNEY_DEFAULT_LIMIT, JOURNEY_MAX_LIMIT, journeyBoard } from "@/app/_lib/journey/project";
@@ -38,7 +38,7 @@ function clampInt(raw: string | null, fallback: number, min: number, max: number
  *  hostile query string cannot become an unbounded bound parameter. */
 const MAX_ROLE_PARAM = 120;
 
-export async function GET(request: Request) {
+export const GET = withWorkspace(async (workspaceId: string, request: Request) => {
   try {
     const { searchParams } = new URL(request.url);
     const limit = clampInt(searchParams.get("limit"), JOURNEY_DEFAULT_LIMIT, 1, JOURNEY_MAX_LIMIT);
@@ -48,7 +48,6 @@ export async function GET(request: Request) {
     if (!rateLimit(`journeys:${clientIpFrom(request.headers)}`, JOURNEY_BOARD_RATE_LIMIT)) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
-    const workspaceId = await currentWorkspace();
     return NextResponse.json(journeyBoard({ workspaceId, role, activeOnly, limit, offset }));
   } catch (error) {
     // Reads across pipeline_entries, four audit logs and the isolated decision store:
@@ -56,4 +55,4 @@ export async function GET(request: Request) {
     // the board. The code travels; the message does not.
     return safeJsonError(error, "api:journeys", "PIPELINE_TIMELINE_FAILED");
   }
-}
+});

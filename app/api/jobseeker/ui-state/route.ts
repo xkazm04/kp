@@ -11,6 +11,7 @@ import { getCoverNote, getCvDesignState, setCoverNote, setCvDesignState } from "
 import { COVER_NOTE_MAX_CHARS } from "@/app/_lib/jobseeker/types";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { parseCvDesign, type CvDesign } from "@/app/features/jobseeker/cv/cvQuery";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 // The seeker's UI state that follows them across browsers (docs/features/jobseeker/
 // README.md): the designed-CV choices (template, accent, tailor, compact, objective) and
@@ -49,7 +50,7 @@ function designOf(raw: unknown): CvDesign | null {
 
 // THROTTLE (rate-limit-contract.test.ts): one read per posting opened on the Weigh step
 // and one per designer mount — the posting read's own rhythm; 240/10min per IP.
-export async function GET(request: Request): Promise<NextResponse> {
+export const GET = withSession(async (request: Request): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   if (!rateLimit(`jobseeker-ui-state-read:${clientIpFrom(request.headers)}`, READ_RATE_LIMIT)) {
@@ -69,12 +70,12 @@ export async function GET(request: Request): Promise<NextResponse> {
   } catch (err) {
     return safeJsonError(err, "api:jobseeker/ui-state", "JOBSEEKER_STORE_FAILED");
   }
-}
+});
 
 // THROTTLE (rate-limit-contract.test.ts): the client writes debounced (one save per pause
 // in typing or per design pick), so a seeker drafting a long note for ten minutes stays
 // far below 600/10min per IP.
-export async function PUT(request: Request): Promise<NextResponse> {
+export const PUT = withSession(async (request: Request): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -104,4 +105,4 @@ export async function PUT(request: Request): Promise<NextResponse> {
   } catch (err) {
     return safeJsonError(err, "api:jobseeker/ui-state", "JOBSEEKER_STORE_FAILED");
   }
-}
+});

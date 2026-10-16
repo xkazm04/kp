@@ -11,6 +11,7 @@ import { portfolioCandidates, readSeekerGithub } from "@/app/_lib/jobseeker/gith
 import { GITHUB_PROJECTS_MAX, githubStateOf, type GithubState } from "@/app/_lib/jobseeker/githubEvidence";
 import { runPythonCli } from "@/app/_lib/jobseeker/python-cli";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 // /api/jobseeker/github - the seeker's OWN GitHub account as a second source of skill
 // evidence and of CV Projects (app/_lib/jobseeker/github.ts reads, pipeline/jobfit/
@@ -51,7 +52,7 @@ function stored(o: Owner): GithubState | null {
   return githubStateOf(getGithubState(o.profileId, o.ws)?.value);
 }
 
-export async function GET(): Promise<NextResponse> {
+export const GET = withSession(async (): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
@@ -61,9 +62,9 @@ export async function GET(): Promise<NextResponse> {
   } catch (error) {
     return safeJsonError(error, "api:jobseeker/github", "JOBSEEKER_STORE_FAILED");
   }
-}
+});
 
-export async function POST(request: Request): Promise<NextResponse> {
+export const POST = withSession(async (request: Request): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -116,9 +117,9 @@ export async function POST(request: Request): Promise<NextResponse> {
   } catch (error) {
     return safeJsonError(error, "api:jobseeker/github", "JOBSEEKER_STORE_FAILED");
   }
-}
+});
 
-export async function PUT(request: Request): Promise<NextResponse> {
+export const PUT = withSession(async (request: Request): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -150,9 +151,9 @@ export async function PUT(request: Request): Promise<NextResponse> {
   } catch (error) {
     return safeJsonError(error, "api:jobseeker/github", "JOBSEEKER_STORE_FAILED");
   }
-}
+});
 
-export async function DELETE(request: Request): Promise<NextResponse> {
+export const DELETE = withSession(async (request: Request): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -170,4 +171,4 @@ export async function DELETE(request: Request): Promise<NextResponse> {
   } catch (error) {
     return safeJsonError(error, "api:jobseeker/github", "JOBSEEKER_STORE_FAILED");
   }
-}
+});

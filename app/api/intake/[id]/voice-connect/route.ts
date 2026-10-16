@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getIntake } from "@/app/_lib/db/intakes";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withSession, withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import {
   getVoiceAdapter,
@@ -39,18 +39,17 @@ const RELAY_INSTRUCTIONS =
   "own language, with natural spoken delivery.";
 
 // GET → provider availability (the mic button enables/disables from this).
-export async function GET() {
+export const GET = withSession(async () => {
   const denied = await requireOperator();
   if (denied) return denied;
   return NextResponse.json({ availability: voiceAvailability() });
-}
+});
 
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
     const { id } = await params;
-    const ws = await currentWorkspace();
     const intake = getIntake(id, ws);
     if (!intake) return jsonRefusal("INTAKE_NOT_FOUND", 404);
     if (intake.status !== "open") return jsonRefusal("INTAKE_CLOSED", 409);
@@ -96,4 +95,4 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   } catch (error) {
     return safeJsonError(error, "api:intake/voice-connect", "INTAKE_VOICE_CONNECT_FAILED");
   }
-}
+});

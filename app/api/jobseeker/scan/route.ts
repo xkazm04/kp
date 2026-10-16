@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { SCAN_TASK_KIND } from "@/app/_lib/jobseeker/types";
@@ -21,7 +21,7 @@ import { startTask } from "@/app/_lib/tasks";
 // under a politeness budget the whole install shares, and the dedupe key (one scan per
 // tenant in flight) already folds a double-click onto the running task.
 
-export async function POST(request: Request): Promise<NextResponse> {
+export const POST = withWorkspace(async (ws: string, request: Request): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   // The seeker's own data, but still a WRITE behind a seat: a viewer seat may read the
@@ -32,11 +32,10 @@ export async function POST(request: Request): Promise<NextResponse> {
     return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
   try {
-    const ws = await currentWorkspace();
     // workspaceId rides in params for the dedupe builder (task-dedupe.ts sees params only).
     const task = startTask(SCAN_TASK_KIND, { trigger: "manual", workspaceId: ws }, ws);
     return NextResponse.json({ taskId: task.id }, { status: 202 });
   } catch (error) {
     return safeJsonError(error, "api:jobseeker/scan", "JOBSEEKER_STORE_FAILED");
   }
-}
+});

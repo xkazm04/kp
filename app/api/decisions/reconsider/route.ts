@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { listReconsiderQueue } from "@/app/_lib/db/pipeline";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { withCanonicalScores } from "@/app/_lib/match-score-resolve";
 import { listDecisionRecordsForRefs } from "@/app/_lib/decision-record-store";
@@ -16,10 +16,9 @@ import { listDecisionRecordsForRefs } from "@/app/_lib/decision-record-store";
 // adverse-action data, so the handler re-verifies the session (and rejects the
 // anonymous demo session) like the rest of /api/decisions/*. Tenant (P1): scoped to
 // the caller's team so one team never reviews another's auto-rejected candidates.
-export async function GET() {
+export const GET = withWorkspace(async (ws: string) => {
   const denied = await requireOperator();
   if (denied) return denied;
-  const ws = await currentWorkspace();
   const { items, total } = listReconsiderQueue(50, ws);
   // Stamp the canonical score + provenance for the whole (bounded) batch through
   // the same read path the board/drawer/queue use, so the reconsider row shows THE
@@ -70,4 +69,4 @@ export async function GET() {
     };
   });
   return NextResponse.json({ items: projected, truncated: total > 50, total });
-}
+});

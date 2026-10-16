@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { humanActor } from "@/app/_lib/auth/operator-approver";
@@ -28,7 +28,7 @@ import { interviewLetterById, interviewLetterDecline } from "@/app/_lib/db/inter
 // Same budget as the approve door beside it: one human decision per click.
 const DECLINE_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };
 
-export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // Closing a candidate's request is a decision about their application: pipeline:write.
@@ -36,7 +36,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   if (under) return under;
   try {
     const { id } = await context.params;
-    const ws = await currentWorkspace();
 
     const letter = interviewLetterById(id, ws);
     if (!letter) return jsonRefusal("FEEDBACK_LETTER_NOT_FOUND", 404);
@@ -59,4 +58,4 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   } catch (error) {
     return safeJsonError(error, "api:decisions/feedback-letters/decline", "FEEDBACK_LETTER_DECLINE_FAILED");
   }
-}
+});

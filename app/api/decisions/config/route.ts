@@ -6,7 +6,7 @@ import {
   setDecisionConfig,
 } from "@/app/_lib/decision-config-store";
 import { DecisionConfigError, validateDecisionConfig } from "@/app/_lib/decision-config-schema";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
@@ -22,17 +22,16 @@ const CONFIG_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };
 // Operator-gated (backlog #30 / SD-L1-010): these rules drive the auto-reject
 // wave, so both the read and the write re-verify the session at the handler
 // (and reject the anonymous demo session) like the rest of /api/decisions/*.
-export async function GET() {
+export const GET = withWorkspace(async (ws: string) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // The team's EFFECTIVE policy per phase: its own override where set, else the org default.
   // `versions` rides along: the concurrency token a client echoes on POST so its save can
   // be dropped rather than silently overwrite one that landed while it was editing.
-  const ws = await currentWorkspace();
   return NextResponse.json({ configs: getAllDecisionConfigs(ws), versions: getAllDecisionConfigVersions(ws) });
-}
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // AUTHORIZATION (write-routes-check-a-capability). requireOperator above only
@@ -43,7 +42,6 @@ export async function POST(request: NextRequest) {
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
   if (under) return under;
   try {
-    const ws = await currentWorkspace();
     const body = (await request.json()) as { phase?: unknown; config?: unknown; scope?: unknown; expectedUpdatedAt?: unknown };
     if (body.phase === undefined || body.config === undefined) {
       return jsonRefusal("DECISION_CONFIG_FIELDS_REQUIRED", 400);
@@ -95,4 +93,4 @@ export async function POST(request: NextRequest) {
     }
     return safeJsonError(error, "api:decisions/config", "DECISION_CONFIG_SAVE_FAILED");
   }
-}
+});

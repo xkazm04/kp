@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { getJobseekerSource, pauseSource, resumeSource, setSourceEnabled, setSourceRules } from "@/app/_lib/db/jobseeker-sources";
@@ -22,7 +22,7 @@ function isPauseReason(v: unknown): v is PauseReason {
   return typeof v === "string" && (PAUSE_REASONS as readonly string[]).includes(v);
 }
 
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }): Promise<NextResponse> {
+export const PATCH = withWorkspace(async (ws: string, request: Request, { params }: { params: Promise<{ id: string }> }): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   // The seeker's own data, but still a WRITE behind a seat: a viewer seat may read the
@@ -35,7 +35,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   try {
     const { id } = await params;
     const body = (await request.json().catch(() => ({}))) as PatchBody;
-    const ws = await currentWorkspace();
     const source = getJobseekerSource(id, ws);
     if (!source) return jsonRefusal("JOBSEEKER_SOURCE_NOT_FOUND", 404);
     if (source.tier === "C") return jsonRefusal("JOBSEEKER_SOURCE_REFUSED", 403);
@@ -70,4 +69,4 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   } catch (error) {
     return safeJsonError(error, "api:jobseeker/sources/[id]", "JOBSEEKER_STORE_FAILED");
   }
-}
+});

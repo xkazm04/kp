@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { appendDialogTurns, getDialog } from "@/app/_lib/db/jobseeker-dialogs";
@@ -25,7 +25,7 @@ const MAX_MESSAGE_CHARS = 4_000;
 // so per-IP 30/10min — a human reading a reply and typing runs far under one message
 // per 20s. Runs AFTER the cheap refusals (404/409/400) so a rejected call never
 // consumes budget, and BEFORE the spawn.
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }): Promise<NextResponse> {
+export const POST = withWorkspace(async (ws: string, request: Request, { params }: { params: Promise<{ id: string }> }): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   // The seeker's own data, but still a WRITE behind a seat: a viewer seat may read the
@@ -34,7 +34,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (under) return under;
   try {
     const { id } = await params;
-    const ws = await currentWorkspace();
     const dialog = getDialog(id, ws);
     if (!dialog) return jsonRefusal("JOBSEEKER_DIALOG_NOT_FOUND", 404);
     if (dialog.status !== "open") return jsonRefusal("JOBSEEKER_DIALOG_CLOSED", 409);
@@ -102,4 +101,4 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (error instanceof JobseekerInputError) return safeJsonError(error, "api:jobseeker/dialogs/message", "JOBSEEKER_STORE_FAILED");
     return safeJsonError(error, "api:jobseeker/dialogs/message", "JOBSEEKER_STORE_FAILED");
   }
-}
+});

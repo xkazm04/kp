@@ -70,13 +70,13 @@ test("group-eval reads are isolated per workspace (the route's call shape)", () 
 // Source guard: the route must thread the caller's workspace into BOTH reads (mirrors
 // the sibling reconsider/route.ts). A regression that drops the ws arg would silently
 // fall back to DEFAULT_WORKSPACE_ID — the exact bug this direction fixed.
-test("the group-eval READ route threads currentWorkspace into both store reads", () => {
+test("the group-eval READ route threads the withWorkspace workspace into both store reads", () => {
   const routeSrc = readFileSync(
     path.join(dir, "..", "api", "decisions", "group-eval", "route.ts"),
     "utf8"
   );
-  assert.match(routeSrc, /currentWorkspace/, "route must import/resolve currentWorkspace");
-  assert.match(routeSrc, /const\s+ws\s*=\s*await\s+currentWorkspace\(\)/, "route must await currentWorkspace()");
+  assert.match(routeSrc, /withWorkspace/, "route must enter through withWorkspace");
+  assert.match(routeSrc, /withWorkspace\(async \(ws: string/, "route must receive the caller's workspace as ws");
   assert.match(routeSrc, /getGroupEval\(\s*role\s*,\s*ws\s*\)/, "getGroupEval must be passed ws");
   assert.match(routeSrc, /listEvaluatedRoles\(\s*roles\s*,\s*ws\s*\)/, "listEvaluatedRoles must be passed ws");
 });

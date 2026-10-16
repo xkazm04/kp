@@ -3,7 +3,7 @@ import { getIntake, updateIntakeVoiceSweep } from "@/app/_lib/db/intakes";
 import { runIntakeTranscriptExtract } from "@/app/_lib/intake-run";
 import { intakeLang } from "@/app/_lib/intake-lang";
 import { capTranscriptTurns, clampTurn } from "@/app/_lib/interview-transcript";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
@@ -27,12 +27,11 @@ import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 
 const MAX_VOICE_TURNS = 400;
 
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
     const { id } = await params;
-    const ws = await currentWorkspace();
     const intake = getIntake(id, ws);
     if (!intake) return jsonRefusal("INTAKE_NOT_FOUND", 404);
     // A CLOSED (`complete`) session still accepts this call — it is the only
@@ -118,4 +117,4 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (request.signal.aborted) return new NextResponse(null, { status: 499 });
     return safeJsonError(error, "api:intake/voice-complete", "INTAKE_VOICE_COMPLETE_FAILED");
   }
-}
+});

@@ -10,6 +10,7 @@ import { getJobseekerProfile } from "@/app/_lib/db/jobseeker-profiles";
 import type { CvDraftSource, JobseekerCvListItem } from "@/app/_lib/jobseeker/types";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import type { ProfilePayload } from "@/app/features/shared/profileTypes";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 // The seeker's CVs already read (docs/features/jobseeker/README.md, "Profile and CV
 // studio"): GET lists them (metadata only — never the text, never the draft), POST
@@ -36,7 +37,7 @@ async function seeker(): Promise<{ userId: string | null; ws: string }> {
 
 // THROTTLE (rate-limit-contract.test.ts): a read of a short list, once per /me load and
 // after each import; 120/10min per IP.
-export async function GET(request: Request): Promise<NextResponse> {
+export const GET = withSession(async (request: Request): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   if (!rateLimit(`jobseeker-cvs-list:${clientIpFrom(request.headers)}`, LIST_RATE_LIMIT)) {
@@ -50,7 +51,7 @@ export async function GET(request: Request): Promise<NextResponse> {
   } catch (err) {
     return safeJsonError(err, "api:jobseeker/cvs", "JOBSEEKER_STORE_FAILED");
   }
-}
+});
 
 function draftSourceOf(v: unknown): CvDraftSource | null {
   return v === "llm" || v === "deterministic" ? v : null;
@@ -58,7 +59,7 @@ function draftSourceOf(v: unknown): CvDraftSource | null {
 
 // THROTTLE (rate-limit-contract.test.ts): two store writes per imported CV; the import
 // writes once per file, so 60/10min per IP is the profile PUT's own budget.
-export async function POST(request: Request): Promise<NextResponse> {
+export const POST = withSession(async (request: Request): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -88,4 +89,4 @@ export async function POST(request: Request): Promise<NextResponse> {
   } catch (err) {
     return safeJsonError(err, "api:jobseeker/cvs", "JOBSEEKER_STORE_FAILED");
   }
-}
+});
