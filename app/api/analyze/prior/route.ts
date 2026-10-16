@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { listPriorRunsByCvHashes } from "@/app/_lib/db/analyses-prior";
 import { priorRunQuery } from "@/app/features/tools/analyze/analyzePriorRuns";
@@ -11,7 +11,7 @@ import { priorRunQuery } from "@/app/features/tools/analyze/analyzePriorRuns";
  * Inspects whether any of the supplied CV content hashes have prior runs in the current workspace.
  * Gated by requireOperator and requireCapabilityCoded("read").
  */
-export async function GET(request: NextRequest) {
+export const GET = withWorkspace(async (ws: string, request: NextRequest) => {
   const opDenied = await requireOperator();
   if (opDenied) return opDenied;
 
@@ -28,10 +28,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ ok: true, rows: [] });
     }
 
-    const ws = await currentWorkspace();
     const rows = listPriorRunsByCvHashes(query.cvHashes, ws);
     return NextResponse.json({ ok: true, rows });
   } catch (error) {
     return safeJsonError(error, "api/analyze/prior", "ANALYSES_LIST_FAILED");
   }
-}
+});
