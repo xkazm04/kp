@@ -2644,6 +2644,50 @@ export function ensureDb(): Database.Database {
     );
     CREATE INDEX IF NOT EXISTS idx_feedback_ws ON feedback (workspace_id, created_at DESC);
   `);
+  // Role-run ledger (db/role-runs.ts, ADR-0009): new-in-full tables, so a legacy DB simply
+  // gains them on boot (the feedback / jd_revisions pattern). Defined here, not lazily in the
+  // store, so the core-* schema gates see them.
+  db.exec(`
+    -- One run per (job, cycle). The cycle is a free string rather than an integer so
+    -- a caller can key a run on something meaningful ("2026-q4-backfill") without a
+    -- schema change; the default "1" covers the single-run-per-job case.
+    CREATE TABLE IF NOT EXISTS role_runs (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
+      job_id TEXT NOT NULL,
+      cycle TEXT NOT NULL DEFAULT '1',
+      status TEXT NOT NULL DEFAULT 'running',
+      created_at TEXT NOT NULL,
+      updated_at TEXT
+    );
+
+    -- UNIQUE, not an index for speed: "re-running a role forks a second ledger for it"
+    -- is the defect this prevents. getOrCreateRoleRun reads through it.
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_role_runs_job_cycle
+      ON role_runs (workspace_id, job_id, cycle);
+
+    -- APPEND-ONLY. There is no UPDATE anywhere in this module for this table, and no
+    -- DELETE: an artifact is the record of what the run did at a moment, and a run
+    -- whose history can be edited cannot be the evidence behind a sealed decision.
+    -- Correcting a stage means appending a newer artifact for the same (kind, branch)
+    -- and letting seq order them.
+    CREATE TABLE IF NOT EXISTS role_run_stages (
+      id TEXT PRIMARY KEY,
+      run_id TEXT NOT NULL,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
+      kind TEXT NOT NULL,
+      branch_ref TEXT,
+      seq INTEGER NOT NULL,
+      status TEXT NOT NULL,
+      payload_json TEXT NOT NULL,
+      produced_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_role_run_stages_run
+      ON role_run_stages (workspace_id, run_id, seq);
+    CREATE INDEX IF NOT EXISTS idx_role_run_stages_branch
+      ON role_run_stages (workspace_id, run_id, branch_ref, seq);
+  `);
   // Durable webhook idempotency (db/webhook-claims.ts): one row per claimed delivery on
   // the inbound receiver, the pull pass, the edge drain and the agent-report route, so a
   // replay after a restart is absorbed instead of re-filing. `key` is sha256(composed
