@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getIntake, updateIntakeBrief } from "@/app/_lib/db/intakes";
 import { sanitizeEditedBrief } from "@/app/_lib/brief-edit";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 
@@ -21,12 +21,11 @@ import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 // read that supplies the merge basis and the write that replaces it: this is a
 // read→compute→write over one row, and the await used to sit right in the
 // middle of it.
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export const PATCH = withWorkspace(async (ws: string, request: Request, { params }: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
     const { id } = await params;
-    const ws = await currentWorkspace();
     const body = (await request.json().catch(() => ({}))) as { brief?: unknown };
     const intake = getIntake(id, ws);
     // Codes, never prose (docs/architecture/api-contracts.md §1.1): the brief
@@ -46,4 +45,4 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   } catch (error) {
     return safeJsonError(error, "api:intake/brief", "INTAKE_BRIEF_SAVE_FAILED");
   }
-}
+});

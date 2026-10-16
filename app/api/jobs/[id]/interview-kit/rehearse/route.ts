@@ -7,7 +7,7 @@
 //        INTERVIEW_PROVIDER_UNCONFIGURED 503 {provider, need} · BILLING_QUOTA_EXCEEDED 402
 //        {meter, plan} · TOO_MANY_REQUESTS 429
 import { NextRequest, NextResponse } from "next/server";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
@@ -73,7 +73,7 @@ async function recruiterLocale(): Promise<Locale> {
   }
 }
 
-export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   // Identity, then authority — the house shape of the sensitive spend doors (agent-fit,
   // the recording DELETE, pipeline batch): requireOperator is the handler-level
   // re-verification of the session the proxy already checked (defence in depth, ADR
@@ -87,7 +87,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   if (denied) return denied;
   try {
     const { id } = await context.params;
-    const ws = await currentWorkspace();
     // Ownership, the gate /publish and PUT use: a team rehearses exactly the roles it
     // may author for.
     const job = getJob(id, ws);
@@ -175,4 +174,4 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // /create and /simulate, so it answers their code.
     return safeJsonError(error, "api:jobs/interview-kit/rehearse", "INTERVIEW_CREATE_FAILED");
   }
-}
+});

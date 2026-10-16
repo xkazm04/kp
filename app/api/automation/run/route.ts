@@ -4,7 +4,7 @@ import { decisionsForWorkspace, recordRun } from "@/app/_lib/scheduler-store";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { commitReport, parseApprovedSelection } from "@/app/_lib/automation-commit-plan";
 import { AUTOMATION_PASS_ENTRY_CAP } from "@/app/_lib/db/pipeline";
 
@@ -14,7 +14,7 @@ import { AUTOMATION_PASS_ENTRY_CAP } from "@/app/_lib/db/pipeline";
 // same logic; an external cron can also hit this endpoint on a timer.
 // AUTO3: `{"dryRun": true}` previews the identical decisions without applying,
 // dispatching, or writing anything — the look-before-commit gate.
-export async function POST(request: Request) {
+export const POST = withWorkspace(async (workspace: string, request: Request) => {
   // Defense-in-depth beyond the proxy gate: a pass spends LLM budget, dispatches
   // candidate outreach, and mutates the pipeline board — strictly an operator action
   // (mirrors the requireOperator guard on the other Python-spawning routes).
@@ -43,7 +43,6 @@ export async function POST(request: Request) {
   // browser. `summary` stays the global count of what the pass actually did; it is
   // labeled as such by `decisionsWorkspace` + `workspaceDecisionCount` beside it.
   // Resolved BEFORE the in-flight check below — see why there.
-  const workspace = await currentWorkspace();
   // TENANCY: a selection is ONE team's review, so the pass it runs is scoped to that
   // team - its rows are applied or held back, every other team's row is neither.
   const selection = approved ? { approved, workspace } : undefined;
@@ -86,4 +85,4 @@ export async function POST(request: Request) {
     if (!dryRun && !joined) recordRun({ status: "error", error: message, startedAt, trigger: "manual" });
     return safeJsonError(error, "api:automation/run", "AUTOMATION_PASS_FAILED", status);
   }
-}
+});

@@ -302,7 +302,7 @@ check("the default organization exists", one("SELECT COUNT(*) AS v FROM organiza
 //     is the honest reading of a row written before anyone recorded one. And the
 //     aggregate must return what it returned yesterday, to the cent.
 const ledgerCols = new Set(db.prepare("PRAGMA table_info(llm_usage)").all().map((c) => c.name));
-for (const col of ["outcome", "reason", "ingest_key"]) {
+for (const col of ["outcome", "reason", "ingest_key", "role_run_id"]) {
   check("llm_usage gained " + col, ledgerCols.has(col), true);
 }
 check("no legacy ledger row was left unclassified", one("SELECT COUNT(*) AS v FROM llm_usage WHERE outcome IS NULL").v, 0);

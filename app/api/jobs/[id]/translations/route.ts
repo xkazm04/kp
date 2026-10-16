@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { getRoleOpenConfig, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
 import { listJobTranslations } from "@/app/_lib/db/job-translations";
 import { postingSourceLang, runPostingTranslation } from "@/app/_lib/job-translate-run";
@@ -28,13 +28,12 @@ import { isLocale } from "@/i18n/locales";
 // 504-ing a legitimate call and orphaning the child.
 export const maxDuration = 180;
 
-export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const GET = withWorkspace(async (ws: string, _request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   // AUTH POSTURE (ADR 0005): a trusted session first, identity before authority.
   const denied = await requireOperator();
   if (denied) return denied;
   const { id } = await context.params;
   try {
-    const ws = await currentWorkspace();
     // 404 rather than 403, like every other jobs door: the endpoint must not confirm
     // that another tenant's role id exists.
     if (!jobVisibleToWorkspace(id, ws)) return NextResponse.json({ error: "Job not found." }, { status: 404 });
@@ -50,9 +49,9 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
   } catch (error) {
     return safeJsonError(error, "api:jobs/translations", "JOB_TRANSLATIONS_FAILED");
   }
-}
+});
 
-export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   // AUTH POSTURE (ADR 0005): a trusted session first, identity before authority.
   const denied = await requireOperator();
   if (denied) return denied;
@@ -63,7 +62,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
   if (under) return under;
   try {
-    const ws = await currentWorkspace();
     if (!jobVisibleToWorkspace(id, ws)) return NextResponse.json({ error: "Job not found." }, { status: 404 });
 
     const body = (await request.json().catch(() => null)) as { lang?: unknown } | null;
@@ -97,4 +95,4 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   } catch (error) {
     return safeJsonError(error, "api:jobs/translations", "JOB_TRANSLATE_FAILED");
   }
-}
+});

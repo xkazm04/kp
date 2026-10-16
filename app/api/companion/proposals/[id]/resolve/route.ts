@@ -8,7 +8,7 @@ import {
   stampProposalOutcome,
 } from "@/app/_lib/db/companion";
 import { companionAction, coerceCompanionAction, coerceProposalPayload } from "@/app/_lib/companion-actions";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { getServerLocale } from "@/i18n/server";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
@@ -56,12 +56,11 @@ function alreadyResolved(proposal: CompanionProposal | null) {
 
 const DECISIONS = new Set(["accept", "decline"]);
 
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: Request, { params }: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
     const { id } = await params;
-    const ws = await currentWorkspace();
     const proposal = getProposal(id, ws);
     if (!proposal) {
       return jsonRefusal("COMPANION_PROPOSAL_NOT_FOUND", 404);
@@ -144,4 +143,4 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   } catch (error) {
     return safeJsonError(error, "api:companion/resolve", "COMPANION_PROPOSAL_FAILED");
   }
-}
+});

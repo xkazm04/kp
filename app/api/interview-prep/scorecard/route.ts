@@ -8,7 +8,7 @@ import { coerceInterviewRecommendation, isInterviewRecommendation } from "@/app/
 import { flagOffRubricRatings, rubricCoverage, rubricForArchetype, rubricVersionHash } from "@/app/_lib/interview-rubric";
 import { RATING_MAX } from "@/app/_lib/format";
 import { MAX_ENTRY_ID_LEN } from "@/app/_lib/entries-param";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { currentUser, requireCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
@@ -48,13 +48,12 @@ async function scorecardKey(stage: string | null): Promise<HumanScorecardKey> {
 // is the whole panel (every interviewer, every round). Scoped by the same
 // getInterviewPrep(entry, ws) read the POST authorizes its write with: another team's
 // entry id answers the same 404 as "no prep yet".
-export async function GET(request: NextRequest) {
+export const GET = withWorkspace(async (ws: string, request: NextRequest) => {
   try {
     const entry = request.nextUrl.searchParams.get("entry");
     if (!entry || !entry.trim() || entry.length > MAX_ENTRY_ID_LEN) {
       return jsonRefusal("INTERVIEW_ENTRY_REQUIRED", 400);
     }
-    const ws = await currentWorkspace();
     const prep = getInterviewPrep(entry, ws);
     if (!prep) return jsonRefusal("INTERVIEW_PREP_NOT_FOUND", 404);
     const records = readHumanScorecards(prep.payload);
@@ -63,7 +62,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:interview-prep:scorecard", "INTERVIEW_PREP_FAILED");
   }
-}
+});
 
 // POST ?entry=<id> → save the caller's human-filled scorecard onto the entry's
 // prep artifact, filed under (caller, current round) so it never replaces a
@@ -71,7 +70,7 @@ export async function GET(request: NextRequest) {
 // rating's competency is a bounded string, the rating clamps to [1, RATING_MAX],
 // evidence/summary are length-capped, and the recommendation is coerced onto the
 // canonical advance|hold|reject set. 404 when no prep artifact exists yet.
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   try {
     // AUTHORIZATION (write-routes-check-a-capability). This surface asked NOTHING —
     // not even requireOperator — so authority came down to holding a session, and the
@@ -103,7 +102,6 @@ export async function POST(request: NextRequest) {
     // `gated` stayed false forever — a human-led interview never reached the
     // Decisions queue and the Interview -> Offer gate never opened. That is exactly
     // the defect the DEC1 note further down was written to fix.
-    const ws = await currentWorkspace();
     const pipelineEntry = getPipelineEntry(entry, ws);
     // TENANCY: `saveHumanScorecard` is an unscoped by-`entry_id` point op, so this was
     // the last verb of the interview-prep surface a foreign entry id could still WRITE
@@ -221,4 +219,4 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:interview-prep:scorecard", "INTERVIEW_PREP_FAILED");
   }
-}
+});

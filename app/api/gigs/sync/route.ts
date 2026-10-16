@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { getGigAttempt, listGigAttemptsByStatus } from "@/app/_lib/db/gigs-attempts";
@@ -28,7 +28,7 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 // every accepted call opens a socket to the local Personas app per in-flight
 // attempt. 20/10min per IP, the dispatch/workspace door budget.
 
-export async function POST(request: Request): Promise<NextResponse> {
+export const POST = withWorkspace(async (ws: string, request: Request): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -37,7 +37,6 @@ export async function POST(request: Request): Promise<NextResponse> {
     return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
   try {
-    const ws = await currentWorkspace();
     // Snapshot the in-flight attempts BEFORE the pass: the summary carries counts,
     // not rows, so we read each snapshotted id back afterwards and report exactly
     // those whose status the pass advanced.
@@ -52,4 +51,4 @@ export async function POST(request: Request): Promise<NextResponse> {
   } catch (error) {
     return safeJsonError(error, "api:gigs/sync", "GIG_STORE_FAILED");
   }
-}
+});

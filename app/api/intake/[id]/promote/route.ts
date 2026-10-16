@@ -5,7 +5,7 @@ import { startJdBuild } from "@/app/_lib/jd-build-start";
 import { briefReadyToPromote, needTextFromBrief } from "@/app/_lib/intake-brief";
 import { jdJobId } from "@/app/_lib/jd-limits";
 import { intakeLang } from "@/app/_lib/intake-lang";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { currentUser } from "@/app/_lib/auth/current-user";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
@@ -17,12 +17,11 @@ import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 // the brief threading the DevNeed's structured fields. The intake row is
 // stamped with the produced jd_slug/job_id so the job can be walked back to
 // the conversation that defined it.
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: Request, { params }: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
     const { id } = await params;
-    const ws = await currentWorkspace();
     const intake = getIntake(id, ws);
     // Codes (docs/architecture/api-contracts.md §1.1). The not-ready refusal is
     // the one that matters most here: it NAMES what the brief still needs, and
@@ -121,4 +120,4 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   } catch (error) {
     return safeJsonError(error, "api:intake/promote", "INTAKE_PROMOTE_FAILED");
   }
-}
+});

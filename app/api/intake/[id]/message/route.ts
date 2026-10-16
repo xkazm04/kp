@@ -5,7 +5,7 @@ import { INTAKE_ROUND_FACT_CHARS, recordIntakeEvent } from "@/app/_lib/db/intake
 import { IntakeTimeoutError, runIntakeExchange } from "@/app/_lib/intake-run";
 import { intakeLang } from "@/app/_lib/intake-lang";
 import { stripEndSentinel } from "../../reply-sentinel";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { currentUserId, SESSION_COOKIE, verifySession } from "@/app/_lib/auth/session";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
@@ -106,12 +106,11 @@ async function recordRoundHistory(input: {
 // reflection, think, type) runs well under one message per 20s, while a
 // scripted loop is pinned. Runs AFTER the cheap refusals (404/409/400) so a
 // rejected call never consumes budget, and BEFORE the DB write + model call.
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: Request, { params }: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
     const { id } = await params;
-    const ws = await currentWorkspace();
     const intake = getIntake(id, ws);
     // Every refusal below carries a CODE (docs/architecture/api-contracts.md
     // §1.1). They were English prose with no code, and the composer collapsed all
@@ -245,4 +244,4 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (error instanceof IntakeTimeoutError) return jsonRefusal("INTAKE_TURN_TIMEOUT", 504);
     return safeJsonError(error, "api:intake/message", "INTAKE_MESSAGE_FAILED");
   }
-}
+});

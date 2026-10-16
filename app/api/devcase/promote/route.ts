@@ -4,7 +4,7 @@ import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 // The shared by-id owner guard (sibling module - a route file may export only handlers).
 import { ownedSubmission } from "../devcase-owned-lifecycle";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { mintObservedFromSubmission, promoteSubmission } from "@/app/_lib/devcase-run";
 import { activePromoteFloor } from "@/app/_lib/devcase-orchestrator";
 import { humanActor } from "@/app/_lib/auth/operator-approver";
@@ -16,7 +16,7 @@ import { humanActor } from "@/app/_lib/auth/operator-approver";
 // than the automated one, or the same submission reads "advance" through one door and
 // "hold" through the other. The response carries the verdict + its reasons so the
 // caller (and the audit trail) can explain the decision.
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const forbidden = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     // pipeline entry carrying the candidate's name and contact, and a known id from another
     // team must not be promotable. promoteSubmission itself derives every write's tenant
     // from this same row.
-    const sub = ownedSubmission(body.submissionId, await currentWorkspace());
+    const sub = ownedSubmission(body.submissionId, ws);
     if (!sub) {
       return NextResponse.json({ error: "submission not found" }, { status: 404 });
     }
@@ -68,4 +68,4 @@ export async function POST(request: NextRequest) {
     // thrown message carries SQLITE_* detail, the db path or child stderr.
     return safeJsonError(error, "api:devcase/promote", "DEVCASE_PROMOTE_FAILED");
   }
-}
+});

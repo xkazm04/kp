@@ -26,7 +26,7 @@ test("both App-master routes gate on the operator before any work", () => {
 
 test("both routes are workspace-scoped point reads", () => {
   for (const [name, src] of [["dossier", dossier], ["compose", compose]] as const) {
-    assert.match(src, /const ws = await currentWorkspace\(\)/, `${name}: no workspace`);
+    assert.match(src, /withWorkspace\(async \(ws: string/, `${name}: no workspace`);
     assert.match(src, /getIntake\(id, ws\)/, `${name}: read is not workspace-scoped`);
   }
 });

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { countPipelineByStage } from "@/app/_lib/db/pipeline";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
 import { safeJsonError } from "@/app/_lib/api-response";
@@ -19,11 +19,10 @@ import { safeJsonError } from "@/app/_lib/api-response";
 // Operator-gated like the config route it serves — occupancy is aggregate, but
 // it is still a read of who is in the hiring pipeline.
 
-export async function GET() {
+export const GET = withWorkspace(async (ws: string) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
-    const ws = await currentWorkspace();
     const counts = countPipelineByStage(ws);
     const axis = getPipelineAxis(ws);
     // The axis rides along so the caller can name a stage that is ALREADY
@@ -33,4 +32,4 @@ export async function GET() {
   } catch (error) {
     return safeJsonError(error, "api:pipeline/stage-impact", "STAGE_IMPACT_FAILED");
   }
-}
+});

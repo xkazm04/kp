@@ -60,15 +60,15 @@ test("the live list and the seen-ack are per team", () => {
 
 test("every task route resolves the session workspace and threads it", () => {
   const cases: [string, RegExp[]][] = [
-    ["route.ts", [/listRecentTasks\(recentTaskCutoffIso\(\), undefined, ws\)/, /const ws = await currentWorkspace\(\);/, /startTask\(body\.kind, body\.params \?\? \{\}, ws\)/]],
+    ["route.ts", [/listRecentTasks\(recentTaskCutoffIso\(\), undefined, ws\)/, /withWorkspace\(async \(ws: string/, /startTask\(body\.kind, body\.params \?\? \{\}, ws\)/]],
     ["history/route.ts", [/countTaskHistory\(before, filter, ws\)/, /listTaskHistory\(before, limit, offset, filter, ws\)/]],
-    ["seen/route.ts", [/markTasksSeen\(ids, await currentWorkspace\(\)\)/]],
-    ["[id]/route.ts", [/getTask\(id, await currentWorkspace\(\)\)/, /if \(!getTask\(id, ws\)\)/]],
+    ["seen/route.ts", [/markTasksSeen\(ids, ws\)/]],
+    ["[id]/route.ts", [/getTask\(id, ws\)/, /if \(!getTask\(id, ws\)\)/]],
     ["[id]/retry/route.ts", [/getTask\(id, ws\)/, /startTask\(task\.kind, .*, ws\)/]],
   ];
   for (const [file, patterns] of cases) {
     const src = read(...file.split("/"));
-    assert.match(src, /currentWorkspace/, `${file}: must resolve a tenant`);
+    assert.match(src, /withWorkspace/, `${file}: must resolve a tenant (via withWorkspace)`);
     for (const p of patterns) assert.match(src, p, `${file}: expected ${p}`);
   }
 });

@@ -163,11 +163,12 @@ test("every verb of the interview-kit routes passes the resolved workspace", () 
     ["publish/route.ts", publish, ["POST"]],
   ] as const) {
     for (const verb of verbs) {
-      const start = source.indexOf(`export async function ${verb}(`);
+      const start = source.search(new RegExp(`export (?:async function|const) ${verb}\\b`));
       assert.ok(start > 0, `${label}: ${verb} must exist`);
-      const next = source.indexOf("export async function ", start + 1);
-      const body = source.slice(start, next === -1 ? undefined : next);
-      assert.match(body, /await currentWorkspace\(\)/, `${label}: ${verb} must resolve the caller's workspace`);
+      const rest = source.slice(start + 1).search(/export (?:async function|const) /);
+      const body = source.slice(start, rest === -1 ? undefined : start + 1 + rest);
+      // Entered through withWorkspace: the handler is handed the caller's workspace as `ws`.
+      assert.match(body, /withWorkspace\(async \(ws: string/, `${label}: ${verb} must receive the caller's workspace`);
       // Every kit store call in the body must carry `ws` as its trailing argument.
       for (const call of body.matchAll(/interviewKit[A-Za-z]*\([^)]*\)/g)) {
         assert.match(call[0], /,\s*ws\s*\)$/, `${label}: ${verb} calls ${call[0]} without the resolved workspace`);

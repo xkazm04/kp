@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
@@ -52,18 +52,18 @@ function publicRepoScanView(scan: {
   };
 }
 
-export async function GET() {
+export const GET = withWorkspace(async (ws: string) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
-    const scans = listRepoScans(await currentWorkspace(), 25).map(publicRepoScanView);
+    const scans = listRepoScans(ws, 25).map(publicRepoScanView);
     return NextResponse.json({ scans });
   } catch (error) {
     return safeJsonError(error, "api:repo-scan", "REPO_SCAN_READ_FAILED");
   }
-}
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
@@ -76,7 +76,6 @@ export async function POST(request: NextRequest) {
       fresh?: unknown;
     };
     // The tenant comes from the SESSION, never the body.
-    const ws = await currentWorkspace();
     const { scanId, taskId, reused } = startRepoScan(
       {
         repoUrl: typeof body.repoUrl === "string" ? body.repoUrl : null,
@@ -108,4 +107,4 @@ export async function POST(request: NextRequest) {
     }
     return safeJsonError(error, "api:repo-scan", "REPO_SCAN_FAILED");
   }
-}
+});

@@ -39,8 +39,8 @@ const GATE_CALL = /const\s+denied\s*=\s*await\s+requireOperator\(\)\s*;?\s*if\s*
 
 test("both handlers are operator-gated, before any read or write", () => {
   assert.match(ROUTE, GATE_IMPORT, "must import the shared requireOperator gate");
-  const getAt = ROUTE.indexOf("export async function GET");
-  const postAt = ROUTE.indexOf("export async function POST");
+  const getAt = ROUTE.indexOf("export const GET");
+  const postAt = ROUTE.indexOf("export const POST");
   assert.ok(getAt >= 0 && postAt >= 0, "the route must export both GET and POST");
 
   const getBody = ROUTE.slice(getAt, postAt);
@@ -58,7 +58,7 @@ test("both handlers are operator-gated, before any read or write", () => {
 });
 
 test("every store call is scoped to the caller's workspace", () => {
-  assert.match(ROUTE, /const\s+ws\s*=\s*await\s+currentWorkspace\(\)/, "must resolve the caller's workspace");
+  assert.match(ROUTE, /withWorkspace\(async \(ws: string/, "must receive the caller's workspace from withWorkspace");
   // The tenant-defaulting store functions this route calls; each must be handed `ws`
   // (they all default to DEFAULT_WORKSPACE_ID, so an omitted argument silently reads
   // or writes another team's hires — the exact class route-tenancy-coverage ratchets).
@@ -85,7 +85,7 @@ test("the write refuses a candidate who was never hired, against the LIVE stage"
   // The cross-field rule of the store (performance rides a "hired" outcome only) is
   // re-derived server-side from the entry's current stage rather than trusted from a
   // client that may be holding a stale drawer.
-  const postBody = ROUTE.slice(ROUTE.indexOf("export async function POST"));
+  const postBody = ROUTE.slice(ROUTE.indexOf("export const POST"));
   assert.match(postBody, /stageHasRole\(entry\.stage,\s*"terminal"/, "must check the terminal role server-side");
   // UPDATED DELIBERATELY (not relaxed): this read `/status:\s*409/` when the route
   // answered with an inline NextResponse.json({ error }). It now returns a CODED

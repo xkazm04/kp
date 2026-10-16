@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
 import { rediscoverForJob } from "@/app/_lib/rediscover";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
@@ -11,7 +11,7 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 // parked in a different role) who clear the bar for this one and aren't already
 // in it. The ranking + filtering live in app/_lib/rediscover.ts so the standing
 // alert triggers (publish + sweep, idea-fdb45cd0) score candidates identically.
-export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
+export const GET = withWorkspace(async (ws: string, request: Request, context: { params: Promise<{ id: string }> }) => {
   const { id } = await context.params;
   try {
     // Visibility gate (mirrors GET /api/jobs/[id]): getJob is a by-id point read over a
@@ -19,7 +19,6 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     // team's role and echoed that role's title back — plus it spawned a recruiter_cli
     // child per call. Gate before the spawn. 404, not 403, so the endpoint can't be used
     // to probe ids; seeded corpus rows stay visible to every tenant.
-    const ws = await currentWorkspace();
     const job = getJob(id, ws);
     if (!job || !jobVisibleToWorkspace(id, ws)) {
       return NextResponse.json({ error: "Job not found." }, { status: 404 });
@@ -60,4 +59,4 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   } catch (error) {
     return safeJsonError(error, "api:jobs/rediscover", "JOB_REDISCOVER_FAILED");
   }
-}
+});

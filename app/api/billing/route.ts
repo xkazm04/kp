@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { billingOrgForWorkspace, billingOverview, PACKS, PLANS, polarGatewayFromEnv } from "@/app/_lib/billing";
 import { billingAlertViews, DEPLOYMENT_ALERT_KINDS } from "@/app/_lib/billing/alerts";
 import { listBillingAlertsForOrg, type BillingAlert } from "@/app/_lib/db/billing";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { HOME_ORG_ID, isHomeOrgReader } from "@/app/_lib/auth/require-operator";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { requireBillingAuthority } from "./authority";
@@ -15,7 +15,7 @@ import { requireBillingAuthority } from "./authority";
 // `alerts` is the org's open billing alerts (app/_lib/billing/alerts.ts): coded, with
 // the provider detail and the deployment-level kinds for the home-org operator only.
 
-export async function GET() {
+export const GET = withWorkspace(async (workspace: string) => {
   // `org:manage` — the same authority the two spending doors need (authority.ts).
   // This response carries the org's commercial position: which plan it pays for,
   // how much of each metered allowance it has burned, and how many prepaid credits
@@ -26,7 +26,6 @@ export async function GET() {
     // Org scope (org-plan Phase 3): the overview reads the CALLER's org via their
     // session workspace (billingOverview → billingOrgForWorkspace). Single-tenant
     // sessions resolve to the default org — the exact rows this always read.
-    const workspace = await currentWorkspace();
     const homeOrgReader = await isHomeOrgReader();
     return NextResponse.json({
       ...billingOverview(new Date(), workspace),
@@ -40,7 +39,7 @@ export async function GET() {
     // shows a dead-end. Log server-side, answer the stable code the tab localizes.
     return safeJsonError(error, "api/billing", "BILLING_OVERVIEW_FAILED");
   }
-}
+});
 
 /** The caller's org's open alerts, plus — for the home-org operator only — the
  *  deployment-level kinds (price drift), which are recorded under the home org. A

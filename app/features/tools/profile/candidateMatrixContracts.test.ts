@@ -153,8 +153,8 @@ const candidatesRoute = read("../../../api/profile/candidates/route.ts");
 test("the population route passes the resolved workspace to every store read", () => {
   pins(
     candidatesRoute,
-    /const ws = await currentWorkspace\(\);/,
-    (s) => s.replace("const ws = await currentWorkspace();", "const ws = DEFAULT_WORKSPACE_ID;"),
+    /withWorkspace\(async \(ws: string/,
+    (s) => s.replace("withWorkspace(async (ws: string", "withWorkspace(async (unused: string").replace(/ws\b/g, "DEFAULT_WORKSPACE_ID"),
     "the route resolves the caller's workspace"
   );
   for (const call of ["listAnalysisRecords(200, ws)", "cachedProfileRecords(ws)", "profileStaleness(ws)"]) {

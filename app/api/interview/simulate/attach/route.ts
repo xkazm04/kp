@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { getInterviewSessionByToken } from "@/app/_lib/db/interviews";
 import { recordSimTranscriptAttached } from "@/app/_lib/db/pipeline";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
@@ -18,7 +18,7 @@ import { isAttachableSimSession, simAttachDetail, simRunRef } from "./sim-sessio
 // `mode === "test"`, but /api/interview/simulate mints sim sessions as mode
 // "candidate" (entryId null) so providers receive the scripted brief — so this
 // route 404'd on EVERY simulate-created session and the whole feature was dead.
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (workspace: string, request: NextRequest) => {
   try {
     const body = (await request.json().catch(() => ({}))) as { token?: unknown; entryId?: unknown };
     const token = typeof body.token === "string" ? body.token.trim() : "";
@@ -33,7 +33,6 @@ export async function POST(request: NextRequest) {
     // drawer history line on a candidate of the caller's team. Resolved once and
     // reused for the entry write below, so the read and the write cannot disagree
     // about whose tenant this is.
-    const workspace = await currentWorkspace();
     const session = getInterviewSessionByToken(token, workspace);
     // bug-ui-scan-2026-07-09 (interview-simulation-comparison #3) — accept ONLY a
     // completed, entry-less, candidate-mode practice run (isAttachableSimSession).
@@ -66,4 +65,4 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:interview:simulate:attach", "PIPELINE_ACTION_FAILED");
   }
-}
+});

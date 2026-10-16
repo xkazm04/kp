@@ -3,7 +3,7 @@ import { isAtsProvider } from "@/app/_lib/ats/connections-store";
 import { ingestAtsApplications } from "@/app/_lib/ats/ingest";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { answerFailure, jsonRefusal, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 
@@ -24,7 +24,7 @@ import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 const MAX_IMPORT_BODY_BYTES = 2 * 1024 * 1024;
 const MAX_IMPORT_RECORDS = 100;
 
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     const report = await ingestAtsApplications({
       provider: body.provider,
       jobId: body.jobId.trim(),
-      workspaceId: await currentWorkspace(),
+      workspaceId: ws,
       records: body.records,
     });
     return NextResponse.json(report);
@@ -53,4 +53,4 @@ export async function POST(request: NextRequest) {
     // anything else is a store accident whose message stays in the server log.
     return answerFailure(error, "api:ats/import", "ATS_IMPORT_FAILED");
   }
-}
+});

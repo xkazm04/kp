@@ -67,7 +67,7 @@ test("the offer token is reachable from ANY team through the unscoped helper —
 });
 
 test("the route authorizes the entry in the caller's workspace before returning a token", () => {
-  assert.match(src, /import \{ currentWorkspace \}/, "the caller's tenant must be read from the session");
+  assert.match(src, /withWorkspace\(async \(workspaceId: string/, "the caller's tenant must be read from the session (by withWorkspace)");
   // The lookup is the sim gate (app/_lib/sim-entry.ts): the CALLER'S team AND the
   // (SIM) marker. The team scoping keeps another tenant's id from resolving; the
   // marker keeps a REAL candidate's offer token out of this ungated door. A bare

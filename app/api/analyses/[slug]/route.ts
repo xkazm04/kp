@@ -2,7 +2,7 @@ import { loadAnalysis, parseStoredGithubAnalysis, setAnalysisDispositionGuarded,
 import { candidateLabelWithholdsPii, recordAnalysisDispositionEvents } from "@/app/_lib/db/pipeline";
 import { maskCandidateName, scrubPiiFromPayload } from "@/app/_lib/consent";
 import { githubAnalysisSchema } from "@/app/_lib/schemas";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { jsonOk, jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { decisionBasis, decisionBrief, decisionGate } from "@/app/_components/results/decisionBrief";
@@ -15,14 +15,13 @@ const MAX_GITHUB_JSON_BYTES = 256 * 1024;
 // Re-read + re-decide rounds when the disposition compare-and-swap finds the row moved.
 const MAX_DISPOSITION_ATTEMPTS = 3;
 
-export async function GET(_request: Request, context: { params: Promise<{ slug: string }> }) {
+export const GET = withWorkspace(async (ws: string, _request: Request, context: { params: Promise<{ slug: string }> }) => {
   const { slug } = await context.params;
   // Defense in depth (see the sibling list route): this door serves ONE candidate's whole
   // CV payload, so it re-asserts the seat rather than trusting middleware's session check.
   const denied = await requireCapabilityCoded("read", requireCapability);
   if (denied) return denied;
   try {
-    const ws = await currentWorkspace();
     const found = loadAnalysis(slug, ws);
     if (!found) return jsonRefusal("ANALYSIS_NOT_FOUND", 404);
     // Read-time consent gate (bug-ui-scan-2026-07-09 privacy-consent-provenance #3): if the
@@ -59,14 +58,14 @@ export async function GET(_request: Request, context: { params: Promise<{ slug: 
     // gets the code and resolves it in its own language.
     return safeJsonError(error, `api:analyses/${slug}`, "ANALYSIS_LOAD_FAILED");
   }
-}
+});
 
 // PATCH → record the recruiter's disposition + note on this analysis (RES5),
 // OR attach the GitHub deep-dive result (GH1). The two writes are independent:
 // a body carrying `githubAnalysis` is the deep-dive attach (validated against
 // githubAnalysisSchema so only a real payload is ever persisted); otherwise
 // disposition semantics are unchanged ("advance"|"hold"|"pass", else clears).
-export async function PATCH(request: Request, context: { params: Promise<{ slug: string }> }) {
+export const PATCH = withWorkspace(async (ws: string, request: Request, context: { params: Promise<{ slug: string }> }) => {
   const { slug } = await context.params;
   // The WRITE door: it records a recruiter's advance/hold/pass on a candidate and echoes
   // it onto their pipeline entries as a decision event. `pipeline:write` is the
@@ -76,7 +75,6 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
   const denied = await requireCapabilityCoded("pipeline:write", requireCapability);
   if (denied) return denied;
   try {
-    const ws = await currentWorkspace();
     const body = (await request.json().catch(() => ({}))) as {
       disposition?: unknown;
       note?: unknown;
@@ -159,7 +157,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
   } catch (error) {
     return safeJsonError(error, `api:analyses/${slug}`, "ANALYSIS_SAVE_FAILED");
   }
-}
+});
 
 // The acknowledged count of the basis a note-only edit annotates (0 when none/corrupt).
 function storedAckCount(json: string | null | undefined): number {

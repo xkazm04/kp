@@ -6,6 +6,7 @@ import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { resolveAccent, sanitizeLogoUrl, type AccentRejection } from "@/app/_lib/brand-config";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 // White-label brand config (E3, docs/product/enterprise-readiness.md §4).
 //   GET  — the effective brand (name/accent/logo + the derived dark accent).
@@ -42,7 +43,7 @@ const ACCENT_REFUSAL = {
   "illegible-dark": "BRAND_ACCENT_ILLEGIBLE_DARK",
 } as const satisfies Record<AccentRejection, string>;
 
-export async function GET() {
+export const GET = withSession(async () => {
   try {
     return jsonOk(getBrand());
   } catch (error) {
@@ -50,9 +51,9 @@ export async function GET() {
     // to the server log and the caller gets the code.
     return safeJsonError(error, "api:brand:get", "BRAND_LOAD_FAILED");
   }
-}
+});
 
-export async function PUT(request: NextRequest) {
+export const PUT = withSession(async (request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // The brand is an ORG setting: it paints every member's workspace and every
@@ -87,4 +88,4 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:brand:put", "BRAND_SAVE_FAILED");
   }
-}
+});

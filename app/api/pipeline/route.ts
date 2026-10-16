@@ -7,7 +7,7 @@ import { coerceGithubEvidenceSummary } from "@/app/_lib/github-summary";
 import { inferProfileLocale } from "@/app/_lib/comms-locale";
 import { withCanonicalScoresCached } from "@/app/_lib/pipeline-score-cache";
 import { withTransferScores } from "@/app/_lib/pipeline-transfer-score";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { linkTerminalPriorsToTarget } from "@/app/_lib/rediscovery-prior-link";
 import { withheldCandidateIds } from "@/app/_lib/rediscovery-eligibility";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
@@ -28,12 +28,11 @@ import {
 } from "@/app/_lib/match-verdict";
 
 
-export async function GET() {
+export const GET = withWorkspace(async (ws: string) => {
   try {
     // Canonical match-score read path (REC-01 / OO-L2-10): every entry rides
     // out with `canonicalScore` + `scoreProvenance` so board/drawer/decisions
     // surfaces render ONE number and can label where it came from.
-    const ws = await currentWorkspace();
     // Canonical scores via the per-workspace, short-TTL fit-map memo (identical
     // payload shape; only the analyses query is cached — see pipeline-score-cache.ts).
     // ONE THREAD (gap 2): the work-sample transfer score rides out BESIDE the match
@@ -67,7 +66,7 @@ export async function GET() {
   } catch (error) {
     return safeJsonError(error, "api:pipeline", "PIPELINE_LIST_FAILED");
   }
-}
+});
 
 /** The provenance markers that mean "re-surfaced from the pool for a role this person
  *  never applied to" — the rediscovery feed ("rediscovery") and the recruiter/rediscover
@@ -86,7 +85,7 @@ const RESURFACE_SOURCES: ReadonlySet<string> = new Set(["rediscovery", "sourcing
 // visitor filling it must not lock a real team out of adding candidates.
 const ADD_RATE_LIMIT = { limit: 600, windowMs: 10 * 60_000 };
 
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // AUTHORIZATION (write-routes-check-a-capability). requireOperator proves a trusted
@@ -160,7 +159,7 @@ export async function POST(request: NextRequest) {
     // to still be standing (e.g. an ATS sync replaying an older mapping) until a
     // migration moves them, and rejecting the write would lose the application.
     if (body.stage !== undefined) {
-      const axis = getPipelineAxis(await currentWorkspace());
+      const axis = getPipelineAxis(ws);
       const known = knownStageIds(axis);
       if (!known.has(body.stage)) {
         return jsonRefusal("PIPELINE_ADD_STAGE_UNKNOWN", 400, { stages: axis.stages.map((stage) => stage.id) });
@@ -210,7 +209,6 @@ export async function POST(request: NextRequest) {
       const withheld = withheldCandidateIds([body.candidateId]).get(body.candidateId.trim());
       if (withheld) return jsonRefusal("PIPELINE_ADD_CANDIDATE_WITHHELD", 409, { withheld });
     }
-    const ws = await currentWorkspace();
     // After every cheap refusal above (a request that could never file spends none of
     // the window), before the first write — the seal below.
     if (!rateLimit(`pipeline-add:${ws}:${clientIpFrom(request.headers)}`, ADD_RATE_LIMIT)) {
@@ -307,4 +305,4 @@ export async function POST(request: NextRequest) {
     // absolute db path) — log server-side, return the generic catalogue message.
     return safeJsonError(error, "api:pipeline", "PIPELINE_CREATE_FAILED");
   }
-}
+});

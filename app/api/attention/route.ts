@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { attentionCounts } from "@/app/_lib/attention";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { safeJsonError } from "@/app/_lib/api-response";
 
 
@@ -8,10 +8,10 @@ import { safeJsonError } from "@/app/_lib/api-response";
 // shell (mount + live-refresh + a visibility-gated 60s interval). Scoped to the
 // SESSION's workspace: without it every badge reported the default tenant's
 // backlog to a recruiter signed into any other team.
-export async function GET() {
+export const GET = withWorkspace(async (ws: string) => {
   try {
-    return NextResponse.json(attentionCounts(await currentWorkspace()));
+    return NextResponse.json(attentionCounts(ws));
   } catch (error) {
     return safeJsonError(error, "api:attention", "ATTENTION_FAILED");
   }
-}
+});

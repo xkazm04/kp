@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { runGigPurge } from "@/app/_lib/gigs/purge";
@@ -27,7 +27,7 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 const running = new Set<string>();
 
-export async function POST(request: Request): Promise<NextResponse> {
+export const POST = withWorkspace(async (workspaceId: string, request: Request): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -46,7 +46,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   const dryRun = rawDry !== false;
   let ws: string | null = null;
   try {
-    ws = await currentWorkspace();
+    ws = workspaceId;
     if (running.has(ws)) {
       ws = null;
       return jsonRefusal("GIG_ACTION_NOT_ALLOWED", 409, { reason: "purge_running" });
@@ -59,4 +59,4 @@ export async function POST(request: Request): Promise<NextResponse> {
   } finally {
     if (ws) running.delete(ws);
   }
-}
+});

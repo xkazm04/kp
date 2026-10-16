@@ -35,6 +35,7 @@ to be true for it to change?*
 - import a value into a `"use client"` file, or add a helper to `app/_lib/db/` that client code needs → [0022](0022-a-client-module-never-reaches-the-database.md)
 - add an estimated cost to a failed/unpriced LLM call, or drop the `outcome = 'ok'` filter from a spend query → [0024](0024-llm-usage-ledger-never-guesses.md)
 - write a read -> compute -> write transaction, or call a DEFERRED transaction a bug → [0025](0025-read-modify-write-locks-at-begin-or-rechecks.md)
+- add an API route, or put a gate / rate limit / meter on one → [0026](0026-route-chain-refusal-order.md)
 
 ## Index
 
@@ -65,6 +66,7 @@ to be true for it to change?*
 | [0023](0023-the-allowance-is-keyed-on-the-subscription-anchor.md) | The allowance is keyed on the subscription anchor, not the calendar month | accepted | 2026-10-09 |
 | [0024](0024-llm-usage-ledger-never-guesses.md) | The usage ledger never guesses a number it cannot measure | accepted | 2026-09-07 |
 | [0025](0025-read-modify-write-locks-at-begin-or-rechecks.md) | A read-modify-write takes the write lock at BEGIN or re-checks its precondition in the UPDATE | accepted | 2026-10-16 |
+| [0026](0026-route-chain-refusal-order.md) | Every workspace-scoped route enters through route(...); the session is the first refusal, guards come next, the handler's own gates last | accepted | 2026-10-16 |
 
 ## Writing a new one
 

@@ -19,13 +19,47 @@
 // Without the gate these inputs answer 200/400/404, so every 401 assertion fails.
 import { test, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { register } from "node:module";
+import { register, registerHooks } from "node:module";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
 // next/server's connection() (reached through requireOperator) needs the shared shim.
 register(new URL("../../_lib/testing/next-server-hooks.mjs", import.meta.url));
+
+// The routes enter through withWorkspace, which reads the session cookie: in password mode
+// no cookie is a 401 from the wrapper BEFORE requireOperator runs. So the gate tests below
+// drive a VALID but non-operator session (the anonymous demo cookie), which the wrapper
+// admits and only requireOperator refuses. That keeps the 401 here attributable to the
+// handler's gate, not to the wrapper in front of it.
+const VIRTUAL_HEADERS = "kp-test:next-headers-archetypes";
+let cookieValue: string | null = null;
+(globalThis as { __kpArchCookie?: () => string | null }).__kpArchCookie = () => cookieValue;
+registerHooks({
+  resolve(specifier, context, nextResolve) {
+    if (specifier === "next/headers") return { url: VIRTUAL_HEADERS, shortCircuit: true };
+    return nextResolve(specifier, context);
+  },
+  load(url, context, nextLoad) {
+    if (url === VIRTUAL_HEADERS) {
+      return {
+        format: "module",
+        shortCircuit: true,
+        source: `
+          export async function cookies() {
+            const value = globalThis.__kpArchCookie();
+            return { get: (name) => (name === "__Host-kp_session" && value ? { name, value } : undefined) };
+          }
+          export async function headers() { return new Headers(); }
+          export async function draftMode() { return { isEnabled: false }; }
+        `,
+      };
+    }
+    return nextLoad(url, context);
+  },
+});
+process.env.KP_SECRET = "archetypes-route-test-secret";
+const { signSession, DEMO_WORKSPACE } = await import("../../_lib/auth/session.ts");
 
 const REAL_CWD = process.cwd();
 const fixtures: string[] = [];
@@ -76,14 +110,16 @@ const params = (id: string) => ({ params: Promise.resolve({ id }) });
 
 beforeEach(() => {
   delete process.env.KP_OPERATOR_PASSWORD;
+  cookieValue = null;
 });
 
 test("gated: POST/PUT/PATCH all refuse a non-operator (password set, no session) with 401", async () => {
   const file = freshRegistry();
   const before = readFileSync(file, "utf-8");
-  // Password set + no session cookie in scope = the non-operator caller. The anonymous
-  // /api/demo session is a valid signature and lands here too (isOperator rejects it).
+  // Password set + a valid DEMO session = the non-operator caller: the wrapper admits the
+  // session, isOperator() rejects it (the anonymous /api/demo cookie is not an operator).
   process.env.KP_OPERATOR_PASSWORD = "archetypes-route-test-password";
+  cookieValue = signSession(DEMO_WORKSPACE);
   const { collection: coll, item: one } = await handlers();
 
   const attempts: Array<[string, () => Promise<Response>]> = [
@@ -103,11 +139,22 @@ test("gated: POST/PUT/PATCH all refuse a non-operator (password set, no session)
 test("the READ stays open — gating it would blank the profile pickers for no security gain", async () => {
   freshRegistry();
   process.env.KP_OPERATOR_PASSWORD = "archetypes-route-test-password";
+  cookieValue = signSession(DEMO_WORKSPACE); // any valid session reads; no operator gate
   const { collection: coll } = await handlers();
   const res = await coll.GET();
   assert.equal(res.status, 200);
   const body = (await res.json()) as { archetypes: Array<{ id: string }> };
   assert.deepEqual(body.archetypes.map((a) => a.id), ["bau"]);
+  process.chdir(REAL_CWD);
+});
+
+test("no session at all: the wrapper refuses first (401), even for the open READ", async () => {
+  freshRegistry();
+  process.env.KP_OPERATOR_PASSWORD = "archetypes-route-test-password";
+  const { collection: coll } = await handlers();
+  const res = await coll.GET();
+  assert.equal(res.status, 401);
+  assert.deepEqual(await res.json(), { error: "Unauthorized" });
   process.chdir(REAL_CWD);
 });
 

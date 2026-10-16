@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPipelineEntriesByIds } from "@/app/_lib/db/pipeline";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { createScheduleInvite } from "@/app/_lib/schedule-store";
@@ -55,7 +55,7 @@ type InviteResult = {
 // before this, each row resolved against DEFAULT_WORKSPACE_ID, so a non-default team
 // got "not found" for its OWN cohort (a silently broken feature) while a default-
 // workspace caller could reach rows it was never scoped to.
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // AUTHORIZATION (write-routes-check-a-capability). requireOperator above only
@@ -65,7 +65,6 @@ export async function POST(request: NextRequest) {
   // silently mutating the board.
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
   if (under) return under;
-  const ws = await currentWorkspace();
   try {
     // Throttle the NUMBER of bulk calls (each fans out to up to BULK_INVITE_CAP
     // candidates), not each invite — this IS the one-action-many-candidates path,
@@ -201,4 +200,4 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:schedule:invite:bulk", "SCHEDULE_INVITE_BULK_FAILED");
   }
-}
+});

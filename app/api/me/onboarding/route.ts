@@ -3,6 +3,7 @@ import { callerCapabilities, callerOrgCapabilities, currentSession } from "@/app
 import { currentUserId, currentWorkspaceId, DEFAULT_WORKSPACE, DEMO_WORKSPACE } from "@/app/_lib/auth/session";
 import { markUserOnboarding } from "@/app/_lib/db/users";
 import { setWorkspaceOnboardingState } from "@/app/_lib/db/workspaces";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 // Self-service first-run onboarding stamp: the wizard posts "completed" when
 // finished and "skipped" on Skip/Escape/X so the '/' gate (onboarding-gate.ts)
@@ -32,16 +33,16 @@ import { setWorkspaceOnboardingState } from "@/app/_lib/db/workspaces";
  * derived from the caller's own session, and the wizard's mirror of it is advisory —
  * every door still refuses on its own.
  */
-export async function GET() {
+export const GET = withSession(async () => {
   const session = await currentSession();
   const userId = currentUserId(session);
   const scope = userId ? `u:${userId}` : `w:${session ? currentWorkspaceId(session) : DEFAULT_WORKSPACE}`;
   const [org, here] = await Promise.all([callerOrgCapabilities(), callerCapabilities()]);
   const capabilities = [...new Set([...org, ...here])];
   return NextResponse.json({ scope, seat: { capabilities } });
-}
+});
 
-export async function POST(req: Request) {
+export const POST = withSession(async (req: Request) => {
   const session = await currentSession();
   if (process.env.KP_OPERATOR_PASSWORD) {
     // Password mode: a real, non-demo session is required. Demo visitors (guided
@@ -66,4 +67,4 @@ export async function POST(req: Request) {
     setWorkspaceOnboardingState(status, session ? currentWorkspaceId(session) : DEFAULT_WORKSPACE);
   }
   return NextResponse.json({ ok: true });
-}
+});

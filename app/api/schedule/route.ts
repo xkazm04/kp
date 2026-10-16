@@ -22,7 +22,7 @@ import { proposeFreeSlots, slotStillFree } from "@/app/_lib/calendar/available-s
 import { removeInterviewEvent, syncInterviewEvent } from "@/app/_lib/calendar/event-sync";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { jsonOk, jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
@@ -54,14 +54,13 @@ const SCHEDULE_LIST_MAX = 1000;
 // `?slots=1` (Direction 2) returns the offered reschedule slots for THIS team's
 // calendar — the recruiter's reschedule control picks from the same collision-aware
 // offered-slot mechanism the candidate picker uses.
-export async function GET(request: Request) {
+export const GET = withWorkspace(async (ws: string, request: Request) => {
   try {
     // Ahead of everything, including the workspace resolve: both branches read the
     // store and one of them calls Google, so a refused caller must spend neither.
     if (!rateLimit(`sched-list:${clientIpFrom(request.headers)}`, SCHEDULE_LIST_RATE_LIMIT)) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
-    const ws = await currentWorkspace();
     const params = new URL(request.url).searchParams;
     if (params.has("slots")) {
       // The REAL length of the interview being moved, not a blanket 45. proposeFreeSlots
@@ -113,7 +112,7 @@ export async function GET(request: Request) {
   } catch (error) {
     return safeJsonError(error, "api:schedule", "SCHEDULE_LOOKUP_FAILED");
   }
-}
+});
 
 // POST → recruiter-side invite control (Direction 2). The recruiter could only edit
 // a meeting URL before; red needs_reconcile rows had no in-app repair, a no-show
@@ -122,7 +121,7 @@ export async function GET(request: Request) {
 // rescheduleScheduleInvite, markScheduleInviteNoShow) so the collision authority and
 // reminder-cycle reset can't drift. Workspace-scoped (a recruiter only touches their
 // own team's invites); the two outcome-bearing actions seal a decision record.
-export async function POST(request: Request) {
+export const POST = withWorkspace(async (ws: string, request: Request) => {
   try {
     // AUTHORIZATION (write-routes-check-a-capability). This door cancels interviews,
     // marks no-shows, moves bookings and books candidates onto the week grid - every
@@ -135,7 +134,6 @@ export async function POST(request: Request) {
     if (!rateLimit(`sched-manage:${clientIpFrom(request.headers)}`, { limit: 60, windowMs: 60_000 })) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
-    const ws = await currentWorkspace();
     const body = (await request.json().catch(() => ({}))) as {
       token?: string;
       action?: string;
@@ -480,7 +478,7 @@ export async function POST(request: Request) {
   } catch (error) {
     return safeJsonError(error, "api:schedule", "SCHEDULE_MANAGE_FAILED");
   }
-}
+});
 
 // http/https only — a meeting link is rendered as an <a> and baked into a calendar
 // event, so reject javascript:/data: and anything unparseable. Empty ⇒ clear (null).
@@ -501,7 +499,7 @@ function normalizeMeetingUrl(raw: unknown): string | null {
 // belongs to another team — or is merely the candidate's own token — must 404
 // before any write. (The candidate's token route keeps a read-only view of
 // meetingUrl.) Rate-limited per IP as an additional backstop.
-export async function PATCH(request: Request) {
+export const PATCH = withWorkspace(async (ws: string, request: Request) => {
   try {
     // AUTHORIZATION (write-routes-check-a-capability). This door cancels interviews,
     // marks no-shows, moves bookings and books candidates onto the week grid - every
@@ -514,7 +512,6 @@ export async function PATCH(request: Request) {
     if (!rateLimit(`sched-meet:${clientIpFrom(request.headers)}`, { limit: 60, windowMs: 60_000 })) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
-    const ws = await currentWorkspace();
     const body = (await request.json().catch(() => ({}))) as { token?: string; meetingUrl?: string | null };
     if (!body.token) return jsonRefusal("SCHEDULE_TOKEN_REQUIRED", 400);
     // Refuse a token outside this team's calendar before writing — mirrors the
@@ -547,4 +544,4 @@ export async function PATCH(request: Request) {
   } catch (error) {
     return safeJsonError(error, "api:schedule", "SCHEDULE_LOOKUP_FAILED");
   }
-}
+});

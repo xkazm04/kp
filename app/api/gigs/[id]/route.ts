@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { clearGigSuspect, getGig, transitionGig } from "@/app/_lib/db/gigs";
@@ -53,24 +53,23 @@ import { externalRunner } from "@/app/_lib/task-external-runners";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(_request: Request, { params }: Params): Promise<NextResponse> {
+export const GET = withWorkspace(async (ws: string, _request: Request, { params }: Params): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
     const { id } = await params;
-    const ws = await currentWorkspace();
     const gig = getGig(ws, id);
     if (!gig) return jsonRefusal("GIG_NOT_FOUND", 404);
     return NextResponse.json({ gig, attempts: listGigAttemptsForGig(ws, id), outcomes: listOutcomesForGig(ws, id) });
   } catch (error) {
     return safeJsonError(error, "api:gigs/[id]", "GIG_STORE_FAILED");
   }
-}
+});
 
 const PATCH_ACTIONS = ["decline", "withdraw", "clear_suspect", "route", "unroute", "accept", "process"] as const;
 type PatchAction = (typeof PATCH_ACTIONS)[number];
 
-export async function PATCH(request: Request, { params }: Params): Promise<NextResponse> {
+export const PATCH = withWorkspace(async (ws: string, request: Request, { params }: Params): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -92,7 +91,6 @@ export async function PATCH(request: Request, { params }: Params): Promise<NextR
     if (named && (action !== "withdraw" || typeof body.challenge !== "number" || !Number.isInteger(body.challenge) || body.challenge < 0)) {
       return jsonRefusal("GIG_INPUT_INVALID", 400, { field: "challenge" });
     }
-    const ws = await currentWorkspace();
 
     if (action === "route" || action === "unroute") {
       const res = action === "route" ? routeGig(ws, id, String(body.specialistId).trim()) : unrouteGig(ws, id);
@@ -160,4 +158,4 @@ export async function PATCH(request: Request, { params }: Params): Promise<NextR
   } catch (error) {
     return safeJsonError(error, "api:gigs/[id]", "GIG_STORE_FAILED");
   }
-}
+});

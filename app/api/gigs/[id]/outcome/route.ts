@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { recordGigOutcome } from "@/app/_lib/gigs/outcome";
@@ -24,7 +24,7 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 const FEEDBACK_MAX = 8000;
 
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }): Promise<NextResponse> {
+export const POST = withWorkspace(async (ws: string, request: Request, { params }: { params: Promise<{ id: string }> }): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -51,7 +51,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (body.feedbackText !== undefined && body.feedbackText !== null && typeof body.feedbackText !== "string") return jsonRefusal("GIG_INPUT_INVALID", 400, { field: "feedbackText" });
     if (body.attemptId !== undefined && body.attemptId !== null && typeof body.attemptId !== "string") return jsonRefusal("GIG_INPUT_INVALID", 400, { field: "attemptId" });
 
-    const ws = await currentWorkspace();
     const res = recordGigOutcome(ws, {
       gigId: id,
       attemptId: typeof body.attemptId === "string" && body.attemptId ? body.attemptId : null,
@@ -76,4 +75,4 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   } catch (error) {
     return safeJsonError(error, "api:gigs/[id]/outcome", "GIG_STORE_FAILED");
   }
-}
+});

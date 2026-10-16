@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { setAnalyticsTarget } from "@/app/_lib/db/analytics";
 import { validateTargetWrite } from "@/app/_lib/analytics-target-keys";
 import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { can } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
@@ -38,13 +38,12 @@ import { invalidateAnalyticsWorkspace } from "@/app/_lib/analytics-cache";
 // mirrors: no gate at all, so any seat could move the goal lines every board is
 // judged against (and the ROI baseline the automation claim divides by). Session
 // first (401), then `pipeline:write` (403 with a code).
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   if (!(await can("pipeline:write"))) return jsonRefusal("ANALYTICS_POLICY_FORBIDDEN", 403);
   try {
     const body = (await request.json().catch(() => ({}))) as { metric?: unknown; value?: unknown };
-    const ws = await currentWorkspace();
     const verdict = validateTargetWrite(body, getPipelineAxis(ws).stages);
     if (!verdict.ok) return jsonRefusal(verdict.code, 400);
     setAnalyticsTarget(verdict.metric, verdict.value, ws);
@@ -59,4 +58,4 @@ export async function POST(request: NextRequest) {
     // carries constraint text and the absolute db path.
     return safeJsonError(error, "api:analytics/targets", "ANALYTICS_TARGET_SAVE_FAILED");
   }
-}
+});

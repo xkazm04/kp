@@ -7,6 +7,7 @@ import { DEFAULT_ORG_ID } from "@/app/_lib/db/organizations";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { relayHealth } from "@/app/_lib/comms-relay";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 // The outbound comms relay config (RelayConfigCard on the Channels tab) — the
 // UI-backed twin of COMMS_WEBHOOK_URL. GET never returns the signing secret
@@ -25,7 +26,7 @@ import { relayHealth } from "@/app/_lib/comms-relay";
 // one candidate host at a time. 30/10min is far above an operator editing a form.
 const RELAY_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };
 
-export async function GET() {
+export const GET = withSession(async () => {
   const denied = await requireOperator();
   if (denied) return denied;
   // `relay` is the resolver's own word for what actually delivers (comms-relay.ts).
@@ -37,9 +38,9 @@ export async function GET() {
     envConfigured: Boolean(process.env.COMMS_WEBHOOK_URL),
     relay: relayHealth(),
   });
-}
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withSession(async (request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // AUTHORIZATION (write-routes-check-a-capability). requireOperator above proves a
@@ -81,4 +82,4 @@ export async function POST(request: NextRequest) {
     // it goes to the server log, and the client gets the code.
     return safeJsonError(error, "api:comms:relay", "COMMS_RELAY_SAVE_FAILED");
   }
-}
+});

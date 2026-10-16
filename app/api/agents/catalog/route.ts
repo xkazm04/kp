@@ -3,6 +3,7 @@ import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { fetchConnectorCatalog } from "@/app/_lib/agent-hire/bridge-client";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 // Agent-candidate bridge — GET the connector catalog for the Agent fit tab's
 // editable connector chips. The bridge client is server-only (the pk_ key rides
@@ -18,7 +19,7 @@ import { fetchConnectorCatalog } from "@/app/_lib/agent-hire/bridge-client";
 // the catalog once per open, so a recruiter cannot reach it and a script can.
 const CATALOG_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };
 
-export async function GET(request: NextRequest) {
+export const GET = withSession(async (request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   if (!rateLimit(`agent-catalog:${clientIpFrom(request.headers)}`, CATALOG_RATE_LIMIT)) {
@@ -30,4 +31,4 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:agents/catalog", "AGENT_CATALOG_FAILED");
   }
-}
+});

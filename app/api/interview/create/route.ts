@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { meterGate } from "@/app/_lib/billing/enforce";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { resolveEntryForSubmission } from "@/app/_lib/devcase-interview-entry";
 import { mintAndInviteVoiceScreen } from "@/app/_lib/interview-invite";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
@@ -30,7 +30,7 @@ const MAX_CREATE_BODY_BYTES = 16 * 1024;
 // an AI interview step the hiring plan gates as `auto`. This handler owns only the
 // transport concerns — the cheap pre-gate, body validation, the per-IP throttle,
 // submission→entry resolution — and then maps the shared door's result onto the wire.
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (workspace: string, request: NextRequest) => {
   try {
     // Billing hard gate — CHEAP PRE-CHECK: voice minutes are the one meter with real
     // per-unit cost. Reject an obviously-empty meter before doing the (possibly
@@ -40,7 +40,6 @@ export async function POST(request: NextRequest) {
     // mintAndInviteVoiceScreen once `grounded` is built, before anything is revoked.
     // (Minutes debit at /complete; top-up packs reopen this.)
     // Org attribution (org-plan Phase 3): both gates read the caller's tenant.
-    const workspace = await currentWorkspace();
     const quota = meterGate("interview_minutes", { minUnits: GROUNDED_DEFAULT_MIN, workspace });
     if (quota) return jsonRefusal("BILLING_QUOTA_EXCEEDED", 402, { meter: quota.meter, plan: quota.plan });
     // Validate at the trust boundary instead of casting request.json() to a
@@ -155,4 +154,4 @@ export async function POST(request: NextRequest) {
     }
     return safeJsonError(error, "api:interview:create", "INTERVIEW_CREATE_FAILED");
   }
-}
+});

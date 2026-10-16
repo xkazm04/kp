@@ -26,7 +26,11 @@ test("both handlers gate on the operator before any work", () => {
   for (const [name, text] of [["route.ts", src], ["[id]/route.ts", idSrc]] as const) {
     const gate = text.indexOf("await requireOperator()");
     assert.ok(gate >= 0, `${name} has no operator gate`);
-    assert.ok(gate < text.indexOf("currentWorkspace()"), `${name} resolves the workspace before gating`);
+    // UPDATED DELIBERATELY: the workspace is resolved by withWorkspace (session 401 first,
+    // ADR 0026-route-chain-refusal-order), so the handler body never resolves it itself;
+    // its own gate is still ahead of everything the handler does.
+    assert.ok(/withWorkspace\(async \(ws: string/.test(text), `${name} enters through withWorkspace`);
+    assert.ok(!text.includes("currentWorkspace()"), `${name} no longer resolves the workspace by hand`);
   }
   assert.ok(src.indexOf("await requireOperator()") < src.indexOf("request.json"));
 });

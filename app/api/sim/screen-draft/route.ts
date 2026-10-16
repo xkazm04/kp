@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveSimEntry, setSimApproval } from "@/app/_lib/sim-entry";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { namespaceTranslator } from "@/app/_lib/catalog-translator";
 import { resolveCommsLocale } from "@/app/_lib/comms-locale";
@@ -10,7 +10,7 @@ import { buildSimScreenDraft } from "@/app/features/shell/simulation/simDrafts";
 // Deterministic screening recommendation for the simulation — NO LLM. Sets the
 // screening_review approval so a real card appears in the Decisions queue for the
 // driver to click "Advance" on (the genuine human-decision gate).
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (workspaceId: string, request: NextRequest) => {
   try {
     const { entryId } = (await request.json()) as { entryId?: string };
     if (!entryId) return jsonRefusal("SIM_ENTRY_REQUIRED", 400);
@@ -23,7 +23,6 @@ export async function POST(request: NextRequest) {
     // title carries the (SIM) marker, and nothing else. The team scoping keeps a
     // stranger's id from resolving; the marker keeps a REAL candidate's row out of
     // this ungated door (a real id 404s exactly like a missing one). See sim-entry.ts.
-    const workspaceId = await currentWorkspace();
     const entry = resolveSimEntry(entryId, workspaceId);
     if (!entry) return jsonRefusal("SIM_ENTRY_NOT_FOUND", 404);
 
@@ -44,4 +43,4 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:sim/screen-draft", "SIM_SCREEN_DRAFT_FAILED");
   }
-}
+});

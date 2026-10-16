@@ -117,6 +117,14 @@ type RouteSpec = {
    *  learned to say when must not quietly forget. Requires `keyConst`. Set on the
    *  machine-called public doors first; any other door may adopt it one row at a time. */
   retryAfter?: true;
+  /** The limiter is a CHAIN LINK, not a call in the body: the route declares
+   *  `route(<gates>, withRateLimit({ key: ({ request }) => <key>, <opts> }))(handler)`
+   *  (app/_lib/auth/route-guards.ts). Migrated, not deleted: the same key, limit, window
+   *  and gate-before-limiter order are pinned, now against the declaration. The refusal
+   *  shape belongs to the guard and is pinned once below. Incompatible with
+   *  `servedBefore` (a guard runs ahead of every gate the handler owns): a limiter that
+   *  must stay behind a cheaper refusal stays a call in the body. */
+  chain?: true;
 };
 
 const ROUTES: RouteSpec[] = [
@@ -178,6 +186,8 @@ const ROUTES: RouteSpec[] = [
     key: "`analyze-cohort:${clientIpFrom(request.headers)}`",
     limit: 10,
     refusalCode: "TOO_MANY_REQUESTS",
+    // MIGRATED to the chain (169ec082): route(withOperator, withCapability, withRateLimit).
+    chain: true,
     expensive: 'startTask("analyze_cohort"',
   },
   {
@@ -1908,6 +1918,30 @@ const ROUTES: RouteSpec[] = [
     servedBefore: 'jsonRefusal("ROLE_RUN_NOT_FOUND", 404)',
   },
   // ------------------------------------------------------------------
+  // ADDED with the routes (live role-run triggers, ADR-0011). Start and advance share ONE budget
+  // key: each pass can spend model calls. The missing-job 400, unknown-job and unknown-run 404s
+  // are served ahead of the throttle.
+  {
+    rel: "./role-runs/route.ts",
+    key: "`role-run-advance:${clientIpFrom(request.headers)}`",
+    limit: 30,
+    optsSrc: "ADVANCE_RATE_LIMIT",
+    optsDef: "const ADVANCE_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "getOrCreateRoleRun(",
+    servedBefore: 'jsonRefusal("ROLE_RUN_JOB_NOT_FOUND", 404)',
+  },
+  {
+    rel: "./role-runs/[id]/advance/route.ts",
+    key: "`role-run-advance:${clientIpFrom(request.headers)}`",
+    limit: 30,
+    optsSrc: "ADVANCE_RATE_LIMIT",
+    optsDef: "const ADVANCE_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "advanceRoleRunLive(id",
+    servedBefore: 'jsonRefusal("ROLE_RUN_NOT_FOUND", 404)',
+  },
+  // ------------------------------------------------------------------
   // ADDED with the routes (spark interview-feedback-letter, WP-beta). The recruiter's three
   // feedback-letter doors. Operator-gated with `pipeline:write`, but open mode makes the
   // operator gate a documented no-op, so each self-limits. Every limiter sits AFTER the
@@ -2678,6 +2712,36 @@ for (const spec of ROUTES) {
   const windowSrc = spec.windowSrc ?? "10 * 60_000";
   test(`${spec.rel} gates the expensive work behind the shared limiter (${spec.key} — ${spec.limit}/${windowSrc})`, () => {
     const src = read(spec.rel);
+    if (spec.chain) {
+      assert.ok(!spec.servedBefore, "a chain limiter runs before every gate the handler owns; use a body call for servedBefore");
+      assert.match(src, /from "@\/app\/_lib\/auth\/route-guards"/, "must take the limiter from the shared guards");
+      assert.match(src, /from "@\/app\/_lib\/auth\/workspace-context"/, "must enter through route(...)");
+      const optsText = spec.optsSrc ? `...${spec.optsSrc}` : `limit: ${spec.limitSrc ?? spec.limit}, windowMs: ${windowSrc}`;
+      const link = `withRateLimit({ key: ({ request }) => ${spec.key}, ${optsText} })`;
+      const linkAt = src.indexOf(link);
+      assert.ok(linkAt >= 0, `expected the pinned chain link:\n  ${link}`);
+      if (spec.optsDef) {
+        const optsAt = src.indexOf(spec.optsDef);
+        assert.ok(optsAt >= 0 && optsAt < linkAt, `expected the pinned options before the chain:\n  ${spec.optsDef}`);
+        assert.ok(
+          spec.optsDef.includes(`limit: ${spec.limit}`) && spec.optsDef.includes(`windowMs: ${windowSrc}`),
+          "the pinned options line must spell out the limit and window",
+        );
+      }
+      // The declaration: `route(` opens the chain, the limiter is a link in it, and the
+      // handler (`)(async`) follows - so the limiter precedes ALL the work it guards.
+      const open = src.lastIndexOf("route(", linkAt);
+      const handlerAt = src.indexOf(")(async", linkAt);
+      assert.ok(open >= 0 && handlerAt > linkAt, "the limiter must be a link inside route(...) ahead of the handler");
+      // Any gate guard is written BEFORE the limiter, so an unauthorised caller is
+      // refused without spending the budget - the order the hand-written route kept.
+      const chainText = src.slice(open, linkAt);
+      for (const gate of ["withOperator", "withCapability("]) {
+        if (src.slice(open, handlerAt).includes(gate)) assert.ok(chainText.includes(gate), `${gate} must precede the limiter in the chain`);
+      }
+      assert.ok(src.indexOf(spec.expensive, handlerAt) > handlerAt, `the limiter must precede ${spec.expensive}`);
+      return;
+    }
     assert.match(src, /from "@\/app\/_lib\/rate-limit"/, "must reuse the one shared limiter");
 
     const opts = spec.optsSrc ?? `{ limit: ${spec.limitSrc ?? spec.limit}, windowMs: ${windowSrc} }`;
@@ -2806,6 +2870,15 @@ for (const spec of ROUTES) {
     }
   });
 }
+
+// The chain's limiter answers through the same chokepoint the body calls used: ONE place
+// builds the 429 for every chain row above, so it is pinned here once rather than per row.
+test("withRateLimit refuses through the chokepoint, with Retry-After only when asked", () => {
+  const guards = readFileSync(fileURLToPath(new URL("../_lib/auth/route-guards.ts", import.meta.url)), "utf8");
+  assert.ok(guards.includes('jsonRefusal("TOO_MANY_REQUESTS", 429)'), "the silent shape is the registered coded 429");
+  assert.ok(guards.includes("jsonThrottled(rateLimitRetryAfterMs(key), config.windowMs)"), "the retryAfter shape reads the window that refused");
+  assert.ok(guards.includes("rateLimit(key, { limit: config.limit, windowMs: config.windowMs })"), "it spends the same shared limiter");
+});
 
 // A coded refusal may not quietly become a DIFFERENT refusal. Every route above
 // that answers the throttle with `jsonRefusal("TOO_MANY_REQUESTS", 429)` is
@@ -3059,7 +3132,8 @@ test("every route that enqueues a task throttles first", () => {
     // (app/_lib/task-budget.ts `enforceTaskBudget`), which IS a rateLimit call under
     // the task doors' own keys — a route that goes through it is throttled, and a
     // walk that only knew the raw call would report it as a hole.
-    const limiter = src.search(/\brateLimit\(|\benforceTaskBudget\(/);
+    // …or the chain link `withRateLimit(` (route-guards.ts): the same bucket, declared on the export.
+    const limiter = src.search(/\brateLimit\(|\bwithRateLimit\(|\benforceTaskBudget\(/);
     const rel = path.relative(apiDir, file).split(path.sep).join("/");
     if ((limiter < 0 || limiter > call) && !UNTHROTTLED_ENQUEUE.has(rel)) offenders.push(rel);
     if (limiter >= 0 && limiter < call && UNTHROTTLED_ENQUEUE.has(rel)) offenders.push(`${rel} (FIXED — delete it from UNTHROTTLED_ENQUEUE)`);

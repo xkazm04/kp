@@ -1509,6 +1509,9 @@
     "ROLE_RUN_NOT_FOUND": "Dieser Rollenlauf wurde nicht gefunden.",
     "ROLE_RUN_GATE_INVALID": "Nennen Sie das Gate (Absage, Intervieweinladung oder Angebot), den Kandidatenzweig und zum Bestätigen Ihre Entscheidung.",
     "ROLE_RUN_GATE_NOT_PARKED": "Dieser Kandidat wartet an diesem Gate nicht. Laden Sie den Lauf neu, um den Stand zu sehen.",
+    "ROLE_RUN_START_INVALID": "Nennen Sie die Rolle, für die dieser Lauf starten soll.",
+    "ROLE_RUN_JOB_NOT_FOUND": "Diese Rolle ist nicht verfügbar.",
+    "ROLE_RUN_BUSY": "Dieser Lauf wird bereits weitergeführt. Laden Sie in einem Moment neu, um den Stand zu sehen.",
     "MATRIX_BUILD_FAILED": "Die Eignungsmatrix konnte nicht erstellt werden. Bitte erneut versuchen.",
     "MATCH_REASONING_FAILED": "Dieser Match konnte nicht erklärt werden. Bitte erneut versuchen.",
     "MATRIX_INPUT_INVALID": "Aus dieser Anfrage ließ sich die Eignungsmatrix nicht erstellen.",
@@ -1789,6 +1792,7 @@
     "AGENT_HIRE_FROM_NEED_FAILED": "Aus diesem Bedarf konnte keine Rolle erstellt und versendet werden. Bitte versuchen Sie es erneut.",
     "ROLE_SLATE_FAILED": "Die Kandidatenliste dieser Rolle konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
     "ROLE_RUN_GATE_FAILED": "Das Gate dieses Rollenlaufs konnte nicht geladen oder erfasst werden. Bitte versuchen Sie es erneut.",
+    "ROLE_RUN_ADVANCE_FAILED": "Dieser Rollenlauf konnte nicht gestartet oder weitergeführt werden. Bitte versuchen Sie es erneut.",
     "HIRE_AUTOMATION_DISABLED": "Maschinelles Einstellen ist in dieser Installation nicht aktiviert.",
     "HIRE_UNAUTHORIZED": "Nicht autorisiert.",
     "HIRE_NEED_REQUIRED": "Beschreiben Sie den Bedarf: die Arbeit, den Nachweis, dass sie nötig ist, und was als erledigt gilt.",
@@ -3789,7 +3793,8 @@
         "jobseekerScan": "Stellenmarkt-Scan",
         "interviewRecordingRetention": "Aufbewahrung von Interviewaufnahmen",
         "gigScan": "Auftrags-Scan",
-        "gigSync": "Abgleich der Auftragsläufe"
+        "gigSync": "Abgleich der Auftragsläufe",
+        "roleRunAdvance": "Rollenläufe weiterführen"
       },
       "unverified": "Starten Sie zuerst einen Scan von Hand. Der Timer lässt sich einschalten, sobald ein Scan erfolgreich war.",
       "jobToggleTitle": "{job} pausieren oder fortsetzen",
@@ -16475,7 +16480,11 @@
       "hired": "eingestellt",
       "hiredOf": "von {target, number}",
       "open": "offene Stellen, noch ohne Kandidat/innen",
-      "drafts": "+ {count, plural, one {# Entwurf} other {# Entwürfe}}"
+      "drafts": "+ {count, plural, one {# Entwurf} other {# Entwürfe}}",
+      "automated": "automatisierte Aktionen diese Woche",
+      "autoScreens": "{count, plural, one {# Screening durchgeführt} other {# Screenings durchgeführt}}",
+      "autoOutreach": "{count, plural, one {# Nachricht gesendet} other {# Nachrichten gesendet}}",
+      "autoInvites": "{count, plural, one {# Einladung gesendet} other {# Einladungen gesendet}}"
     },
     "lit": {
       "aria": "Im Orbit hervorgehoben",

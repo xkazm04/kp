@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { interviewRecordingRowForSession } from "@/app/_lib/db/interviews";
@@ -27,14 +27,13 @@ import { parseRecordingAttempt } from "@/app/_lib/interview-recording-paths";
 //
 // `?attempt=N` deletes one recorded attempt; no `attempt` deletes every live one. Both
 // are idempotent: a second call finds nothing left and answers `{ deleted: 0 }`.
-export async function DELETE(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const DELETE = withWorkspace(async (ws: string, request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
   if (under) return under;
   try {
     const { id } = await context.params;
-    const ws = await currentWorkspace();
     const row = interviewRecordingRowForSession(id, ws);
     // Null covers all three of "no live audio", "another team's session" and "no such
     // session" — one answer, the same one the playback door gives.
@@ -48,4 +47,4 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
   } catch (error) {
     return safeJsonError(error, "api:interview:sessions/[id]/recording", "INTERVIEW_RECORDING_FAILED");
   }
-}
+});

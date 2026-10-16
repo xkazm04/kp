@@ -4,7 +4,7 @@ import { ScreenWaveApprovalError, isRoleRunGate } from "@/app/_lib/role-run-gate
 import { resolveRoleRunGateSubject } from "@/app/_lib/role-run-gate-preview";
 import { SCREEN_WAVE_APPROVAL_CODES } from "@/app/_lib/screen-wave-refusal-codes";
 import { getRoleRun } from "@/app/_lib/db/role-runs";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { isNamedApprover, resolveApprover } from "@/app/_lib/auth/operator-approver";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
@@ -27,14 +27,13 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 // Same key and budget as ../preview: a commit is always preceded by a preview.
 const GATE_RATE_LIMIT = { limit: 120, windowMs: 10 * 60_000 };
 
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
   if (under) return under;
   try {
     const { id } = await params;
-    const ws = await currentWorkspace();
     const body = (await request.json().catch(() => null)) as {
       gate?: unknown;
       branchRef?: unknown;
@@ -76,4 +75,4 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (error instanceof RoleRunGateNotParkedError) return jsonRefusal("ROLE_RUN_GATE_NOT_PARKED", 409);
     return safeJsonError(error, "api:role-runs/gate/commit", "ROLE_RUN_GATE_FAILED");
   }
-}
+});

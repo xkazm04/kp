@@ -10,7 +10,7 @@ import { enforceTaskBudget } from "@/app/_lib/task-budget";
 import { clientIpFrom } from "@/app/_lib/rate-limit";
 import { getServerLocale } from "@/i18n/server";
 import { isLocale } from "@/i18n/locales";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 
 
 // Direction A: start an automated lifecycle from a need, or list active ones.
@@ -22,9 +22,8 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 // `inFlight` (attempts mid-case, counts only - what the close confirm names). The section
 // used to borrow the workspace's whole postings fold to derive these two numbers. A row
 // with no case yet carries zeros, never an absent key.
-export async function GET() {
+export const GET = withWorkspace(async (ws: string) => {
   try {
-    const ws = await currentWorkspace();
     const lifecycles = listLifecycles(50, ws);
     const counts = caseIntakeCounts(lifecycles.flatMap((lc) => (lc.caseId ? [lc.caseId] : [])), ws);
     return NextResponse.json({
@@ -40,9 +39,9 @@ export async function GET() {
   } catch (error) {
     return safeJsonError(error, "api:devcase/lifecycle", "DEVCASE_LIFECYCLE_LIST_FAILED");
   }
-}
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (workspace: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const forbidden = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -57,7 +56,6 @@ export async function POST(request: NextRequest) {
     // Billing hard gate + debit: one lifecycle = one dev-case design pipeline
     // (analyze → role → case). Debited at start; redesigns debit separately.
     // Org attribution (org-plan Phase 3): gate + debit read the caller's tenant.
-    const workspace = await currentWorkspace();
     // TASK BUDGET. This door enqueues `lifecycle` — the AGENT class — by calling the
     // runner directly, so POST /api/tasks's per-class budget never saw it and a caller
     // out of agent allowance at the dock could keep spending here. Same helper, same
@@ -86,4 +84,4 @@ export async function POST(request: NextRequest) {
     // can carry child stderr as well as SQLITE_* detail.
     return safeJsonError(error, "api:devcase/lifecycle", "DEVCASE_LIFECYCLE_START_FAILED");
   }
-}
+});

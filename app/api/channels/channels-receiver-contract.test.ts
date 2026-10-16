@@ -146,7 +146,7 @@ test("the list projection carries recruiter-safe pull health and never the beare
   assert.match(channelsDbSrc, /w\.last_pull_at, w\.last_pull_error/, "WEBHOOK_SELECT reads the clock's last outcome");
   assert.match(channelsDbSrc, /hasPullSecret: Boolean\(r\.has_pull_secret\)/, "rowToWebhook does not decrypt");
   // GET forwards the store list as-is — no second mapping that could drop the pull half.
-  assert.match(webhooksSrc, /listChannelWebhooks\(await currentWorkspace\(\)\)/);
+  assert.match(webhooksSrc, /listChannelWebhooks\(ws\)/);
   assert.match(webhooksSrc, /return NextResponse.json\(\{ webhooks, truncated \}\)/);
   // The list record must not grow a key named secret / pullSecret (PATCH `{ pull }` is
   // the detailed read and already uses hasSecret, not the bearer).

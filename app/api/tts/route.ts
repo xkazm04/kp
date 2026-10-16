@@ -18,6 +18,7 @@ import { TTS_MAX_CHARS } from "@/packages/voice-tts/src/validate";
 import { speakCached, ttsCacheLookup } from "@/app/_lib/tts-cache";
 import { ttsUsageRow } from "@/app/_lib/tts-prices";
 import { insertLlmUsage } from "@/app/_lib/db/llm";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 const TTS_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };
 /** TTS_MAX_CHARS of text; 8 KB leaves room for the voice id, the language and
@@ -54,15 +55,15 @@ function engineThrottled(retryAfterMs?: number) {
   return withRetryAfter(jsonRefusal("TOO_MANY_REQUESTS", 429), retryAfterMs);
 }
 
-export async function GET() {
+export const GET = withSession(async () => {
   const denied = await requireOperator();
   if (denied) return denied;
   const tts = getTts();
   const providers = await tts.status();
   return NextResponse.json({ providers, preferred: tts.preference.preferred, allowed: tts.preference.allowed });
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withSession(async (request: Request) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // The body is read BEFORE the throttle, and bounded on the way in: the pick
@@ -171,4 +172,4 @@ export async function POST(request: Request) {
     }
     return safeJsonError(err, "api:tts", "TTS_FAILED");
   }
-}
+});

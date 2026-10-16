@@ -2,20 +2,19 @@ import { NextResponse } from "next/server";
 import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
 import { entryIdsWithEvent, listEntriesForJob } from "@/app/_lib/db/pipeline";
 import { buildCandidatePool } from "@/app/_lib/candidate-pool";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { rankPoolForJob } from "@/app/_lib/recruiter-run";
 import { PipelineError, SpawnFailure } from "@/app/_lib/python-runner";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 
-export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
+export const GET = withWorkspace(async (workspaceId: string, request: Request, context: { params: Promise<{ id: string }> }) => {
   const { id } = await context.params;
   try {
     // Resolved ONCE and reused by the visibility gate, the pool read and the
     // sourcing-state decoration below: the pool and the pipeline it is decorated
     // against must be read from the same tenant or the join is nonsense.
-    const workspaceId = await currentWorkspace();
     // Visibility gate, same as every other by-id job route (winnability, rediscover,
     // campaign, agent-fit; docs/features/jobs README § "By-id job routes re-apply
     // the list's visibility predicate"): getJob is a by-id point read over a
@@ -104,4 +103,4 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     }
     return safeJsonError(error, "api:jobs/candidates", "JOB_CANDIDATES_FAILED");
   }
-}
+});

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { can, requireCapability } from "@/app/_lib/auth/current-user";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireHomeOrgReader } from "@/app/_lib/auth/require-operator";
 import { countInterviewFailovers } from "@/app/_lib/db/interviews";
 import { isOffline } from "@/app/_lib/offline";
@@ -14,6 +13,7 @@ import {
   sharedProbeMemory,
   type ReadinessAdapters,
 } from "@/app/_lib/voice/readiness";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 
 // Operator readiness for the realtime voice plane (challenge-r09 voice-provider-io/B):
 // the Spend strip's voice rows (SpendVoiceFacts.tsx). See app/_lib/voice/readiness.ts
@@ -39,24 +39,24 @@ function adapters(): ReadinessAdapters {
   return Object.fromEntries(VOICE_PROVIDER_ORDER.map((id) => [id, getVoiceAdapter(id)])) as ReadinessAdapters;
 }
 
-async function failovers() {
-  return countInterviewFailovers(await currentWorkspace(), new Date(Date.now() - FAILOVER_WINDOW_MS).toISOString());
+async function failovers(ws: string) {
+  return countInterviewFailovers(ws, new Date(Date.now() - FAILOVER_WINDOW_MS).toISOString());
 }
 
-export async function GET() {
+export const GET = withWorkspace(async (chainWs: string) => {
   const denied = await requireHomeOrgReader();
   if (denied) return denied;
   try {
-    const report = buildVoiceReadiness({ adapters: adapters(), memory: sharedProbeMemory(), failovers: await failovers() });
+    const report = buildVoiceReadiness({ adapters: adapters(), memory: sharedProbeMemory(), failovers: await failovers(chainWs) });
     // The strip offers "Check now" only to a seat the POST below would admit, so the
     // button never leads to a 403 (and never at all while offline).
     return NextResponse.json({ ...report, canProbe: await can("pipeline:write") });
   } catch (err) {
     return safeJsonError(err, "api:voice/readiness", "VOICE_READINESS_FAILED");
   }
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withWorkspace(async (chainWs: string, request: Request) => {
   const denied = await requireHomeOrgReader();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -69,9 +69,9 @@ export async function POST(request: Request) {
     return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
   try {
-    const report = await probeVoiceProviders({ adapters: adapters(), memory: sharedProbeMemory(), failovers: await failovers() });
+    const report = await probeVoiceProviders({ adapters: adapters(), memory: sharedProbeMemory(), failovers: await failovers(chainWs) });
     return NextResponse.json({ ...report, canProbe: true });
   } catch (err) {
     return safeJsonError(err, "api:voice/readiness", "VOICE_READINESS_FAILED");
   }
-}
+});

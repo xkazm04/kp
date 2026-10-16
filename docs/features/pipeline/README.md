@@ -603,7 +603,7 @@ count as the hero with what it is made of by approval kind (`OverviewHead`); "ne
 on the left (**First up**, `OverviewFirstUp`: of the waiting people who have a stage clock, the one
 furthest over their stage's SLA, else the one nearest it, and an honest line when nobody waits or
 nobody waiting has a clock; then the queues waiting on you) and "in motion today" on the right; the
-totals under it (active, inside the SLA of those the clock measures, hired, open roles + drafts,
+totals under it (active, inside the SLA of those the clock measures, hired, open roles + drafts, and, once there is any, "automated actions this week": a count of scores run, messages and invites sent and policy-pass moves from `pipeline_events` over the trailing 7 days via `GET /api/pipeline/automation-counts` (`_lib/automation-counts.ts`; counts only, no hours or money, absent rather than 0 when there are none),
 `OverviewTotals`). The queues are `deriveRailRows`' rows plus a **decisions** queue, "N people
 waiting on a decision or review" (entries on a stage of the axis with `decision` / `screening_review`
 / `rejection_review`: the Decisions tab's kinds, `DECISIONS_QUEUE_KINDS`, minus the two that have a

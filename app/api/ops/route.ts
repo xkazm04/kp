@@ -11,6 +11,7 @@ import { collectReadiness } from "@/app/_lib/readiness";
 import { getDecisionConfigHealth } from "@/app/_lib/decision-config-store";
 import { getAfterResponseFailureCount } from "@/app/_lib/after-response";
 import { rateLimitRefusalStats } from "@/app/_lib/rate-limit";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 
 // DATA2 — the operator's read of everything the app records and nothing read:
@@ -44,7 +45,7 @@ import { rateLimitRefusalStats } from "@/app/_lib/rate-limit";
 // Callers already treat a non-200 as "no telemetry" rather than an error
 // (useSpendData drops the engine lines), so a demo session loses the strip
 // instead of seeing a failure it can do nothing about.
-export async function GET() {
+export const GET = withSession(async () => {
   const denied = await requireHomeOrgReader();
   if (denied) return denied;
   try {
@@ -127,4 +128,4 @@ export async function GET() {
     // strip renders through useErrorMessage in the reader's language.
     return safeJsonError(error, "api:ops", "OPS_STATUS_FAILED");
   }
-}
+});

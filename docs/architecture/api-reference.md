@@ -77,7 +77,7 @@ live on the other side of a route.
 
 <!-- BEGIN GENERATED ROUTES -->
 
-_295 routes, 395 handlers._
+_300 routes, 400 handlers._
 
 ### `/api/agents`
 
@@ -556,6 +556,7 @@ _295 routes, 395 handlers._
 | `/api/pipeline/[id]/notes` | GET | gated |
 | `/api/pipeline/[id]/offer-letter` | GET | gated |
 | `/api/pipeline/[id]/timeline` | GET | gated |
+| `/api/pipeline/automation-counts` | GET | gated |
 | `/api/pipeline/batch` | POST | gated |
 | `/api/pipeline/command` | POST | gated |
 | `/api/pipeline/command/reverse` | POST | gated |
@@ -587,6 +588,15 @@ _295 routes, 395 handlers._
 | --- | --- | --- |
 | `/api/repo-scan` | GET, POST | gated |
 | `/api/repo-scan/[id]` | GET | gated |
+
+### `/api/role-runs`
+
+| Route | Methods | Auth |
+| --- | --- | --- |
+| `/api/role-runs` | POST | gated |
+| `/api/role-runs/[id]/advance` | POST | gated |
+| `/api/role-runs/[id]/gate/commit` | POST | gated |
+| `/api/role-runs/[id]/gate/preview` | POST | gated |
 
 ### `/api/roles`
 

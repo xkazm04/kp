@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { listPipelineEventsSince, listRecentPipelineEvents } from "@/app/_lib/db/pipeline";
 
@@ -17,11 +17,10 @@ import { listPipelineEventsSince, listRecentPipelineEvents } from "@/app/_lib/db
 export const ACTIVITY_WINDOW_DAYS = 7;
 const WINDOW_CAP = 500;
 
-export async function GET(request: NextRequest) {
+export const GET = withWorkspace(async (ws: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
-    const ws = await currentWorkspace();
     const fromIso = new Date(Date.now() - ACTIVITY_WINDOW_DAYS * 86_400_000).toISOString();
     const sinceRaw = request.nextUrl.searchParams.get("since");
     if (sinceRaw !== null) {
@@ -37,7 +36,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:pipeline:events/recent", "PIPELINE_EVENTS_FAILED");
   }
-}
+});
 
 /** The operator-only feed carries the entry id so a row can open its candidate.
  *  The unauthenticated sibling still strips this IDOR handle through

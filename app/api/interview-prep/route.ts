@@ -10,7 +10,7 @@ import {
 } from "@/app/_lib/interview-prep";
 import { parseKitOverlayWrite, prepKitForEntry } from "@/app/_lib/interview-prep-kit";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
@@ -46,11 +46,10 @@ const MAX_PATCH_BODY_BYTES = 256 * 1024;
 //                              linked JD's last edit, and `kit`: the job interview kit
 //                              this candidate's interview runs on (or null)
 //   GET ?entries=a,b,c       → { prepared: { <entryId>: createdAt } }
-export async function GET(request: NextRequest) {
+export const GET = withWorkspace(async (ws: string, request: NextRequest) => {
   try {
     const sp = request.nextUrl.searchParams;
     const entry = sp.get("entry");
-    const ws = await currentWorkspace();
     if (entry) {
       // Direction 1 — `jdEditedAt` is the linked JD's last content edit, so the modal
       // can flag a pack built against since-changed JD text (it compares against the
@@ -75,14 +74,14 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:interview-prep", "INTERVIEW_PREP_FAILED");
   }
-}
+});
 
 // PUT ?entry=<id> → persist the interviewer's checklist + notes + assigned
 // interviewer (PREP2/PREP5) onto an existing prep artifact, in ONE write so the
 // human inputs can't race. Validated at the boundary: a bounded checked map of
 // booleans, a length-capped notes string, and a capped interviewer name. 404 when
 // no artifact exists yet (the plan must be generated before inputs can attach).
-export async function PUT(request: NextRequest) {
+export const PUT = withWorkspace(async (ws: string, request: NextRequest) => {
   try {
     // AUTHORIZATION (write-routes-check-a-capability). This surface asked NOTHING —
     // not even requireOperator — so authority came down to holding a session, and the
@@ -104,7 +103,6 @@ export async function PUT(request: NextRequest) {
     // without this an id from another team's board saved that team's interviewer,
     // checklist and notes. Same 404 as "no artifact yet" — the two are indistinguishable
     // to a caller who does not hold the entry, deliberately.
-    const ws = await currentWorkspace();
     if (!getInterviewPrep(entry, ws)) {
       return jsonRefusal("INTERVIEW_PREP_NOT_FOUND", 404);
     }
@@ -128,7 +126,7 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:interview-prep", "INTERVIEW_PREP_FAILED");
   }
-}
+});
 
 // POST ?entry=<id> → import a report's interview-kit questions into the entry's
 // EXISTING prep pack (Direction 2). The questions land under a dedicated
@@ -136,7 +134,7 @@ export async function PUT(request: NextRequest) {
 // so an import survives re-generating the plan. Idempotent: deduped by content so
 // re-posting the same kit never stacks copies. 404 when no pack exists yet (the
 // plan must be generated before questions can attach — same contract as the PUT).
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   try {
     // AUTHORIZATION (write-routes-check-a-capability). This surface asked NOTHING —
     // not even requireOperator — so authority came down to holding a session, and the
@@ -164,7 +162,7 @@ export async function POST(request: NextRequest) {
     // every other payload key (generated plan, userProgress, humanScorecard).
     // TENANCY — scoped to the authenticated team, so a foreign entry id can neither
     // read the pack back nor have questions merged into it.
-    const existing = getInterviewPrep(entry, await currentWorkspace());
+    const existing = getInterviewPrep(entry, ws);
     if (!existing) {
       return jsonRefusal("INTERVIEW_PREP_NOT_FOUND", 404);
     }
@@ -178,7 +176,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:interview-prep", "INTERVIEW_PREP_FAILED");
   }
-}
+});
 
 // PATCH ?entry=<id> → weave an imported question into a chronology block, or unassign
 // it (Direction 3). Body: { question: string, blockRef: string | null }. The question
@@ -203,7 +201,7 @@ export async function POST(request: NextRequest) {
 // coded: with no pending plan (a second click, another tab already decided) it answers
 // 200 `{ applied: false }` and writes nothing. Same gate, throttle and tenancy read as
 // the weave; `plan` with any other value is not a plan decision and falls through to it.
-export async function PATCH(request: NextRequest) {
+export const PATCH = withWorkspace(async (ws: string, request: NextRequest) => {
   try {
     // AUTHORIZATION (write-routes-check-a-capability). This surface asked NOTHING —
     // not even requireOperator — so authority came down to holding a session, and the
@@ -230,7 +228,7 @@ export async function PATCH(request: NextRequest) {
       }
       // TENANCY — the read that authorizes every sibling verb authorizes this one: a
       // foreign entry id is the "no pack" 404, never a plan swapped on another team.
-      if (!getInterviewPrep(entry, await currentWorkspace())) {
+      if (!getInterviewPrep(entry, ws)) {
         return jsonRefusal("INTERVIEW_PREP_NOT_FOUND", 404);
       }
       const outcome = resolvePendingPlan(entry, body.plan);
@@ -254,7 +252,7 @@ export async function PATCH(request: NextRequest) {
       }
       // TENANCY — the same read-that-authorizes as every other verb here: a foreign entry
       // id answers the "no pack" 404, never a write into another team's plan.
-      if (!getInterviewPrep(entry, await currentWorkspace())) {
+      if (!getInterviewPrep(entry, ws)) {
         return jsonRefusal("INTERVIEW_PREP_NOT_FOUND", 404);
       }
       if (!saveInterviewPrepKitOverlay(entry, parsed.overlay)) {
@@ -275,7 +273,7 @@ export async function PATCH(request: NextRequest) {
 
     // TENANCY — as the POST above: the weave writes back into the pack, so the
     // workspace predicate rides the read that authorizes it.
-    const existing = getInterviewPrep(entry, await currentWorkspace());
+    const existing = getInterviewPrep(entry, ws);
     if (!existing) {
       return jsonRefusal("INTERVIEW_PREP_NOT_FOUND", 404);
     }
@@ -289,4 +287,4 @@ export async function PATCH(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:interview-prep", "INTERVIEW_PREP_FAILED");
   }
-}
+});

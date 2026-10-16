@@ -59,7 +59,7 @@ test("usage route clamps the days window and stays read-only", () => {
   assert.match(src, /DEFAULT_DAYS = 30/, "the default window is 30 days (aggregateLlmUsage's default)");
   assert.doesNotMatch(
     src,
-    /export async function (POST|PUT|DELETE|PATCH)/,
+    /export (?:async function|const) (POST|PUT|DELETE|PATCH)/,
     "the ledger surface is read-only — writes happen only via spawnPython's sidecar ingest"
   );
 });

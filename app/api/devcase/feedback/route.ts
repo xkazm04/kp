@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPosting, recordOutbox } from "@/app/_lib/db/devcase";
 // The shared by-id owner guard (sibling module - a route file may export only handlers).
 import { ownedSubmission } from "../devcase-owned-lifecycle";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { buildFeedbackBrief } from "@/app/_lib/devcase-feedback";
 import { requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
@@ -14,7 +14,7 @@ import { requireCapability } from "@/app/_lib/auth/current-user";
 // (strengths + concerns + transfer gaps). It lands in the dev outbox as a
 // `queued` row — the recruiter sends it; the adverse decision itself stays
 // human-gated, so this only turns the work they did into respectful feedback.
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const forbidden = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     // drafted letter under `sub.workspaceId` (below), so an unguarded id from another team
     // planted a candidate-facing letter — their candidate by name, with their strengths and
     // growth areas — in THAT team's outbox, ready for their recruiter to dispatch.
-    const sub = ownedSubmission(body.submissionId, await currentWorkspace());
+    const sub = ownedSubmission(body.submissionId, ws);
     if (!sub) {
       return NextResponse.json({ error: "submission not found" }, { status: 404 });
     }
@@ -79,4 +79,4 @@ export async function POST(request: NextRequest) {
     // internals both land in `.message`. Log it, answer a code.
     return safeJsonError(error, "api:devcase/feedback", "DEVCASE_FEEDBACK_FAILED");
   }
-}
+});

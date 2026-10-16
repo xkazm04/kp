@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { currentSession } from "@/app/_lib/auth/current-user";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { currentUserId } from "@/app/_lib/auth/session";
@@ -11,6 +10,7 @@ import { getCoverNote, getCvDesignState, setCoverNote, setCvDesignState } from "
 import { COVER_NOTE_MAX_CHARS } from "@/app/_lib/jobseeker/types";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { parseCvDesign, type CvDesign } from "@/app/features/jobseeker/cv/cvQuery";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 
 // The seeker's UI state that follows them across browsers (docs/features/jobseeker/
 // README.md): the designed-CV choices (template, accent, tailor, compact, objective) and
@@ -29,8 +29,8 @@ import { parseCvDesign, type CvDesign } from "@/app/features/jobseeker/cv/cvQuer
 const READ_RATE_LIMIT = { limit: 240, windowMs: 10 * 60_000 };
 const WRITE_RATE_LIMIT = { limit: 600, windowMs: 10 * 60_000 };
 
-async function seekerProfileId(): Promise<{ profileId: string | null; ws: string }> {
-  const [session, ws] = await Promise.all([currentSession(), currentWorkspace()]);
+async function seekerProfileId(ws: string): Promise<{ profileId: string | null; ws: string }> {
+  const session = await currentSession();
   return { profileId: getJobseekerProfile(currentUserId(session), ws)?.id ?? null, ws };
 }
 
@@ -49,14 +49,14 @@ function designOf(raw: unknown): CvDesign | null {
 
 // THROTTLE (rate-limit-contract.test.ts): one read per posting opened on the Weigh step
 // and one per designer mount — the posting read's own rhythm; 240/10min per IP.
-export async function GET(request: Request): Promise<NextResponse> {
+export const GET = withWorkspace(async (chainWs: string, request: Request): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   if (!rateLimit(`jobseeker-ui-state-read:${clientIpFrom(request.headers)}`, READ_RATE_LIMIT)) {
     return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
   try {
-    const { profileId, ws } = await seekerProfileId();
+    const { profileId, ws } = await seekerProfileId(chainWs);
     if (!profileId) return jsonRefusal("JOBSEEKER_PROFILE_MISSING", 404);
     const posting = new URL(request.url).searchParams.get("posting");
     const design = getCvDesignState(profileId, ws);
@@ -69,12 +69,12 @@ export async function GET(request: Request): Promise<NextResponse> {
   } catch (err) {
     return safeJsonError(err, "api:jobseeker/ui-state", "JOBSEEKER_STORE_FAILED");
   }
-}
+});
 
 // THROTTLE (rate-limit-contract.test.ts): the client writes debounced (one save per pause
 // in typing or per design pick), so a seeker drafting a long note for ten minutes stays
 // far below 600/10min per IP.
-export async function PUT(request: Request): Promise<NextResponse> {
+export const PUT = withWorkspace(async (chainWs: string, request: Request): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -85,7 +85,7 @@ export async function PUT(request: Request): Promise<NextResponse> {
   try {
     const body = (await request.json().catch(() => null)) as { design?: unknown; posting?: unknown; cover?: unknown } | null;
     if (!body || typeof body !== "object") return jsonRefusal("JOBSEEKER_REQUEST_INVALID", 400);
-    const { profileId, ws } = await seekerProfileId();
+    const { profileId, ws } = await seekerProfileId(chainWs);
     if (!profileId) return jsonRefusal("JOBSEEKER_PROFILE_MISSING", 404);
 
     if (body.posting !== undefined || body.cover !== undefined) {
@@ -104,4 +104,4 @@ export async function PUT(request: Request): Promise<NextResponse> {
   } catch (err) {
     return safeJsonError(err, "api:jobseeker/ui-state", "JOBSEEKER_STORE_FAILED");
   }
-}
+});

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { listGigAttemptsForGig } from "@/app/_lib/db/gigs-attempts";
@@ -38,7 +38,7 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
 const REVISION_NOTE_MAX = 4000;
 
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }): Promise<NextResponse> {
+export const POST = withWorkspace(async (ws: string, request: Request, { params }: { params: Promise<{ id: string }> }): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -52,7 +52,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (body.revisionNote !== undefined && body.revisionNote !== null && typeof body.revisionNote !== "string") {
       return jsonRefusal("GIG_INPUT_INVALID", 400, { field: "revisionNote" });
     }
-    const ws = await currentWorkspace();
     let revisionNote = typeof body.revisionNote === "string" && body.revisionNote.trim() ? body.revisionNote.trim().slice(0, REVISION_NOTE_MAX) : null;
     if (revisionNote === null) {
       const attempts = listGigAttemptsForGig(ws, id);
@@ -83,4 +82,4 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   } catch (error) {
     return safeJsonError(error, "api:gigs/[id]/dispatch", "GIG_STORE_FAILED");
   }
-}
+});

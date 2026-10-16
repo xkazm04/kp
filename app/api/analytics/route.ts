@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { pipelineAnalytics, pipelineAnalyticsPrior } from "@/app/_lib/db/analytics";
 import type { PipelineAnalytics } from "@/app/_lib/db/analytics";
 import { safeJsonError } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { periodDeltas, type PeriodDeltas } from "@/app/_lib/analytics-deltas";
 import { deltaWindows } from "@/app/_lib/analytics-cohort";
 import { createAnalyticsCache } from "@/app/_lib/analytics-cache";
@@ -30,7 +30,7 @@ function parseWindowDays(raw: string | null): number | null {
 
 // The decision log is paginated separately via /api/analytics/decisions so the
 // full audit trail is never bundled into this summary payload.
-export async function GET(request: Request) {
+export const GET = withWorkspace(async (ws: string, request: Request) => {
   // pipelineAnalytics() aggregates every pipeline_entries row, so this is exactly
   // where a transient DB fault (locked mid-write, corrupt file, migration race,
   // disk full) surfaces. Match the sibling routes (e.g. /api/matrix): log with
@@ -44,7 +44,6 @@ export async function GET(request: Request) {
     // with itself, and a scoped payload is never served to another scope. A job of
     // another workspace yields an empty cohort (every read is workspace-predicated).
     const jobId = parseJobParam(searchParams.get("job"));
-    const ws = await currentWorkspace();
     const payload = payloadCache.get(ws, windowDays, () => {
       // challenge-r06 — ONE clock per request. Both windows derive from it
       // (deltaWindows): the prior window's end IS the live window's cutoff, the same
@@ -66,4 +65,4 @@ export async function GET(request: Request) {
   } catch (error) {
     return safeJsonError(error, "api:analytics", "ANALYTICS_READ_FAILED");
   }
-}
+});

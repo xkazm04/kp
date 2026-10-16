@@ -5,7 +5,7 @@ import { liveScreeningRecommendation } from "@/app/_lib/calibration-recommendati
 import { getDecisionConfig, updateDecisionConfig, type ScreeningRule } from "@/app/_lib/decision-config-store";
 import { ROLE_FAMILY_SLUGS } from "@/app/_lib/role-families";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { humanActor, resolveApprover } from "@/app/_lib/auth/operator-approver";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
@@ -39,12 +39,11 @@ const APPLY_THRESHOLD_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
 // gates the rest of the recruiter's decision surface (moves, decisions, comms). A
 // viewer is refused with a CODE, not the bare "Forbidden" the shared gate returns, so
 // the panel can say why in the reader's language.
-export async function POST(request: Request) {
+export const POST = withWorkspace(async (ws: string, request: Request) => {
   const denied = await requireOperator();
   if (denied) return denied;
   if (!(await can("pipeline:write"))) return jsonRefusal("ANALYTICS_POLICY_FORBIDDEN", 403);
   try {
-    const ws = await currentWorkspace();
     const body = (await request.json().catch(() => ({}))) as { suggestedThreshold?: unknown; roleFamily?: unknown };
 
     // family-floors: an optional family scope. Present → apply THAT family's override
@@ -153,4 +152,4 @@ export async function POST(request: Request) {
     // connection: a constraint string or the absolute db path was reaching the panel.
     return safeJsonError(error, "api:analytics/calibration/apply-threshold", "CALIBRATION_APPLY_FAILED");
   }
-}
+});

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { getHiredAgent, type HiredAgentRecord } from "@/app/_lib/db/agents";
@@ -43,19 +43,18 @@ function hireOf(agent: HiredAgentRecord | null): HireProjection | null {
   };
 }
 
-export async function GET(): Promise<NextResponse> {
+export const GET = withWorkspace(async (ws: string): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
-    const ws = await currentWorkspace();
     const specialists = listGigSpecialists(ws).map((s) => ({ ...s, hire: hireOf(getHiredAgent(s.hiredAgentId, ws)) }));
     return NextResponse.json({ specialists, tallies: gigAttemptTallies(ws) });
   } catch (error) {
     return safeJsonError(error, "api:gigs/specialists", "GIG_STORE_FAILED");
   }
-}
+});
 
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export const POST = withWorkspace(async (ws: string, request: NextRequest): Promise<NextResponse> => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -78,7 +77,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (body.budgetUsdPerAttempt !== undefined && body.budgetUsdPerAttempt !== null && typeof body.budgetUsdPerAttempt !== "number") {
       return jsonRefusal("GIG_INPUT_INVALID", 400, { field: "budgetUsdPerAttempt" });
     }
-    const ws = await currentWorkspace();
     const res = await hireGigSpecialist(
       ws,
       {
@@ -108,4 +106,4 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   } catch (error) {
     return safeJsonError(error, "api:gigs/specialists", "GIG_STORE_FAILED");
   }
-}
+});

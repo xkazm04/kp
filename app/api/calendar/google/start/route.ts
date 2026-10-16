@@ -12,6 +12,7 @@ import {
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jsonRefusal } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 // W1.4 — begin the Google Calendar authorization.
 //
@@ -38,7 +39,7 @@ const STATE_TTL_SECONDS = 600;
 // the redirect URI legitimately retries a handful of times.
 const OAUTH_START_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };
 
-export async function GET(request: NextRequest) {
+export const GET = withSession(async (request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // AFTER the operator gate, and before the state mint + Set-Cookie, so a refused
@@ -81,4 +82,4 @@ export async function GET(request: NextRequest) {
     maxAge: STATE_TTL_SECONDS,
   });
   return NextResponse.redirect(googleConsentUrl(config, state, pkceChallenge(verifier)));
-}
+});

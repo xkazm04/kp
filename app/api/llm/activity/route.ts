@@ -3,6 +3,7 @@ import { listLlmActivity, LLM_ACTIVITY_WINDOW } from "@/app/_lib/db/llm";
 import { requireHomeOrgReader } from "@/app/_lib/auth/require-operator";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { isLlmUseCase, LLM_USE_CASES } from "@/app/_lib/llm-config";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 // Row-level read surface of the llm_usage ledger — the Insights → Activity
 // audit table (every individual LLM action: when, which use case, which
@@ -13,7 +14,7 @@ import { isLlmUseCase, LLM_USE_CASES } from "@/app/_lib/llm-config";
 //
 // Returns a bounded newest-first window (LLM_ACTIVITY_WINDOW rows); the client
 // filters and pages it in memory with the shared table primitives.
-export async function GET(request: NextRequest) {
+export const GET = withSession(async (request: NextRequest) => {
   const denied = await requireHomeOrgReader();
   if (denied) return denied;
   const query = request.nextUrl.searchParams;
@@ -43,4 +44,4 @@ export async function GET(request: NextRequest) {
     // `errors.<CODE>` in the reader's own language rather than the server's English.
     return safeJsonError(error, "api:llm/activity", "LLM_ACTIVITY_FAILED");
   }
-}
+});

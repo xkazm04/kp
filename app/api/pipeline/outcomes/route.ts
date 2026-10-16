@@ -14,7 +14,7 @@ import {
 } from "@/app/_lib/dev-outcomes";
 import { foldHireRatingQueue } from "@/app/_lib/hire-rating-queue";
 import { listWorkspaceHires } from "./hire-roster";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
@@ -47,11 +47,10 @@ import { requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
  *
  *  `performance: null` means UNRATED and must render as such. There is no default
  *  and no zero: the studio's register is "not yet", never a fabricated value. */
-export async function GET(request: NextRequest) {
+export const GET = withWorkspace(async (ws: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
-    const ws = await currentWorkspace();
     // The axis in force for THIS workspace, not the shipped literal: "hired" is the
     // terminal ROLE, so a team that renamed or re-ordered its last column still gets
     // the right answer (pipeline-stages.ts's whole reason for roles).
@@ -99,10 +98,10 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:pipeline:outcomes", "PIPELINE_LIST_FAILED");
   }
-}
+});
 
 /** Record (or correct) the on-the-job rating of one hire. */
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // The SEAT, not just the session (challenge-r07 pipeline-api/A): a rating is a
@@ -117,7 +116,6 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return jsonRefusal("HIRE_RATING_INVALID", 400);
     }
-    const ws = await currentWorkspace();
     const entry = getPipelineEntry(parsed.data.entryId, ws);
     if (!entry) return jsonRefusal("HIRE_RATING_ENTRY_NOT_FOUND", 404);
     // A rating is only meaningful for someone who was actually hired — the store's
@@ -135,4 +133,4 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:pipeline:outcomes", "PIPELINE_ACTION_FAILED");
   }
-}
+});

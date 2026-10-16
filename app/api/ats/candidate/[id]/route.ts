@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAtsRecordResult } from "@/app/_lib/ats-egress";
 import { jsonRefusal } from "@/app/_lib/api-response";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { consentWithholdsPii } from "@/app/_lib/consent";
 import { ensureDb, recordEvent } from "@/app/_lib/db/core";
 import { getPipelineEntry } from "@/app/_lib/db/pipeline";
@@ -18,14 +18,13 @@ import { buildAtsExportAudit, redactAtsRecordForConsent } from "../ats-candidate
 // alone must not open to any org member. bug-ui-scan-2026-07-09 (ats #5): the operator
 // gate closes anonymous enumeration; every successful export is ALSO audited on the
 // candidate's own immutable pipeline-event timeline so a bulk harvest is detectable.
-export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const GET = withWorkspace(async (workspaceId: string, _request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const { id } = await params;
   // Scoped to the caller's team: this is the only ATS route that touches per-tenant
   // candidate PII, and it was the only one not resolving a tenant — so it served
   // the default workspace to everyone and 404'd every other team's own candidates.
-  const workspaceId = await currentWorkspace();
   const { record, refusal } = getAtsRecordResult(id, workspaceId);
   // An ANONYMIZED entry is refused by the mapper itself (ats-record.ts, through the
   // shared consent predicates). Surfaced under its own code and 410, never the 404
@@ -71,4 +70,4 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     console.error(`[ats] failed to audit candidate export for ${id}:`, e instanceof Error ? e.message : e);
   }
   return NextResponse.json(exported);
-}
+});
