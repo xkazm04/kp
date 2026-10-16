@@ -10226,7 +10226,11 @@
           "revision": 14,
           "changedAt": "2026-09-17",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/db/jobs.ts:225 A late JD build overwrites artifacts and status without checking the incumbent task identity, even when its body is correctly withheld.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:ccc991958e998a93",
+          "evaluatedRevision": 16
         },
         {
           "subject": "docs-sync",
@@ -10681,7 +10685,11 @@
           "revision": 14,
           "changedAt": "2026-09-17",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/db/pipeline.ts:3542 Stage and approval-kind equality cannot reject an old asynchronous decision after an entry moves away and back to the same values because no attempt generation is compared.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:ccc991958e998a93",
+          "evaluatedRevision": 16
         },
         {
           "subject": "delivery-guarantees",
@@ -27951,7 +27959,11 @@
           "revision": 14,
           "changedAt": "2026-09-17",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/request-body.ts:55 The over-budget path awaits cancellation without a deadline, so a hanging cancellation prevents the finally block from releasing the stream lock.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:ccc991958e998a93",
+          "evaluatedRevision": 16
         },
         {
           "subject": "module-design",
@@ -31592,7 +31604,11 @@
           "revision": 14,
           "changedAt": "2026-09-17",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_components/ui/recipes-literals.test.ts:191 The --tighten helper rewrites the shared debt JSON in place while independent ratchet invocations parse that file, allowing readers to encounter incomplete content.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:ccc991958e998a93",
+          "evaluatedRevision": 16
         },
         {
           "subject": "agent-memory",

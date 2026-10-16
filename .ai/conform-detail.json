@@ -7618,6 +7618,145 @@
           "evidence": "app/_lib/schedule-store.ts:191 The schedule store and invitation record lack any schema fields for storing or routing candidate adjustment requests."
         }
       ]
+    },
+    "ebfe3268-6c14-4997-a49c-091483d763b5/concurrency-guards": {
+      "context": "shared-api-utilities",
+      "subject": "concurrency-guards",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T22:59:01.508Z",
+      "worker": "04db5aaf-5fde-4af5-a7e1-97885e8b1cd2",
+      "techniques": [
+        {
+          "technique": "cache-value-not-handle",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/catalog-translator.ts:55 The translator cache publishes the constructed value after awaiting the import; callers do not join a cached completion handle."
+        },
+        {
+          "technique": "critical-section-across-a-suspension",
+          "verdict": "conformant",
+          "evidence": "app/_lib/request-body.ts:50 The reader lock remains held across the dependent sequence of asynchronous reads rather than splitting ownership between chunks."
+        },
+        {
+          "technique": "release-guarantees",
+          "verdict": "deviation",
+          "evidence": "app/_lib/request-body.ts:55 A valid stream whose cancel callback never settles wedges this await despite the body deadline, leaving reader.releaseLock() unreachable."
+        }
+      ]
+    },
+    "0c761574-cc59-472a-ae4e-a46d67e3c181/concurrency-guards": {
+      "context": "ui-recipes-and-layout",
+      "subject": "concurrency-guards",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T22:59:01.508Z",
+      "worker": "04db5aaf-5fde-4af5-a7e1-97885e8b1cd2",
+      "techniques": [
+        {
+          "technique": "atomic-file-publish",
+          "verdict": "deviation",
+          "evidence": "app/_components/ui/recipes-literals.test.ts:191 readDebt parses this same path at line 129; publication uses neither a flushed temporary neighbour nor replacement with bounded transient-error retries."
+        },
+        {
+          "technique": "release-guarantees",
+          "verdict": "conformant",
+          "evidence": "app/_components/ui/useCopyFeedback.ts:43 Effect cleanup cancels the pending feedback timer on unmount, and mark also cancels its predecessor before replacing it."
+        }
+      ]
+    },
+    "f77c7ea2-aef7-4d0a-93ae-1600bf15f53f/concurrency-guards": {
+      "context": "db-pipeline-store",
+      "subject": "concurrency-guards",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T22:59:01.508Z",
+      "worker": "04db5aaf-5fde-4af5-a7e1-97885e8b1cd2",
+      "techniques": [
+        {
+          "technique": "attempt-attribution",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/pipeline.ts:3542 An old Screened/null decision passes after Screened → Interview → Screened with approval cleared; backward moves are supported, but the finish guard carries no attempt or monotonic generation."
+        },
+        {
+          "technique": "critical-section-across-a-suspension",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/pipeline.ts:3670 actOnPipelineEntry keeps its read, precondition checks, mutation and events in one synchronous transaction; asynchronous hooks run after commit."
+        },
+        {
+          "technique": "cross-process-exclusion",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/pipeline.ts:934 Role closure reasserts its eligibility predicates in SQLite under BEGIN IMMEDIATE, protecting against writers on other connections without leaving a durable application lock to reclaim."
+        },
+        {
+          "technique": "guard-key-design",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/pipeline.ts:3540 The mutation guard identifies the entry within its workspace rather than using an initiator or per-invocation nonce."
+        },
+        {
+          "technique": "idempotency-by-design",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/pipeline.ts:2801 Erasure conditionally claims an un-erased row and uses the affected-row verdict to avoid repeating the linked scrub and consent event."
+        },
+        {
+          "technique": "preparation-is-the-staleness-window",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/pipeline.ts:3296 When supplied, the pre-computation approval expectation is tested in the UPDATE itself rather than trusted from the earlier read."
+        },
+        {
+          "technique": "release-guarantees",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/pipeline.ts:3768 The synchronous transaction wrapper owns commit or rollback for stage moves, including early returns and thrown errors."
+        }
+      ]
+    },
+    "b6bca1b3-f9ac-4a72-b5f3-b23620767ea0/concurrency-guards": {
+      "context": "db-jobs-devcase-interviews",
+      "subject": "concurrency-guards",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T22:59:01.508Z",
+      "worker": "04db5aaf-5fde-4af5-a7e1-97885e8b1cd2",
+      "techniques": [
+        {
+          "technique": "attempt-attribution",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/jobs.ts:225 The finish UPDATE is keyed only by slug; jd-build-cas.test.ts:81 explicitly asserts that stale artifacts from the last finisher still land."
+        },
+        {
+          "technique": "critical-section-across-a-suspension",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/intakes.ts:338 Intake CAS executes the conditional write and moved-versus-missing classification inside one synchronous transaction after the expensive computation."
+        },
+        {
+          "technique": "cross-process-exclusion",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/devcase.ts:765 Open-posting reuse and insertion run under SQLite's shared write lock, with a partial unique index backing exclusion across connections."
+        },
+        {
+          "technique": "guard-key-design",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/devcase.ts:691 Publish deduplication explicitly uses workspace, case and channel while excluding the newly minted token and allowing deliberate publication after closure."
+        },
+        {
+          "technique": "idempotency-by-design",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/job-postings.ts:269 Content-hash/workspace uniqueness makes repeated imports converge, and inserted-versus-existing comes from the atomic insert's affected-row result."
+        },
+        {
+          "technique": "preparation-is-the-staleness-window",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/intakes.ts:289 Prepared dialog results condition their write on the captured row version and current non-promoted status rather than trusting the pre-spawn read."
+        },
+        {
+          "technique": "release-guarantees",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/jobs.ts:230 The JD finish transaction uses the wrapper's structural commit/rollback release instead of a happy-path-only unlock."
+        }
+      ]
     }
   }
 }
