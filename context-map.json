@@ -6109,7 +6109,6 @@
         "app/features/library/jds/intake/IntakeStudioDesk.tsx",
         "app/features/library/jds/intake/IntakeStudioOverlay.tsx",
         "app/features/library/jds/intake/JdsIntakeBriefAtoms.tsx",
-        "app/features/library/jds/intake/JdsIntakeBriefBody.tsx",
         "app/features/library/jds/intake/JdsIntakeBriefEdit.tsx",
         "app/features/library/jds/intake/JdsIntakeBriefTitle.tsx",
         "app/features/library/jds/intake/JdsIntakePanel.tsx",
@@ -6154,7 +6153,6 @@
         "app/features/library/jds/intake/intakeVoiceIo.ts"
       ],
       "file_paths": [
-        "app/features/library/jds/intake/IntakeVoiceBar.tsx",
         "app/features/library/jds/intake/JdsIntakeVoice.tsx",
         "app/features/library/jds/intake/intakeVoiceIo.ts",
         "app/features/library/jds/intake/intakeVoiceIo.test.ts",
@@ -6163,7 +6161,6 @@
         "app/features/library/jds/intake/voicePhase.ts",
         "app/features/library/jds/intake/voicePhase.test.ts",
         "app/features/library/jds/intake/useIntakeDictation.ts",
-        "app/features/library/jds/intake/useIntakeSpeech.ts",
         "app/features/library/jds/intake/useUnavailableLatch.ts"
       ],
       "group": "Job & JD Management",

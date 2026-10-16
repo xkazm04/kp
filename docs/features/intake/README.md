@@ -728,7 +728,7 @@ text → synthesis have different latency, privacy and failure physics.
 | Half | Hook | Route | Package |
 | --- | --- | --- | --- |
 | Dictation (in) | `app/_components/studio/useStudioDictation.ts` (intake re-exports it as `useIntakeDictation`) | `POST /api/stt` | `packages/voice-stt` (`useStt`) |
-| Read-aloud (out) | `app/_components/studio/useStudioSpeech.ts` (`useIntakeSpeech` binds intake's auto-speak key) | `POST /api/tts` | `packages/voice-tts` (`useTts`) |
+| Read-aloud (out) | `app/_components/studio/useStudioSpeech.ts` (`StudioVoiceBar` binds intake's `INTAKE_AUTO_SPEAK_KEY`) | `POST /api/tts` | `packages/voice-tts` (`useTts`) |
 
 The rules that are the surface's own (rather than the packages') are pure and tested in
 `app/_components/studio/studioVoiceIo.ts`, pinned through intake's re-exporting
@@ -1160,7 +1160,7 @@ this document.
 | `coats/atelier/AtelierComposer` | `StudioComposer` (+ `useStudioComposerDraft()`) | Bare field, Enter sends, refused send hands the draft back; the unsent draft now also lives in `sessionStorage` under the consumer's `draftKey` |
 | The composer's dictation + read-aloud glyph cluster | `StudioVoiceBar` | Two independent pipelines, struck glyphs for an absent engine, refusal lines portal onto the composer's footer line |
 | `JdsIntakeChoiceCards` | `StudioChoiceCards` | A pick still sends an ORDINARY message; `choiceMessage` / `toggleChoice` delegate to `app/_lib/intake-choices.ts`, the engine's wire contract |
-| `useIntakeDictation`, `useIntakeSpeech`, `useUnavailableLatch`, the pure `intakeVoiceIo.ts` | `useStudioDictation`, `useStudioSpeech`, `useUnavailableLatch`, `studioVoiceIo.ts` | The intake paths re-export; `useIntakeSpeech` binds intake's auto-speak key |
+| `useIntakeDictation`, `useUnavailableLatch`, the pure `intakeVoiceIo.ts` | `useStudioDictation`, `useUnavailableLatch`, `studioVoiceIo.ts` | The intake paths re-export; `INTAKE_AUTO_SPEAK_KEY` is intake's one binding into `StudioVoiceBar` (the `useIntakeSpeech` wrapper and `IntakeVoiceBar` were deleted, 2026-10-16) |
 | `studioContract.ts`'s `readStoredColumns` / `storeColumns` / `toggleColumn` | `studioZones.ts`: `readStoredZones<K>` / `storeZones` / `toggleZone<K>` / `zoneKeyGuard` | Generic over `K`, `storageKey` is a parameter; intake's wrappers keep the old names and `IntakeColumnKey`. `toggleZone` adds a `pinned` guard (`studioZones.test.ts`) |
 | The **NO SENTENCE OCCUPIES LAYOUT** doctrine comment | `studioZones.ts` | Stated once, beside the toggle rule it constrains |
 
