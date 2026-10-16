@@ -8,6 +8,7 @@ import {
   initialStageState,
   type StageState,
 } from "@/app/_components/AnalysisProgress";
+import { parseStoredRunStart } from "@/app/_components/analysis-progress-logic";
 import { type Analysis, type GithubAnalysis } from "@/app/_lib/schemas";
 import { useGithubErrorMessage } from "@/app/_lib/use-github-error";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
@@ -53,6 +54,9 @@ export type AnalyzeFormState = ReturnType<typeof useAnalyzeForm>;
 // Survives a page refresh: the active analyze task id is stashed here so the
 // view can re-attach to the still-running (or finished) server-side task.
 const ANALYZE_TASK_KEY = "kp.analyzeTaskId";
+// Epoch ms the stashed task started, so a resumed run's elapsed clock continues
+// from the real start instead of restarting at zero when the panel remounts.
+const ANALYZE_STARTED_KEY = "kp.analyzeStartedAt";
 
 // The landed-result crumb (the saved row's slug) and the per-layer restore table are
 // in analyzeSession.ts; attachments live in module memory (analyzeAttachmentStore.ts).
@@ -163,6 +167,7 @@ export function useAnalyzeForm() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
+  const [runStartedAt, setRunStartedAt] = useState<number | undefined>(undefined);
   const [stageState, setStageState] = useState<StageState>(initialStageState);
   // #5 — the server's REAL per-variant completion for a multi-CV comparison
   // (null until the poll reports it); drives the honest progress bar.
@@ -296,6 +301,7 @@ export function useAnalyzeForm() {
   const clearStoredTask = () => {
     try {
       sessionStorage.removeItem(ANALYZE_TASK_KEY);
+      sessionStorage.removeItem(ANALYZE_STARTED_KEY);
     } catch {
       /* best-effort: no storage means no stashed task id to clear. The run is
          already halted by the abort above — this only drops the resume crumb. */
@@ -413,6 +419,7 @@ export function useAnalyzeForm() {
         taskIdRef.current = id;
         try {
           sessionStorage.setItem(ANALYZE_TASK_KEY, id);
+          sessionStorage.setItem(ANALYZE_STARTED_KEY, String(Date.now()));
         } catch {
           /* best-effort: the crumb only buys re-attachment after a refresh. Without
              it the run still completes in this tab; a reload just loses the thread. */
@@ -487,10 +494,12 @@ export function useAnalyzeForm() {
   // crumb and the form stays empty; there is no half-restored panel.
   useEffect(() => {
     let storedTaskId: string | null = null;
+    let storedStart: string | null = null;
     let lastSlug: string | null = null;
     try {
       storedTaskId = sessionStorage.getItem(ANALYZE_TASK_KEY);
       lastSlug = sessionStorage.getItem(ANALYZE_LAST_RESULT_KEY);
+      storedStart = sessionStorage.getItem(ANALYZE_STARTED_KEY);
     } catch {
       /* best-effort: no storage means no crumb to resume from, which is the same
          path as a first visit — both crumbs stay null and nothing is restored. */
@@ -504,6 +513,7 @@ export function useAnalyzeForm() {
         abortRef.current = controller;
         taskIdRef.current = decision.taskId;
         const runId = ++analysisRunIdRef.current;
+        setRunStartedAt(parseStoredRunStart(storedStart, Date.now()) ?? Date.now());
         setIsLoading(true);
         setIsCompleting(false);
         void resumeAnalysis(decision.taskId, buildCallbacks(runId), controller.signal);
@@ -671,6 +681,7 @@ export function useAnalyzeForm() {
     const githubRides = shouldRunGithubDeepDive({ hasGithub, blind });
     if (githubRides) setGithubStatus("loading");
 
+    setRunStartedAt(Date.now());
     setIsLoading(true);
     setIsCompleting(false);
     setStageState(initialStageState());
@@ -764,6 +775,7 @@ export function useAnalyzeForm() {
       hasGithub,
       isLoading,
       isCompleting,
+      runStartedAt,
       githubLoading: githubStatus === "loading",
       jdLoading: isJdLoading,
       jdEdited: isJdEdited,
