@@ -6613,6 +6613,79 @@
           "evidence": "app/features/tools/profile/ProfileEditorArchetypeOptions.tsx:9 The live preview reads detection from archetypes.json, but a failed registry load falls back to the handwritten baseline ids, and field visibility special-cases bau and career_switcher."
         }
       ]
+    },
+    "e4c8726b-397c-49bb-8adc-895fb59a788c/candidate-identity-and-staleness": {
+      "context": "db-profiles-analyses-store",
+      "subject": "candidate-identity-and-staleness",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T00:03:19.709Z",
+      "worker": "7d0ffa1b-3a21-4d69-9bd2-967925c2fa13",
+      "techniques": [
+        {
+          "technique": "content-addressed-document-identity",
+          "verdict": "conformant",
+          "evidence": "app/_lib/db/analyses.ts:138 The store persists the supplied document digest separately from the display label; missing digests remain NULL and are excluded from hash grouping."
+        },
+        {
+          "technique": "rebuild-overwrites-manual-edits-warning",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/profiles.ts:238 Protection is caller-optional and checks a row version rather than enforcing preservation of human-authored fields; profiles-stale-cas.test.ts explicitly verifies unconditional writes when omitted."
+        }
+      ]
+    },
+    "bb3b0815-c5cd-423f-b87b-8c3c78aaf77d/candidate-identity-and-staleness": {
+      "context": "candidate-apply-flow",
+      "subject": "candidate-identity-and-staleness",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T00:03:19.709Z",
+      "worker": "7d0ffa1b-3a21-4d69-9bd2-967925c2fa13",
+      "techniques": [
+        {
+          "technique": "content-addressed-document-identity",
+          "verdict": "deviation",
+          "evidence": "app/_lib/apply-intake.ts:404 Application intake carries extracted CV text into the saved profile without a raw-document digest; the opened extractor returns text and counts only, preventing exact artifact identity downstream."
+        },
+        {
+          "technique": "label-collision-detection",
+          "verdict": "deviation",
+          "evidence": "app/_lib/applicant-key.ts:16 The filing dependency uses a normalized display name as the duplicate identity when email is absent; hashing the label does not make it an issued identity."
+        },
+        {
+          "technique": "rebuild-overwrites-manual-edits-warning",
+          "verdict": "deviation",
+          "evidence": "app/_lib/applicant-profile.ts:163 The automatic reapplication rebuild supplies neither a version precondition nor a human-edit preservation check before replacing the profile."
+        },
+        {
+          "technique": "retired-outranks-stale-status-precedence",
+          "verdict": "deviation",
+          "evidence": "app/_lib/application-status.ts:87 Unrecognized entry and stage states can resolve to the live 'received' state instead of a blocking state surfaced for human review."
+        },
+        {
+          "technique": "shared-artifact-across-claimed-identities",
+          "verdict": "deviation",
+          "evidence": "app/_lib/application-filing.ts:226 The opened lookup matches email without requiring matching claimed names; an unproven shared-channel submission returns the existing application as a duplicate rather than retaining both claims for review."
+        }
+      ]
+    },
+    "09520f54-a3ff-4d23-add2-af0340c1e505/candidate-identity-and-staleness": {
+      "context": "candidate-profile",
+      "subject": "candidate-identity-and-staleness",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T00:03:19.709Z",
+      "worker": "7d0ffa1b-3a21-4d69-9bd2-967925c2fa13",
+      "techniques": [
+        {
+          "technique": "cross-role-footprint-linking",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/profile/CandidateDetailModal.tsx:125 The complete entry rendering contains a score, date, and link, but no requirement-edited or superseded state; the opened analysis-reference constructor retains only slug, score, and createdAt."
+        }
+      ]
     }
   }
 }

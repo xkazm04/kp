@@ -6537,7 +6537,11 @@
           "revision": 4,
           "changedAt": "2026-09-28",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/applicant-profile.ts:163 A returning applicant's generated profile replaces the existing payload without checking or preserving intervening recruiter edits.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:de93d60f8b519fac",
+          "evaluatedRevision": 4
         },
         {
           "subject": "rejection-with-dignity",
@@ -7176,7 +7180,11 @@
           "revision": 4,
           "changedAt": "2026-09-28",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/tools/profile/CandidateDetailModal.tsx:125 The candidate footprint renders dated scores and evidence links without each linked analysis's staleness state, leaving older judgments indistinguishable from current ones.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:de93d60f8b519fac",
+          "evaluatedRevision": 4
         },
         {
           "subject": "quality-gates",
@@ -10724,7 +10732,11 @@
           "revision": 4,
           "changedAt": "2026-09-28",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/db/profiles.ts:242 The profile write permits unconditional payload replacement when its optional version precondition is omitted, allowing automated callers to overwrite recruiter edits.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:de93d60f8b519fac",
+          "evaluatedRevision": 4
         },
         {
           "subject": "eval-harness",
