@@ -128,6 +128,31 @@ stage-wiring increments independent of each other — and it is why the defaults
 keyless: the two-minute keyless start means the run's *sequencing* must be
 demonstrable with no provider configured.
 
+## The per-run LLM budget
+
+Cost per run is unbounded by construction (S1 fan-out x S2 LLM calls), so `advanceRoleRun`
+checks a ceiling **before every stage** (`app/_lib/role-run-budget.ts`). The run's own
+spend is read from `llm_usage.role_run_id`, which the engine stamps by opening a
+`withLlmRoleRun(run.id, ...)` scope around each stage runner. On a breach the pass stops
+cleanly: the stage that was running finishes and writes its artifact, no later stage
+starts, and the result carries `budgetExceeded: { dimension, used, ceiling }`. The run is
+**parked, not cancelled** - it stays `running`, and a later pass (after the ceiling is
+raised) resumes exactly where it stood.
+
+Units are calls and tokens, because the default provider (the Claude Code CLI) is
+subscription-billed and has no dollar cost: its rows keep `cost_usd` NULL and are counted
+as `unpricedCalls`, never converted into a dollar figure. A dollar ceiling is optional and
+compares only against priced spend. Deployment defaults, overridable per call with
+`AdvanceOptions.budget`:
+
+| Env var | Default | Meaning |
+| --- | --- | --- |
+| `KP_ROLE_RUN_MAX_LLM_CALLS` | `400` | metered LLM calls per run (failed attempts count) |
+| `KP_ROLE_RUN_MAX_LLM_TOKENS` | `4000000` | input + output tokens per run |
+| `KP_ROLE_RUN_MAX_COST_USD` | unset | dollars, priced calls only |
+
+A non-numeric or non-positive value falls back to the default.
+
 ## Measuring it
 
 Per ADR-0011's consequences, do **not** report a single "time to hire" over a run.

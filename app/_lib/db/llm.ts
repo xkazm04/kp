@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { readFileSync, rmSync } from "node:fs";
 import { parseLedgerLine, type LlmUsageInput } from "../llm-usage-ledger";
 import { currentLlmRoleRunId } from "../llm-request-context";
+import type { RoleRunUsage } from "../role-run-budget";
 import { ensureDb, safeRowParse } from "./core";
 
 // ---- Multi-provider LLM layer (docs/architecture/llm-provider-layer.md) -----------------
@@ -421,6 +422,30 @@ export type LlmActivityFilters = {
   outcome?: "ok" | "failed";
   cursor?: { ts: string; id: number };
 };
+
+/** What one role run's own llm_usage rows add up to (role_run_id, stamped by the ambient
+ *  withLlmRoleRun scope). Deterministic template serves are not LLM calls and are not
+ *  counted. A failed attempt IS a call (the prompt went out) but reports no tokens. Cost
+ *  sums only priced rows; an unpriced call (the Claude CLI) is counted, never converted
+ *  into a dollar figure. */
+export function sumRoleRunUsage(roleRunId: string): RoleRunUsage {
+  const row = ensureDb()
+    .prepare(
+      `SELECT COUNT(*) AS calls,
+              COALESCE(SUM(COALESCE(input_tokens, 0) + COALESCE(output_tokens, 0)), 0) AS tokens,
+              SUM(cost_usd) AS cost,
+              SUM(CASE WHEN cost_usd IS NULL THEN 1 ELSE 0 END) AS unpriced
+         FROM llm_usage
+        WHERE role_run_id = ? AND source = 'llm'`
+    )
+    .get(roleRunId) as { calls: number; tokens: number; cost: number | null; unpriced: number | null };
+  return {
+    calls: Number(row.calls),
+    tokens: Number(row.tokens),
+    costUsd: row.cost == null ? null : Number(row.cost),
+    unpricedCalls: Number(row.unpriced ?? 0),
+  };
+}
 
 export function listLlmActivity(limit = LLM_ACTIVITY_WINDOW, filters: LlmActivityFilters = {}): LlmActivityRow[] {
   const db = ensureDb();
