@@ -2255,6 +2255,25 @@ five contexts' `ui-perfectionist`, none of which has a `.tsx`. No context lost s
 no caveat qualifies the count this round. 26 thread contexts remain. At five per round that
 is six more rounds.
 
+## Recorded per-context coverage - BACKFILLED from `scan-sweep.jsonl` (2026-08-29 and 2026-09-04 resolve rounds)
+
+Six resolve rounds ran a wider lens set than the five-lens rounds above and wrote no row here. Backfilled
+from their ledger lines (jsonl lines 20-22, 25-27). The five lens columns are the **normalised** names (see
+the overlay's lens-name note): `bug-hunter` = bounty-hunter, `ui-perfectionist` = ux-reviewer or accessibility-checker,
+`performance` = performance-profiler or code-optimizer, `ambiguity` = documentation-auditor; `ran` means the
+lens key was in the round's `lens_keys`, NOT a per-file read count - these rounds did not record files read, so
+that column is `n/r`. None of the six is a thread context, so no thread count changes.
+
+| context | date | files read | bug-hunter | ui-perfectionist | security-auditor | performance | ambiguity | findings / fixed / esc | note |
+|---|---|---|---|---|---|---|---|---|---|
+| `agent-workforce` | 2026-08-29 | n/r | ran | ran | ran | ran | ran | 14 / 5 / 2 | first sweep; 5 built incl. bridge-store 0->5 tests, the discarded refresh reply, resolveBridge outside the try |
+| `integrations-settings` | 2026-08-29 | n/r | ran | ran | ran | ran | ran | 13 / 7 / 1 | first sweep; blank-save gate, the 4th vocabulary guard, 3 locale-less dates, failure roles, mobile grid, echo  |
+| `lib-llm-config` | 2026-08-29 | n/r | ran | ran | ran | ran | ran | 8 / 4 / 1 | first sweep; 3 unguarded py mirrors pinned, ledger sign bound, keyless-key contract; registry-map join for thi |
+| `llm-adapters-and-llm-registry` | 2026-09-04 | n/r | ran | ran | ran | ran | ran | 9 / 0 / 1 | checkout mid-merge (1876 staged) - no commit possible; 1 fix left verified in tree (degraded run, superseded by the next row) |
+| `llm-adapters-and-llm-registry` | 2026-09-04 | n/r | ran | ran | ran | ran | ran | 9 / 6 / 1 | resumed after the blocking merge concluded; supersedes the degraded line above |
+| `llm-config-and-agent-workforce` | 2026-09-04 | n/r | ran | ran | ran | ran | ran | 7 / 4 / 1 | 5 capability debt markers closed; repo-wide unjudged debt 71 -> 66 |
+
+
 ## What to do with this file
 
 A `/scan-sweep` run should **write this file itself**, per context, at the moment it picks

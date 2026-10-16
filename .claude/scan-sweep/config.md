@@ -127,6 +127,19 @@ manifest; new routes need an auth posture and an `api-reference.md` row; the doc
 named by `scripts/docs/feature-doc-map.json` for touched source is updated in the
 same change; commit bodies need a `Doc-sync:` trailer when no doc applies.
 
+## Coverage row: every resolve round writes one
+
+Rule (dev_idea 78251b55): a `resolve`-mode round appends a row to the **recorded** tables in
+`.claude/scan-history/coverage-2026-08.md` for every context it picks, **at the moment it picks it**, with the
+same columns as the newest recorded table (context, cat, files read, one cell per lens, fixed). The
+`scan-sweep.jsonl` line is the ledger twin; a round that wrote the jsonl line and no row is incomplete. The
+table is what the lens KPIs read, so a skipped row makes the meter under-read silently.
+
+Lens-name normalisation (the jsonl `lens_keys` use the registry names, the table uses five column names):
+`bounty-hunter` -> `bug-hunter`; `ux-reviewer` / `accessibility-checker` -> `ui-perfectionist`;
+`performance-profiler` (and `code-optimizer` when it was the performance read) -> `performance`;
+`documentation-auditor` -> `ambiguity`. `performance` and `performance-profiler` count as ONE lens.
+
 ## Skill improvement log
 
 - **2026-08-29 — Normalize line endings to LF before staging. This is the one
