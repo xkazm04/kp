@@ -1,4 +1,4 @@
-// One-shot codemod behind the withWorkspace migration (ADR draft-route-chain-refusal-order).
+// One-shot codemod behind the withWorkspace migration (ADR 0026-route-chain-refusal-order).
 // Usage: node --experimental-strip-types scripts/codemod/wrap-with-workspace.mjs <api-path-prefix>... [--dry]
 // Rewrites every exported HTTP handler of each non-public route.ts under the prefixes:
 //   export async function GET(request) { const ws = await currentWorkspace(); ... }

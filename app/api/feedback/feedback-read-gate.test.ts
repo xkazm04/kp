@@ -117,7 +117,7 @@ test("a session-less caller is refused at 401 by the wrapper, before the capabil
   signedInAs(null);
   const r = await GET();
   // UPDATED DELIBERATELY: withWorkspace answers the session refusal first (ADR
-  // draft-route-chain-refusal-order), as the bare Unauthorized envelope with no capability
+  // 0026-route-chain-refusal-order), as the bare Unauthorized envelope with no capability
   // code; a caller with no session has nothing to be told about capabilities.
   // Unauthenticated is 401, under-privileged is still 403 FEEDBACK_READ_FORBIDDEN above.
   assert.equal(r.status, 401);

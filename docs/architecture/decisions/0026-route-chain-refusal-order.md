@@ -1,5 +1,5 @@
 ---
-id: "unassigned"
+id: "0026"
 title: Every workspace-scoped route enters through route(...); the session is the first refusal, guards come next, the handler's own gates last
 status: accepted
 date: 2026-10-16

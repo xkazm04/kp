@@ -1,5 +1,5 @@
 // RATCHET: every non-public route enters through the request-scoped chain.
-// (ADR draft-route-chain-refusal-order; app/_lib/auth/workspace-context.ts)
+// (ADR 0026-route-chain-refusal-order; app/_lib/auth/workspace-context.ts)
 //
 // A route used to open with `const ws = await currentWorkspace()` and decide for itself
 // when to refuse, so a new route could skip the tenant, or the session check, in silence.

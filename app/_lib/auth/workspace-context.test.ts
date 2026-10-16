@@ -1,5 +1,5 @@
 // withWorkspace / route(...) — the request-scoped workspace entry and its guard chain
-// (ADR draft-route-chain-refusal-order). TENANT ISOLATION: review any change here.
+// (ADR 0026-route-chain-refusal-order). TENANT ISOLATION: review any change here.
 //
 // What is pinned:
 //   1. a session is required in password mode, and the refusal is the FIRST one (401

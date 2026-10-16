@@ -138,7 +138,7 @@ test("the batch route gates inside POST, ahead of any workspace resolution or bo
   assert.ok(postAt >= 0 && gateAt > postAt, "the gate must be the first thing POST does");
   // UPDATED DELIBERATELY (not relaxed): the workspace is no longer resolved in the body.
   // withWorkspace resolves it, and the session refusal (401) before the handler runs, per
-  // the refusal order of ADR draft-route-chain-refusal-order; the handler's own gate is
+  // the refusal order of ADR 0026-route-chain-refusal-order; the handler's own gate is
   // still ahead of everything the handler does.
   assert.match(src.slice(postAt, gateAt), /^export const POST = withWorkspace\(/, "POST must enter through withWorkspace");
   assert.doesNotMatch(src.slice(postAt), /currentWorkspace\(\)/, "the body no longer resolves the workspace itself");

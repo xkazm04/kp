@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { currentWorkspace } from "./current-workspace";
 import { currentSession } from "./current-user";
 
-// The ONE request-scoped entry for a workspace-scoped route (ADR draft-route-chain-
+// The ONE request-scoped entry for a workspace-scoped route (ADR 0026-route-chain-
 // refusal-order). A route used to open with `const ws = await currentWorkspace()` and
 // carry its own idea of when to refuse; 223 route files did it 270+ times, so a new
 // route that forgot the tenant argument silently read the DEFAULT team.
