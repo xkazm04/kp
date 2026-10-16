@@ -20,7 +20,7 @@ import { test, after } from "node:test";
 import assert from "node:assert/strict";
 
 const { saveGroupEval, getGroupEval, invalidateGroupEvalSelection } = await import("./group-eval.ts");
-const { selectionCacheKey } = await import("@/app/features/hiring/decisions/groupEval/cache-key");
+const { selectionCacheKey } = await import("@/app/_lib/group-eval-cache-key");
 const { createPipelineEntry, getPipelineEntry } = await import("./db/pipeline.ts");
 const { runPipelineEntryAction } = await import("./pipeline-entry-action.ts");
 
