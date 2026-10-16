@@ -32,14 +32,22 @@ const urlOf = (f) => "/api/" + rel(f).replace(/\/?route\.ts$/, "");
 const isCwCall = (n) => ts.isCallExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === "currentWorkspace" && n.arguments.length === 0;
 const isAwaitCw = (n) => ts.isAwaitExpression(n) && isCwCall(n.expression);
 
+// Doors left unwrapped on purpose; the ratchet (route-workspace-coverage.test.ts) carries the same reasons.
+const KEEP_UNWRAPPED = new Map([
+  ["/api/me/capabilities", "answers a signed-out caller with the empty set by contract (the shell must always render)"],
+]);
 const files = walk(API).filter((f) => prefixes.some((p) => rel(f).startsWith(p)));
 let changed = 0;
 const skipped = [];
 for (const file of files) {
   const url = urlOf(file);
   if (isPublicPath(url)) continue;
+  if (KEEP_UNWRAPPED.has(url)) { skipped.push([url, KEEP_UNWRAPPED.get(url)]); continue; }
   const src = readFileSync(file, "utf8");
   if (src.includes("workspace-context")) continue;
+  // A machine door that accepts an automation token INSTEAD of a session: a session-first 401 would
+  // refuse every machine caller. It stays out of the wrapper (ratchet allowlist, with this reason).
+  if (src.includes("checkAutomationToken(")) { skipped.push([url, "token-or-session machine door: left unwrapped on purpose"]); continue; }
   const sf = ts.createSourceFile(file, src, ts.ScriptTarget.Latest, true);
   const edits = [];
   const wrappersUsed = new Set();
