@@ -388,7 +388,7 @@ export async function runScreenWave(
         if (!holdoutSealed) {
           sealFailures += 1;
           const unrecorded = `Kept — spared from auto-rejection, but the calibration holdout record could not be sealed, so this candidate is NOT in the clean arm. Retry once the decision chain is writable.`;
-          console.warn(`[screen-wave] holdout seal failed for ${e.candidateLabel} (${e.id}) — spared, but NOT enrolled in the calibration clean arm`);
+          console.warn(`[screen-wave] holdout seal failed for entry ${e.id} — spared, but NOT enrolled in the calibration clean arm`);
           // The audit event names the failure rather than the arm — the recorded event is
           // what an operator reads back, and "screen_wave_holdout" would assert exactly the
           // membership that does not exist.
@@ -566,7 +566,7 @@ export async function runScreenWave(
         const sealFailedRationale = "Kept — the Art. 22 decision record could not be sealed, so the auto-rejection was not applied. Retry once the decision chain is writable.";
         // Logged like the comms failure below (sealDecisionSafe logs the cause); the
         // row + the counted `sealFailures` are what actually surface it to the caller.
-        console.warn(`[screen-wave] decision seal failed for ${e.candidateLabel} (${e.id}) — rejection NOT applied`);
+        console.warn(`[screen-wave] decision seal failed for entry ${e.id} — rejection NOT applied`);
         decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "keep", rationale: sealFailedRationale, reasonCode: "sealFailed", reasonParams: {}, ...stale });
         continue;
       }
@@ -591,7 +591,7 @@ export async function runScreenWave(
         // to make the residue reachable in production. That remaining window is the
         // right trade against the alternative it replaces: an APPLIED, emailed
         // rejection with no record at all. The staleSkipped keep is the wave's report.
-        console.warn(`[screen-wave] ${e.candidateLabel} (${e.id}) changed stage between seal and commit — the sealed record does not reflect an applied rejection`);
+        console.warn(`[screen-wave] entry ${e.id} changed stage between seal and commit — the sealed record does not reflect an applied rejection`);
         decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "keep", rationale: skipped, reasonCode: "staleSkipped", reasonParams: { wasStage: e.stage } });
         continue;
       }
@@ -617,7 +617,7 @@ export async function runScreenWave(
         commsFailed = true;
         commsFailures += 1;
         const msg = commsError instanceof Error ? commsError.message : String(commsError);
-        console.warn(`[screen-wave] rejection comms failed for ${e.candidateLabel} (${e.id}): ${msg}`);
+        console.warn(`[screen-wave] rejection comms failed for entry ${e.id}: ${msg}`);
         recordAutomationEvent(e.id, "rejection_comms_failed", `Auto-rejected, but the notification failed to queue — nudge manually. (${msg})`, workspaceId);
       }
       // The customer's system of record hears about it too, if it subscribed. This is the
