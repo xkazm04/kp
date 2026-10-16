@@ -18,16 +18,15 @@
 import { NextResponse } from "next/server";
 import { getPipelineEntry } from "@/app/_lib/db/pipeline";
 import { previewOfferLetter } from "@/app/_lib/comms-letter-preview";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 
-export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export const GET = withWorkspace(async (workspaceId: string, request: Request, { params }: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
     const { id } = await params;
-    const workspaceId = await currentWorkspace();
     const entry = getPipelineEntry(id, workspaceId);
     if (entry === null) return jsonRefusal("PIPELINE_ENTRY_NOT_FOUND", 404);
     if (entry.approvalKind !== "offer_review") return jsonRefusal("OFFER_LETTER_NOT_PENDING", 409);
@@ -41,4 +40,4 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   } catch (error) {
     return safeJsonError(error, "api:pipeline:offer-letter", "OFFER_LETTER_PREVIEW_FAILED");
   }
-}
+});

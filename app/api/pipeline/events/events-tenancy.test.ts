@@ -62,7 +62,7 @@ test("the events route threads the caller's workspace into its reads and no long
   const dir = path.dirname(fileURLToPath(import.meta.url));
   const src = readFileSync(path.join(dir, "route.ts"), "utf8");
   // The route resolves the caller's tenant once...
-  assert.match(src, /currentWorkspace\(\)/, "the route must resolve currentWorkspace()");
+  assert.match(src, /withWorkspace\(async \(ws: string/, "the route must receive the caller's workspace from withWorkspace");
   // ...and passes it (as `ws`) to each remaining read — a bare call with no
   // workspace argument would silently fall to DEFAULT_WORKSPACE_ID again.
   assert.match(src, /listPipelineEventsSince\([^)]*\bws\b[^)]*\)/, "since-cursor read must be workspace-scoped");

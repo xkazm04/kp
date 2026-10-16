@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { countPipelineByStage, migratePipelineStages, TerminalMigrationTargetError, type StageMigration } from "@/app/_lib/db/pipeline";
 import { getDecisionConfigVersion, setDecisionConfig } from "@/app/_lib/decision-config-store";
 import { validateDecisionConfig, type PipelineStagesRule } from "@/app/_lib/decision-config-schema";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { stageHasRole, stageWithRole } from "@/app/_lib/pipeline-stages";
@@ -46,7 +46,7 @@ const MIGRATION_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
 
 type Body = { config?: unknown; migrate?: unknown; expectedUpdatedAt?: unknown };
 
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // AUTHORIZATION (write-routes-check-a-capability). requireOperator above only
@@ -65,7 +65,6 @@ export async function POST(request: NextRequest) {
     if (!validated.ok) return jsonRefusal("PIPELINE_AXIS_INVALID", 400, { detail: validated.error });
     const next = validated.config as PipelineStagesRule;
 
-    const ws = await currentWorkspace();
     // OPTIMISTIC CONCURRENCY on the axis the client read. Removing "Screening" from the
     // board someone else has already reshaped is not the edit the operator authored — the
     // stage ids their mapping names may not even exist any more — so a stale axis is
@@ -151,4 +150,4 @@ export async function POST(request: NextRequest) {
     }
     return safeJsonError(error, "api:pipeline/stage-migration", "STAGE_MIGRATION_FAILED");
   }
-}
+});

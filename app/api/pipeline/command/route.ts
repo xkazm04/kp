@@ -6,7 +6,7 @@ import { decisionsForWorkspace, recordRun } from "@/app/_lib/scheduler-store";
 import { affected, describeCommand, isMutating, parseCommand, resolveRejectTargets } from "@/app/_lib/pipeline-command";
 import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
@@ -58,7 +58,7 @@ const toRow = (e: PipelineEntry): PreviewRow => ({
 // through. In open mode (no KP_OPERATOR_PASSWORD) this is a no-op, so local dev
 // and the guided sim (which drive the board through the per-card routes, never
 // this bar) are unaffected.
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // AUTHORIZATION (write-routes-check-a-capability). requireOperator above only
@@ -70,7 +70,6 @@ export async function POST(request: NextRequest) {
   if (under) return under;
   try {
     // Tenant scope: preview AND execute operate ONLY on the caller's workspace.
-    const ws = await currentWorkspace();
     // THIS WORKSPACE's board, resolved once. The command bar used to ask its two
     // stage questions by NAME — affected() fell to the shipped axis and the
     // advance loop compared `e.stage === "Offer"` — so a team that composed its own
@@ -202,4 +201,4 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:pipeline:command", "COMMAND_FAILED");
   }
-}
+});

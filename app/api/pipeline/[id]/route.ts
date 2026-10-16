@@ -6,7 +6,7 @@ import { listDecisionRecordsForRefs, sealDecisionSafe } from "@/app/_lib/decisio
 import { sealedMatchVerdictOf, type SealedMatchVerdict } from "@/app/_lib/decision-attribution";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError, type RefusalErrorCode } from "@/app/_lib/api-response";
 import { currentUser, requireCapability } from "@/app/_lib/auth/current-user";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { humanActor } from "@/app/_lib/auth/operator-approver";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
@@ -58,19 +58,18 @@ const MOVE_RATE_LIMIT = { limit: 300, windowMs: 10 * 60_000 };
 // sealedMatchVerdictOf — or null (not a Match add, or filed before the seal). The
 // Decisions cohort's analysis modal renders it in the reader's language; codes and
 // numbers only, so nothing here is locale-bound.
-export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const GET = withWorkspace(async (ws: string, _request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
     const { id } = await context.params;
-    const ws = await currentWorkspace();
     const entry = getPipelineEntry(id, ws);
     if (!entry) return jsonRefusal("PIPELINE_ENTRY_NOT_FOUND", 404);
     return NextResponse.json({ entry: withCanonicalScores([entry], ws)[0], matchVerdict: matchVerdictFor(id, ws) });
   } catch (error) {
     return safeJsonError(error, "api:pipeline:entry", "PIPELINE_LIST_FAILED");
   }
-}
+});
 
 /** The entry's sealed Match verdict, or null. The chain is a separate store: a read that
  *  fails there must not take the entry (and the drawer that refreshes through this GET)
@@ -85,11 +84,10 @@ function matchVerdictFor(id: string, ws: string): SealedMatchVerdict | null {
   }
 }
 
-export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const { id } = await context.params;
-  const ws = await currentWorkspace();
   try {
     const body = (await request.json()) as { action?: string; detail?: string; expectedStage?: string; toStage?: string; github?: unknown; notes?: unknown; note?: unknown; ttlDays?: unknown; actor?: unknown };
 
@@ -241,4 +239,4 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   } catch (error) {
     return safeJsonError(error, "api:pipeline:action", "PIPELINE_ACTION_FAILED");
   }
-}
+});

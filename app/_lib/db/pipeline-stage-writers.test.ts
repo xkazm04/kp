@@ -42,8 +42,8 @@ const G_STORE_MIGRATE: Guard = { file: STORE, line: 1229, needle: 'stageHasRole(
 const G_STORE_ACT: Guard = { file: STORE, line: 3595, needle: 'opts?.outcome === "offer_accepted"' };
 const G_SET_STAGE: Guard = { file: ENTRY_ACTION, line: 408, needle: 'if (stageHasRole(to, "terminal", axis))' };
 const G_ACCEPT: Guard = { file: ENTRY_ACTION, line: 467, needle: "acceptWouldReachTerminal(current.stage, axis)" };
-const G_ADD: Guard = { file: ADD_DOOR, line: 175, needle: 'stageHasRole(body.stage, "terminal", axis.stages)' };
-const G_MIGRATION_ROUTE: Guard = { file: MIGRATION_ROUTE, line: 110, needle: 'stageHasRole(toStage, "terminal", next.stages)' };
+const G_ADD: Guard = { file: ADD_DOOR, line: 174, needle: 'stageHasRole(body.stage, "terminal", axis.stages)' };
+const G_MIGRATION_ROUTE: Guard = { file: MIGRATION_ROUTE, line: 109, needle: 'stageHasRole(toStage, "terminal", next.stages)' };
 
 // ---- 1. SQL writers: `file#function` -> statements that write the stage column ----
 const SQL_WRITERS: Record<string, Row> = {

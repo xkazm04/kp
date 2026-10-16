@@ -104,7 +104,7 @@ test("every ALLOWLIST row names a handler that still exists (a stale excuse is a
 // caller never reaches the mutation path.
 test("/api/pipeline/[id] POST gates before it resolves params or reads the body; the seat comes from the declared table", () => {
   const src = read("../[id]/route.ts");
-  const postBody = src.slice(src.indexOf("export async function POST"));
+  const postBody = src.slice(src.indexOf("export const POST"));
   const postGateAt = postBody.search(GATE_CALL);
   const paramsAt = postBody.indexOf("context.params");
   const bodyAt = postBody.indexOf("request.json()");
@@ -132,11 +132,15 @@ test("the batch route gates BEFORE it spends rate-limit budget", () => {
 
 test("the batch route gates inside POST, ahead of any workspace resolution or body read", () => {
   const src = read("./route.ts");
-  const postAt = src.indexOf("export async function POST");
+  const postAt = src.indexOf("export const POST");
   const gateAt = src.indexOf("requireOperator()", postAt);
-  const wsAt = src.indexOf("currentWorkspace()", postAt);
   const bodyAt = src.indexOf("request.json()", postAt);
   assert.ok(postAt >= 0 && gateAt > postAt, "the gate must be the first thing POST does");
-  assert.ok(gateAt < wsAt, "the gate must precede workspace resolution");
+  // UPDATED DELIBERATELY (not relaxed): the workspace is no longer resolved in the body.
+  // withWorkspace resolves it, and the session refusal (401) before the handler runs, per
+  // the refusal order of ADR draft-route-chain-refusal-order; the handler's own gate is
+  // still ahead of everything the handler does.
+  assert.match(src.slice(postAt, gateAt), /^export const POST = withWorkspace\(/, "POST must enter through withWorkspace");
+  assert.doesNotMatch(src.slice(postAt), /currentWorkspace\(\)/, "the body no longer resolves the workspace itself");
   assert.ok(gateAt < bodyAt, "the gate must precede reading the request body");
 });

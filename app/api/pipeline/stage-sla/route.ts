@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { updateDecisionConfig } from "@/app/_lib/decision-config-store";
 import { DecisionConfigError, type PipelineStagesRule } from "@/app/_lib/decision-config-schema";
 import { applyStageSla } from "@/app/_lib/stage-sla";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
@@ -31,7 +31,7 @@ class StageSlaRefusal extends Error {}
 
 type Body = { stage?: unknown; days?: unknown };
 
-export async function PATCH(request: NextRequest) {
+export const PATCH = withWorkspace(async (ws: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // AUTHORIZATION (write-routes-check-a-capability): requireOperator proves a trusted
@@ -47,7 +47,6 @@ export async function PATCH(request: NextRequest) {
     if (typeof stage !== "string" || !(days === null || typeof days === "number")) {
       return jsonRefusal("DECISION_CONFIG_INVALID", 400, { detail: "stage must be a string and days a number or null." });
     }
-    const ws = await currentWorkspace();
     // The refusal's detail is captured as a VALUE here, never read back off a thrown
     // error's message (error-response-contract.test.ts): it names the field, rides as
     // DATA beside the code, and is never what the UI paints.
@@ -77,4 +76,4 @@ export async function PATCH(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:pipeline/stage-sla", "DECISION_CONFIG_SAVE_FAILED");
   }
-}
+});

@@ -11,7 +11,7 @@
 // bounded by WAVE_REVERSAL_CAP and the caller's own workspace.
 
 import { NextRequest, NextResponse } from "next/server";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { humanActor } from "@/app/_lib/auth/operator-approver";
@@ -19,13 +19,12 @@ import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/a
 import { parseCommand } from "@/app/_lib/pipeline-command";
 import { reverseCommandWave, WAVE_REVERSAL_CAP } from "../reverse";
 
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
   if (under) return under;
   try {
-    const ws = await currentWorkspace();
     const body = (await request.json().catch(() => ({}))) as { ids?: unknown; threshold?: unknown; text?: unknown };
     const ids = Array.isArray(body.ids) ? body.ids.filter((x): x is string => typeof x === "string" && x.length > 0) : [];
     if (ids.length === 0) return jsonRefusal("PIPELINE_BATCH_PAYLOAD_INVALID", 400);
@@ -46,4 +45,4 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:pipeline:command:reverse", "COMMAND_FAILED");
   }
-}
+});
