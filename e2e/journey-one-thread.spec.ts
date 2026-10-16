@@ -15,7 +15,7 @@
 //
 // FULLY DETERMINISTIC — no GEMINI / Claude / ElevenLabs key is needed anywhere:
 //   • POST /api/jds/save ingests the structured job with NO LLM at all
-//     (app/api/jds/save/ingest-job.ts — normalizeJob + insertJob, deterministic).
+//     (app/_lib/jd-ingest.ts — normalizeJob + insertJob, deterministic).
 //     Note the sibling POST /api/jds/[slug]/ingest-job does NOT degrade: keyless
 //     it answers 500 "No LLM provider available for ad ingestion", so the save
 //     route is the only keyless door from a JD to a matchable job.

@@ -6,7 +6,7 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { currentUser, requireCapability } from "@/app/_lib/auth/current-user";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
-import { ingestStructuredJob } from "./ingest-job";
+import { ingestStructuredJob } from "@/app/_lib/jd-ingest";
 
 export const maxDuration = 60;
 
