@@ -51,15 +51,15 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   // first. Amber like its suppression sibling: it is the marker a recruiter must notice
   // before they wonder why a campaign skipped someone.
   outreach_opted_out: { auto: false, tone: "text-amber-600" },
-  rejection_sent: { auto: true, tone: "text-coral" },
-  rejected: { auto: false, tone: "text-coral" },
+  rejection_sent: { auto: true, tone: "text-coral-ink" },
+  rejected: { auto: false, tone: "text-coral-ink" },
   applied: { auto: false, tone: "text-steel" },
   re_applied: { auto: false, tone: "text-amber-600" },
   scheduled: { auto: false, tone: "text-steel" },
   interview_scheduled: { auto: false, tone: "text-moss" },
   offer_sent: { auto: false, tone: "text-steel" },
   offer_accepted: { auto: false, tone: "text-moss" },
-  offer_declined: { auto: false, tone: "text-coral" },
+  offer_declined: { auto: false, tone: "text-coral-ink" },
   // Lapsed offer (deadline passed with no candidate response) — a SYSTEM transition
   // (auto), terminal-negative. Without this it rendered UNKNOWN + fell out of rollups.
   offer_expired: { auto: true, tone: "text-amber-600" },
@@ -71,7 +71,7 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   // entry, so never advanced to Hired). A machine refusal, and one a recruiter must chase.
   offer_accept_blocked: { auto: true, tone: "text-amber-600" },
   // Completed coverage (previously UNKNOWN in the log, invisible to any rollup):
-  auto_rejected: { auto: true, tone: "text-coral" },
+  auto_rejected: { auto: true, tone: "text-coral-ink" },
   // The calibration clean arm's marker (screen-wave.ts:325): the wave DECLINED to
   // auto-reject someone in order to keep an uncontaminated comparison group. Sparing a
   // candidate is a machine decision about that candidate, so it belongs in the operator's
@@ -88,7 +88,7 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   screen_wave_recruiter_spared: { auto: false, tone: "text-moss" },
   // Entry-less KO-gate discards (recordKnockoutDecline) — without a mapping each
   // one rendered an UNKNOWN badge, fell out of the kind filter and the rollup.
-  ko_declined: { auto: true, tone: "text-coral" },
+  ko_declined: { auto: true, tone: "text-coral-ink" },
   scored: { auto: true, tone: "text-steel" },
   acknowledgement_sent: { auto: true, tone: "text-steel" },
   interview_invite_sent: { auto: true, tone: "text-steel" },
@@ -108,14 +108,14 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   offer_reminder_sent: { auto: true, tone: "text-steel" },
   // The generated rejection draft, sibling of offer_drafted (automation-run.ts).
   rejection_drafted: { auto: true, tone: "text-steel" },
-  rejection_comms_failed: { auto: true, tone: "text-coral" },
+  rejection_comms_failed: { auto: true, tone: "text-coral-ink" },
   // Its offer-side sibling (pipeline-entry-action.ts): the offer was drafted and an
   // offer row minted, but the message did not go out, so the approval is left open
   // and re-approving re-sends the SAME link. Marked auto like every other
   // comms-failure marker: the delivery attempt the machine made is what failed, not
   // the recruiter's decision, which stands and is sealed on its own.
-  offer_comms_failed: { auto: true, tone: "text-coral" },
-  fairness_gate_unknown_archetype: { auto: true, tone: "text-coral" },
+  offer_comms_failed: { auto: true, tone: "text-coral-ink" },
+  fairness_gate_unknown_archetype: { auto: true, tone: "text-coral-ink" },
   // Policy-pass ALERT kinds (AUTOMATION_ALERT_KINDS below) — automation-authored
   // nudges + the fairness backstop's downgrade signal, written via
   // recordAutomationEvent's alert loop. Previously UNMAPPED: they rendered an
@@ -123,10 +123,10 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   // test's hardcoded list hid the gap (bug-ui-scan §hiring-automation #4).
   aging_alert: { auto: true, tone: "text-amber-600" },
   stale_alert: { auto: true, tone: "text-amber-600" },
-  fairness_gate_blocked_reject: { auto: true, tone: "text-coral" },
+  fairness_gate_blocked_reject: { auto: true, tone: "text-coral-ink" },
   observed_minted: { auto: true, tone: "text-steel" },
   matched: { auto: true, tone: "text-steel" },
-  intake_degraded: { auto: true, tone: "text-coral" },
+  intake_degraded: { auto: true, tone: "text-coral-ink" },
   comm_resent: { auto: false, tone: "text-steel" },
   moved: { auto: false, tone: "text-steel" },
   added: { auto: false, tone: "text-steel" },

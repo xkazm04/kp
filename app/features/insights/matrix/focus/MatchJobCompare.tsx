@@ -45,7 +45,7 @@ export function MatchJobCompare({ matches, onClose }: { matches: MatchResult[]; 
   return (
     <div className="mt-4 rounded-lg border border-stone-200 bg-white p-3 shadow-panel">
       <div className="flex items-center justify-between">
-        <p className="text-meta uppercase tracking-wide text-coral">{t("compareRoles", { count: matches.length })}</p>
+        <p className="text-meta uppercase tracking-wide text-coral-ink">{t("compareRoles", { count: matches.length })}</p>
         <button type="button" onClick={onClose} className="focus-ring inline-flex items-center gap-1 rounded px-2 py-0.5 text-sm font-semibold text-steel hover:text-ink">
           <X size={13} /> {t("close")}
         </button>

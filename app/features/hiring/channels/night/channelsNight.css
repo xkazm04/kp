@@ -29,7 +29,7 @@
 .cn-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px 32px; align-items: start; }
 .cn-head > .k-note { grid-column: 1 / -1; }
 .cn-head__lead { display: grid; gap: 8px; min-width: 0; }
-.cn-eyebrow { margin: 0; font-size: var(--text-meta); letter-spacing: var(--text-meta--letter-spacing); font-weight: 600; text-transform: uppercase; color: var(--color-coral); }
+.cn-eyebrow { margin: 0; font-size: var(--text-meta); letter-spacing: var(--text-meta--letter-spacing); font-weight: 600; text-transform: uppercase; color: var(--color-coral-ink); }
 [data-theme="dark"] .cn-eyebrow {
   justify-self: start; padding: 2px 12px; border: 2px solid var(--color-ink); border-radius: 999px; background: var(--color-limewash);
   color: var(--color-ink); box-shadow: var(--sticker-xs-shadow); rotate: -1deg;
@@ -37,7 +37,7 @@
 .cn-headline { margin: 0; font-family: var(--font-serif); font-size: var(--text-display); line-height: var(--text-display--line-height); font-weight: 600; letter-spacing: -.015em; text-wrap: balance; max-width: 26ch; }
 [data-theme="dark"] .cn-headline { font-weight: 800; letter-spacing: -.03em; }
 .cn-headline[data-tone="ok"] { color: var(--color-moss); }
-.cn-pill { color: var(--color-coral); }
+.cn-pill { color: var(--color-coral-ink); }
 .cn-headline[data-tone="warn"] .cn-pill, .cn-headline[data-tone="info"] .cn-pill { color: var(--color-amber-800); }
 [data-theme="dark"] .cn-pill {
   display: inline-block; padding: 0 .28em .06em; border: 2px solid var(--color-ink); border-radius: 999px; background: var(--color-coral);
@@ -57,7 +57,7 @@
 .cn-fig dd { margin: 0; font-family: var(--font-serif); font-size: var(--text-h2); line-height: 1.2; font-weight: 600; font-variant-numeric: tabular-nums lining-nums; }
 [data-theme="dark"] .cn-fig dd { font-weight: 800; }
 .cn-fig dd.cn-fig__note { font-family: var(--font-sans); font-size: var(--text-micro); font-weight: 400; color: var(--cn-quiet); max-width: 16ch; line-height: 1.3; }
-.cn-fig[data-needs] dd:not(.cn-fig__note) { color: var(--color-coral); }
+.cn-fig[data-needs] dd:not(.cn-fig__note) { color: var(--color-coral-ink); }
 .cn-head__acts { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: flex-end; }
 .cn-head__status { margin: 0; min-height: 1.4em; font-size: var(--text-meta); color: var(--color-moss); text-align: right; max-width: 52ch; }
 .cn-head__status:empty { min-height: 0; }

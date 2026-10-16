@@ -28,7 +28,7 @@ export function AnalyzeFormOptionalColumns({
   return (
     <div className="grid gap-4 border-t border-stone-200 pt-4 sm:grid-cols-2 lg:grid-cols-3 xl:col-span-3 xl:border-l xl:border-t-0 xl:pl-4 xl:pt-0">
       <AnalyzeColumn
-        icon={<BriefcaseBusiness className="h-4 w-4 text-coral" aria-hidden />}
+        icon={<BriefcaseBusiness className="h-4 w-4 text-coral-ink" aria-hidden />}
         heading={t("colJob")}
         status={statuses.jobStatus}
         onClear={flags.hasJobDescription ? handlers.clearJobDescription : undefined}
@@ -70,7 +70,7 @@ export function AnalyzeFormOptionalColumns({
       </AnalyzeColumn>
 
       <AnalyzeColumn
-        icon={<Building2 className="h-4 w-4 text-coral" aria-hidden />}
+        icon={<Building2 className="h-4 w-4 text-coral-ink" aria-hidden />}
         heading={t("colCompany")}
         status={statuses.companyStatus}
         onClear={flags.hasCompany ? handlers.clearCompany : undefined}
@@ -95,7 +95,7 @@ export function AnalyzeFormOptionalColumns({
       </AnalyzeColumn>
 
       <AnalyzeColumn
-        icon={<GitBranch className="h-4 w-4 text-coral" aria-hidden />}
+        icon={<GitBranch className="h-4 w-4 text-coral-ink" aria-hidden />}
         heading={t("colGithub")}
         status={statuses.githubStatusLabel}
         // The only optional column that had no Clear: its three siblings each

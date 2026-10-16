@@ -42,10 +42,10 @@ export function RediscoveryFeed() {
   return (
     <section className="mt-4 rounded-lg border border-coral/30 bg-coral/5 p-3" aria-label={t("title")}>
       <div className="flex items-center gap-2">
-        <Sparkles size={16} className="text-coral" />
+        <Sparkles size={16} className="text-coral-ink" />
         <h3 className="text-base font-semibold text-ink">{t("title")}</h3>
         {groups.length > 0 ? (
-          <span className="rounded-full bg-coral px-2 py-0.5 text-meta font-semibold text-white">{groups.length}</span>
+          <span className="rounded-full bg-coral-solid px-2 py-0.5 text-meta font-semibold text-white">{groups.length}</span>
         ) : null}
         <button
           type="button"

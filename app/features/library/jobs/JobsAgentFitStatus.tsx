@@ -51,7 +51,7 @@ export function JobsAgentFitStatus({
             <span
               className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-sm ${
                 step.state === "current"
-                  ? "border-coral bg-coral/10 font-semibold text-coral"
+                  ? "border-coral bg-coral/10 font-semibold text-coral-ink"
                   : step.state === "done"
                     ? "border-moss/40 bg-moss/10 text-moss"
                     : "border-stone-200 text-steel"

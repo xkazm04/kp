@@ -67,7 +67,7 @@ export function CohortCompareStep({
   return (
     <div className="space-y-3">
       {failure?.stopped ? (
-        <p role="alert" className="flex flex-wrap items-center gap-3 text-body text-coral">
+        <p role="alert" className="flex flex-wrap items-center gap-3 text-body text-coral-ink">
           {t("stale")}
           <button type="button" onClick={retry} className={`${BTN_SECONDARY} h-9 px-4 text-body`}>
             {t("reload")}

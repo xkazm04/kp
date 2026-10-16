@@ -49,7 +49,7 @@
 .jk-fact { padding: 4px 0 16px 32px; border-bottom: 1px solid var(--k-rule); }
 .jk-fact__source { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 12px; font-size: var(--text-micro); }
 .jk-fact__source figure { margin: 0; flex: 1 0 100%; }
-.jk-error { margin: 0; color: var(--color-coral); }
+.jk-error { margin: 0; color: var(--color-coral-ink); }
 .jk-status .k-mark { vertical-align: middle; }
 
 /* ---------- a narrow sheet (the reading pane open at 1280) ----------

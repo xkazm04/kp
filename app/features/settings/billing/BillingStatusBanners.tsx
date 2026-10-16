@@ -94,7 +94,7 @@ export function BillingStatusBanners({
 
       {loadError ? (
         <div className={`${PANEL_SUNKEN} flex flex-wrap items-center gap-3 p-4`}>
-          <p role="alert" className="text-base text-coral">
+          <p role="alert" className="text-base text-coral-ink">
             {loadError}
           </p>
           <button type="button" onClick={onRetry} className={`${BTN_SECONDARY} h-8 px-3 text-sm`}>

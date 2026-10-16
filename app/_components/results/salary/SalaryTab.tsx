@@ -77,7 +77,7 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
       <div className="space-y-5">
         <div className={`${PANEL} p-5`}>
           <div className="flex items-center gap-2">
-            <CircleDollarSign className="h-5 w-5 text-coral" aria-hidden />
+            <CircleDollarSign className="h-5 w-5 text-coral-ink" aria-hidden />
             <h3 className="font-serif text-h3 text-ink">{t("panel.salaryEstimate")}</h3>
           </div>
           <div className="mt-5">
@@ -150,7 +150,7 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
         {analysis.marketEvidence ? (
           <div className={`${PANEL} p-5`}>
             <div className="flex items-center gap-2">
-              <CircleDollarSign className="h-5 w-5 text-coral" aria-hidden />
+              <CircleDollarSign className="h-5 w-5 text-coral-ink" aria-hidden />
               <h3 className="font-serif text-h3 text-ink">{t("panel.groundedMarketEvidence")}</h3>
             </div>
             <p className="mt-3 text-base leading-6 text-ink">{analysis.marketEvidence.summary}</p>

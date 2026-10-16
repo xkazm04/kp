@@ -77,7 +77,7 @@ export function JobsKitFaq({ draft, onChange, t }: { draft: KitDraft; onChange: 
           disabled={!canAddFaq(draft)}
           className={`${BTN_GHOST} px-2 py-1 text-sm`}
         >
-          <Plus size={13} className="text-coral" aria-hidden /> {t("addFaq")}
+          <Plus size={13} className="text-coral-ink" aria-hidden /> {t("addFaq")}
         </button>
       </section>
 

@@ -45,7 +45,7 @@ function DestinationCard({ link, onOpen }: { link: ChainLink; onOpen: () => void
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-1 text-base font-semibold text-ink">
           {link.label}
-          <ArrowRight size={14} aria-hidden className="text-coral transition-transform group-hover:translate-x-0.5" />
+          <ArrowRight size={14} aria-hidden className="text-coral-ink transition-transform group-hover:translate-x-0.5" />
         </span>
         {hint ? <span className="mt-1 block text-sm text-steel">{hint}</span> : null}
       </span>
@@ -102,7 +102,7 @@ export function DecisionsEmptyHandoff({
           <button
             type="button"
             onClick={() => go("tasks")}
-            className="focus-ring inline-flex items-center gap-1 font-semibold text-coral hover:underline"
+            className="focus-ring inline-flex items-center gap-1 font-semibold text-coral-ink hover:underline"
           >
             <Activity size={13} aria-hidden />
             {t("arrivingWatch")}

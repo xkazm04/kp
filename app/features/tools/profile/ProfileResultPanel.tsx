@@ -93,7 +93,7 @@ export function ProfileResultPanel({
           <button
             type="button"
             onClick={onMatchNow}
-            className="focus-ring ml-auto inline-flex h-9 items-center gap-1.5 rounded-md bg-coral px-3 text-sm font-semibold text-white hover:bg-coral/90"
+            className="focus-ring ml-auto inline-flex h-9 items-center gap-1.5 rounded-md bg-coral-solid px-3 text-sm font-semibold text-white hover:bg-coral-solid/90"
           >
             {t("matchNow")} <ArrowRight size={15} aria-hidden />
           </button>
@@ -119,9 +119,9 @@ export function ProfileResultPanel({
                     type="button"
                     onClick={() => onGoToField?.(target)}
                     title={t("goToField")}
-                    className="focus-ring group -ml-1 inline-flex items-center gap-1 rounded px-1 text-left text-ink hover:text-coral"
+                    className="focus-ring group -ml-1 inline-flex items-center gap-1 rounded px-1 text-left text-ink hover:text-coral-ink"
                   >
-                    <span className="text-coral">{"+"}</span>
+                    <span className="text-coral-ink">{"+"}</span>
                     <span className="underline decoration-dotted decoration-steel/50 underline-offset-2 group-hover:decoration-coral">
                       {label}
                     </span>

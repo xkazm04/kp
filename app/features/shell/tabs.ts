@@ -386,7 +386,7 @@ export function navActionHref(action: NavGroupAction): string {
 }
 
 export function navItemClass(isActive: boolean): string {
-  return isActive ? "bg-coral/10 text-coral" : "text-steel hover:bg-stone-50 hover:text-ink";
+  return isActive ? "bg-coral/10 text-coral-ink" : "text-steel hover:bg-stone-50 hover:text-ink";
 }
 
 // Build a "/?…" href by patching `search` (the current query string, e.g. from

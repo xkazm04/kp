@@ -176,7 +176,7 @@ export function HistoryTriageDrawer({
                 ) : null}
               </div>
             </div>
-            <Link href={`/history/${slug}`} className="text-sm font-semibold text-coral hover:underline">
+            <Link href={`/history/${slug}`} className="text-sm font-semibold text-coral-ink hover:underline">
               {t("triageOpenReport")}
             </Link>
           </div>

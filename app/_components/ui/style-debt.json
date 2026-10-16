@@ -32,15 +32,14 @@
       "raw-text-size": 1
     },
     "_components/ChainEmptyState.tsx": {
-      "raw-text-size": 3,
-      "raw-button": 1
+      "raw-text-size": 2
     },
     "_components/Checkbox.tsx": {
       "raw-text-size": 2
     },
     "_components/CompletionCta.tsx": {
-      "raw-text-size": 2,
-      "raw-button": 2,
+      "raw-text-size": 1,
+      "raw-button": 1,
       "bare-rounded": 1
     },
     "_components/ConfirmDialog.tsx": {
@@ -362,7 +361,7 @@
     "features/hiring/decisions/DecisionsAnalysisParts.tsx": {
       "below-floor-text": 2,
       "arbitrary-text-size": 2,
-      "raw-text-size": 20,
+      "raw-text-size": 19,
       "raw-status-hue": 10,
       "raw-button": 1,
       "bare-rounded": 5

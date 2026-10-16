@@ -119,7 +119,7 @@ export function VoicePlaybackButton({ entry, speech }: { entry: VoiceEntry | nul
         )}
       </button>
       {state.reason ? (
-        <span className="text-sm text-coral" role="status">
+        <span className="text-sm text-coral-ink" role="status">
           {state.reason}
         </span>
       ) : state.note ? (

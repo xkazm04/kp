@@ -290,7 +290,7 @@ export function DecisionLogTable({
                         {d.candidateLabel && d.entryId ? (
                           <Link
                             href={boardHref(d.candidateLabel)}
-                            className="focus-ring rounded font-medium text-ink underline-offset-2 hover:text-coral hover:underline"
+                            className="focus-ring rounded font-medium text-ink underline-offset-2 hover:text-coral-ink hover:underline"
                           >
                             {d.candidateLabel}
                           </Link>
@@ -331,7 +331,7 @@ export function DecisionLogTable({
                             <span className="sr-only">{t("detailToggle")}</span>
                           </button>
                         ) : null}
-                        {d.cohort && !isOpen ? <span className="block text-sm text-steel/80">{cohortText(d.cohort)}</span> : null}
+                        {d.cohort && !isOpen ? <span className="block text-sm text-steel">{cohortText(d.cohort)}</span> : null}
                       </td>
                     </tr>
                     {isOpen ? (

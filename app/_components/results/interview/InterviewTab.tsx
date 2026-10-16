@@ -45,8 +45,8 @@ const BUCKET_META: Record<KnownBucket, BucketMeta> = {
   },
   "red-flag-defense": {
     labelKey: "panel.bucketRedFlag",
-    tone: "border-coral/40 bg-coral/10 text-coral",
-    chip: "bg-coral text-white",
+    tone: "border-coral/40 bg-coral/10 text-coral-ink",
+    chip: "bg-coral-solid text-white",
     icon: ShieldAlert
   }
 };
@@ -130,7 +130,7 @@ export function InterviewTab({ analysis, prepEntryId }: { analysis: Analysis; pr
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <MessagesSquare className="h-5 w-5 text-coral" aria-hidden />
+              <MessagesSquare className="h-5 w-5 text-coral-ink" aria-hidden />
               <h3 className="font-serif text-h3 text-ink">{t("panel.mockInterview")}</h3>
             </div>
             <p className="mt-2 text-base leading-6 text-ink">{summary}</p>
@@ -300,7 +300,7 @@ function ImportToPrepButton({ entryId, questions }: { entryId: string; questions
           {t("importToPrepNoPrep")}{" "}
           <Link
             href={tabHref("schedule")}
-            className="focus-ring inline-flex items-center gap-1 font-semibold text-coral hover:underline"
+            className="focus-ring inline-flex items-center gap-1 font-semibold text-coral-ink hover:underline"
           >
             <CalendarPlus className="h-3.5 w-3.5" aria-hidden />
             {t("importToPrepGoTo")}
@@ -336,7 +336,7 @@ function FilterButton({
         active
           ? "bg-ink text-white"
           : disabled
-            ? "cursor-not-allowed bg-paper text-steel/50"
+            ? "cursor-not-allowed bg-paper text-steel"
             : "bg-paper text-steel hover:bg-stone-100 hover:text-ink"
       }`}
     >

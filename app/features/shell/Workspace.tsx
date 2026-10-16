@@ -224,7 +224,7 @@ export function Workspace({
     <div className="min-h-screen bg-paper md:flex">
       <a
         href="#main"
-        className="focus-ring sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-coral focus:px-3 focus:py-2 focus:text-base focus:font-semibold focus:text-white"
+        className="focus-ring sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-coral-solid focus:px-3 focus:py-2 focus:text-base focus:font-semibold focus:text-white"
       >
         {t("skipToContent")}
       </a>

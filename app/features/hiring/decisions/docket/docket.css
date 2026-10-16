@@ -27,7 +27,7 @@
 .dk-fig { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 3px 12px; border: 1px solid var(--k-rule-strong); border-radius: 999px; background: var(--k-raised); font-size: var(--text-micro); color: var(--k-ink); white-space: nowrap; cursor: pointer; font-family: inherit; }
 .dk-fig b { font-family: var(--font-serif); font-size: 17px; font-weight: 600; }
 .dk-fig--needs { border-color: var(--color-coral); }
-.dk-fig--needs b { color: var(--color-coral); }
+.dk-fig--needs b { color: var(--color-coral-ink); }
 [data-theme="dark"] .dk-fig { border-width: 2px; box-shadow: var(--sticker-xs-shadow); }
 .dk-legend { display: flex; flex-wrap: wrap; gap: 2px 14px; padding: 5px 0 0; font-size: var(--text-micro); color: var(--k-quiet); line-height: 1.5; }
 .dk-legend span { display: inline-flex; align-items: center; gap: 5px; }
@@ -46,7 +46,7 @@
 [data-theme="dark"] .dk-grp__t { font-weight: 800; }
 .dk-grp__n { font-size: var(--text-micro); color: var(--k-quiet); white-space: nowrap; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .dk-grp__n b { color: var(--color-red-700); font-weight: 600; }
-.dk .dk-grp__go.k-btn { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; padding: 4px 6px; border-radius: 6px; border: 0; background: transparent; font-size: var(--text-micro); font-weight: 600; color: var(--color-coral); white-space: nowrap; cursor: pointer; font-family: inherit; }
+.dk .dk-grp__go.k-btn { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; padding: 4px 6px; border-radius: 6px; border: 0; background: transparent; font-size: var(--text-micro); font-weight: 600; color: var(--color-coral-ink); white-space: nowrap; cursor: pointer; font-family: inherit; }
 .dk-grp__go:hover { background: var(--k-hover); }
 .dk-rows { list-style: none; margin: 0; padding: 0; }
 .dk-row { display: grid; grid-template-columns: auto minmax(0, 1fr) 78px 40px 104px auto; align-items: center; gap: 4px; min-height: 32px; padding: 0 4px 0 10px; border-bottom: 1px solid var(--k-rule); position: relative; }
@@ -55,7 +55,7 @@
 .dk .dk-row__name.k-btn { display: block; justify-content: flex-start; height: auto; line-height: var(--text-body--line-height); border-radius: 0; font-size: var(--text-body); font-weight: 500; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; padding: 2px 0; color: var(--k-ink); background: transparent; border: 0; cursor: pointer; text-decoration: underline; text-decoration-color: var(--k-rule-strong); text-underline-offset: 3px; font-family: inherit; }
 .dk .dk-row__name.k-btn:hover { text-decoration-color: currentColor; }
 .dk-stage { font-size: var(--text-micro); color: var(--color-steel); white-space: nowrap; }
-.dk-stage[data-s="Offer"] { color: var(--color-coral); font-weight: 600; }
+.dk-stage[data-s="Offer"] { color: var(--color-coral-ink); font-weight: 600; }
 .dk-score { font-family: var(--font-serif); font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; display: inline-flex; align-items: center; gap: 2px; white-space: nowrap; }
 [data-theme="dark"] .dk-score { font-weight: 800; }
 .dk-score--none { color: var(--k-faint); font-family: var(--font-sans); font-weight: 400; }

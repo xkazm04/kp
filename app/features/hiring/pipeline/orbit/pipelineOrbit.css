@@ -43,7 +43,7 @@
 /* ---------------------------------------------------------------- marks and beads */
 .ob-mk { display: inline-flex; width: 16px; height: 16px; flex: none; vertical-align: -3px; }
 .ob-mk svg { width: 16px; height: 16px; }
-.ob-mk--needs { color: var(--color-coral); }
+.ob-mk--needs { color: var(--color-coral-ink); }
 .ob-mk--late { color: var(--ob-late); }
 .ob-mk--moving { color: var(--color-moss); }
 .ob-mk--quiet { color: var(--ob-calm); }
@@ -110,7 +110,7 @@
 [data-theme="dark"] .ob-chead { border-bottom-color: var(--k-rule-strong); font-family: var(--font-serif); }
 .ob-chead b { display: block; color: var(--k-ink); font-weight: 600; }
 .ob-chead small { font-size: var(--text-micro); color: var(--k-faint); }
-.ob-chead .is-ring b { color: var(--color-coral); }
+.ob-chead .is-ring b { color: var(--color-coral-ink); }
 .ob-lane { padding: 8px 10px; border-bottom: 1px solid var(--k-rule); align-items: start; }
 [data-theme="dark"] .ob-lane { border-bottom-style: dashed; border-bottom-color: var(--k-rule-strong); }
 .ob-lane.is-needs { box-shadow: inset 3px 0 0 var(--color-coral); }

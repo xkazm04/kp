@@ -82,7 +82,7 @@ export function JobsPostingTab({
             <>
               {t("noTranslationBody", { source: tr.sourceLang.toUpperCase() })}
               {tr.error ? (
-                <span role="alert" className="mt-2 block text-coral">
+                <span role="alert" className="mt-2 block text-coral-ink">
                   {tr.error}
                 </span>
               ) : null}

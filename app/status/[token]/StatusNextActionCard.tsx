@@ -92,7 +92,7 @@ export function StatusNextActionCard({
           </div>
           {phase === "failed" ? (
             // Never a silent failure: a candidate told nothing would wait for an email.
-            <p role="alert" className="mt-2 text-base font-semibold text-coral">
+            <p role="alert" className="mt-2 text-base font-semibold text-coral-ink">
               {errMsg(failure, t("failed"))}
             </p>
           ) : null}

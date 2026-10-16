@@ -105,7 +105,7 @@ export function AnalysisModalBench({ entry, data, reason, setReason, onClose, on
               </div>
             ) : matchLoading ? (
               <p className="flex items-center gap-2 text-sm text-steel">
-                <Loader2 size={14} className="animate-spin text-coral" /> {t("scoringRole")}
+                <Loader2 size={14} className="animate-spin text-coral-ink" /> {t("scoringRole")}
               </p>
             ) : null}
           </div>
@@ -156,7 +156,7 @@ export function AnalysisModalBench({ entry, data, reason, setReason, onClose, on
             </ul>
           ) : matchLoading ? (
             <p className="mt-3 flex items-center gap-2 text-sm text-steel">
-              <Loader2 size={14} className="animate-spin text-coral" /> {t("scoringRole")}
+              <Loader2 size={14} className="animate-spin text-coral-ink" /> {t("scoringRole")}
             </p>
           ) : (
             <p className="mt-3 text-sm text-steel">{t("summaryNote")}</p>

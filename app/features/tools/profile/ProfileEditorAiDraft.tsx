@@ -86,7 +86,7 @@ export function ProfileEditorAiDraft({ onApplied }: { onApplied: (draft: Profile
         aria-expanded={aiOpen}
         className="focus-ring flex w-full items-center gap-2 rounded text-left text-sm font-semibold text-ink"
       >
-        <Sparkles size={15} className="text-coral" aria-hidden />
+        <Sparkles size={15} className="text-coral-ink" aria-hidden />
         {t("draftToggle")}
         <span className="ml-1 font-normal text-steel">{t("draftHint")}</span>
         <span className="ml-auto text-steel">{aiOpen ? "−" : "+"}</span>

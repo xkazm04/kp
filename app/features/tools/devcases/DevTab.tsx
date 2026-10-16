@@ -186,7 +186,7 @@ export function DevTab() {
             English, above a tab the sidebar calls Assignments. It named the module
             after the engineering team that built it, in the one place a reader looks
             to find out what surface they are on. */}
-        <p className="text-meta uppercase text-coral">{tCopy("eyebrow")}</p>
+        <p className="text-meta uppercase text-coral-ink">{tCopy("eyebrow")}</p>
         <h2 className="mt-1 font-serif text-display text-ink">{tStudio(heading.titleKey)}</h2>
         {/* `max` is passed for every view; only the define blurb names it, and an unused
             value is inert. The number is the SHARED cap the form enforces. */}
@@ -196,7 +196,7 @@ export function DevTab() {
       {actionError ? (
         <div
           role="alert"
-          className="flex items-start justify-between gap-3 rounded-md border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral"
+          className="flex items-start justify-between gap-3 rounded-md border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral-ink"
         >
           <span>{actionError}</span>
           <button type="button" onClick={() => setActionError(null)} className="focus-ring shrink-0 font-semibold hover:underline">

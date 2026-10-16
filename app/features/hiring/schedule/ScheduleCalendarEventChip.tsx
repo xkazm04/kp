@@ -61,7 +61,7 @@ export function CalendarEventChip({
   // A written event links straight to it — the recruiter's fastest way to check that the
   // entry really is where kp says it is.
   return state === "written" && link ? (
-    <a href={link} target="_blank" rel="noreferrer" className={`focus-ring ${className} hover:text-coral`} title={label}>
+    <a href={link} target="_blank" rel="noreferrer" className={`focus-ring ${className} hover:text-coral-ink`} title={label}>
       {body}
     </a>
   ) : (

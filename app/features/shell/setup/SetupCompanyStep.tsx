@@ -84,7 +84,7 @@ export function CompanyStep({ ctrl }: { ctrl: OnboardingCtrl }) {
         <div className="max-w-md">
           <label htmlFor="setup-org-name" className={`${META_LABEL} block`}>
             {t("nameLabel")}
-            <span aria-hidden className="text-coral">
+            <span aria-hidden className="text-coral-ink">
               {" *"}
             </span>
           </label>
@@ -174,7 +174,7 @@ export function CompanyStep({ ctrl }: { ctrl: OnboardingCtrl }) {
           </label>
         </div>
         {customWarn ? (
-          <p role="alert" className="mt-1.5 text-sm text-coral">
+          <p role="alert" className="mt-1.5 text-sm text-coral-ink">
             {customWarn === "dark" ? t("accent.illegibleDark") : t("accent.illegible")}
           </p>
         ) : null}
@@ -191,7 +191,7 @@ export function CompanyStep({ ctrl }: { ctrl: OnboardingCtrl }) {
             sizeVariant="sm"
             className="mt-1 w-full"
           />
-          {logoInvalid ? <p className="mt-1 text-sm text-coral">{t("logoInvalid")}</p> : null}
+          {logoInvalid ? <p className="mt-1 text-sm text-coral-ink">{t("logoInvalid")}</p> : null}
           {previewLogo ? (
             <div className={`${PANEL} mt-2 inline-flex h-16 w-16 items-center justify-center p-2`}>
               <ExternalLogoImage src={logo} alt={t("logoLabel")} onError={() => setFailedLogo(logo)} className="max-h-full max-w-full object-contain" />

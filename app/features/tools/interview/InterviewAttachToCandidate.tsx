@@ -73,7 +73,7 @@ export function InterviewAttachToCandidate({ token }: { token: string }) {
           {open ? (
             <div className="mt-2 flex flex-wrap items-center gap-2">
               {loadError ? (
-                <p className="text-sm text-coral" role="alert">
+                <p className="text-sm text-coral-ink" role="alert">
                   {t("loadFailed")}{" "}
                   <button type="button" onClick={loadEntries} className="focus-ring font-semibold underline">
                     {t("retry")}
@@ -105,7 +105,7 @@ export function InterviewAttachToCandidate({ token }: { token: string }) {
                   </button>
                 </>
               )}
-              {state === "error" ? <p className="text-sm text-coral">{t("failed")}</p> : null}
+              {state === "error" ? <p className="text-sm text-coral-ink">{t("failed")}</p> : null}
             </div>
           ) : null}
         </>

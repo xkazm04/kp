@@ -63,7 +63,7 @@ export function PipelineInterviewOutcomeCard({
             const notAssessed = isNotAssessedRating(r.rating, r.evidence);
             return (
               <li key={i} className="text-sm text-ink">
-                <span className={`font-semibold nums ${notAssessed ? "text-steel" : "text-coral"}`}>
+                <span className={`font-semibold nums ${notAssessed ? "text-steel" : "text-coral-ink"}`}>
                   {notAssessed ? tTranscript("notAssessed") : `${r.rating}/${RATING_MAX}`}
                 </span>{" "}
                 {r.competency}
@@ -87,7 +87,7 @@ export function PipelineInterviewOutcomeCard({
           onClick={onShowTranscript}
           className="focus-ring mt-2 inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 py-1.5 text-sm font-semibold text-ink hover:border-coral/40"
         >
-          <FileText size={13} className="text-coral" aria-hidden /> {t("viewTranscript")}
+          <FileText size={13} className="text-coral-ink" aria-hidden /> {t("viewTranscript")}
         </button>
       ) : null}
       <p className="mt-1.5 text-meta text-steel">{t("voiceFeedsNote")}</p>

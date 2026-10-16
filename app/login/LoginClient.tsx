@@ -94,7 +94,7 @@ export function LoginClient({ signupOpen = false }: { signupOpen?: boolean }) {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-4">
-      <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
+      <p className="text-meta uppercase text-coral-ink">{t("eyebrow")}</p>
       <h1 className="mt-1 font-serif text-display text-ink">{t("title")}</h1>
       <p className="mt-2 text-body text-steel">{t("subtitle")}</p>
       <form onSubmit={submit} className="mt-6 space-y-3">
@@ -130,7 +130,7 @@ export function LoginClient({ signupOpen = false }: { signupOpen?: boolean }) {
           />
         </label>
         {status === "error" ? (
-          <p id="login-error" role="alert" className="text-sm text-coral">
+          <p id="login-error" role="alert" className="text-sm text-coral-ink">
             {t("error")}
           </p>
         ) : null}

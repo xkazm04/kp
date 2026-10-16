@@ -39,7 +39,7 @@ export function TasksRowActions({ task, active, onCancel }: { task: Task; active
               setCanceling(true);
               onCancel(task.id);
             }}
-            className="focus-ring rounded border border-coral/40 px-1.5 py-0.5 text-meta font-semibold text-coral hover:bg-coral/5"
+            className="focus-ring rounded border border-coral/40 px-1.5 py-0.5 text-meta font-semibold text-coral-ink hover:bg-coral/5"
           >
             {t("active.confirmCancel")}
           </button>
@@ -59,7 +59,7 @@ export function TasksRowActions({ task, active, onCancel }: { task: Task; active
         onClick={() => setConfirming(true)}
         title={t("active.cancelAria")}
         aria-label={t("active.cancelAria")}
-        className="focus-ring rounded p-1 text-steel hover:bg-stone-100 hover:text-coral"
+        className="focus-ring rounded p-1 text-steel hover:bg-stone-100 hover:text-coral-ink"
       >
         <X size={14} aria-hidden />
       </button>
@@ -83,7 +83,7 @@ export function TasksRowActions({ task, active, onCancel }: { task: Task; active
       }}
       disabled={retrying}
       title={t("done.retryTitle")}
-      className="focus-ring inline-flex items-center gap-1 rounded-md border border-stone-300 bg-white px-2 py-1 text-sm font-medium text-steel transition-colors hover:bg-paper hover:text-coral disabled:opacity-60"
+      className="focus-ring inline-flex items-center gap-1 rounded-md border border-stone-300 bg-white px-2 py-1 text-sm font-medium text-steel transition-colors hover:bg-paper hover:text-coral-ink disabled:opacity-60"
     >
       <RefreshCw size={12} className={retrying ? "animate-spin" : ""} aria-hidden /> {t("done.retry")}
     </button>
@@ -104,7 +104,7 @@ function TasksRowBlocked({ reason, door }: { reason: ReplayBlockReason; door: Re
         <button
           type="button"
           onClick={() => nav.push(buildTabSwitchUrl(door.tab, search.toString()))}
-          className="focus-ring rounded-sm text-meta font-semibold text-coral underline decoration-coral/40 underline-offset-2 hover:decoration-coral"
+          className="focus-ring rounded-sm text-meta font-semibold text-coral-ink underline decoration-coral/40 underline-offset-2 hover:decoration-coral"
         >
           {t("openAnalyze")}
         </button>

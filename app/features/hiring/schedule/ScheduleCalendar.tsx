@@ -180,7 +180,7 @@ function ScheduleCalendarView({
                 <div
                   key={d.iso}
                   role="columnheader"
-                  className={`py-2 font-semibold ${d.past ? "text-steel/40" : ""}`}
+                  className={`py-2 font-semibold ${d.past ? "text-steel" : ""}`}
                 >
                   {headerDate(d)}
                 </div>

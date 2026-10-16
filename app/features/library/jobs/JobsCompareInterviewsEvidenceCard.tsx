@@ -50,7 +50,7 @@ export function JobsCompareInterviewsEvidenceCard({
         // it is so a second interviewer never reads as (or hides) the first.
         <div key={`h-${k}`} className="mt-2 border-t border-stone-200 pt-2">
           <p className="flex items-center gap-1 text-meta uppercase tracking-wide text-steel">
-            <ClipboardCheck size={11} className="text-coral" /> {t("humanScorecardHeading")}
+            <ClipboardCheck size={11} className="text-coral-ink" /> {t("humanScorecardHeading")}
           </p>
           <HumanScorecardByline view={h} className="mt-0.5 text-meta text-steel" />
           {h.summary ? <p className="mt-0.5 text-sm text-steel">{h.summary}</p> : null}

@@ -25,14 +25,14 @@ type NodeTone = "neutral" | "danger";
 function FlowNode({ icon: Icon, label, tone = "neutral" }: { icon: ComponentType<{ size?: number; className?: string }>; label: string; tone?: NodeTone }) {
   const frame =
     tone === "danger"
-      ? "border-coral/40 bg-coral/5 text-coral"
+      ? "border-coral/40 bg-coral/5 text-coral-ink"
       : "border-stone-200 bg-white text-steel dark:border-stone-300";
   return (
     <div className="flex min-w-0 flex-col items-center gap-1 text-center">
       <span aria-hidden className={`inline-grid h-9 w-9 shrink-0 place-items-center rounded-lg border ${frame}`}>
         <Icon size={16} />
       </span>
-      <span className={`text-sm ${tone === "danger" ? "font-semibold text-coral" : "text-steel"}`}>{label}</span>
+      <span className={`text-sm ${tone === "danger" ? "font-semibold text-coral-ink" : "text-steel"}`}>{label}</span>
     </div>
   );
 }

@@ -238,7 +238,7 @@ export function decisionsLogChip(present: boolean | null | undefined): Decisions
     return { state: "kept", key: "decisionsLogKept", titleKey: null, className: "bg-moss/10 text-moss" };
   }
   if (present === false) {
-    return { state: "missing", key: "decisionsLogMissing", titleKey: null, className: "bg-coral/15 text-coral" };
+    return { state: "missing", key: "decisionsLogMissing", titleKey: null, className: "bg-coral/15 text-coral-ink" };
   }
   return {
     state: "unread",

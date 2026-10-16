@@ -18,7 +18,7 @@ export type Alert = {
 };
 
 export const PRIOR_STYLE: Record<string, string> = {
-  rejected: "bg-coral/10 text-coral",
+  rejected: "bg-coral/10 text-coral-ink",
   closed: "bg-dial-amber/20 text-ink",
   elsewhere: "bg-steel/10 text-steel",
 };

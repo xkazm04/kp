@@ -111,7 +111,7 @@ export function InterviewRecordings({
                       type="button"
                       disabled={step[r.attempt] === "deleting"}
                       onClick={() => void remove(r.attempt)}
-                      className={`${BTN_GHOST} h-8 px-2.5 text-sm font-semibold text-coral`}
+                      className={`${BTN_GHOST} h-8 px-2.5 text-sm font-semibold text-coral-ink`}
                     >
                       {step[r.attempt] === "deleting" ? t("evidence.audioDeleting") : t("evidence.audioDeleteYes")}
                     </button>
@@ -146,7 +146,7 @@ export function InterviewRecordings({
         ))}
       </ul>
       {failed ? (
-        <p role="alert" className="mt-2 text-sm font-semibold text-coral">
+        <p role="alert" className="mt-2 text-sm font-semibold text-coral-ink">
           {failed}
         </p>
       ) : null}

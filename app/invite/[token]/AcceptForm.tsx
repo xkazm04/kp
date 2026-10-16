@@ -128,7 +128,7 @@ export function AcceptForm({ token }: { token: string }) {
             {tCommon("retry")}
           </button>
         ) : null}
-        <a href="/login" className="focus-ring mt-6 inline-flex min-h-11 items-center justify-center text-sm font-semibold text-coral underline">
+        <a href="/login" className="focus-ring mt-6 inline-flex min-h-11 items-center justify-center text-sm font-semibold text-coral-ink underline">
           {t("goToSignIn")}
         </a>
       </main>
@@ -189,7 +189,7 @@ export function AcceptForm({ token }: { token: string }) {
       {/* The org name is the SERVER's when it has one; the fallback is a catalog
           string, so a nameless org reads in the invitee's language rather than in
           English on every locale. */}
-      <p className="text-meta uppercase text-coral">{t("eyebrow", { orgName: orgName ?? t("orgNameFallback") })}</p>
+      <p className="text-meta uppercase text-coral-ink">{t("eyebrow", { orgName: orgName ?? t("orgNameFallback") })}</p>
       <h1 className="mt-1 font-serif text-display text-ink">{t("title")}</h1>
       <p className="mt-2 text-body text-steel">
         {t.rich("subtitle", {
@@ -251,7 +251,7 @@ export function AcceptForm({ token }: { token: string }) {
           />
         </label>
         {error ? (
-          <p id="invite-error" role="alert" className="text-sm text-coral">
+          <p id="invite-error" role="alert" className="text-sm text-coral-ink">
             {error}
           </p>
         ) : null}

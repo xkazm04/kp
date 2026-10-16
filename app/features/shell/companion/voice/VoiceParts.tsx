@@ -111,7 +111,7 @@ export function VoiceMetaChips({ entry, recallLimit = 1 }: { entry: VoiceEntry; 
   if (!degraded && dropped === 0 && droppedActions === 0 && recall.length === 0) return null;
   return (
     <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-      {degraded ? <span className={`${CHIP_QUIET} text-coral`}>{t("meta.degraded")}</span> : null}
+      {degraded ? <span className={`${CHIP_QUIET} text-coral-ink`}>{t("meta.degraded")}</span> : null}
       {dropped > 0 ? <span className={CHIP_QUIET}>{t("blocks.dropped", { count: dropped })}</span> : null}
       {droppedActions > 0 ? (
         <span className={CHIP_QUIET}>{t("proposal.dropped", { count: droppedActions })}</span>

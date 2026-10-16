@@ -245,7 +245,7 @@ export default async function JdDetailPage({
       <RecordRecent type="jd" id={slug} label={jd.title} href={`/jds/${encodeURIComponent(slug)}`} />
       <header className="flex flex-col gap-3 border-b border-stone-200 pb-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-meta uppercase text-coral">{t("eyebrow")} · {slug}</p>
+          <p className="text-meta uppercase text-coral-ink">{t("eyebrow")} · {slug}</p>
           <h1 className="mt-1 font-serif text-display text-ink" lang={view.bodyLang}>{view.title}</h1>
           {/* Bare toLocaleString() runs in NODE here (server component), so it formatted
               the stamp in the SERVER's locale — a cs/de/fr visitor on the share link read
@@ -262,7 +262,7 @@ export default async function JdDetailPage({
                   <Link
                     key="apply"
                     href={`/apply/${encodeURIComponent(jobId)}`}
-                    className="focus-ring inline-flex h-10 items-center justify-center gap-2 rounded-md bg-coral px-4 text-sm font-semibold text-white hover:opacity-90"
+                    className="focus-ring inline-flex h-10 items-center justify-center gap-2 rounded-md bg-coral-solid px-4 text-sm font-semibold text-white hover:opacity-90"
                   >
                     <UserPlus size={15} /> {t("apply")}
                   </Link>

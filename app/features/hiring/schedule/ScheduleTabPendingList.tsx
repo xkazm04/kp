@@ -159,7 +159,7 @@ export function ScheduleTabPendingList({
   return (
     <>
       <h3 className="text-meta uppercase tracking-wide text-steel">
-        {t("pendingInterviews")} <span className="text-coral">· {calendarEntries.length}</span>
+        {t("pendingInterviews")} <span className="text-coral-ink">· {calendarEntries.length}</span>
       </h3>
       <AnimatePresence custom={lastDir}>
         {calendarEntries.map((e, i) => {
@@ -213,7 +213,7 @@ export function ScheduleTabPendingList({
               ) : null}
               {prepared[e.id]?.interviewer ? (
                 <p className="mt-1.5 flex items-center gap-1 truncate text-meta text-steel" title={t("interviewerTitle", { name: prepared[e.id]!.interviewer! })}>
-                  <UserRound size={11} className="shrink-0 text-coral" /> {prepared[e.id]!.interviewer}
+                  <UserRound size={11} className="shrink-0 text-coral-ink" /> {prepared[e.id]!.interviewer}
                 </p>
               ) : null}
               {prepared[e.id]?.stale ? (
@@ -226,7 +226,7 @@ export function ScheduleTabPendingList({
                 onClick={() => onPrep(e)}
                 className="focus-ring mt-2 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-stone-200 text-sm font-semibold text-ink hover:border-coral/40"
               >
-                <ClipboardList size={14} className="text-coral" />
+                <ClipboardList size={14} className="text-coral-ink" />
                 {prepared[e.id] ? t("viewPrep") : t("prepButton")}
               </button>
               {iv?.hasTranscript ? (
@@ -244,7 +244,7 @@ export function ScheduleTabPendingList({
                 // Non-interactive live pill; /create's 409 guard backs it server-side.
                 <span
                   role="status"
-                  className="mt-1.5 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-coral/40 bg-coral/5 text-sm font-semibold text-coral"
+                  className="mt-1.5 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-coral/40 bg-coral/5 text-sm font-semibold text-coral-ink"
                 >
                   <span className="relative flex h-2 w-2" aria-hidden>
                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-coral opacity-75" />
@@ -259,7 +259,7 @@ export function ScheduleTabPendingList({
                   disabled={creatingIv === e.id}
                   className="focus-ring mt-1.5 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md border border-stone-200 text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
                 >
-                  <Phone size={14} className="text-coral" />
+                  <Phone size={14} className="text-coral-ink" />
                   {creatingIv === e.id ? t("opening") : t("startInterview")}
                 </button>
               ) : null}
@@ -299,7 +299,7 @@ export function ScheduleTabPendingList({
                   }}
                   disabled={busy === e.id}
                   aria-label={t("declineAria", { name: e.candidateLabel })}
-                  className="focus-ring inline-flex h-8 items-center justify-center gap-1 rounded-md border border-stone-200 px-2.5 text-sm font-semibold text-coral hover:bg-coral/5 disabled:opacity-50"
+                  className="focus-ring inline-flex h-8 items-center justify-center gap-1 rounded-md border border-stone-200 px-2.5 text-sm font-semibold text-coral-ink hover:bg-coral/5 disabled:opacity-50"
                 >
                   <X size={14} aria-hidden />
                 </button>

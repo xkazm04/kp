@@ -22,7 +22,7 @@ export function PipelineSelfSchedulingPanel({ entryId, sched }: { entryId: strin
   const t = useTranslations("pipeline.drawer");
   return (
     <div className="rounded-md border border-stone-200 bg-white p-3">
-      <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral">
+      <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral-ink">
         <Calendar size={13} /> {t("selfScheduling")}
       </p>
       <p className="mt-1 text-sm text-steel">{t("selfSchedulingHelp")}</p>
@@ -32,7 +32,7 @@ export function PipelineSelfSchedulingPanel({ entryId, sched }: { entryId: strin
         disabled={sched.busy}
         className="focus-ring mt-2 inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 py-1.5 text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
       >
-        <Calendar size={13} className="text-coral" /> {sched.busy ? t("creating") : t("createSchedulingLink")}
+        <Calendar size={13} className="text-coral-ink" /> {sched.busy ? t("creating") : t("createSchedulingLink")}
       </button>
       {sched.err ? <p role="alert" className="mt-2 text-sm text-red-700">{sched.err}</p> : null}
       {sched.data ? (

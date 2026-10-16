@@ -36,7 +36,7 @@ export function AnalyzeColumn({
               the heading. */}
           <span
             className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide ${
-              required ? "bg-coral/10 text-coral" : "bg-stone-100 text-steel"
+              required ? "bg-coral/10 text-coral-ink" : "bg-stone-100 text-steel"
             }`}
           >
             {required ? t("required") : t("optional")}

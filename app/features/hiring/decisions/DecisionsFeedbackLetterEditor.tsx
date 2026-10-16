@@ -232,11 +232,11 @@ export function DecisionsFeedbackLetterEditor({
                 />
               </label>
               <div id={countId} className="flex flex-wrap items-baseline justify-between gap-2 text-meta">
-                <span className={length.over > 0 ? "font-semibold text-coral" : "text-steel"}>
+                <span className={length.over > 0 ? "font-semibold text-coral-ink" : "text-steel"}>
                   {t("editor.count", { count: length.length, max: length.max })}
                 </span>
                 {length.over > 0 ? (
-                  <span role="alert" className="font-semibold text-coral">
+                  <span role="alert" className="font-semibold text-coral-ink">
                     {t("editor.over", { over: length.over })}
                   </span>
                 ) : null}
@@ -250,7 +250,7 @@ export function DecisionsFeedbackLetterEditor({
                 </p>
               ) : null}
               {redraft === "failed" ? (
-                <p role="alert" className="text-sm font-semibold text-coral">
+                <p role="alert" className="text-sm font-semibold text-coral-ink">
                   {t("editor.redraftFailed")}
                 </p>
               ) : null}
@@ -275,7 +275,7 @@ export function DecisionsFeedbackLetterEditor({
             </div>
           ) : null}
           {failure ? (
-            <p role="alert" className="text-sm font-semibold text-coral">
+            <p role="alert" className="text-sm font-semibold text-coral-ink">
               {capabilityAwareReason(errMsg, failure, t("editor.actionFailed"))}
             </p>
           ) : null}

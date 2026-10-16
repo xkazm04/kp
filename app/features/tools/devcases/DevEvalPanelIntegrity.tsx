@@ -31,7 +31,7 @@ type Tone = "ok" | "alert" | "unknown";
 
 const TONE: Record<Tone, string> = {
   ok: "bg-moss/10 text-moss",
-  alert: "bg-coral/15 text-coral",
+  alert: "bg-coral/15 text-coral-ink",
   unknown: "bg-stone-100 text-steel",
 };
 

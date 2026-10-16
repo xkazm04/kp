@@ -95,7 +95,7 @@ export function ConsentPanel({
   const statusTone: Record<ConsentStatus, string> = {
     active: "bg-moss/15 text-moss",
     expiring: "bg-dial-amber/20 text-ink",
-    expired: "bg-coral/10 text-coral",
+    expired: "bg-coral/10 text-coral-ink",
     anonymized: "bg-stone-200 text-steel",
     none: "bg-stone-100 text-steel",
   };

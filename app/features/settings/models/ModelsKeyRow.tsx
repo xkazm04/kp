@@ -127,7 +127,7 @@ export function ModelsKeyRow({
             // The recipe, not a hand-typed re-statement of it: this button had its own
             // copy of BTN_SECONDARY's classes, so it missed the dual-theme border and
             // the Spark Dark press-down its Test sibling one line up already had.
-            className={`${BTN_SECONDARY} h-7 px-1.5 text-steel hover:text-coral`}
+            className={`${BTN_SECONDARY} h-7 px-1.5 text-steel hover:text-coral-ink`}
           >
             <Trash2 size={13} aria-hidden />
           </button>
@@ -149,7 +149,7 @@ export function ModelsKeyRow({
       ) : null}
 
       {note ? (
-        <p role={note.ok ? "status" : "alert"} className={`mt-2 text-sm font-medium ${note.ok ? "text-moss" : "text-coral"}`}>
+        <p role={note.ok ? "status" : "alert"} className={`mt-2 text-sm font-medium ${note.ok ? "text-moss" : "text-coral-ink"}`}>
           {note.text}
         </p>
       ) : null}

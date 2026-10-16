@@ -34,7 +34,7 @@ export function CandidateDecisionBar({ decision }: { decision: CandidateDecision
   return (
     <section aria-label={tl("decisionTitle")} className="shrink-0 border-t border-coral/30 bg-coral/5 px-4 py-3 sm:px-6">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <span className="inline-flex items-center gap-1 text-meta font-semibold uppercase tracking-wide text-coral">
+        <span className="inline-flex items-center gap-1 text-meta font-semibold uppercase tracking-wide text-coral-ink">
           <Sparkles size={11} aria-hidden /> {tag}
         </span>
         {isOffer ? (
@@ -83,7 +83,7 @@ export function CandidateDecisionBar({ decision }: { decision: CandidateDecision
             type="button"
             onClick={onReject}
             disabled={busy}
-            className="focus-ring inline-flex h-9 cursor-pointer items-center gap-1 rounded-md border border-stone-200 bg-white px-3 text-sm font-semibold text-coral hover:bg-coral/5 disabled:cursor-wait disabled:opacity-50"
+            className="focus-ring inline-flex h-9 cursor-pointer items-center gap-1 rounded-md border border-stone-200 bg-white px-3 text-sm font-semibold text-coral-ink hover:bg-coral/5 disabled:cursor-wait disabled:opacity-50"
           >
             <X size={15} aria-hidden /> {t("reject")}
           </button>

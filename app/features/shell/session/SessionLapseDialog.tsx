@@ -155,7 +155,7 @@ function ReauthForm({
           />
         </label>
         {status === "error" ? (
-          <p id="session-lapse-error" role="alert" className="text-sm text-coral">
+          <p id="session-lapse-error" role="alert" className="text-sm text-coral-ink">
             {tl("error")}
           </p>
         ) : null}

@@ -137,7 +137,7 @@ export function ApplyStepControls({
             </button>
           </div>
           {uploadErr ? (
-            <p id={uploadErrorId} role="alert" className="text-sm text-coral">
+            <p id={uploadErrorId} role="alert" className="text-sm text-coral-ink">
               {uploadErr}
             </p>
           ) : null}
@@ -180,7 +180,7 @@ export function ApplyStepControls({
         </p>
       ) : null}
       {stepError ? (
-        <p id={errorId} role="alert" className="mt-1.5 text-sm text-coral">
+        <p id={errorId} role="alert" className="mt-1.5 text-sm text-coral-ink">
           {stepError}
         </p>
       ) : null}

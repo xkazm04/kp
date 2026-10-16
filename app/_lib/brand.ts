@@ -31,6 +31,10 @@ export const INK = "#17202a";
 export const PAPER = "#fdf8ee";
 export const MOSS = "#526b4f";
 export const CORAL = "#d65a4a";
+/** AA-safe coral for text on light surfaces (`text-coral-ink`). */
+export const CORAL_INK = "#a53626";
+/** AA-safe coral fill under white text (`bg-coral-solid`). */
+export const CORAL_SOLID = "#b8412f";
 export const STEEL = "#42606f";
 export const LIMEWASH = "#dce7d0";
 export const DIAL_STONE = "#8c8779";
@@ -49,6 +53,8 @@ export const LIGHT = {
   PAPER,
   MOSS,
   CORAL,
+  CORAL_INK,
+  CORAL_SOLID,
   STEEL,
   LIMEWASH,
   DIAL_STONE,
@@ -75,6 +81,8 @@ export const DARK = {
   PAPER: "#141b24",
   MOSS: "#84b27a",
   CORAL: "#ff7e68",
+  CORAL_INK: "#ff7e68",
+  CORAL_SOLID: "#ff7e68",
   STEEL: "#9db5c3",
   LIMEWASH: "#2a382b",
   DIAL_STONE: "#6e7787",

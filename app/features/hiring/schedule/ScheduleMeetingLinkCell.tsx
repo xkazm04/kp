@@ -71,7 +71,7 @@ export function MeetingLinkCell({ token, url, onSaved }: { token: string; url: s
   return (
     <span ref={containerRef} className="relative inline-flex items-center gap-1">
       {url ? (
-        <a href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-meta normal-case text-coral hover:underline">
+        <a href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-meta normal-case text-coral-ink hover:underline">
           <Video size={12} aria-hidden /> {t("join")}
         </a>
       ) : null}
@@ -109,7 +109,7 @@ export function MeetingLinkCell({ token, url, onSaved }: { token: string; url: s
               sizeVariant="sm"
               className="py-1"
             />
-            {error ? <p className="mt-1 text-micro text-coral">{error}</p> : null}
+            {error ? <p className="mt-1 text-micro text-coral-ink">{error}</p> : null}
             <div className="mt-2 flex items-center justify-end gap-1.5">
               <button type="button" onClick={() => setEditing(false)} className={`${BTN_GHOST} px-2 py-1 text-meta normal-case`}>
                 {t("cancel")}

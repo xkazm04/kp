@@ -98,7 +98,7 @@ export function IntakeVoiceBar({ intakeId, lang, onDictated, speakText, disabled
           </button>
           {listening ? (
             <span className="flex items-center gap-2" role="status">
-              <span className="text-sm text-coral">{t("dictating")}</span>
+              <span className="text-sm text-coral-ink">{t("dictating")}</span>
               {/* The meter is the indicator's evidence, not decoration. Under
                   prefers-reduced-motion the animated bar is replaced by the same
                   number as text, so the information survives the accommodation
@@ -124,7 +124,7 @@ export function IntakeVoiceBar({ intakeId, lang, onDictated, speakText, disabled
             </span>
           ) : null}
           {micError ? (
-            <span className="text-sm text-coral" role="status">
+            <span className="text-sm text-coral-ink" role="status">
               {micError}
             </span>
           ) : null}
@@ -171,7 +171,7 @@ export function IntakeVoiceBar({ intakeId, lang, onDictated, speakText, disabled
             {t("autoSpeak")}
           </button>
           {speakError ? (
-            <span className="text-sm text-coral" role="status">
+            <span className="text-sm text-coral-ink" role="status">
               {speakError}
             </span>
           ) : null}

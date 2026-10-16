@@ -64,7 +64,7 @@ export function ProposeSection({
         type="button"
         disabled={proposing}
         onClick={onSubmit}
-        className="focus-ring mt-3 inline-flex items-center gap-1.5 rounded-md bg-coral px-3 py-1.5 text-base font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+        className="focus-ring mt-3 inline-flex items-center gap-1.5 rounded-md bg-coral-solid px-3 py-1.5 text-base font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
       >
         <CalendarClock size={15} aria-hidden /> {proposing ? t("booking") : t("proposeSubmit")}
       </button>

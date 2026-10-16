@@ -95,9 +95,9 @@ export function ScheduleAiLedger({
   return (
     <div className="space-y-3">
       <p className={META_LABEL}>
-        {t("awaitingTitle")} <span className="text-coral">· {counts.awaiting}</span>
+        {t("awaitingTitle")} <span className="text-coral-ink">· {counts.awaiting}</span>
         <span className="mx-2 text-stone-300">|</span>
-        {t("outTitle")} <span className="text-coral">· {counts.out}</span>
+        {t("outTitle")} <span className="text-coral-ink">· {counts.out}</span>
       </p>
       <TableStatus columnTitle={titles[sort.col]} dir={sort.dir} matched={filtered.length} filtered={filtering} />
       {rows.length === 0 ? (
@@ -129,7 +129,7 @@ export function ScheduleAiLedger({
                     {row.state === "awaiting" ? (
                       <StatusChip tone="waiting" label={stateLabel.awaiting} />
                     ) : row.state === "live" ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-coral/10 px-2 py-0.5 text-sm font-semibold text-coral">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-coral/10 px-2 py-0.5 text-sm font-semibold text-coral-ink">
                         <span className="relative flex h-1.5 w-1.5" aria-hidden>
                           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-coral opacity-75" />
                           <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-coral" />

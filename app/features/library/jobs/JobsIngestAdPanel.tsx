@@ -37,10 +37,10 @@ export function IngestAdButton({ ingest }: { ingest: IngestAdState }) {
       disabled={busy}
       aria-expanded={open}
       className={`focus-ring inline-flex h-10 shrink-0 items-center gap-2 rounded-md border px-3 text-base font-semibold transition-colors disabled:opacity-60 ${
-        open ? "border-coral bg-coral/10 text-coral" : "border-stone-300 bg-white text-ink hover:border-coral/40"
+        open ? "border-coral bg-coral/10 text-coral-ink" : "border-stone-300 bg-white text-ink hover:border-coral/40"
       }`}
     >
-      <ClipboardPaste size={15} className="text-coral" /> {t("pasteAd")}
+      <ClipboardPaste size={15} className="text-coral-ink" /> {t("pasteAd")}
     </button>
   );
 }
@@ -55,7 +55,7 @@ export function IngestAdPanel({ ingest }: { ingest: IngestAdState }) {
   return (
     <div className="mt-4 rounded-lg border border-coral/30 bg-coral/5 p-3">
       <div className="flex items-start justify-between gap-2">
-        <label htmlFor="ingest-ad" className="text-meta uppercase tracking-wide text-coral">
+        <label htmlFor="ingest-ad" className="text-meta uppercase tracking-wide text-coral-ink">
           {t("pasteHeading")}
         </label>
         {/* Second door out, on the corner the eye already checks for one. The
@@ -93,7 +93,7 @@ export function IngestAdPanel({ ingest }: { ingest: IngestAdState }) {
             type="button"
             onClick={submitBulk}
             disabled={busy || bulkCount === 0}
-            className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-coral px-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+            className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-coral-solid px-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
           >
             <Plus size={14} /> {busy && progress ? t("importing", { done: progress.done, total: progress.total }) : t("importAll", { count: bulkCount })}
           </button>
@@ -102,7 +102,7 @@ export function IngestAdPanel({ ingest }: { ingest: IngestAdState }) {
             type="button"
             onClick={submit}
             disabled={busy || adText.trim().length < MIN_AD_CHARS}
-            className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-coral px-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+            className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-coral-solid px-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
           >
             <Plus size={14} /> {busy ? t("parsing") : t("addToCatalog")}
           </button>

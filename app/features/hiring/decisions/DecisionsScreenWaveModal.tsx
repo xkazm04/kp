@@ -103,7 +103,7 @@ export function ScreenWaveModal({
               onClick={() => setConfirmOpen(true)}
               disabled={committing || loading || commitDisabledReason !== null}
               title={commitDisabledReason ?? undefined}
-              className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-coral px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40"
+              className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-coral-solid px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40"
             >
               <Ban size={15} /> {committing ? t("rejecting") : t("rejectAndNotify", { count: rejects.length })}
             </button>
@@ -141,7 +141,7 @@ export function ScreenWaveModal({
               <span className="text-amber-700"> {t("commsFailures", { count: committed.commsFailures })}</span>
             ) : null}
             {committed.sealFailures > 0 ? (
-              <span className="text-coral"> {t("reasons.sealFailed")}</span>
+              <span className="text-coral-ink"> {t("reasons.sealFailed")}</span>
             ) : null}
           </>
         ) : null}
@@ -185,13 +185,13 @@ export function ScreenWaveModal({
           ) : null}
 
           <p className="flex items-center gap-2 text-base text-ink" aria-live="polite">
-            {loading ? <Loader2 size={15} className="animate-spin text-coral" /> : null}
+            {loading ? <Loader2 size={15} className="animate-spin text-coral-ink" /> : null}
             {view ? (
               <span>
                 {t.rich("wouldReject", {
                   rejected: rejects.length,
                   cohort: view.cohort,
-                  b: (chunks) => <span className="font-semibold text-coral">{chunks}</span>,
+                  b: (chunks) => <span className="font-semibold text-coral-ink">{chunks}</span>,
                 })}{" "}
                 · <span className="text-steel">{t("keptCount", { count: keeps.length })}</span>
               </span>

@@ -39,7 +39,7 @@ export function ResendButton({ id, onResent, compact = false }: { id: string; on
         // The shared secondary action plus this button's own size/tone. It used to
         // re-type the whole class string, so it missed the dual-theme press-down and
         // border every other secondary control on the surface has.
-        className={`${BTN_SECONDARY} shrink-0 font-semibold text-coral hover:bg-coral/5 ${
+        className={`${BTN_SECONDARY} shrink-0 font-semibold text-coral-ink hover:bg-coral/5 ${
           compact ? "px-1.5 py-0.5 text-micro" : "px-2 py-1 text-sm"
         }`}
       >

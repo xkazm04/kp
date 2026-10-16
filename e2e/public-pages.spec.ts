@@ -31,14 +31,9 @@ const PAGES = ["/about", "/trust", "/privacy", "/terms", "/market"] as const;
 // (the lot that first wrote this file had audited a DIFFERENT app on :3000 and believed
 // the list empty; the re-measure that replaced it named /market's nodes wrongly, which
 // is why each entry below now says which ELEMENT fails and at what ratio):
-//   /trust, /privacy, /terms  ONE node each, and it is the same element on all three:
-//            the EYEBROW recipe (`text-meta uppercase text-coral`), coral #d65a4a at
-//            14px on the cream paper, 3.65:1 against a 4.5:1 bar. Axe selects it as
-//            `.text-coral` on /trust (where other .text-meta nodes exist) and as
-//            `.text-meta` on the other two. One token pairing, three pages.
-// Whether coral stays legible-on-cream is a PALETTE decision and therefore the owner's
-// (docs/harness; Perfect vault) - it is the brand's accent on the brand's ground, and
-// darkening it moves every eyebrow in the product.
+//   /trust, /privacy, /terms were held out for the EYEBROW recipe (coral #d65a4a, 3.65:1 on
+//   paper). Resolved 2026-10-16: eyebrows and all coral text use `text-coral-ink` (#a53626,
+//   gated by app/_lib/contrast-tokens.test.ts); brand coral stays for fills and large display.
 //
 // /market had its own entry and no longer does: eleven gold (#caa54c, 2.33:1) occupation
 // rank ticks and eight org-type labels drawn in the encoding colour (coral 3.87:1, amber
@@ -53,11 +48,8 @@ const PAGES = ["/about", "/trust", "/privacy", "/terms", "/market"] as const;
 //
 // The list must only ever SHRINK; each entry is asserted to STILL fail below, so fixing
 // one turns this suite red until the entry is deleted.
-const A11Y_HOLDOUTS: Record<string, string[]> = {
-  "/trust": ["color-contrast"],
-  "/privacy": ["color-contrast"],
-  "/terms": ["color-contrast"]
-};
+// Empty since the AA-safe coral tokens (coral-ink / coral-solid) cleared /trust, /privacy and /terms.
+const A11Y_HOLDOUTS: Record<string, string[]> = {};
 
 /** Serious/critical WCAG violations — the same pragmatic bar the rest of the
  *  suite uses (landing, analyze-smoke, token-doors-axe). */

@@ -486,11 +486,11 @@ export function LiveWorkSurface({
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <label className="block text-sm font-medium text-ink">
-          {tApply("fieldName")} <span className="text-coral">*</span>
+          {tApply("fieldName")} <span className="text-coral-ink">*</span>
           <TextInput value={name} onChange={(e) => setName(e.target.value)} className="mt-1" />
         </label>
         <label className="block text-sm font-medium text-ink">
-          {tApply("fieldContact")} <span className="text-coral">*</span>
+          {tApply("fieldContact")} <span className="text-coral-ink">*</span>
           <TextInput
             type="email"
             value={contact}

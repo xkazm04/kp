@@ -28,7 +28,7 @@ export function JobsKitTab({ jobId }: { jobId: string }) {
     <div className="space-y-4">
       <div>
         <h3 className="flex items-center gap-2 font-serif text-h3 text-ink">
-          <ListChecks size={16} className="text-coral" aria-hidden /> {t("heading")}
+          <ListChecks size={16} className="text-coral-ink" aria-hidden /> {t("heading")}
         </h3>
         <p className="mt-1 text-sm text-steel">{t("intro")}</p>
       </div>
@@ -39,7 +39,7 @@ export function JobsKitTab({ jobId }: { jobId: string }) {
 
       {k.loadError ? (
         <div className="flex flex-wrap items-center gap-3">
-          <p role="alert" className="text-base text-coral">
+          <p role="alert" className="text-base text-coral-ink">
             {k.loadError}
           </p>
           <button type="button" onClick={k.reload} className={`${BTN_SECONDARY} h-8 px-3 text-sm`}>
@@ -58,7 +58,7 @@ export function JobsKitTab({ jobId }: { jobId: string }) {
       {k.generating ? (
         <div role="status" className={`${PANEL_SUNKEN} p-4`}>
           <p className="flex items-center gap-2 text-base font-semibold text-ink">
-            <Sparkles size={15} className="animate-pulse text-coral" aria-hidden /> {t("generating")}
+            <Sparkles size={15} className="animate-pulse text-coral-ink" aria-hidden /> {t("generating")}
           </p>
           <p className="mt-1 text-sm text-steel">{k.progressMsg ?? t("generatingHint")}</p>
         </div>
@@ -75,7 +75,7 @@ export function JobsKitTab({ jobId }: { jobId: string }) {
       ) : null}
 
       {(k.startError || k.taskFailed) && !k.generating ? (
-        <p role="alert" className="text-sm text-coral">
+        <p role="alert" className="text-sm text-coral-ink">
           {k.startError ?? t("generateRunFailed")}
         </p>
       ) : null}
@@ -100,7 +100,7 @@ export function JobsKitTab({ jobId }: { jobId: string }) {
       {state && (hasKit || k.draft) && !k.generating ? (
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" onClick={() => void k.generate()} className={`${BTN_SECONDARY} h-8 px-3 text-sm`}>
-            <Sparkles size={13} className="text-coral" aria-hidden /> {t("regenerateCta")}
+            <Sparkles size={13} className="text-coral-ink" aria-hidden /> {t("regenerateCta")}
           </button>
           <span className="text-sm text-steel">{t("generateHint")}</span>
         </div>

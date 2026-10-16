@@ -41,7 +41,7 @@ export function AnalyzeProfileInputFileList({
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-ink">
               {files.length > 1 ? (
-                <span className="text-coral">{t("variantPrefix", { letter: String.fromCharCode(65 + index) })}</span>
+                <span className="text-coral-ink">{t("variantPrefix", { letter: String.fromCharCode(65 + index) })}</span>
               ) : null}
               {file.name}
             </p>

@@ -89,9 +89,9 @@ export function TtsComparePanel() {
             >
               <span className="block">
                 {p.label}
-                {p.preferred ? <span className="ml-2 text-meta uppercase text-coral">{t("default")}</span> : null}
+                {p.preferred ? <span className="ml-2 text-meta uppercase text-coral-ink">{t("default")}</span> : null}
               </span>
-              <span className={`block text-meta ${ready ? "text-moss" : "text-coral"}`}>{probeLabel(p)}</span>
+              <span className={`block text-meta ${ready ? "text-moss" : "text-coral-ink"}`}>{probeLabel(p)}</span>
               {ready && p.languages ? (
                 <span className="block text-micro text-steel">
                   {p.languages === "any"
@@ -176,14 +176,14 @@ export function TtsComparePanel() {
       />
 
       <p className="mt-2 min-h-5 text-meta text-steel" aria-live="polite">
-        {tts.error ? <span className="text-coral">{tts.error}</span> : null}
+        {tts.error ? <span className="text-coral-ink">{tts.error}</span> : null}
         {!tts.error && tts.served ? (
           <>
             <span className="text-ink">
               {t("spokenBy", { provider: providers.find((p) => p.id === tts.served?.provider)?.label ?? tts.served.provider, ms: tts.served.firstAudioMs })}
             </span>
             {tts.progress && tts.progress.total > 1 ? <span> · {t("chunks", { spoken: tts.progress.spoken, total: tts.progress.total })}</span> : null}
-            {tts.served.fallbackFrom ? <span className="text-coral"> {t("fellBack", { provider: tts.served.fallbackFrom })}</span> : null}
+            {tts.served.fallbackFrom ? <span className="text-coral-ink"> {t("fellBack", { provider: tts.served.fallbackFrom })}</span> : null}
           </>
         ) : null}
         {tts.error && tts.progress && tts.progress.spoken > 0 ? (

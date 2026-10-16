@@ -62,7 +62,7 @@ export function HumanScorecardPanel({
           onClick={() => setOpen(true)}
           className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-3 py-1.5 text-base font-semibold text-ink hover:border-coral/40"
         >
-          <ClipboardCheck size={15} className="text-coral" />
+          <ClipboardCheck size={15} className="text-coral-ink" />
           {saved ? t("editScorecard") : t("scoreInterview")}
           {saved ? <Check size={14} className="text-moss" /> : null}
         </button>
@@ -72,7 +72,7 @@ export function HumanScorecardPanel({
 
   if (error && !savedHere) {
     return (
-      <section className="flex flex-wrap items-center gap-2 text-sm text-coral">
+      <section className="flex flex-wrap items-center gap-2 text-sm text-coral-ink">
         <AlertTriangle size={15} aria-hidden /> {error}
         <button
           type="button"
@@ -88,7 +88,7 @@ export function HumanScorecardPanel({
   if (!data && !savedHere) {
     return (
       <p role="status" className="flex items-center gap-2 text-sm text-steel">
-        <Loader2 size={14} className="animate-spin text-coral" aria-hidden /> {t("loadingMine")}
+        <Loader2 size={14} className="animate-spin text-coral-ink" aria-hidden /> {t("loadingMine")}
       </p>
     );
   }
@@ -211,7 +211,7 @@ function HumanScorecardEditor({
   return (
     <section className="rounded-md border border-coral/30 bg-coral/5 p-3">
       <div className="flex items-center justify-between">
-        <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral">
+        <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral-ink">
           <ClipboardCheck size={13} /> {t("yourScorecard")}
         </p>
         <button type="button" onClick={onCollapse} className="focus-ring rounded px-2 py-0.5 text-sm font-semibold text-steel hover:text-ink">
@@ -242,14 +242,14 @@ function HumanScorecardEditor({
           type="button"
           onClick={save}
           disabled={saving || ratedCount === 0}
-          className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-coral px-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40"
+          className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-coral-solid px-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40"
         >
           {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
           {saving ? t("saving") : t("saveScorecard")}
         </button>
         <span className="text-meta text-steel">{t("ratedCount", { rated: ratedCount, total: rubric.length })}</span>
         {saved && !saving ? <span className="text-sm font-semibold text-moss">{t("saved")}</span> : null}
-        {error ? <span className="text-sm text-coral">{error}</span> : null}
+        {error ? <span className="text-sm text-coral-ink">{error}</span> : null}
       </div>
       {gated && !saving ? (
         <p role="status" className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-moss">

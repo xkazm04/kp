@@ -134,7 +134,7 @@ export function ProfileRosterRow({
             <button
               type="button"
               onClick={() => onMatch(p.id)}
-              className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md border border-stone-200 px-2.5 text-sm font-semibold text-ink hover:border-coral/40 hover:text-coral"
+              className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md border border-stone-200 px-2.5 text-sm font-semibold text-ink hover:border-coral/40 hover:text-coral-ink"
               title={t("matchTitle", { name: p.label })}
             >
               <Zap size={14} /> {t("match")}

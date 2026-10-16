@@ -90,7 +90,7 @@
 .cd-claim__facts { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: var(--text-micro); color: var(--cd-quiet); }
 .cd-claim__part[data-refused] { color: var(--color-amber-800); font-weight: 600; }
 .cd-claim__note { font-size: var(--text-micro); color: var(--cd-ink); max-width: 80ch; }
-.cd-claim__note-k { font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--color-coral); margin-right: 4px; }
+.cd-claim__note-k { font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--color-coral-ink); margin-right: 4px; }
 .cd-claim .k-keys { align-self: center; }
 @container cd-page (max-width: 760px) {
   .cd-claim { grid-template-columns: auto minmax(0, 1fr); }
@@ -110,7 +110,7 @@
   position: sticky; top: 12px; display: grid; gap: 8px; padding: 16px 18px; min-width: 0;
   border: var(--cd-line) solid var(--cd-rule); border-radius: var(--cd-radius-lg); background: var(--cd-sunk);
 }
-.cd-focus__kicker { font-size: var(--text-meta); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--color-coral); }
+.cd-focus__kicker { font-size: var(--text-meta); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--color-coral-ink); }
 .cd-focus__name { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-family: var(--font-serif); font-size: var(--text-h2); line-height: 1.25; font-weight: var(--cd-head-weight); }
 .cd-focus__figure { font-size: var(--text-body); font-weight: 600; }
 .cd-focus__h { margin-top: 6px; font-size: var(--text-meta); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--cd-quiet); }
@@ -130,7 +130,7 @@
 .cd-name__text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cd-name--link svg { flex: none; width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; color: var(--cd-faint); }
 .cd-name--link:hover .cd-name__text { text-decoration: underline; text-underline-offset: 3px; }
-.cd-name--link:hover svg { color: var(--color-coral); }
+.cd-name--link:hover svg { color: var(--color-coral-ink); }
 
 .cd-chip {
   position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; min-height: 30px;

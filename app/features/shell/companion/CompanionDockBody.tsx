@@ -143,7 +143,7 @@ export function CompanionRest({
       </span>
       <span className="text-sm font-semibold text-ink">{label}</span>
       {proposalCount > 0 ? (
-        <span className="nums rounded-full bg-coral px-2 py-0.5 text-xs font-semibold text-white" aria-hidden="true">
+        <span className="nums rounded-full bg-coral-solid px-2 py-0.5 text-xs font-semibold text-white" aria-hidden="true">
           {proposalCount}
         </span>
       ) : null}
@@ -245,7 +245,7 @@ export function CompanionBody({
           path and typing it again is still the other one. */}
       {error && !proposalError ? (
         <div role="alert" className="flex flex-wrap items-center gap-2 pb-2">
-          <p className="text-sm text-coral">{resolveError({ code: error }, t("chat.errorGeneric"))}</p>
+          <p className="text-sm text-coral-ink">{resolveError({ code: error }, t("chat.errorGeneric"))}</p>
           {retryTarget ? (
             <button
               type="button"
@@ -409,7 +409,7 @@ function TurnExtras({
       <div className="mt-1.5 flex max-w-[85%] flex-wrap items-center gap-1.5">
         {isDigest ? <span className={`${CHIP_QUIET} text-ink`}>{metaLabels.digest}</span> : null}
         {speakSlot}
-        {degradedLabel ? <span className={`${CHIP_QUIET} text-coral`}>{degradedLabel}</span> : null}
+        {degradedLabel ? <span className={`${CHIP_QUIET} text-coral-ink`}>{degradedLabel}</span> : null}
         {dropped > 0 ? <span className={CHIP_QUIET}>{t("blocks.dropped", { count: dropped })}</span> : null}
         {droppedActions > 0 ? (
           <span className={CHIP_QUIET}>{t("proposal.dropped", { count: droppedActions })}</span>

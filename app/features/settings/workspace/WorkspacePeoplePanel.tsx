@@ -70,7 +70,7 @@ export function WorkspacePeoplePanel({
   }
 
   if (loading) return <div className={`${PANEL} reveal-quiet min-h-[18rem] lg:col-span-3`} aria-hidden />;
-  if (error) return <p role="alert" className={`${PANEL} p-6 text-sm text-coral lg:col-span-3`}>{tm("loadError")}</p>;
+  if (error) return <p role="alert" className={`${PANEL} p-6 text-sm text-coral-ink lg:col-span-3`}>{tm("loadError")}</p>;
 
   return (
     <div className={`${PANEL} overflow-hidden lg:col-span-3`}>
@@ -169,7 +169,7 @@ export function WorkspacePeoplePanel({
                     <button
                       type="button"
                       onClick={() => openAdd(m.user.id)}
-                      className="focus-ring inline-flex items-center gap-0.5 rounded-full border border-dashed border-stone-300 px-2 py-0.5 text-micro text-steel hover:border-coral hover:text-coral"
+                      className="focus-ring inline-flex items-center gap-0.5 rounded-full border border-dashed border-stone-300 px-2 py-0.5 text-micro text-steel hover:border-coral hover:text-coral-ink"
                     >
                       <Plus size={11} aria-hidden /> {t("addToWorkspace")}
                     </button>

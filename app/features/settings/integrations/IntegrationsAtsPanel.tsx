@@ -153,13 +153,13 @@ export function IntegrationsAtsPanel() {
   return (
     <div className={`${PANEL} ${CARD_PAD}`}>
       <h3 className="flex items-center gap-2 font-serif text-h3 text-ink">
-        <Plug size={16} className="text-coral" aria-hidden /> {t("title")}
+        <Plug size={16} className="text-coral-ink" aria-hidden /> {t("title")}
       </h3>
       <p className="mt-1 max-w-3xl text-sm text-steel">{t("intro")}</p>
 
       {error ? (
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <p className="text-base text-coral">{error}</p>
+          <p className="text-base text-coral-ink">{error}</p>
           <button type="button" onClick={reload} className={`${BTN_SECONDARY} h-8 px-3 text-sm`}>
             {t("retry")}
           </button>

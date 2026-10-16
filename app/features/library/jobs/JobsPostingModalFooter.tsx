@@ -60,7 +60,7 @@ export function JobsPostingModalFooter({
           onClick={() => setConfirmingPublish(true)}
           disabled={publishing}
           title={t("reopenTitle")}
-          className="focus-ring mr-auto inline-flex h-9 items-center gap-1 rounded-md border border-coral/40 px-3 text-sm font-semibold text-coral hover:bg-coral/5 disabled:opacity-60"
+          className="focus-ring mr-auto inline-flex h-9 items-center gap-1 rounded-md border border-coral/40 px-3 text-sm font-semibold text-coral-ink hover:bg-coral/5 disabled:opacity-60"
         >
           {publishing ? td("sourcing") : t("reopenRole")}
         </button>
@@ -70,7 +70,7 @@ export function JobsPostingModalFooter({
           onClick={() => setConfirmingClose(true)}
           disabled={closing}
           title={t("closeTitle")}
-          className="focus-ring mr-auto inline-flex h-9 items-center gap-1 rounded-md border border-stone-200 px-3 text-sm font-semibold text-steel hover:border-coral/40 hover:text-coral disabled:opacity-60"
+          className="focus-ring mr-auto inline-flex h-9 items-center gap-1 rounded-md border border-stone-200 px-3 text-sm font-semibold text-steel hover:border-coral/40 hover:text-coral-ink disabled:opacity-60"
         >
           {closing ? t("closing") : t("closeRole")}
         </button>
@@ -112,12 +112,12 @@ export function JobsPostingModalFooter({
       ) : null}
       {publishNote ? (
         publishNote.tone === "quota" ? (
-          <span aria-live="polite" className="inline-flex min-w-0 items-center gap-2 text-sm text-coral">
+          <span aria-live="polite" className="inline-flex min-w-0 items-center gap-2 text-sm text-coral-ink">
             <span className="truncate">{publishNote.text}</span>
             <button
               type="button"
               onClick={goToBilling}
-              className="focus-ring shrink-0 rounded-md border border-coral/40 px-2 py-0.5 font-semibold text-coral hover:bg-coral/5"
+              className="focus-ring shrink-0 rounded-md border border-coral/40 px-2 py-0.5 font-semibold text-coral-ink hover:bg-coral/5"
             >
               {td("goToBilling")}
             </button>
@@ -137,7 +137,7 @@ export function JobsPostingModalFooter({
           onClick={() => setConfirmingPublish(true)}
           disabled={publishing}
           title={td("sourceTitle")}
-          className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-coral px-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+          className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-coral-solid px-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
         >
           <Users size={14} /> {publishing ? td("sourcing") : td("sourceIntoPipeline")}
         </button>
@@ -179,7 +179,7 @@ export function JobsPostingModalFooter({
         {copied ? <Check size={14} /> : <Copy size={14} />} {copied ? t("copied") : t("copyMarkdown")}
       </button>
       {copyError ? (
-        <p role="alert" className="basis-full text-sm text-coral">
+        <p role="alert" className="basis-full text-sm text-coral-ink">
           {t("copyFailed")}
         </p>
       ) : null}

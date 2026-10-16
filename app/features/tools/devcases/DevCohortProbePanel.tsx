@@ -19,7 +19,7 @@ import type { CoverProbe, Submission } from "./DevTypes";
 // a catalog KEY (`devcase.band.*`), rendered in the reviewer's language by the caller.
 type HeatBand = "high" | "some" | "low";
 function heatBand(rate: number): { cls: string; band: HeatBand } {
-  if (rate >= 0.75) return { cls: "bg-coral/20 text-coral", band: "high" };
+  if (rate >= 0.75) return { cls: "bg-coral/20 text-coral-ink", band: "high" };
   if (rate >= 0.4) return { cls: "bg-amber-100 text-amber-700", band: "some" };
   return { cls: "bg-moss/15 text-moss", band: "low" };
 }
@@ -86,7 +86,7 @@ export function CohortProbePanel({ probes, submissions }: { probes: CoverProbe[]
       </ul>
       {blindSpots.length > 0 ? (
         <p className="mt-2 rounded-md border border-coral/30 bg-coral/5 px-2.5 py-1.5 text-micro text-ink">
-          <span className="font-semibold text-coral">{t("cohort.miscalibrationLabel")}</span>{" "}
+          <span className="font-semibold text-coral-ink">{t("cohort.miscalibrationLabel")}</span>{" "}
           {t("cohort.miscalibration", { count: blindSpots.length })}
         </p>
       ) : null}

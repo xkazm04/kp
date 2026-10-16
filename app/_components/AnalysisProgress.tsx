@@ -99,7 +99,7 @@ export function AnalysisProgress({
             stage rows) on every poll — and so the interactive Cancel button no
             longer sits inside a passive status container. */}
         <div role="status" aria-live="polite">
-          <p className="text-meta uppercase text-coral">
+          <p className="text-meta uppercase text-coral-ink">
             {complete ? t("compilingResult") : t("livePipeline")}
           </p>
           <h2 className="mt-1 font-serif text-h2 text-ink">
@@ -146,7 +146,7 @@ export function AnalysisProgress({
             <button
               type="button"
               onClick={onCancel}
-              className={`${BTN_SECONDARY} h-8 px-2.5 text-sm text-steel hover:text-coral`}
+              className={`${BTN_SECONDARY} h-8 px-2.5 text-sm text-steel hover:text-coral-ink`}
             >
               {t("cancelScan")}
             </button>
@@ -233,7 +233,7 @@ function StageIndicator({ status }: { status: StageStatus }) {
   }
   if (status === "active") {
     return (
-      <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-coral bg-white text-coral">
+      <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-coral bg-white text-coral-ink">
         <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
       </span>
     );

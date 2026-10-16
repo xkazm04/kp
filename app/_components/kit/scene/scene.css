@@ -127,9 +127,9 @@
 .k-need__mark { padding-top: 3px; }
 .k-need__body { display: grid; gap: 2px; min-width: 0; }
 .k-need__title { font-size: var(--text-body); font-weight: 600; line-height: 1.35; }
-.k-need__title strong { color: var(--color-coral); }
+.k-need__title strong { color: var(--color-coral-ink); }
 .k-need__detail { font-size: var(--text-micro); color: var(--k-quiet); }
-.k-need__cta { grid-column: 2; font-size: var(--text-micro); font-weight: 600; color: var(--color-coral); }
+.k-need__cta { grid-column: 2; font-size: var(--text-micro); font-weight: 600; color: var(--color-coral-ink); }
 .k-need:hover .k-need__cta { text-decoration: underline; }
 
 /* ============================================================ WIRES: a figure, its cards, the hand */

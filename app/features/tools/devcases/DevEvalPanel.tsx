@@ -20,7 +20,7 @@ import type { DimensionScore, EvalBundle, ProbeOutcome, ProbeStatus } from "./De
 // PROBE_KINDS so a kind added in design.py fails the vocabulary guard rather than
 // silently losing its colour.
 const PROBE_KIND_TINT: Record<(typeof PROBE_KINDS)[number], string> = {
-  legacy_trap: "bg-coral/15 text-coral",
+  legacy_trap: "bg-coral/15 text-coral-ink",
   verification_trap: "bg-amber-100 text-amber-700",
   ambiguity: "bg-blue-50 text-blue-700",
   underspecified: "bg-stone-100 text-steel",
@@ -37,9 +37,9 @@ const probeKindTint = (k?: string) =>
 // strongest evidence.
 const PROBE_STATUS_TONE: Record<ProbeStatus, { cls: string; Icon: LucideIcon }> = {
   handled: { cls: "text-moss", Icon: Check },
-  unhandled: { cls: "text-coral", Icon: TriangleAlert },
+  unhandled: { cls: "text-coral-ink", Icon: TriangleAlert },
   detected: { cls: "text-amber-700", Icon: CircleDot },
-  missed: { cls: "text-coral", Icon: X },
+  missed: { cls: "text-coral-ink", Icon: X },
 };
 function probeStatus(o: ProbeOutcome): ProbeStatus {
   if (o.handledWell === true) return "handled";
@@ -223,7 +223,7 @@ export function EvalPanel({
           )}
           <span className="text-micro text-steel">{tr("promoteHint")}</span>
         </div>
-        {verdict?.error ? <p role="alert" className="mt-1 text-micro text-coral">{verdict.error}</p> : null}
+        {verdict?.error ? <p role="alert" className="mt-1 text-micro text-coral-ink">{verdict.error}</p> : null}
       </div>
     </div>
   );

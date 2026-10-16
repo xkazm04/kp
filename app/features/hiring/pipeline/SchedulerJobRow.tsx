@@ -102,7 +102,7 @@ export function SchedulerJobRow({
     <div className="mt-1.5 rounded-md border border-stone-200 bg-paper/40 px-3 py-1.5 text-sm text-steel">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <span className="flex items-center gap-1.5 font-medium text-ink">
-          <Icon size={13} className="text-coral" aria-hidden /> {copy.label}
+          <Icon size={13} className="text-coral-ink" aria-hidden /> {copy.label}
         </span>
         <button
           type="button"
@@ -148,7 +148,7 @@ export function SchedulerJobRow({
             (or nothing) instead of masquerading as today's status. */}
         {latest ? (
           isCurrentRunError(latest, { lastRunAt: schedule.lastRunAt }) ? (
-            <span className="inline-flex items-center gap-1 text-sm font-semibold text-coral">
+            <span className="inline-flex items-center gap-1 text-sm font-semibold text-coral-ink">
               {/* The persisted run error is a raw server exception with no machine
                   code to resolve, so the SENTENCE is localized and the detail rides
                   inside it (same shape as the tick chip in useSchedulerControlState)
@@ -176,12 +176,12 @@ export function SchedulerJobRow({
                 <li key={run.id} className="flex flex-wrap items-center gap-x-2 text-sm">
                   <span className="font-medium text-ink">{relativeTime(run.startedAt)}</span>
                   <span className={`rounded-full px-1.5 py-0.5 font-semibold uppercase ${
-                    run.status === "error" ? "bg-coral/10 text-coral" : run.status === "skipped" ? "bg-stone-100 text-steel" : "bg-moss/10 text-moss"
+                    run.status === "error" ? "bg-coral/10 text-coral-ink" : run.status === "skipped" ? "bg-stone-100 text-steel" : "bg-moss/10 text-moss"
                   }`}>
                     {t(`jobStatus.${run.status === "error" ? "error" : run.status === "skipped" ? "skipped" : "ok"}`)}
                   </span>
                   {run.status === "error" ? (
-                    <span className="text-coral">{run.error ? t("runFailedMsg", { msg: run.error }) : t("runFailed")}</span>
+                    <span className="text-coral-ink">{run.error ? t("runFailedMsg", { msg: run.error }) : t("runFailed")}</span>
                   ) : run.status !== "skipped" ? (
                     copy.lastOk(run, relativeTime(run.startedAt))
                   ) : null}

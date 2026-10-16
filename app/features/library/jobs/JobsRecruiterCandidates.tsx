@@ -78,7 +78,7 @@ export function RecruiterCandidates({
         {[logic.announce, logic.reachAnnounce].filter(Boolean).join(" ")}
       </p>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm font-semibold uppercase tracking-wide text-coral">{t("title")}</p>
+        <p className="text-sm font-semibold uppercase tracking-wide text-coral-ink">{t("title")}</p>
         <div className="flex flex-wrap items-center gap-2">
           {logic.poolFitCount > 0 ? (
             <button

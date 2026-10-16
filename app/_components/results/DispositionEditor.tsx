@@ -17,7 +17,7 @@ import {
 const OPTIONS = [
   { value: "advance", labelKey: "dispAdvance", on: "bg-moss text-white", off: "text-moss hover:bg-moss/10" },
   { value: "hold", labelKey: "dispHold", on: "bg-dial-amber text-ink", off: "text-amber-700 hover:bg-amber-50" },
-  { value: "pass", labelKey: "dispPass", on: "bg-coral text-white", off: "text-coral hover:bg-coral/10" },
+  { value: "pass", labelKey: "dispPass", on: "bg-coral-solid text-white", off: "text-coral-ink hover:bg-coral-solid/10" },
 ] as const;
 
 /** Every settled save, reported to an optional host (History's triage drawer). `ok` is a
@@ -207,7 +207,7 @@ export function DispositionEditor({
             <Check size={14} /> {t("saved")}
           </span>
         ) : null}
-        {error ? <span className="text-sm text-coral">{error}</span> : null}
+        {error ? <span className="text-sm text-coral-ink">{error}</span> : null}
       </div>
       {brief.openWarns.length > 0 ? (
         <fieldset className="mt-2 space-y-1">
@@ -230,7 +230,7 @@ export function DispositionEditor({
         <p className="mt-2 text-sm text-steel">{t("decisionMissing", { skills: brief.missing.join(", ") })}</p>
       ) : null}
       {blocked ? (
-        <p role="alert" className="mt-2 text-sm font-semibold text-coral">
+        <p role="alert" className="mt-2 text-sm font-semibold text-coral-ink">
           {t(blocked === "ack" ? "decisionAckNeeded" : "decisionReasonNeeded")}
         </p>
       ) : null}

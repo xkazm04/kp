@@ -37,7 +37,7 @@ export function PipelineHumanScorecardCard({ humanSc }: { humanSc: HumanScorecar
         <ul className="mt-1.5 space-y-0.5">
           {humanSc.ratings.slice(0, 8).map((r, i) => (
             <li key={i} className="text-sm text-ink">
-              <span className="font-semibold nums text-coral">{r.rating}/{RATING_MAX}</span> {r.competency}
+              <span className="font-semibold nums text-coral-ink">{r.rating}/{RATING_MAX}</span> {r.competency}
             </li>
           ))}
         </ul>

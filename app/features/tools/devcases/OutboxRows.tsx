@@ -34,7 +34,7 @@ const KIND_STYLE: Record<string, string> = {
   interview_reminder: "bg-moss/15 text-moss",
   offer: "bg-moss/15 text-moss",
   offer_reminder: "bg-moss/15 text-moss",
-  outreach: "bg-coral/15 text-coral",
+  outreach: "bg-coral/15 text-coral-ink",
   rejection: "bg-red-50 text-red-700",
   ko_decline: "bg-red-50 text-red-700",
 };

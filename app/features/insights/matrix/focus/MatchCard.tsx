@@ -145,7 +145,7 @@ export function MatchCard({
                   type="button"
                   onClick={explain}
                   disabled={reasoning?.loading}
-                  className="focus-ring rounded-md border border-stone-200 px-2 py-0.5 text-sm font-semibold text-coral hover:bg-paper disabled:opacity-40"
+                  className="focus-ring rounded-md border border-stone-200 px-2 py-0.5 text-sm font-semibold text-coral-ink hover:bg-paper disabled:opacity-40"
                 >
                   {reasoning?.loading ? t("card.reasoningBusy") : reasoning?.data ? t("card.refreshReasoning") : t("card.explainFit")}
                 </button>

@@ -125,7 +125,7 @@ export function StatusNpsCard({ token }: { token: string }) {
             onKeyDown={(e) => onScoreKeyDown(e, i)}
             onClick={() => setScore(n)}
             className={`focus-ring h-11 w-11 rounded-md border text-base font-semibold transition-colors ${
-              score === n ? "border-coral bg-coral/10 text-coral" : "border-stone-300 bg-white text-steel hover:border-coral/40"
+              score === n ? "border-coral bg-coral/10 text-coral-ink" : "border-stone-300 bg-white text-steel hover:border-coral/40"
             }`}
           >
             {n}
@@ -162,7 +162,7 @@ export function StatusNpsCard({ token }: { token: string }) {
             screen-reader user nothing at all — the one message on this card that
             has to be heard is the one saying their feedback did not land. */}
         {failed ? (
-          <span role="alert" className="text-base text-coral">
+          <span role="alert" className="text-base text-coral-ink">
             {t("failed")}
           </span>
         ) : null}

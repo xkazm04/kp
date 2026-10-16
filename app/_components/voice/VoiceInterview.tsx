@@ -1353,7 +1353,7 @@ function VoiceInterviewInner({
           {statusHref ? (
             <Link
               href={statusHref}
-              className="focus-ring mt-4 inline-flex items-center gap-1 text-sm font-semibold text-coral hover:underline"
+              className="focus-ring mt-4 inline-flex items-center gap-1 text-sm font-semibold text-coral-ink hover:underline"
             >
               {tPortal("completedStatusCta")} <ArrowRight size={13} aria-hidden />
             </Link>
@@ -1374,7 +1374,7 @@ function VoiceInterviewInner({
               dropped connection) already explains the failure. */}
           {phase === "ended" && endedAs === "failed" && turns.length === 0 && !error ? (
             <div role="status" className="rounded-lg border border-coral/30 bg-coral/5 px-5 py-6 text-center">
-              <span className="mx-auto grid h-11 w-11 place-items-center rounded-full bg-coral/10 text-coral">
+              <span className="mx-auto grid h-11 w-11 place-items-center rounded-full bg-coral/10 text-coral-ink">
                 <MicOff size={20} aria-hidden />
               </span>
               <h2 className="mt-3 font-serif text-h2 text-ink">{t("noAudioTitle")}</h2>
@@ -1533,7 +1533,7 @@ function VoiceInterviewInner({
             {startGate === "unavailable" ? (
               // M5: candidates can't fix "keys not configured" (an ops issue) and shouldn't see the
               // internal phrasing — give them an actionable next step. The lab keeps the technical copy.
-              <span className="text-meta text-coral">
+              <span className="text-meta text-coral-ink">
                 {lockSettings
                   ? t("unavailableCandidate")
                   : t("keysNotConfigured", { provider: PROVIDER_LABEL[liveProvider] })}
@@ -1542,7 +1542,7 @@ function VoiceInterviewInner({
               // The probe FAILED — we do not know whether the call can connect, and
               // saying nothing while showing a live Start was the lie this replaces.
               // Say so, and offer the only useful action: ask again.
-              <span className="text-meta text-coral" role="status">
+              <span className="text-meta text-coral-ink" role="status">
                 {t("availabilityUnknown")}{" "}
                 <button type="button" onClick={recheckAvailability} className="focus-ring font-semibold underline">
                   {t("availabilityRetry")}
@@ -1554,7 +1554,7 @@ function VoiceInterviewInner({
       )}
 
       {error ? (
-        <p role="alert" className="rounded-md border border-coral/30 bg-coral/5 px-3 py-2 text-base text-coral">
+        <p role="alert" className="rounded-md border border-coral/30 bg-coral/5 px-3 py-2 text-base text-coral-ink">
           {error}
         </p>
       ) : null}
@@ -1577,7 +1577,7 @@ function VoiceInterviewInner({
       {/* Any OTHER permanent refusal of the save (bad link, consent, too large): no
           Retry either, since it would be refused identically. */}
       {saveState === "refused" && discardedTurns === 0 ? (
-        <p role="alert" className="rounded-md border border-coral/30 bg-coral/5 px-3 py-2 text-base text-coral">
+        <p role="alert" className="rounded-md border border-coral/30 bg-coral/5 px-3 py-2 text-base text-coral-ink">
           {t("reconnect.saveRefused")}
         </p>
       ) : null}
@@ -1585,7 +1585,7 @@ function VoiceInterviewInner({
       {discardedTurns > 0 ? (
         <p
           role="alert"
-          className="rounded-md border border-coral/30 bg-coral/5 px-3 py-2 text-base text-coral"
+          className="rounded-md border border-coral/30 bg-coral/5 px-3 py-2 text-base text-coral-ink"
         >
           {t("discardedTurns", { count: discardedTurns })}
         </p>
@@ -1595,13 +1595,13 @@ function VoiceInterviewInner({
       {saveState === "failed" ? (
         <div
           role="alert"
-          className="flex flex-wrap items-center gap-3 rounded-md border border-coral/30 bg-coral/5 px-3 py-2.5 text-base text-coral"
+          className="flex flex-wrap items-center gap-3 rounded-md border border-coral/30 bg-coral/5 px-3 py-2.5 text-base text-coral-ink"
         >
           <span>{t("saveFailed")}</span>
           <button
             type="button"
             onClick={() => void retrySave()}
-            className="focus-ring rounded-md border border-coral/40 bg-white px-3 py-1 text-meta font-semibold text-coral transition-colors hover:bg-coral/10"
+            className="focus-ring rounded-md border border-coral/40 bg-white px-3 py-1 text-meta font-semibold text-coral-ink transition-colors hover:bg-coral/10"
           >
             {t("retrySave")}
           </button>

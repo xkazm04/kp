@@ -37,7 +37,7 @@ export function PalettePreviewPane({ item }: { item: PaletteItem }) {
   if (state.status === "error") return (
     <div className="animate-arrive-in space-y-2 text-sm text-steel">
       <p>{t("unavailable")}</p>
-      <button type="button" onClick={state.retry} className="focus-ring rounded-sm font-semibold text-coral underline underline-offset-2">
+      <button type="button" onClick={state.retry} className="focus-ring rounded-sm font-semibold text-coral-ink underline underline-offset-2">
         {t("retry")}
       </button>
     </div>

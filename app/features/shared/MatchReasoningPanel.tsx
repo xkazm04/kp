@@ -85,7 +85,7 @@ function ResolvedReasoning({ r, source, cached, narrativeLang }: { r: Reasoning;
   return (
     <div className="rounded-md border border-stone-200 bg-paper/50 p-3">
       <div className="flex items-center gap-2">
-        <span className="text-sm font-semibold uppercase tracking-wide text-coral">{t("reasoning")}</span>
+        <span className="text-sm font-semibold uppercase tracking-wide text-coral-ink">{t("reasoning")}</span>
         <span className="rounded bg-white px-1.5 py-0.5 text-sm text-steel">
           {source === "llm" ? t("sourceLlm") : t("sourceRuleBased")}
           {cached ? t("cachedSuffix") : ""}

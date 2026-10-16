@@ -23,7 +23,7 @@ export function CompareInterviews({ jobId }: { jobId: string }) {
 
   if (error) {
     return (
-      <div className="text-base text-coral">
+      <div className="text-base text-coral-ink">
         {error}{" "}
         <button type="button" onClick={reload} className="focus-ring cursor-pointer underline hover:text-ink">
           {t("retry")}

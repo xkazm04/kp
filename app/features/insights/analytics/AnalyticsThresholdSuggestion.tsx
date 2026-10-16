@@ -156,7 +156,7 @@ export function ThresholdSuggestion({
             {phase.kind === "applying" ? t("recApplying") : t("recApply", { suggested: rec.suggestedThreshold })}
           </button>
           {shown.kind === "error" ? (
-            <span className="text-sm text-coral" role="alert">
+            <span className="text-sm text-coral-ink" role="alert">
               {shown.message}
             </span>
           ) : null}
@@ -239,7 +239,7 @@ function FloorMovePreviewBlock({ roleFamily, suggested }: { roleFamily: string; 
   }
   if (shown.kind === "error") {
     return (
-      <p className="mt-2 text-sm text-coral" role="alert">
+      <p className="mt-2 text-sm text-coral-ink" role="alert">
         {shown.message}
       </p>
     );
@@ -279,7 +279,7 @@ function PreviewNames({ bucket, label }: { bucket: FloorMoveBucket; label: strin
       {bucket.rows.map((row, i) => (
         <span key={row.entryId}>
           {i > 0 ? ", " : null}
-          <a href={row.href} className="focus-ring underline decoration-stone-300 underline-offset-2 hover:text-coral">
+          <a href={row.href} className="focus-ring underline decoration-stone-300 underline-offset-2 hover:text-coral-ink">
             {t("previewName", { label: row.label, score: row.matchScore ?? "–" })}
           </a>
         </span>

@@ -44,4 +44,4 @@ export const CONF_STYLE: Record<string, string> = {
   wide: "text-dial-amber",
 };
 export const ratingColor = (r: number) =>
-  r >= 4 ? "bg-moss/15 text-moss" : r <= 2 ? "bg-coral/10 text-coral" : "bg-stone-100 text-ink";
+  r >= 4 ? "bg-moss/15 text-moss" : r <= 2 ? "bg-coral/10 text-coral-ink" : "bg-stone-100 text-ink";

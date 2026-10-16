@@ -94,11 +94,11 @@ export function DevApplyForm({ token }: { token: string }) {
     <form onSubmit={submit} className="mt-4 space-y-3">
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block text-sm font-medium text-ink">
-          {t("fieldName")} <span className="text-coral">*</span>
+          {t("fieldName")} <span className="text-coral-ink">*</span>
           <TextInput value={name} onChange={(e) => setName(e.target.value)} required className="mt-1" />
         </label>
         <label className="block text-sm font-medium text-ink">
-          {t("fieldContact")} <span className="text-coral">*</span>
+          {t("fieldContact")} <span className="text-coral-ink">*</span>
           <TextInput
             type="email"
             value={contact}
@@ -111,7 +111,7 @@ export function DevApplyForm({ token }: { token: string }) {
         </label>
       </div>
       <label className="block text-sm font-medium text-ink">
-        {t("fieldRepo")} <span className="text-coral">*</span>
+        {t("fieldRepo")} <span className="text-coral-ink">*</span>
         <TextInput
           value={repoRef}
           onChange={(e) => setRepoRef(e.target.value)}

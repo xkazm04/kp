@@ -149,7 +149,7 @@ export function JourneyFactCard({
         ) : detailLoading ? (
           <LoadingGap className="min-h-16" label={common("loading")} />
         ) : detailError ? (
-          <p className="text-micro text-coral" role="alert">
+          <p className="text-micro text-coral-ink" role="alert">
             {detailError}
           </p>
         ) : detail?.source ? (

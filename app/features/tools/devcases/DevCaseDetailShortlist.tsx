@@ -31,8 +31,8 @@ export function DevCaseDetailShortlist({
   return (
     <section>
       <h3 className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
-        <ClipboardList size={13} className="text-coral" /> {t("title")}
-        <span className="text-coral">· {shortlist.length}</span>
+        <ClipboardList size={13} className="text-coral-ink" /> {t("title")}
+        <span className="text-coral-ink">· {shortlist.length}</span>
       </h3>
       <ul className="mt-2 space-y-1.5">
         {cohort.rows.map(({ item, rank }, i, arr) => {

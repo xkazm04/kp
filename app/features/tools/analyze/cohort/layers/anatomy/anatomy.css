@@ -136,7 +136,7 @@
   padding: 16px 18px; border: var(--cd-line) solid var(--cd-rule); border-radius: var(--cd-radius-lg); background: var(--cd-sunk); box-shadow: var(--cd-drop);
 }
 .an-sheet--empty { font-size: var(--text-body); color: var(--cd-quiet); }
-.an-sheet__kicker { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: var(--text-meta); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--color-coral); }
+.an-sheet__kicker { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: var(--text-meta); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--color-coral-ink); }
 .an-sheet:not([data-focused]) .an-sheet__kicker { color: var(--cd-quiet); }
 .an-sheet__place { font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--cd-quiet); }
 .an-sheet__name { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; font-family: var(--font-serif); font-size: var(--text-h2); line-height: 1.25; font-weight: var(--cd-head-weight); }

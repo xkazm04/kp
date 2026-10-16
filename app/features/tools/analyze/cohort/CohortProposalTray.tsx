@@ -16,7 +16,7 @@ import { groupByMembership, type Tray, type TrayMember } from "./cohortProposalE
 import { CohortSeats, SeatKey } from "./CohortSeats";
 import { CohortAddMember } from "./CohortAddMember";
 
-const LINK = "font-semibold text-coral underline-offset-2 hover:underline";
+const LINK = "font-semibold text-coral-ink underline-offset-2 hover:underline";
 
 export function CohortProposalTray({
   proposal,

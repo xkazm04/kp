@@ -91,7 +91,7 @@ export function JdCandidateList({ slug, count }: { slug: string; count: number }
         return (
           <li key={row.slug} className="flex items-center justify-between gap-3 px-3 py-2">
             <div className="min-w-0">
-              <Link href={`/history/${row.slug}`} className="text-sm font-semibold text-ink hover:text-coral hover:underline">
+              <Link href={`/history/${row.slug}`} className="text-sm font-semibold text-ink hover:text-coral-ink hover:underline">
                 {row.candidate_label}
               </Link>
               <p className="truncate text-sm text-steel">

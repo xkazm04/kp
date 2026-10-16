@@ -102,7 +102,7 @@ export function JobsPublishDialog({
             aria-describedby="role-target-hires-help"
             className={`${FIELD} mt-1 w-28 nums`}
           />
-          <p id="role-target-hires-help" className={targetValid ? "mt-1 text-sm text-steel" : "mt-1 text-sm text-coral"}>
+          <p id="role-target-hires-help" className={targetValid ? "mt-1 text-sm text-steel" : "mt-1 text-sm text-coral-ink"}>
             {targetValid ? t("targetHelp") : t("targetInvalid", { max: MAX_TARGET_HIRES })}
           </p>
         </div>

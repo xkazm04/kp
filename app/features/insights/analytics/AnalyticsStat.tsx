@@ -40,7 +40,7 @@ export function Stat({
         {goalChip ? (
           <span
             className={`rounded px-1 py-0.5 text-meta font-semibold ${
-              goalChip.missed == null ? "bg-stone-100 text-steel" : goalChip.missed ? "bg-coral/10 text-coral" : "bg-moss/10 text-moss"
+              goalChip.missed == null ? "bg-stone-100 text-steel" : goalChip.missed ? "bg-coral/10 text-coral-ink" : "bg-moss/10 text-moss"
             }`}
           >
             {goalChip.text}

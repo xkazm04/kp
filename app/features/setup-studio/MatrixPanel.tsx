@@ -81,7 +81,7 @@ export function MatrixPanel({
       className={`${PANEL} ${CARD_PAD}`}
     >
       <h2 className="flex items-center gap-2 font-serif text-display text-ink">
-        <PartyPopper size={22} aria-hidden className="text-coral" />
+        <PartyPopper size={22} aria-hidden className="text-coral-ink" />
         {reward ? COPY.rewardTitle : COPY.doneTitle}
       </h2>
       {reward ? <p className="mt-1 text-body text-steel">{COPY.rewardNote}</p> : null}

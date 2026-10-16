@@ -106,7 +106,7 @@ export function AnalyzePriorRunsStrip({
         className={`${PANEL_ACCENT} mt-4 p-4 text-micro`}
       >
         <div className="flex items-start gap-3">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-coral" aria-hidden />
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-coral-ink" aria-hidden />
           <div className="flex-1 space-y-1">
             <p className="font-semibold text-ink">{t("priorDecidedTitle")}</p>
             <p className="text-steel">
@@ -118,7 +118,7 @@ export function AnalyzePriorRunsStrip({
             <div className="pt-1">
               <Link
                 href={`/history/${summary.decision.slug}`}
-                className="inline-flex items-center gap-1 font-semibold text-ink underline hover:text-coral"
+                className="inline-flex items-center gap-1 font-semibold text-ink underline hover:text-coral-ink"
               >
                 <span>{t("priorOpenDecidedReport")}</span>
                 <ExternalLink className="h-3.5 w-3.5" aria-hidden />
@@ -175,7 +175,7 @@ export function AnalyzePriorRunsStrip({
             <div className="pt-1">
               <Link
                 href={`/history/${summary.latest.slug}`}
-                className="inline-flex items-center gap-1 font-semibold text-ink underline hover:text-coral"
+                className="inline-flex items-center gap-1 font-semibold text-ink underline hover:text-coral-ink"
               >
                 <span>{t("priorOpenLatestReport")}</span>
                 <ExternalLink className="h-3.5 w-3.5" aria-hidden />

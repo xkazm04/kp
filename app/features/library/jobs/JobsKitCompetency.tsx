@@ -194,7 +194,7 @@ export function JobsKitCompetency({
           aria-label={t("addQuestionAria", { title: name })}
           className={`${BTN_GHOST} px-2 py-1 text-sm`}
         >
-          <Plus size={13} className="text-coral" aria-hidden /> {t("addQuestion")}
+          <Plus size={13} className="text-coral-ink" aria-hidden /> {t("addQuestion")}
         </button>
         <span className="text-sm text-steel nums">
           {t("questionsMeta", { count: c.questions.length, max: KIT_MAX_QUESTIONS_PER_COMPETENCY })}

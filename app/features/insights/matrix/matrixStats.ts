@@ -34,7 +34,7 @@ const TOP_BAND = 85; // cosmetic: the deepest moss inside strong
 const lbl = (lo: number, next: number) => `${lo}–${next - 1}`;
 
 export const MATRIX_BANDS = [
-  { min: 0, label: `<${PARTIAL_SPLIT}`, cellClass: "bg-coral/15 text-coral", fill: "bg-coral/40" },
+  { min: 0, label: `<${PARTIAL_SPLIT}`, cellClass: "bg-coral/15 text-coral-ink", fill: "bg-coral/40" },
   { min: PARTIAL_SPLIT, label: lbl(PARTIAL_SPLIT, FIT_PROMISING_FLOOR), cellClass: "bg-amber-100 text-amber-700", fill: "bg-amber-300" },
   { min: FIT_PROMISING_FLOOR, label: lbl(FIT_PROMISING_FLOOR, FIT_STRONG_FLOOR), cellClass: "bg-moss/20 text-moss", fill: "bg-moss/40" },
   { min: FIT_STRONG_FLOOR, label: lbl(FIT_STRONG_FLOOR, TOP_BAND), cellClass: "bg-moss/40 text-ink", fill: "bg-moss/60" },

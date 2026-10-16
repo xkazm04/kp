@@ -89,7 +89,7 @@ export function MatrixToolbar({
           onClick={() => (selectMode ? exitSelect() : setSelectMode(true))}
           aria-pressed={selectMode}
           className={`${BTN_SECONDARY} px-2.5 py-1 text-sm font-semibold ${
-            selectMode ? "border-coral bg-coral/10 text-coral" : "bg-white"
+            selectMode ? "border-coral bg-coral/10 text-coral-ink" : "bg-white"
           }`}
           title={t("shortlistTitle")}
         >
@@ -101,7 +101,7 @@ export function MatrixToolbar({
           type="button"
           onClick={() => setSlateOpen(!slateOpen)}
           aria-pressed={slateOpen}
-          className={`${BTN_SECONDARY} px-2.5 py-1 text-sm font-semibold ${slateOpen ? "border-coral bg-coral/10 text-coral" : "bg-white"}`}
+          className={`${BTN_SECONDARY} px-2.5 py-1 text-sm font-semibold ${slateOpen ? "border-coral bg-coral/10 text-coral-ink" : "bg-white"}`}
           title={t("slate.toggleTitle")}
         >
           <Split size={14} /> {t("slate.toggle")}

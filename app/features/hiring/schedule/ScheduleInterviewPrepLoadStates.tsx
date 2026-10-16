@@ -27,7 +27,7 @@ export function PrepLoadStates({
   if (generating) {
     return (
       <p className="flex items-center gap-2 text-sm text-steel">
-        <Loader2 size={16} className="animate-spin text-coral" /> {t("generatingPlan")}
+        <Loader2 size={16} className="animate-spin text-coral-ink" /> {t("generatingPlan")}
       </p>
     );
   }
@@ -36,7 +36,7 @@ export function PrepLoadStates({
     // "no prep yet". Offer a retry (re-fetch) and a generate-fresh path.
     return (
       <div className="text-center">
-        <p className="flex items-center justify-center gap-2 text-sm text-coral">
+        <p className="flex items-center justify-center gap-2 text-sm text-coral-ink">
           <AlertTriangle size={15} /> {error}
         </p>
         <p className="mt-1 text-meta text-steel">{t("loadErrorHint")}</p>
@@ -52,7 +52,7 @@ export function PrepLoadStates({
             type="button"
             onClick={generate}
             disabled={generating}
-            className="focus-ring inline-flex h-9 items-center gap-2 rounded-md bg-coral px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+            className="focus-ring inline-flex h-9 items-center gap-2 rounded-md bg-coral-solid px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
           >
             <Sparkles size={16} /> {t("generate")}
           </button>
@@ -66,7 +66,7 @@ export function PrepLoadStates({
       <button
         type="button"
         onClick={generate}
-        className="focus-ring mt-3 inline-flex h-10 items-center gap-2 rounded-md bg-coral px-4 text-sm font-semibold text-white hover:opacity-90"
+        className="focus-ring mt-3 inline-flex h-10 items-center gap-2 rounded-md bg-coral-solid px-4 text-sm font-semibold text-white hover:opacity-90"
       >
         <Sparkles size={16} /> {t("generatePrep")}
       </button>

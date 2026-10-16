@@ -212,7 +212,7 @@ export function CalibrationPanel({
       ) : null}
 
       {err ? (
-        <p role="alert" className="mt-1.5 text-micro font-semibold text-coral">
+        <p role="alert" className="mt-1.5 text-micro font-semibold text-coral-ink">
           {err}
         </p>
       ) : null}
@@ -304,7 +304,7 @@ export function CalibrationPanel({
                   <td className="py-1 font-semibold text-ink" title={t(`outcomes.sourceNote.${row.source}` as Parameters<typeof t>[0])}>
                     {row.candidateRef ?? row.ref ?? "—"}
                     {row.source === "auto" ? (
-                      <span className="ml-1.5 rounded-full bg-coral/15 px-1.5 py-0.5 text-meta uppercase text-coral">{t("outcomes.autoBadge")}</span>
+                      <span className="ml-1.5 rounded-full bg-coral/15 px-1.5 py-0.5 text-meta uppercase text-coral-ink">{t("outcomes.autoBadge")}</span>
                     ) : null}
                   </td>
                   <td className="text-steel">{row.predictedScore ?? "—"}</td>

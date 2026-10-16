@@ -45,7 +45,7 @@ function Turn({
           </span>
         ) : null}
         {cited ? (
-          <span className="ml-1.5 text-coral" title={t("citedTitle")}>
+          <span className="ml-1.5 text-coral-ink" title={t("citedTitle")}>
             {t("cited")}
           </span>
         ) : null}

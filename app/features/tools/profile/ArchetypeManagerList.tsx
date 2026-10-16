@@ -41,7 +41,7 @@ export function ArchetypeManagerList({
                 onClick={() => onSelect(a.id)}
                 aria-current={isActive ? "true" : undefined}
                 className={`focus-ring flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-base font-medium transition-colors ${
-                  isActive ? "bg-coral/10 text-coral" : "text-ink hover:bg-stone-50"
+                  isActive ? "bg-coral/10 text-coral-ink" : "text-ink hover:bg-stone-50"
                 }`}
               >
                 <span className={`h-1.5 w-1.5 rounded-full ${isActive ? "bg-coral" : "bg-stone-300"}`} aria-hidden />

@@ -89,13 +89,13 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
     <Modal title={t("title", { name: entry.candidateLabel })} subtitle={entry.jobTitle ?? undefined} onClose={onClose} size="3xl">
       {loading ? (
         <p className="flex items-center gap-2 text-sm text-steel">
-          <Loader2 size={16} className="animate-spin text-coral" /> {t("loading")}
+          <Loader2 size={16} className="animate-spin text-coral-ink" /> {t("loading")}
         </p>
       ) : error ? (
         // Distinct failure state with a retry: a 500 / DB lock / parse error must
         // never read as the reassuring "no interview recorded" empty state below.
         <div className="space-y-2">
-          <p className="flex items-center gap-2 text-sm text-coral">
+          <p className="flex items-center gap-2 text-sm text-coral-ink">
             <AlertTriangle size={15} /> {error}
           </p>
           <button
@@ -148,7 +148,7 @@ export function InterviewTranscriptModal({ entry, onClose }: { entry: SchedEntry
                 </button>
               ) : null}
              </div>
-              {rescoreError ? <p role="alert" className="mt-2 text-coral">{rescoreError}</p> : null}
+              {rescoreError ? <p role="alert" className="mt-2 text-coral-ink">{rescoreError}</p> : null}
             </div>
           ) : null}
 

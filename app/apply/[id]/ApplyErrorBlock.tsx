@@ -32,7 +32,7 @@ export function ApplyErrorBlock({
 
   return (
     <div role="alert" className="mt-4 rounded-lg border border-coral/40 bg-coral/5 p-4">
-      <p className="text-base text-coral">{error.message}</p>
+      <p className="text-base text-coral-ink">{error.message}</p>
       {error.retryable ? (
         <button type="button" disabled={submitting} onClick={onRetry} className={`${BTN_PRIMARY} mt-3 h-10 px-4`}>
           {submitting ? t("sending") : tCommon("retry")}

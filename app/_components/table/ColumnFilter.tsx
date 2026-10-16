@@ -87,7 +87,7 @@ export function ColumnFilter({
           aria-label={label}
           title={label}
           className={`focus-ring relative inline-flex h-6 w-6 items-center justify-center rounded transition-colors ${
-            active ? "bg-coral/10 text-coral" : "text-steel hover:bg-stone-100 hover:text-ink"
+            active ? "bg-coral/10 text-coral-ink" : "text-steel hover:bg-stone-100 hover:text-ink"
           }`}
         >
           <TriggerIcon size={13} aria-hidden />
@@ -104,7 +104,7 @@ export function ColumnFilter({
           aria-haspopup={isListbox ? "listbox" : undefined}
           aria-controls={isListbox && anchor ? listId : undefined}
           aria-expanded={Boolean(anchor)}
-          className={`focus-ring inline-flex items-center gap-1 rounded px-1 py-0.5 ${META_LABEL} ${active ? "text-coral" : "hover:text-ink"}`}
+          className={`focus-ring inline-flex items-center gap-1 rounded px-1 py-0.5 ${META_LABEL} ${active ? "text-coral-ink" : "hover:text-ink"}`}
         >
           {title}
           {active ? (

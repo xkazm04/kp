@@ -99,7 +99,7 @@ export function JobsAgentFitSpecPanel({
                 type="button"
                 onClick={() => onToggleConnector(name)}
                 aria-label={t("removeConnector", { name })}
-                className="focus-ring rounded-full text-steel hover:text-coral"
+                className="focus-ring rounded-full text-steel hover:text-coral-ink"
               >
                 <X size={12} aria-hidden />
               </button>

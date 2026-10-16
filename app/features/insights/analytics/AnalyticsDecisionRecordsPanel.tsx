@@ -182,7 +182,7 @@ export function DecisionRecordsPanel() {
               what it now says, in those words, with the ceiling beside it: a key set
               tomorrow cannot retro-seal what was sealed today. */}
           {!data.chain.ok ? (
-            <div className="mt-4 flex items-center gap-2 rounded-md border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral" role="alert">
+            <div className="mt-4 flex items-center gap-2 rounded-md border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral-ink" role="alert">
               <ShieldAlert className="h-4 w-4" aria-hidden />
               {t("broken", { seq: data.chain.brokenAtSeq ?? 0 })}
             </div>

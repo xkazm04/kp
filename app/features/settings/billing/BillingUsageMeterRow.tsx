@@ -46,7 +46,7 @@ export function MeterRow({
   const link = linkTo ? (
     <a
       href={linkTo === "pack" ? "#billing-minutes-pack" : "#billing-plans"}
-      className="font-medium text-coral underline underline-offset-2"
+      className="font-medium text-coral-ink underline underline-offset-2"
     >
       {linkTo === "pack" ? t("buyMinutesCta") : t("upgradeCta")}
     </a>
@@ -79,7 +79,7 @@ export function MeterRow({
         {limit === null ? (
           <span className="text-sm text-steel">{t("usedUnlimited", { used: meter.used })}</span>
         ) : (
-          <span className={`text-sm ${depleted ? "font-semibold text-coral" : approaching ? "font-medium text-amber-800" : "text-steel"}`}>
+          <span className={`text-sm ${depleted ? "font-semibold text-coral-ink" : approaching ? "font-medium text-amber-800" : "text-steel"}`}>
             {t("used", { used: meter.used, limit })}
           </span>
         )}

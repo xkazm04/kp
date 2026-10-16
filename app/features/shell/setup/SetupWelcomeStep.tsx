@@ -79,7 +79,7 @@ export function WelcomeStep({ ctrl }: { ctrl: OnboardingCtrl }) {
                 >
                   <span
                     aria-hidden
-                    className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${on ? "bg-coral text-white shadow-sticker-xs" : "bg-steel/10 text-steel group-hover:bg-coral/10 group-hover:text-coral"}`}
+                    className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${on ? "bg-coral-solid text-white shadow-sticker-xs" : "bg-steel/10 text-steel group-hover:bg-coral-solid/10 group-hover:text-coral-ink"}`}
                   >
                     {on ? <Check size={18} /> : <Icon size={18} />}
                   </span>

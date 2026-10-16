@@ -312,7 +312,7 @@ export function WorkspaceTab() {
           the two panels below. It used to be stone-500 on this line only, which
           read as a quiet empty state rather than a failure. */}
       {error && !loading ? (
-        <p role="alert" className="text-sm text-coral">{t("loadError")}</p>
+        <p role="alert" className="text-sm text-coral-ink">{t("loadError")}</p>
       ) : view === "workspace" ? (
         <div className="grid gap-6 lg:grid-cols-3">
           <WorkspaceRail

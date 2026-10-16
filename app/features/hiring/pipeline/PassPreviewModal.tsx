@@ -164,7 +164,7 @@ export function PassPreviewModal({
               in the reader's language - a capability refusal also names the
               permission the operator has to ask for. */}
           {commitError ? (
-            <p role="alert" className="mr-auto basis-full text-sm font-semibold text-coral">
+            <p role="alert" className="mr-auto basis-full text-sm font-semibold text-coral-ink">
               {capabilityAwareReason(errMsg, commitError, t("previewCommitFailed"))}
             </p>
           ) : null}
@@ -263,7 +263,7 @@ export function PassPreviewModal({
         ) : null}
         {rejects.length > 0 ? (
           <section>
-            <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral">
+            <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-coral-ink">
               <XCircle size={13} aria-hidden /> {t("previewRejectsQueued", { count: rejects.length })}
             </p>
             <ul className="mt-1.5 space-y-1">

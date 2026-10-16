@@ -64,7 +64,7 @@ export function AnalyzeSavedJdPicker({
         role="alert"
         className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-dashed border-coral/50 bg-white p-2"
       >
-        <p className="text-sm font-medium text-coral">
+        <p className="text-sm font-medium text-coral-ink">
           {errorMessage({ code: "JD_LIST_FAILED" }, t("jdLibraryFailed"))}
         </p>
         <button type="button" onClick={onRetryLibrary} className={`${BTN_SECONDARY} h-8 px-3 text-sm`}>
@@ -84,7 +84,7 @@ export function AnalyzeSavedJdPicker({
       return (
         <p
           role="alert"
-          className="rounded-md border border-dashed border-coral/50 bg-white p-2 text-sm font-medium text-coral"
+          className="rounded-md border border-dashed border-coral/50 bg-white p-2 text-sm font-medium text-coral-ink"
         >
           {t("jdLoadFailed")}
         </p>
@@ -94,7 +94,7 @@ export function AnalyzeSavedJdPicker({
       <p className="rounded-md border border-dashed border-stone-300 bg-white p-2 text-sm text-steel">
         {t.rich("noJds", {
           link: (chunks) => (
-            <Link href="/?tab=intake" className="font-semibold text-coral underline-offset-2 hover:underline">
+            <Link href="/?tab=intake" className="font-semibold text-coral-ink underline-offset-2 hover:underline">
               {chunks}
             </Link>
           ),
@@ -132,13 +132,13 @@ export function AnalyzeSavedJdPicker({
             <button
               type="button"
               onClick={onClear}
-              className="text-sm font-medium text-coral underline-offset-2 hover:underline"
+              className="text-sm font-medium text-coral-ink underline-offset-2 hover:underline"
             >
               {t("detach")}
             </button>
           </div>
         ) : loadFailed ? (
-          <span role="alert" className="text-right text-sm font-medium text-coral">{t("jdLoadFailed")}</span>
+          <span role="alert" className="text-right text-sm font-medium text-coral-ink">{t("jdLoadFailed")}</span>
         ) : null}
       </div>
       {libraryTruncated ? (

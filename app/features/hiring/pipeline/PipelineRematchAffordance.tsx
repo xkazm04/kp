@@ -27,7 +27,7 @@ export function PipelineRematchAffordance({
         <button
           type="button"
           onClick={() => onOpenEntry(link.entryId)}
-          className="focus-ring inline-flex items-center gap-0.5 rounded font-semibold text-coral hover:underline"
+          className="focus-ring inline-flex items-center gap-0.5 rounded font-semibold text-coral-ink hover:underline"
         >
           <ExternalLink size={11} aria-hidden /> {t("rematchViewLinked")}
         </button>

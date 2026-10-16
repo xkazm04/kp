@@ -134,7 +134,7 @@ export class ErrorBoundary extends Component<Props, State> {
         h("button", {
           type: "button",
           onClick: this.reset,
-          className: "focus-ring inline-flex h-9 items-center gap-2 rounded-md bg-coral px-4 text-sm font-semibold text-white hover:opacity-90",
+          className: "focus-ring inline-flex h-9 items-center gap-2 rounded-md bg-coral-solid px-4 text-sm font-semibold text-white hover:opacity-90",
         }, h(RotateCcw, { size: 14, "aria-hidden": true }), retry),
         h("button", {
           type: "button",
@@ -143,7 +143,7 @@ export class ErrorBoundary extends Component<Props, State> {
           className: "focus-ring inline-flex h-9 items-center rounded-md border border-steel/30 px-4 text-sm font-semibold text-ink disabled:opacity-50",
         }, this.state.report === "busy" ? reporting : report)
       ),
-      this.state.reportError ? h("p", { role: "alert", className: "mt-3 text-sm text-coral" }, this.state.reportError) : null,
+      this.state.reportError ? h("p", { role: "alert", className: "mt-3 text-sm text-coral-ink" }, this.state.reportError) : null,
       this.state.report === "sent" ? h("p", { role: "status", className: "mt-3 text-sm text-ink" }, reportSent) : null
     );
   }

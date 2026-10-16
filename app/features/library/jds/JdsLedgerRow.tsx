@@ -9,7 +9,7 @@ import { RowIngest } from "./JdsLedgerRowIngest";
 import { RowDelete } from "./JdsLedgerRowDelete";
 
 const ICON_BTN =
-  "focus-ring inline-grid h-8 w-8 place-items-center rounded-md text-steel transition-colors hover:bg-paper hover:text-coral disabled:opacity-40";
+  "focus-ring inline-grid h-8 w-8 place-items-center rounded-md text-steel transition-colors hover:bg-paper hover:text-coral-ink disabled:opacity-40";
 
 // One saved-JD table row — extracted verbatim from JdsLedgerTable.tsx so that
 // file stays under the 200-line split threshold.
@@ -48,7 +48,7 @@ export function JdsLedgerRow({
         <button
           type="button"
           onClick={() => onOpenRow(row)}
-          className="focus-ring block max-w-[24rem] truncate text-left text-sm font-semibold text-ink hover:text-coral"
+          className="focus-ring block max-w-[24rem] truncate text-left text-sm font-semibold text-ink hover:text-coral-ink"
           title={row.title}
         >
           {row.title}

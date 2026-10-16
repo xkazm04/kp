@@ -28,7 +28,7 @@
 .k-cells__n { display: flex; align-items: baseline; gap: 8px; font-size: var(--text-micro); line-height: 1.2; white-space: nowrap; overflow: hidden; }
 .k-cells__n b { font-weight: 400; color: var(--k-ink); }
 .k-cells__c.is-zero .k-cells__n b { color: var(--k-faint); }
-.k-cells__wait { display: inline-flex; align-items: center; gap: 3px; color: var(--color-coral); }
+.k-cells__wait { display: inline-flex; align-items: center; gap: 3px; color: var(--color-coral-ink); }
 .k-cells__wait::before { content: ""; width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid var(--color-coral); }
 .k-cells__beads { display: flex; align-items: center; min-width: 0; height: 16px; }
 /* the strip gives way before "+N" does: on a tight cell it clips its last beads, the count stays */

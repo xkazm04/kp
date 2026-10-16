@@ -10,7 +10,7 @@ import { useScheduleInvite } from "./use-schedule-invite";
 import { SCHEDULE_FOCUS_ID, scheduleSurface, type ScheduleSurface } from "./schedule-focus";
 
 /** The one error surface, shared by the fatal and the transient case below. */
-const ERROR_NOTE = "rounded-md border border-stone-200 bg-paper p-4 text-base text-coral";
+const ERROR_NOTE = "rounded-md border border-stone-200 bg-paper p-4 text-base text-coral-ink";
 
 /**
  * The candidate's self-scheduling surface. This component owns ONLY the order in

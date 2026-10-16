@@ -111,7 +111,7 @@ export function MemberConfirmModals({
         >
           {t.rich("confirmRemove.body", { name: memberName(confirmingRemove), em })}
           {removal.error ? (
-            <span className="mt-2 block text-sm font-medium text-coral">{t("confirmRemove.impactUnavailable")}</span>
+            <span className="mt-2 block text-sm font-medium text-coral-ink">{t("confirmRemove.impactUnavailable")}</span>
           ) : removal.impact ? (
             <span className="mt-2 block text-sm">
               {t("confirmRemove.impactSeats", { seats: removal.impact.casualties.memberships })}
@@ -120,7 +120,7 @@ export function MemberConfirmModals({
               ) : null}
             </span>
           ) : (
-            <span className="mt-2 block text-sm text-steel/70">{t("confirmRemove.impactLoading")}</span>
+            <span className="mt-2 block text-sm text-steel">{t("confirmRemove.impactLoading")}</span>
           )}
         </ConfirmDialog>
       ) : null}

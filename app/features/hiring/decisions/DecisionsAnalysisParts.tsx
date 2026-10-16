@@ -177,7 +177,7 @@ function NarrativeBlock({ prose, strengths, redFlags }: Narrative) {
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           {[
             { items: strengths, tone: "text-moss" },
-            { items: redFlags, tone: "text-coral" },
+            { items: redFlags, tone: "text-coral-ink" },
           ].map(({ items, tone }) =>
             items.length ? (
               <ul key={tone} className="space-y-1">
@@ -236,7 +236,7 @@ export function DecisionNoteField({ reason, setReason, t, className = "" }: { re
   return (
     <div className={className}>
       <label htmlFor="decision-note" className="text-meta uppercase tracking-wide text-steel">
-        {t("decisionNote")} <span className="font-normal normal-case text-steel/70">{t("decisionNoteOptional")}</span>
+        {t("decisionNote")} <span className="font-normal normal-case text-steel">{t("decisionNoteOptional")}</span>
       </label>
       <TextArea id="decision-note" value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder={t("notePlaceholder")} sizeVariant="sm" className="mt-1.5" />
     </div>
@@ -249,7 +249,7 @@ export function DecisionFooter({ reason, onAccept, onReject, t }: { reason: stri
       <button
         type="button"
         onClick={() => onReject(reason)}
-        className="focus-ring inline-flex h-9 items-center gap-1 rounded-md border border-stone-200 px-3 text-sm font-semibold text-coral hover:bg-coral/5"
+        className="focus-ring inline-flex h-9 items-center gap-1 rounded-md border border-stone-200 px-3 text-sm font-semibold text-coral-ink hover:bg-coral/5"
       >
         <X size={15} /> {t("reject")}
       </button>

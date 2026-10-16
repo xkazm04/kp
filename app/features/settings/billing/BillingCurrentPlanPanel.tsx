@@ -109,7 +109,7 @@ export function BillingCurrentPlanPanel({
         {portalNote ? (
           <p
             role={portalNote.hint ? "status" : "alert"}
-            className={`text-sm ${portalNote.hint ? "text-steel" : "text-coral"}`}
+            className={`text-sm ${portalNote.hint ? "text-steel" : "text-coral-ink"}`}
           >
             {portalNote.text}
             {/* plans-checkout-billing-ui #3: when a popup blocker killed the pre-opened

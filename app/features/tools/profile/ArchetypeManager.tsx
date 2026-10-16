@@ -141,7 +141,7 @@ export function ArchetypeManager({
     <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
       <header className="flex flex-wrap items-start justify-between gap-3 border-b border-stone-200 pb-4">
         <div>
-          <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
+          <p className="text-meta uppercase text-coral-ink">{t("eyebrow")}</p>
           <h2 className="mt-1 font-serif text-display text-ink">{t("title")}</h2>
           <p className="mt-2 max-w-3xl text-body text-steel">{t("intro")}</p>
         </div>

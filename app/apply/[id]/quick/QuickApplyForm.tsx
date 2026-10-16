@@ -335,7 +335,7 @@ export function QuickApplyForm({
             className="mt-1 h-12"
           />
           {emailError ? (
-            <p id="qa-email-error" role="alert" className="mt-1 text-sm text-coral">
+            <p id="qa-email-error" role="alert" className="mt-1 text-sm text-coral-ink">
               {emailError}
             </p>
           ) : (
@@ -376,7 +376,7 @@ export function QuickApplyForm({
       </div>
 
       {submitError ? (
-        <p id="qa-submit-error" role="alert" className="mt-4 rounded-lg border border-coral/40 bg-coral/5 p-3 text-base text-coral">
+        <p id="qa-submit-error" role="alert" className="mt-4 rounded-lg border border-coral/40 bg-coral/5 p-3 text-base text-coral-ink">
           {submitError}
         </p>
       ) : null}
@@ -384,7 +384,7 @@ export function QuickApplyForm({
           pre-emptively), alongside the focus/scroll jump — the cue the dead
           disabled button never gave. */}
       {incompleteError ? (
-        <p id="qa-incomplete-error" role="alert" className="mt-4 rounded-lg border border-coral/40 bg-coral/5 p-3 text-base text-coral">
+        <p id="qa-incomplete-error" role="alert" className="mt-4 rounded-lg border border-coral/40 bg-coral/5 p-3 text-base text-coral-ink">
           {incompleteError}
         </p>
       ) : null}

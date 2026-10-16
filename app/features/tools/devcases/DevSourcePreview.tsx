@@ -126,7 +126,7 @@ export function DevSourcePreview({
       tabIndex={-1}
       className="rounded-lg border border-coral/30 bg-coral/5 p-4"
     >
-      <h3 className="flex items-center gap-1.5 text-meta font-semibold uppercase tracking-wide text-coral">
+      <h3 className="flex items-center gap-1.5 text-meta font-semibold uppercase tracking-wide text-coral-ink">
         <Users size={13} /> {t("title")}
       </h3>
       <p className="mt-1 text-micro text-steel">{t("subtitle")}</p>
@@ -305,7 +305,7 @@ export function DevSourcePreview({
           )}
 
           {error ? (
-            <p role="alert" className="mt-2 text-micro text-coral">
+            <p role="alert" className="mt-2 text-micro text-coral-ink">
               {error}
             </p>
           ) : null}

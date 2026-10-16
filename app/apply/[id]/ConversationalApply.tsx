@@ -486,7 +486,7 @@ export function ConversationalApply({
           <div key={i} className={m.who === "me" ? "text-right" : ""}>
             <span
               className={`inline-block max-w-[85%] rounded-2xl px-3.5 py-2 text-base leading-6 ${
-                m.who === "me" ? "bg-coral text-white" : "border border-stone-200 bg-white text-ink"
+                m.who === "me" ? "bg-coral-solid text-white" : "border border-stone-200 bg-white text-ink"
               }`}
             >
               {m.text}

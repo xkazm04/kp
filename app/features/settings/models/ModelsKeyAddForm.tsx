@@ -172,7 +172,7 @@ export function ModelsKeyAddForm({
           {saving ? t("saving") : existingKey ? t("replace") : t("save")}
         </button>
         {note ? (
-          <span role={note.ok ? "status" : "alert"} className={`text-sm font-medium ${note.ok ? "text-moss" : "text-coral"}`}>
+          <span role={note.ok ? "status" : "alert"} className={`text-sm font-medium ${note.ok ? "text-moss" : "text-coral-ink"}`}>
             {note.text}
             {note.kpSecret ? <span className="block font-normal text-steel">{t("kpSecretHint")}</span> : null}
           </span>

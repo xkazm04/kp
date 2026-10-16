@@ -76,7 +76,7 @@ export function TurnRef({ turn, onJump }: { turn?: number | null; onJump?: (turn
   return (
     <button
       type="button"
-      className="focus-ring shrink-0 rounded text-meta text-steel underline decoration-dotted underline-offset-2 transition-colors hover:text-coral nums"
+      className="focus-ring shrink-0 rounded text-meta text-steel underline decoration-dotted underline-offset-2 transition-colors hover:text-coral-ink nums"
       onClick={onJump ? () => onJump(turn) : undefined}
       title={label}
       aria-label={label}

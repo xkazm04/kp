@@ -24,7 +24,7 @@ export const GROUP_META: Record<PaletteGroup, { icon: LucideIcon; tint: string }
   recent: { icon: Clock3, tint: "bg-stone-100 text-steel" },
   tabs: { icon: ArrowRight, tint: "bg-stone-100 text-steel" },
   actions: { icon: Play, tint: "bg-moss/15 text-moss" },
-  profile: { icon: UserRound, tint: "bg-coral/10 text-coral" },
+  profile: { icon: UserRound, tint: "bg-coral/10 text-coral-ink" },
   entry: { icon: LayoutDashboard, tint: "bg-blue-50 text-blue-700" },
   job: { icon: Briefcase, tint: "bg-amber-100 text-amber-700" },
   jd: { icon: FileText, tint: "bg-limewash text-ink" },

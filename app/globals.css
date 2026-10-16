@@ -9,6 +9,13 @@
   --color-paper: #fdf8ee;
   --color-moss: #526b4f;
   --color-coral: #d65a4a;
+  /* AA-safe coral twins. `coral` stays the brand hue for decorative fills, rings,
+     borders and large display; TEXT in coral uses `coral-ink` (>=4.5:1 on paper, white,
+     stone-100 and coral/10-15 tints) and a solid fill that carries WHITE text uses
+     `coral-solid` (>=4.5:1 against white). Ratios are gated by
+     app/_lib/contrast-tokens.test.ts, which reads this file. */
+  --color-coral-ink: #a53626;
+  --color-coral-solid: #b8412f;
   --color-steel: #42606f;
   --color-limewash: #dce7d0;
   /* Coral's pale tint — the counterpart to limewash (moss's), for the "other
@@ -286,6 +293,10 @@ body {
   --color-paper: #141b24;
   --color-moss: #84b27a;
   --color-coral: #ff7e68;
+  /* Dark: coral already clears AA on the dark canvas; `white` remaps to a dark surface, so
+     `text-white` on coral-solid is dark-on-coral there. */
+  --color-coral-ink: #ff7e68;
+  --color-coral-solid: #ff7e68;
   --color-steel: #9db5c3;
   --color-limewash: #2a382b;
   --color-coralwash: #46262b;

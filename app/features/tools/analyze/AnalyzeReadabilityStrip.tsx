@@ -20,7 +20,7 @@ const TONE_ICON = {
   ok: <CheckCircle2 className="h-4 w-4 shrink-0 text-moss" aria-hidden />,
   busy: <Loader2 className="h-4 w-4 shrink-0 animate-spin text-steel" aria-hidden />,
   note: <AlertTriangle className="h-4 w-4 shrink-0 text-amber-700" aria-hidden />,
-  block: <ShieldAlert className="h-4 w-4 shrink-0 text-coral" aria-hidden />,
+  block: <ShieldAlert className="h-4 w-4 shrink-0 text-coral-ink" aria-hidden />,
   unknown: <HelpCircle className="h-4 w-4 shrink-0 text-steel" aria-hidden />,
 } satisfies Record<Tone, ReactNode>;
 
@@ -96,7 +96,7 @@ export function AnalyzeReadabilityStrip({
               <span className="min-w-0">
                 <span className="break-all font-medium text-ink">{row.label}</span>
                 <span className="text-steel"> · </span>
-                <span className={row.tone === "block" ? "font-medium text-coral" : "text-steel"}>{row.text}</span>
+                <span className={row.tone === "block" ? "font-medium text-coral-ink" : "text-steel"}>{row.text}</span>
               </span>
             </li>
           ))}

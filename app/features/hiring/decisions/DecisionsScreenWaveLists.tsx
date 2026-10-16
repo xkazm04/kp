@@ -113,7 +113,7 @@ export function DecisionsScreenWaveLists({
     <>
       {rejects.length > 0 ? (
         <section>
-          <p className="text-meta uppercase tracking-wide text-coral">
+          <p className="text-meta uppercase tracking-wide text-coral-ink">
             {committed ? t("rejectedHeading", { count: rejects.length }) : t("wouldRejectHeading")}
           </p>
           {overrideRejects > 0 ? (

@@ -25,8 +25,8 @@ export function DevCaseDetailChannels({ casePostings, onDone }: { casePostings: 
   return (
     <section>
       <h3 className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
-        <ClipboardList size={13} className="text-coral" /> {t("title")}
-        <span className="text-coral">· {casePostings.length}</span>
+        <ClipboardList size={13} className="text-coral-ink" /> {t("title")}
+        <span className="text-coral-ink">· {casePostings.length}</span>
       </h3>
       <div className="mt-2 grid gap-3 lg:grid-cols-2">
         {casePostings.map((p) => {

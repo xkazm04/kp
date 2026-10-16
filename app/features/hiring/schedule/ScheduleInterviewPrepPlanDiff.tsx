@@ -53,7 +53,7 @@ export function PrepPlanDiff({
   return (
     <section role="status" aria-live="polite" className={`${PANEL_ACCENT} space-y-2 p-3`}>
       <p className="flex items-center gap-1.5 text-sm font-semibold text-ink">
-        <GitCompare size={15} className="shrink-0 text-coral" />
+        <GitCompare size={15} className="shrink-0 text-coral-ink" />
         {diff.isNoop ? t("planDiff.noopTitle") : t("planDiff.title")}
       </p>
       {lines.length ? (

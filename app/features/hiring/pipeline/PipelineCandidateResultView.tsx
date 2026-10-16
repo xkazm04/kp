@@ -13,7 +13,7 @@ function SourceBadge({ source }: { source: string }) {
   const t = useTranslations("pipeline.result");
   const llm = source === "llm";
   return (
-    <span className={`rounded-full px-2 py-0.5 text-sm font-semibold uppercase ${llm ? "bg-coral/15 text-coral" : "bg-stone-200 text-steel"}`}>
+    <span className={`rounded-full px-2 py-0.5 text-sm font-semibold uppercase ${llm ? "bg-coral/15 text-coral-ink" : "bg-stone-200 text-steel"}`}>
       {llm ? t("claudeCli") : t("template")}
     </span>
   );

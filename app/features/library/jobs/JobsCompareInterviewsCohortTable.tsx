@@ -64,10 +64,10 @@ function TelemetrySignals({
 const COVERAGE_GLYPH: Record<Exclude<AxisCoverageState, "not_planned">, { glyph: string; cls: string; key: "covered" | "asked" | "notReached" }> = {
   covered: { glyph: "●", cls: "text-moss", key: "covered" },
   asked: { glyph: "◐", cls: "text-steel", key: "asked" },
-  not_reached: { glyph: "○", cls: "text-coral", key: "notReached" },
+  not_reached: { glyph: "○", cls: "text-coral-ink", key: "notReached" },
 };
 const FLAG_STYLE: Record<CoverageCellFlag, { cls: string; key: "ratedNotReached" | "sentinelCovered" }> = {
-  rated_not_reached: { cls: "bg-coral/10 text-coral", key: "ratedNotReached" },
+  rated_not_reached: { cls: "bg-coral/10 text-coral-ink", key: "ratedNotReached" },
   sentinel_but_covered: { cls: "bg-dial-amber/15 text-ink", key: "sentinelCovered" },
 };
 
@@ -179,7 +179,7 @@ export function CohortTable({ rubric, candidates }: { rubric: RubricComp[]; cand
                     // A count only: the question texts are the recruiter's kit, not
                     // this door's to repeat. Null (no end_interview) renders nothing.
                     <span
-                      className="inline-block rounded-full bg-coral/10 px-2 py-0.5 text-meta font-semibold text-coral"
+                      className="inline-block rounded-full bg-coral/10 px-2 py-0.5 text-meta font-semibold text-coral-ink"
                       title={t("coverage.mustAsksOwedTitle")}
                     >
                       {t("coverage.mustAsksOwed", { count: mustAsksOwed(c.coverage) ?? 0 })}

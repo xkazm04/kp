@@ -76,7 +76,7 @@ export function decisionMeta(kind: string): { known: boolean; attribution: "auto
 
 export const ATTRIBUTION_BADGE = {
   auto: "bg-moss/10 text-moss",
-  human: "bg-coral/10 text-coral",
+  human: "bg-coral/10 text-coral-ink",
   unknown: "bg-stone-100 text-steel",
 } as const;
 

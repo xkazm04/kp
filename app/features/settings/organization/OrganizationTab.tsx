@@ -166,7 +166,7 @@ export function OrganizationTab() {
         <button
           type="button"
           onClick={() => setOnboarding(true)}
-          className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-coral/40 bg-coral/5 px-3 py-1.5 text-sm font-semibold text-coral transition-colors hover:bg-coral/10 dark:rounded-lg"
+          className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-coral/40 bg-coral/5 px-3 py-1.5 text-sm font-semibold text-coral-ink transition-colors hover:bg-coral/10 dark:rounded-lg"
         >
           <Rocket size={14} aria-hidden /> {t("previewOnboarding")}
         </button>

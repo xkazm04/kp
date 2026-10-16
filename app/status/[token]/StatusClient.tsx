@@ -221,7 +221,7 @@ export function StatusClient({
       <div className="mb-4 flex justify-end">
         <LanguageSwitcher />
       </div>
-      <p className="text-meta uppercase tracking-wide text-coral">{t("eyebrow")}</p>
+      <p className="text-meta uppercase tracking-wide text-coral-ink">{t("eyebrow")}</p>
       {error && !view ? (
         // Only take over the page on the INITIAL load failure — a transient poll
         // error after a good render must never wipe an already-shown status.
@@ -469,7 +469,7 @@ export function StatusClient({
                 </button>
               )}
               {recordingStep === "failed" ? (
-                <p role="alert" className="mt-2 text-base font-semibold text-coral">
+                <p role="alert" className="mt-2 text-base font-semibold text-coral-ink">
                   {t("recording.failed")}
                 </p>
               ) : null}

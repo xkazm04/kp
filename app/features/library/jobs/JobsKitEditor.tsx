@@ -143,7 +143,7 @@ export function JobsKitEditor({ k }: { k: JobKitLogic }) {
       ) : null}
 
       {[k.saveError, k.publishError, k.rehearseError].filter(Boolean).map((msg) => (
-        <p key={msg} role="alert" className="text-sm text-coral">
+        <p key={msg} role="alert" className="text-sm text-coral-ink">
           {msg}
           {msg === k.saveError && k.rejection?.competency ? ` ${t("rejectAt", { n: k.rejection.competency })}` : null}
         </p>
@@ -151,7 +151,7 @@ export function JobsKitEditor({ k }: { k: JobKitLogic }) {
       {k.rehearseLink ? (
         <p role="status" className="text-sm text-steel">
           {t("rehearseBlocked")}{" "}
-          <a href={k.rehearseLink} target="_blank" rel="noopener noreferrer" className="focus-ring font-semibold text-coral underline">
+          <a href={k.rehearseLink} target="_blank" rel="noopener noreferrer" className="focus-ring font-semibold text-coral-ink underline">
             {t("rehearseOpen")}
           </a>
         </p>
@@ -160,7 +160,7 @@ export function JobsKitEditor({ k }: { k: JobKitLogic }) {
       {check && (check.blocking.length > 0 || check.notes.length > 0) ? (
         <ul aria-live="polite" className="space-y-0.5 text-sm">
           {check.blocking.map((p, i) => (
-            <li key={`b-${i}`} className="text-coral">
+            <li key={`b-${i}`} className="text-coral-ink">
               {problemText(p)}
             </li>
           ))}
@@ -208,7 +208,7 @@ export function JobsKitEditor({ k }: { k: JobKitLogic }) {
           disabled={!canAddCompetency(draft)}
           className={`${BTN_GHOST} px-2 py-1 text-sm`}
         >
-          <Plus size={13} className="text-coral" aria-hidden /> {t("addCompetency")}
+          <Plus size={13} className="text-coral-ink" aria-hidden /> {t("addCompetency")}
         </button>
       </section>
 

@@ -79,7 +79,7 @@ export function SetupFinishReceipt({
           <span
             aria-hidden
             className={`grid h-12 w-12 place-items-center rounded-full border-2 border-stone-200 bg-white shadow-sticker-xs dark:-rotate-2 ${
-              partial ? "text-coral" : "text-moss"
+              partial ? "text-coral-ink" : "text-moss"
             }`}
           >
             {partial ? <AlertTriangle size={22} /> : <Check size={22} />}

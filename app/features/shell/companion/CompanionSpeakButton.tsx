@@ -54,14 +54,14 @@ export function CompanionSpeakButton({
         }}
         className={`focus-ring inline-flex items-center gap-1 rounded-full border px-2 py-0.5 transition-colors dark:inline-block dark:rotate-1 ${
           active && !failed
-            ? "border-coral/40 bg-coral/10 text-coral"
+            ? "border-coral/40 bg-coral/10 text-coral-ink"
             : "border-stone-200 text-steel hover:border-coral/40 hover:text-ink"
         }`}
       >
         <SpeakGlyph stopping={active && !failed && !resumable} />
       </button>
       {failed ? (
-        <span className="text-sm text-coral" role="status">
+        <span className="text-sm text-coral-ink" role="status">
           {t("voice.failed")}
         </span>
       ) : null}

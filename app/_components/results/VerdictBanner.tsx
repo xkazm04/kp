@@ -83,7 +83,7 @@ export function VerdictBanner({ analysis }: { analysis: Analysis }) {
         ) : null}
         {winnerLabel ? (
           <span className="ml-auto inline-flex items-center gap-1 truncate text-sm text-steel" title={winnerLabel}>
-            <Crown className="h-3.5 w-3.5 shrink-0 text-coral" aria-hidden />
+            <Crown className="h-3.5 w-3.5 shrink-0 text-coral-ink" aria-hidden />
             <span className="truncate">{t("verdict.winner", { label: winnerLabel })}</span>
           </span>
         ) : null}

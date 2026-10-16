@@ -74,7 +74,7 @@ export function AnalyzeFileDropZone({
   const hintId = `${inputId}-hint`;
 
   const errorRow = error ? (
-    <p className="mt-1 text-sm text-coral" role="alert">{error}</p>
+    <p className="mt-1 text-sm text-coral-ink" role="alert">{error}</p>
   ) : null;
 
   const picker = (
@@ -153,7 +153,7 @@ export function AnalyzeFileDropZone({
             : "border-stone-300 bg-white hover:border-coral"
         }`}
       >
-        <UploadCloud className={`h-5 w-5 ${isOver ? "text-coral" : "text-steel"}`} aria-hidden />
+        <UploadCloud className={`h-5 w-5 ${isOver ? "text-coral-ink" : "text-steel"}`} aria-hidden />
         <span className="mt-1 text-sm font-semibold text-ink">
           {isOver ? t("dropHere") : t("dropFileOrClick")}
         </span>

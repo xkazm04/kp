@@ -54,7 +54,7 @@ export function AiVerdict({
     // in light and nearly so in Spark Dark).
     <section className={`${PANEL_SUNKEN} p-4`}>
       <div className="mb-1.5 flex items-center gap-2">
-        <Sparkles size={15} className="text-coral" aria-hidden />
+        <Sparkles size={15} className="text-coral-ink" aria-hidden />
         <span className="text-sm font-semibold uppercase tracking-wide text-steel">{t("aiComparison")}</span>
         <Pill tone={aiBacked ? "info" : "neutral"}>{aiBacked ? t("aiBacked") : t("ruleBased")}</Pill>
       </div>

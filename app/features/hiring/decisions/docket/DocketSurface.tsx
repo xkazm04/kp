@@ -167,7 +167,7 @@ export function DocketSurface(p: Props) {
           <DocketBoard groups={groups} onOpenRole={nav.push} {...handlers} />
           <section className="mt-6">
             <h3 className="dk-tools-h">
-              {t("keyDecisions")} <span className="text-coral">· {p.visibleGroups.length}</span>
+              {t("keyDecisions")} <span className="text-coral-ink">· {p.visibleGroups.length}</span>
             </h3>
             <p className="mt-1 text-micro text-steel">{t("keyDecisionsHelp")}</p>
             <div className="mt-3 space-y-3">

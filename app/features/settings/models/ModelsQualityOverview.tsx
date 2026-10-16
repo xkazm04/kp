@@ -110,7 +110,7 @@ export function QualityOverview() {
             <span className="text-sm font-medium text-ink" title={m.model}>
               {short(m.model)}
               {m.reliability !== null && m.reliability < LOW_RELIABILITY ? (
-                <span className="ml-1.5 font-normal text-coral" title={t("relTitle")}>
+                <span className="ml-1.5 font-normal text-coral-ink" title={t("relTitle")}>
                   {WARN} {pct(m.reliability)}
                 </span>
               ) : null}
@@ -166,7 +166,7 @@ export function QualityOverview() {
                       <span className="font-medium">{short(best.model)}</span>
                       <span className="ml-1.5 tabular-nums text-steel">{best.composite.toFixed(1)}</span>
                       {best.cell.llmRate < LOW_RELIABILITY ? (
-                        <span className="ml-1.5 tabular-nums text-coral" title={t("relTitle")}>
+                        <span className="ml-1.5 tabular-nums text-coral-ink" title={t("relTitle")}>
                           {WARN} {pct(best.cell.llmRate)}
                         </span>
                       ) : null}
@@ -315,7 +315,7 @@ function RecommendedRouting() {
           judges: String(NOISE_BAND.atJudges),
         })}
       </p>
-      {loadFailed ? <p className="mt-1 text-sm text-coral">{t("loadFailed")}</p> : null}
+      {loadFailed ? <p className="mt-1 text-sm text-coral-ink">{t("loadFailed")}</p> : null}
       <div className={`${PANEL} mt-2 overflow-hidden p-0`}>
         <div className="hidden grid-cols-[1.1fr_1.3fr_1.8fr_0.9fr] gap-3 border-b border-stone-200 px-4 py-2.5 text-meta uppercase tracking-wide text-steel sm:grid">
           <span>{t("colUseCase")}</span>
@@ -395,7 +395,7 @@ function RecommendedRouting() {
                   <span className="block text-meta text-steel">{t(`states.${state}`)}</span>
                 ) : null}
                 {note?.useCase === rec.useCase ? (
-                  <span role="status" className={`mt-1 block text-meta ${note.ok ? "text-moss" : "text-coral"}`}>
+                  <span role="status" className={`mt-1 block text-meta ${note.ok ? "text-moss" : "text-coral-ink"}`}>
                     {note.text}
                   </span>
                 ) : null}

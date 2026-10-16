@@ -26,7 +26,7 @@ const PILL_TONE: Record<"on" | "off" | "degraded", string> = {
 const LIVENESS_TONE: Record<"ok" | "warn" | "danger", string> = {
   ok: "bg-moss/15 text-moss",
   warn: "bg-amber-50 text-amber-700",
-  danger: "bg-coral/10 text-coral",
+  danger: "bg-coral/10 text-coral-ink",
 };
 
 export function SchedulerToolbar({
@@ -80,7 +80,7 @@ export function SchedulerToolbar({
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-md border border-stone-200 bg-paper/60 px-3 py-2 text-sm text-steel">
       <span className="flex items-center gap-1.5 font-medium text-ink">
-        <Clock size={14} className="text-coral" /> {t("clock")}
+        <Clock size={14} className="text-coral-ink" /> {t("clock")}
       </span>
       {/* DATA4 — without the Claude CLI the pass still runs but every draft is
           a deterministic fallback that LOOKS like AI output; say so where the
@@ -200,7 +200,7 @@ export function SchedulerToolbar({
         <span
           role="status"
           title={error}
-          className="inline-flex max-w-[15rem] items-center gap-1 truncate text-sm font-semibold text-coral"
+          className="inline-flex max-w-[15rem] items-center gap-1 truncate text-sm font-semibold text-coral-ink"
         >
           <AlertTriangle size={14} className="shrink-0" /> {error}
         </span>

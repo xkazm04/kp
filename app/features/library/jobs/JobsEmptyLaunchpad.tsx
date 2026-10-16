@@ -59,7 +59,7 @@ function RouteCard({
           {cta} <ArrowRight size={13} aria-hidden />
         </button>
       ) : (
-        <p className="mt-1 text-sm font-semibold text-coral">{cta}</p>
+        <p className="mt-1 text-sm font-semibold text-coral-ink">{cta}</p>
       )}
     </div>
   );

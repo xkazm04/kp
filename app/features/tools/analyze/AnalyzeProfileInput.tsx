@@ -65,7 +65,7 @@ export function AnalyzeProfileInput({
 
   const pasteControl = (
     <div className="mt-3">
-      <button type="button" aria-expanded={isPasting} onClick={() => setIsPasting((open) => !open)} className="focus-ring text-sm font-semibold text-coral hover:underline">
+      <button type="button" aria-expanded={isPasting} onClick={() => setIsPasting((open) => !open)} className="focus-ring text-sm font-semibold text-coral-ink hover:underline">
         {t("pasteCv")}
       </button>
       {isPasting ? (
@@ -112,7 +112,7 @@ export function AnalyzeProfileInput({
               : "border-dashed border-stone-300 bg-white hover:border-coral"
           }`}
         >
-          <UploadCloud className={`h-5 w-5 ${isActive ? "text-coral" : "text-steel"}`} aria-hidden />
+          <UploadCloud className={`h-5 w-5 ${isActive ? "text-coral-ink" : "text-steel"}`} aria-hidden />
           <span className="mt-1 max-w-full truncate text-sm font-semibold text-ink">
             {isActive ? t("dropCvHere") : t("dropCvOrClick")}
           </span>
@@ -141,7 +141,7 @@ export function AnalyzeProfileInput({
             type="button"
             onClick={loadSample}
             disabled={isLoadingSample}
-            className="focus-ring rounded font-semibold text-coral underline-offset-2 hover:underline disabled:opacity-60"
+            className="focus-ring rounded font-semibold text-coral-ink underline-offset-2 hover:underline disabled:opacity-60"
           >
             {isLoadingSample ? t("loadingSample") : t("trySample")}
           </button>

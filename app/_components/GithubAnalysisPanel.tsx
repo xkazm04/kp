@@ -109,7 +109,7 @@ export function GithubAnalysisPanel({ status, analysis, error, warning, onRetry 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <GitBranch className="h-5 w-5 text-coral" aria-hidden />
+            <GitBranch className="h-5 w-5 text-coral-ink" aria-hidden />
             <h2 className="font-serif text-h2 text-ink">{t("title")}</h2>
           </div>
           <p className="mt-2 max-w-3xl text-base leading-6 text-steel">{t("intro")}</p>
@@ -431,7 +431,7 @@ function LedgerEvidence({ row, repoUrl }: { row: SkillLedgerRow; repoUrl: Map<st
               <span key={name}>
                 {i > 0 ? ", " : null}
                 {url ? (
-                  <a href={url} target="_blank" rel="noreferrer" className="font-medium text-ink underline underline-offset-2 hover:text-coral">
+                  <a href={url} target="_blank" rel="noreferrer" className="font-medium text-ink underline underline-offset-2 hover:text-coral-ink">
                     {name}
                   </a>
                 ) : (

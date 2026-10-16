@@ -100,7 +100,7 @@ export function CompanionProposalCard({ proposal, onResolve, error }: CompanionP
           is NOT one of these: the route sends the answered row with it, so that
           card has already repainted as answered by the time this could render. */}
       {proposal.status === "open" && error ? (
-        <p role="alert" className="mt-2 text-sm text-coral">
+        <p role="alert" className="mt-2 text-sm text-coral-ink">
           {resolveError({ code: error }, t("proposal.failed"))}
         </p>
       ) : null}

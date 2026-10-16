@@ -143,9 +143,9 @@ export function SpendEngineFacts({ ops }: { ops: SpendOps }) {
   };
   const engineState = (available: boolean) => (available ? t("engineAvailable") : t("engineUnavailable"));
   const alarms = [
-    ops.comms.deadLetters7d > 0 ? { key: "deadLetters" as const, count: ops.comms.deadLetters7d, tone: "text-coral" } : null,
+    ops.comms.deadLetters7d > 0 ? { key: "deadLetters" as const, count: ops.comms.deadLetters7d, tone: "text-coral-ink" } : null,
     ops.schedule.reconcileFailures > 0
-      ? { key: "reconcileFailures" as const, count: ops.schedule.reconcileFailures, tone: "text-coral" }
+      ? { key: "reconcileFailures" as const, count: ops.schedule.reconcileFailures, tone: "text-coral-ink" }
       : null,
     ops.schedule.noSlotStalls > 0
       ? { key: "bookedStalls" as const, count: ops.schedule.noSlotStalls, tone: "text-amber-700" }

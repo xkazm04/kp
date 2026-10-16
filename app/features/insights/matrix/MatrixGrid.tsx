@@ -116,9 +116,9 @@ export function MatrixGrid({
                     onClick={() => setSortCol((cur) => (cur === i ? null : i))}
                     aria-pressed={sortCol === i}
                     title={t("colTitle", { title: p.title, seniority: enumLabel("seniority", p.seniority), action: sortCol === i ? t("colSortingClear") : t("colClickSort") })}
-                    className="focus-ring block w-[84px] rounded text-left hover:text-coral"
+                    className="focus-ring block w-[84px] rounded text-left hover:text-coral-ink"
                   >
-                    <span className={`block truncate font-semibold ${sortCol === i ? "text-coral" : "text-ink"}`}>
+                    <span className={`block truncate font-semibold ${sortCol === i ? "text-coral-ink" : "text-ink"}`}>
                       {sortCol === i ? "▼ " : ""}{p.title}
                     </span>
                     <span className="block text-sm uppercase text-steel">{enumLabel("seniority", p.seniority)}</span>

@@ -348,10 +348,10 @@ export function Select({
                             onClick={() => commit(row)}
                             onMouseEnter={() => setActive(idx)}
                             className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors disabled:opacity-40 ${
-                              isActive ? "bg-coral/10 text-coral" : isSelected ? "font-semibold text-ink" : "text-ink hover:bg-paper"
+                              isActive ? "bg-coral/10 text-coral-ink" : isSelected ? "font-semibold text-ink" : "text-ink hover:bg-paper"
                             }`}
                           >
-                            <Check size={14} aria-hidden className={`shrink-0 ${isSelected ? "opacity-100 text-coral" : "opacity-0"}`} />
+                            <Check size={14} aria-hidden className={`shrink-0 ${isSelected ? "opacity-100 text-coral-ink" : "opacity-0"}`} />
                             {RowIcon ? <RowIcon size={14} aria-hidden className="shrink-0 text-steel" /> : null}
                             <span className={`truncate ${row.__clear ? "text-steel" : ""}`}>{row.label}</span>
                           </button>

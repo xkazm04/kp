@@ -83,7 +83,7 @@ export function DevEvalPanelScores({
         {e.confidence != null ? (
           <span
             title={tr("confidenceTitle")}
-            className={`text-micro uppercase ${e.confidence <= LOW_CONFIDENCE ? "font-semibold text-coral" : "text-steel"}`}
+            className={`text-micro uppercase ${e.confidence <= LOW_CONFIDENCE ? "font-semibold text-coral-ink" : "text-steel"}`}
           >
             {tr("confidence", { pct: formatFraction(e.confidence, { label: "confidence" }) })}
           </span>
@@ -100,7 +100,7 @@ export function DevEvalPanelScores({
             }
             className={`rounded px-1 py-0.5 text-micro font-semibold uppercase ${
               ev.authenticity.band === "suspect"
-                ? "bg-coral/15 text-coral"
+                ? "bg-coral/15 text-coral-ink"
                 : ev.authenticity.band === "mixed"
                   ? "bg-amber-100 text-amber-700"
                   : "bg-moss/15 text-moss"
@@ -154,7 +154,7 @@ export function DevEvalPanelScores({
           ) : null}
           {(e.concerns ?? []).length ? (
             <div>
-              <p className="font-semibold text-coral">{tr("concerns")}</p>
+              <p className="font-semibold text-coral-ink">{tr("concerns")}</p>
               <ul className="mt-0.5 list-disc space-y-0.5 pl-4 text-ink">
                 {(e.concerns ?? []).map((c, i) => (
                   <li key={i}>{c}</li>

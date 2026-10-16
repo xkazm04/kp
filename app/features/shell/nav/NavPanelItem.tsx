@@ -72,7 +72,7 @@ export function NavPanelItem({
         <span className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-coral" aria-hidden />
       ) : null}
       {Icon ? (
-        <Icon size={17} aria-hidden className={`shrink-0 ${isActive ? "text-coral" : "text-steel group-hover:text-ink"}`} />
+        <Icon size={17} aria-hidden className={`shrink-0 ${isActive ? "text-coral-ink" : "text-steel group-hover:text-ink"}`} />
       ) : (
         <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${isActive ? "bg-coral" : "bg-stone-300"}`} aria-hidden />
       )}
@@ -80,7 +80,7 @@ export function NavPanelItem({
       {badge > 0 && !sliceHref ? (
         <span
           aria-label={attentionLabel(badge)}
-          className="shrink-0 rounded-full bg-coral/10 px-1.5 py-0.5 text-sm font-semibold leading-none text-coral"
+          className="shrink-0 rounded-full bg-coral/10 px-1.5 py-0.5 text-sm font-semibold leading-none text-coral-ink"
         >
           {badge}
         </span>
@@ -99,16 +99,16 @@ export function NavPanelItem({
       <>
         {isActive ? <span className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-coral" aria-hidden /> : null}
         {Icon ? (
-          <Icon size={17} aria-hidden className="shrink-0 text-steel/60 group-hover:text-steel" />
+          <Icon size={17} aria-hidden className="shrink-0 text-steel group-hover:text-steel" />
         ) : (
           <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-stone-300" aria-hidden />
         )}
         <span className="min-w-0 flex-1 truncate text-left">{navText(`tabs.${item.id}`, item.label)}</span>
-        <Lock size={13} aria-hidden className="shrink-0 text-steel/60" />
+        <Lock size={13} aria-hidden className="shrink-0 text-steel" />
       </>
     );
     const lockedClass = `group focus-ring relative flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-base font-medium transition-colors ${
-      isActive ? navItemClass(true) : "text-steel/70 hover:bg-stone-50 hover:text-steel"
+      isActive ? navItemClass(true) : "text-steel hover:bg-stone-50 hover:text-steel"
     }`;
     const title = lockedLabel ? lockedLabel(locked) : capabilityLabelKey(locked);
     return (
@@ -159,7 +159,7 @@ export function NavPanelItem({
             href={sliceHref}
             title={attentionGoLabel(badge)}
             aria-label={attentionGoLabel(badge)}
-            className="focus-ring absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-coral/10 px-1.5 py-0.5 text-sm font-semibold leading-none text-coral hover:bg-coral/20"
+            className="focus-ring absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-coral/10 px-1.5 py-0.5 text-sm font-semibold leading-none text-coral-ink hover:bg-coral/20"
           >
             {badge}
           </Link>
@@ -169,7 +169,7 @@ export function NavPanelItem({
             title={attentionGoLabel(badge)}
             aria-label={attentionGoLabel(badge)}
             onClick={() => onSliceNav?.(sliceHref)}
-            className="focus-ring absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-coral/10 px-1.5 py-0.5 text-sm font-semibold leading-none text-coral hover:bg-coral/20"
+            className="focus-ring absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-coral/10 px-1.5 py-0.5 text-sm font-semibold leading-none text-coral-ink hover:bg-coral/20"
           >
             {badge}
           </button>

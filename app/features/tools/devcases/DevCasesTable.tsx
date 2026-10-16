@@ -165,7 +165,7 @@ export function CasesTable({
                       e.stopPropagation();
                       onOpen(c.id);
                     }}
-                    className="focus-ring block w-full truncate rounded text-left text-base font-semibold text-ink hover:text-coral"
+                    className="focus-ring block w-full truncate rounded text-left text-base font-semibold text-ink hover:text-coral-ink"
                   >
                     {c.title || t("untitledAssignment")}
                   </button>
@@ -184,7 +184,7 @@ export function CasesTable({
                     {stall.stalled ? (
                       <span
                         title={tLife("stalledTitle", { days: stall.ageDays ?? 0 })}
-                        className="inline-flex shrink-0 items-center gap-1 rounded-full bg-coral/15 px-2 py-0.5 text-micro font-semibold uppercase text-coral"
+                        className="inline-flex shrink-0 items-center gap-1 rounded-full bg-coral/15 px-2 py-0.5 text-micro font-semibold uppercase text-coral-ink"
                       >
                         <AlarmClock size={11} aria-hidden /> {tLife("stalledBadge", { days: stall.ageDays ?? 0 })}
                       </span>

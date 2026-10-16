@@ -22,7 +22,7 @@ function replaceStepQuery(step: string | null): void {
 // from messages/*.json (t("status.<status>")); only the colour class stays local.
 const STATUS_CLS: Record<StepStatus, string> = {
   live: "bg-moss/15 text-moss",
-  gate: "bg-coral/10 text-coral",
+  gate: "bg-coral/10 text-coral-ink",
   gap: "bg-stone-100 text-steel",
 };
 

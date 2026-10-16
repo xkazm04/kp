@@ -115,7 +115,7 @@ export function ScreeningLadder() {
             <Part show={s.shortlisted} reduced={reduced} className="nums block font-serif text-h2 leading-none text-ink">
               {TOP_N}
             </Part>
-            <Part show={s.reasoned} reduced={reduced} className="mt-1 block rounded-full bg-coral/10 px-2 py-0.5 text-meta text-coral">
+            <Part show={s.reasoned} reduced={reduced} className="mt-1 block rounded-full bg-coral/10 px-2 py-0.5 text-meta text-coral-ink">
               {t("paid")}
             </Part>
           </div>
@@ -127,7 +127,7 @@ export function ScreeningLadder() {
           <ul className="mt-1.5 space-y-1">
             {KO_REASONS.map((r, i) => (
               <li key={r.key} className="flex items-baseline gap-2">
-                <Part show={s.koListed} i={i} reduced={reduced} className="nums w-6 shrink-0 text-right font-mono text-meta text-coral">
+                <Part show={s.koListed} i={i} reduced={reduced} className="nums w-6 shrink-0 text-right font-mono text-meta text-coral-ink">
                   {r.n}
                 </Part>
                 <Part show={s.koListed} i={i} lead={0.05} reduced={reduced} className="min-w-0 truncate text-base text-steel">

@@ -115,7 +115,7 @@ export function JobPostingModal({
               type="button"
               {...tablist.tabProps(id)}
               className={`focus-ring -mb-px inline-flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-semibold ${
-                tab === id ? "border-coral text-coral" : "border-transparent text-steel hover:text-ink"
+                tab === id ? "border-coral text-coral-ink" : "border-transparent text-steel hover:text-ink"
               }`}
             >
               <Icon size={14} /> {t(labelKey)}
@@ -177,7 +177,7 @@ export function JobPostingModal({
                   setConfirmingClose(false);
                   void closeRole();
                 }}
-                className="focus-ring inline-flex h-9 items-center rounded-md bg-coral px-3 text-sm font-semibold text-white hover:opacity-90"
+                className="focus-ring inline-flex h-9 items-center rounded-md bg-coral-solid px-3 text-sm font-semibold text-white hover:opacity-90"
               >
                 {t("closeRole")}
               </button>

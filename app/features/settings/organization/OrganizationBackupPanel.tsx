@@ -182,7 +182,7 @@ export function OrganizationBackupPanel() {
       </div>
 
       {error ? (
-        <p role="alert" className="mt-3 rounded-md border border-coral/40 bg-coral/5 px-3 py-2 text-sm text-coral">
+        <p role="alert" className="mt-3 rounded-md border border-coral/40 bg-coral/5 px-3 py-2 text-sm text-coral-ink">
           {error}
         </p>
       ) : null}

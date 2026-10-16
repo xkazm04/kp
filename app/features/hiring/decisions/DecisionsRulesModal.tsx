@@ -129,7 +129,7 @@ export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
       {loadFailed ? (
         // Never a silent default: say the live rules could not be read, and offer the retry.
         <div role="alert" className="space-y-2">
-          <p className="text-sm font-semibold text-coral">{capabilityAwareReason(errMsg, loadFailed, t("loadFailed"))}</p>
+          <p className="text-sm font-semibold text-coral-ink">{capabilityAwareReason(errMsg, loadFailed, t("loadFailed"))}</p>
           <button
             type="button"
             onClick={retryLoad}
@@ -212,7 +212,7 @@ export function DecisionRulesModal({ onClose }: { onClose: () => void }) {
                         type="button"
                         key={f.family}
                         onClick={() => nav.push(buildUrl({ ...clearedTabScopedParams(), tab: "analytics", sec: "quality", calFamily: f.family }, search.toString()))}
-                        className="focus-ring inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-2 py-0.5 text-meta text-ink hover:border-coral/40 hover:text-coral"
+                        className="focus-ring inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-2 py-0.5 text-meta text-ink hover:border-coral/40 hover:text-coral-ink"
                       >
                         <span className="font-semibold">{f.label}</span>
                         <span className="nums text-steel">{t("familyFloorChip", { floor: f.floor })}</span>

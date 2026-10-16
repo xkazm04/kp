@@ -87,7 +87,7 @@ export function InviteLifecyclePanel({ agenda }: { agenda: ScheduleAgendaView })
   return (
     <section className={`${PANEL} p-4`}>
       <h3 className="flex items-center gap-2 font-serif text-h3 text-ink">
-        <CalendarClock size={16} className="text-coral" aria-hidden /> {t("title")}
+        <CalendarClock size={16} className="text-coral-ink" aria-hidden /> {t("title")}
       </h3>
 
       {/* The bound, stated. The agenda read returns at most `limit` invites (200 by

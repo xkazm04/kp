@@ -29,7 +29,7 @@ export function LifecycleSection({
 }) {
   const t = useTranslations("devcase.lifecycle");
   return (
-    <DevSection icon={<Sparkles size={13} className="text-coral" />} title={t("sectionTitle")} count={lifecycles.length} state={state} label="lifecycles">
+    <DevSection icon={<Sparkles size={13} className="text-coral-ink" />} title={t("sectionTitle")} count={lifecycles.length} state={state} label="lifecycles">
       <p className="mt-1 text-micro text-steel">{t("intro")}</p>
       <div className="mt-3 space-y-2">
         {lifecycles.map((lc) => (

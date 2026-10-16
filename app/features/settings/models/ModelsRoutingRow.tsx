@@ -251,7 +251,7 @@ export function ModelsRoutingRow({
               <Badge tone={HEALTH_TONE[health.state]} label={th(`label.${health.state}`)} muted={health.state === "idle"} />
               <p className="mt-1 text-sm text-steel">{healthHint(health)}</p>
               {health.repair === "keys" ? (
-                <button type="button" onClick={openKeys} className="mt-1 text-sm font-medium text-coral underline underline-offset-2">
+                <button type="button" onClick={openKeys} className="mt-1 text-sm font-medium text-coral-ink underline underline-offset-2">
                   {th("openKeys")}
                 </button>
               ) : null}
@@ -279,7 +279,7 @@ export function ModelsRoutingRow({
       {note ? (
         <tr className="border-b border-stone-100">
           <td colSpan={5} className="pb-2.5 pt-0">
-            <p role={note.ok ? "status" : "alert"} className={`text-sm font-medium ${note.ok ? "text-moss" : "text-coral"}`}>
+            <p role={note.ok ? "status" : "alert"} className={`text-sm font-medium ${note.ok ? "text-moss" : "text-coral-ink"}`}>
               {note.text}
             </p>
           </td>

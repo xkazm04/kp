@@ -11,9 +11,9 @@ import { TextArea } from "@/app/_components/TextArea";
 
 const VERDICT_TONE: Record<AdverseImpactVerdict, string> = {
   insufficient: "text-steel",
-  adverse: "text-coral",
+  adverse: "text-coral-ink",
   belowNotSignificant: "text-steel",
-  significantGap: "text-coral",
+  significantGap: "text-coral-ink",
   cleanPartial: "text-steel",
   clean: "text-moss",
 };
@@ -60,7 +60,7 @@ export function DecisionsComplianceImpactCheck() {
           for two different urgencies for a typed-input parse notice that is not an
           interruption. Polite is the intent; now only one attribute says so. */}
       {parsed.malformedRows.length > 0 ? (
-        <p role="status" aria-live="polite" className="mt-2 flex items-start gap-1.5 text-meta font-medium text-coral">
+        <p role="status" aria-live="polite" className="mt-2 flex items-start gap-1.5 text-meta font-medium text-coral-ink">
           <AlertTriangle size={13} className="mt-0.5 shrink-0" />
           <span>
             {t("parseIgnored", {
@@ -109,11 +109,11 @@ export function DecisionsComplianceImpactCheck() {
                     ) : g.impactRatio === null ? (
                       <span className="text-stone-400">{t("statusNa")}</span>
                     ) : g.adverseImpact && g.significant ? (
-                      <span className="font-semibold text-coral">{t("statusAdverse")}</span>
+                      <span className="font-semibold text-coral-ink">{t("statusAdverse")}</span>
                     ) : g.adverseImpact ? (
                       <span className="text-steel">{t("statusBelowNotSignificant")}</span>
                     ) : g.significant && (g.shortfall ?? 0) > 0 ? (
-                      <span className="font-semibold text-coral">{t("statusSignificantGap")}</span>
+                      <span className="font-semibold text-coral-ink">{t("statusSignificantGap")}</span>
                     ) : (
                       <span className="text-moss">{t("statusOk")}</span>
                     )}
@@ -159,7 +159,7 @@ export function DecisionsComplianceImpactCheck() {
             </p>
           ) : null}
           {impact.clampedRows > 0 ? (
-            <p role="status" aria-live="polite" className="mt-1 text-meta font-medium text-coral">
+            <p role="status" aria-live="polite" className="mt-1 text-meta font-medium text-coral-ink">
               {t("clampedRows", { count: impact.clampedRows })}
             </p>
           ) : null}

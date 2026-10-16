@@ -83,7 +83,7 @@ export function InterviewKit({ caseTitle, candidates }: { caseTitle: string; can
         {band ? (
           <span
             className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-micro font-semibold uppercase ${
-              band === "suspect" ? "bg-coral/15 text-coral" : band === "mixed" ? "bg-amber-100 text-amber-700" : "bg-moss/15 text-moss"
+              band === "suspect" ? "bg-coral/15 text-coral-ink" : band === "mixed" ? "bg-amber-100 text-amber-700" : "bg-moss/15 text-moss"
             }`}
           >
             {t(`band.${band}` as Parameters<typeof t>[0])}

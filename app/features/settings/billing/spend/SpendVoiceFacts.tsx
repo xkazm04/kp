@@ -126,7 +126,7 @@ export function SpendVoiceFacts() {
         </p>
       ) : null}
       {checkError ? (
-        <p role="alert" className="text-coral">
+        <p role="alert" className="text-coral-ink">
           {checkError}
         </p>
       ) : null}

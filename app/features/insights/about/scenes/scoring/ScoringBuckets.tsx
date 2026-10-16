@@ -39,7 +39,7 @@ import { CYCLE, REQS, SIBLING_MATCH_LABEL, STILL, THRESHOLD, sceneAt, type Bucke
 const BUCKET_TONE: Record<Bucket, { chip: string; bar: "moss" | "amber" | "coral" }> = {
   matched: { chip: "bg-limewash text-moss", bar: "moss" },
   unproven: { chip: "bg-stone-100 text-steel", bar: "amber" },
-  missing: { chip: "bg-coral/10 text-coral", bar: "coral" },
+  missing: { chip: "bg-coral/10 text-coral-ink", bar: "coral" },
 };
 
 // ── Geometry ────────────────────────────────────────────────────────────────
@@ -100,7 +100,7 @@ export function ScoringBuckets() {
           }}
         />
         <div className="absolute z-10" style={{ left: `${THRESHOLD_X}%`, top: "-0.5%" }}>
-          <Part show={s.threshold} reduced={reduced} className="-translate-x-1/2 whitespace-nowrap font-mono text-meta text-coral">
+          <Part show={s.threshold} reduced={reduced} className="-translate-x-1/2 whitespace-nowrap font-mono text-meta text-coral-ink">
             0.5
           </Part>
         </div>

@@ -88,10 +88,10 @@ export function AiScorecardSection({
                   <button
                     type="button"
                     onClick={() => jumpToTurn(evidenceTurns[i])}
-                    className="focus-ring mt-1 inline-flex items-start gap-1 rounded text-left text-meta text-steel hover:text-coral"
+                    className="focus-ring mt-1 inline-flex items-start gap-1 rounded text-left text-meta text-steel hover:text-coral-ink"
                     title={t("jumpToMoment")}
                   >
-                    <Quote size={11} className="mt-0.5 shrink-0 text-coral/70" aria-hidden />
+                    <Quote size={11} className="mt-0.5 shrink-0 text-coral-ink" aria-hidden />
                     <span className="underline decoration-dotted underline-offset-2">{evidence}</span>
                   </button>
                 ) : (

@@ -81,7 +81,7 @@ export function SimControlDockOrb({
         <KandidateMark className="h-9 w-9 text-ink [--k-fg:var(--color-paper)] [--k-accent:var(--color-coral)]" />
         {/* Beacon: how many candidates need a human decision right now. */}
         {awaiting > 0 ? (
-          <span className="absolute -right-1.5 -top-1.5 grid h-5 min-w-[1.25rem] place-items-center rounded-full bg-coral px-1 text-meta font-bold text-white ring-2 ring-paper nums">
+          <span className="absolute -right-1.5 -top-1.5 grid h-5 min-w-[1.25rem] place-items-center rounded-full bg-coral-solid px-1 text-meta font-bold text-white ring-2 ring-paper nums">
             {awaiting > 99 ? t("countOverflow") : awaiting}
           </span>
         ) : null}
