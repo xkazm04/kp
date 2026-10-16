@@ -79,3 +79,18 @@ test("other kinds pass through untouched — the gate binds outreach only", asyn
   await sendComm({ to: "Jana", subject: "Offer", body, kind: "offer", ref: entry.id });
   assert.equal(listOutboxFiltered({ ref: entry.id })[0].body, body);
 });
+
+test("an oversized outreach is answered as a 422 OUTREACH_BODY_TOO_LONG refusal, not a retryable 500", async () => {
+  const { jsonRefusal } = await import("./api-response.ts");
+  const entry = mk("cand-refusal");
+  let thrown: unknown;
+  try {
+    await sendComm({ to: "Jana", subject: "A role", body: "x".repeat(OUTREACH_BODY_MAX_LENGTH + 1), kind: "outreach", ref: entry.id });
+  } catch (err) {
+    thrown = err;
+  }
+  assert.ok(thrown instanceof CommsBodyRejectedError);
+  const res = jsonRefusal("OUTREACH_BODY_TOO_LONG", 422);
+  assert.equal(res.status, 422);
+  assert.equal((await res.json()).code, "OUTREACH_BODY_TOO_LONG");
+});

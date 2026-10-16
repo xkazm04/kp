@@ -1702,6 +1702,8 @@ export const REFUSAL_ERRORS = {
    *  `commsSendSuppression` / `CommsSuppressedError`). The recruiter's next step is to
    *  stop trying, not to retry, so the sentence says so. */
   COMMS_SUPPRESSED: "This candidate can no longer be contacted.",
+  /** An outreach letter over the length cap after cleaning (422): deterministic, so retrying the same text cannot succeed. The candidate CAN be contacted; this letter cannot be sent. */
+  OUTREACH_BODY_TOO_LONG: "This letter is too long to send. Shorten it and try again.",
   /** The voice engines answered `unavailable` (503): no TTS / STT provider is configured on
    *  this server. A DECISION about the install, not a fault - the generic TTS_FAILED /
    *  STT_FAILED sentence told a keyless operator to "try again", which cannot help. */

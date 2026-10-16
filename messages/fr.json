@@ -1681,6 +1681,7 @@
     "PROFILE_BUILD_TIMEOUT": "Le traitement du profil a pris trop de temps et a été interrompu. Essayez d’enregistrer à nouveau.",
     "JOB_WINNABILITY_TIMEOUT": "L’évaluation de ce poste a pris trop de temps et a été interrompue. Réessayez.",
     "COMMS_SUPPRESSED": "Ce candidat ne peut plus être contacté.",
+    "OUTREACH_BODY_TOO_LONG": "Cette lettre est trop longue pour être envoyée. Raccourcissez-la et réessayez.",
     "TTS_UNAVAILABLE": "La voix n'est pas configurée sur ce serveur, rien ne peut donc parler.",
     "STT_UNAVAILABLE": "La transcription n'est pas configurée sur ce serveur.",
     "ATS_CANDIDATE_ERASED": "Les données de ce candidat ont été effacées et ne peuvent pas être exportées.",

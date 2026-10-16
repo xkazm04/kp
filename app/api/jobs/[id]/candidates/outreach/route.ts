@@ -8,6 +8,7 @@ import { withheldCandidateIds } from "@/app/_lib/rediscovery-eligibility";
 import { linkTerminalPriorsToTarget } from "@/app/_lib/rediscovery-prior-link";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { CommsBodyRejectedError } from "@/app/_lib/comms";
 import { humanActor } from "@/app/_lib/auth/operator-approver";
 
 // The outreach draft spawns the Claude CLI (automation_cli) — comfortably exceed
@@ -154,6 +155,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     if (error instanceof AutomationError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
+    // A letter over the length cap is refused deterministically in sendComm; a 500 would read as retryable.
+    if (error instanceof CommsBodyRejectedError) return jsonRefusal("OUTREACH_BODY_TOO_LONG", 422);
     return safeJsonError(error, "api:jobs:candidates:outreach", "OUTREACH_FAILED");
   }
 }

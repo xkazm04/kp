@@ -4,7 +4,7 @@ import { getPipelineEntry, recordAutomationEvent } from "@/app/_lib/db/pipeline"
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
-import { CommsSuppressedError, sendComm } from "@/app/_lib/comms";
+import { CommsBodyRejectedError, CommsSuppressedError, sendComm } from "@/app/_lib/comms";
 import { SIM_COMMS_CHANNEL } from "@/app/_lib/comms-dispatch";
 import { isDeliverableAddress } from "@/app/_lib/comms-recipient";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
@@ -152,6 +152,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     // decision as a 500 the recruiter would retry. 409: the door works, the state
     // forbids it.
     if (error instanceof CommsSuppressedError) return jsonRefusal("COMMS_SUPPRESSED", 409);
+    // A letter over the length cap is refused deterministically in sendComm; a 500 would read as retryable.
+    if (error instanceof CommsBodyRejectedError) return jsonRefusal("OUTREACH_BODY_TOO_LONG", 422);
     return safeJsonError(error, "api:comms:resend", "OUTREACH_FAILED");
   } finally {
     resendInFlight.delete(id);
