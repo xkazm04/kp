@@ -3,7 +3,7 @@ import { pipelineCalibrationPairs } from "@/app/_lib/db/pipeline";
 import { listDecisionRecords, type DecisionRecord } from "@/app/_lib/decision-record-store";
 import { computeThresholdEffect } from "@/app/_lib/calibration";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { jsonError, jsonRefusal } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { safeRowParse } from "@/app/_lib/db/core";
 
@@ -129,6 +129,6 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ history, effect });
   } catch (error) {
-    return jsonError(error, "Failed to load the threshold history.");
+    return safeJsonError(error, "api:analytics:calibration:threshold-history", "ANALYTICS_THRESHOLD_HISTORY_READ_FAILED");
   }
 }

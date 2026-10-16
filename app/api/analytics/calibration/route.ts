@@ -7,7 +7,7 @@ import { liveScreeningRecommendation } from "@/app/_lib/calibration-recommendati
 import { getDecisionConfig, type ScreeningRule } from "@/app/_lib/decision-config-store";
 import { effectiveFloor } from "@/app/_lib/decision-config-schema";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { jsonError } from "@/app/_lib/api-response";
+import { safeJsonError } from "@/app/_lib/api-response";
 import { createTtlCache, calibrationCacheKey } from "@/app/_lib/analytics-cache";
 
 
@@ -165,6 +165,6 @@ export async function GET(request: Request) {
     // Both pair producers read whole tables, so a transient DB fault (locked
     // mid-write, corrupt file, migration race) surfaces here. Match the sibling
     // analytics routes: log with context + structured 500, never a bare crash.
-    return jsonError(error, "Failed to compute calibration.");
+    return safeJsonError(error, "api:analytics:calibration", "ANALYTICS_CALIBRATION_READ_FAILED");
   }
 }

@@ -2789,7 +2789,7 @@ for (const spec of ROUTES) {
 // rather than imported: api-response.ts pulls in next/server, which the unit
 // runner does not resolve.)
 test('REFUSAL_ERRORS.TOO_MANY_REQUESTS is RATE_LIMITED_ERROR itself, not a copy of it', () => {
-  const src = readFileSync(fileURLToPath(new URL("../_lib/api-response.ts", import.meta.url)), "utf8");
+  const src = readFileSync(fileURLToPath(new URL("../_lib/api-errors/refusal-errors.ts", import.meta.url)), "utf8");
   assert.match(
     src,
     /^ {2}TOO_MANY_REQUESTS: RATE_LIMITED_ERROR,$/m,
@@ -2797,7 +2797,7 @@ test('REFUSAL_ERRORS.TOO_MANY_REQUESTS is RATE_LIMITED_ERROR itself, not a copy 
   );
   assert.match(
     src,
-    /import \{ RATE_LIMITED_ERROR \} from "\.\/rate-limit";/,
+    /import \{ RATE_LIMITED_ERROR \} from "\.\.\/rate-limit";/,
     "…and import it, so the two can never say different things",
   );
 });
@@ -3252,7 +3252,7 @@ test("RATE_LIMITED_ERROR is internal to the refusal registry — nothing else im
     });
   assert.deepEqual(
     importers,
-    ["_lib/api-response.ts"],
+    ["_lib/api-errors/refusal-errors.ts"],
     "only the refusal registry may import the raw 429 message; every route answers the CODE",
   );
 });

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { pipelineAnalytics, pipelineAnalyticsPrior } from "@/app/_lib/db/analytics";
 import type { PipelineAnalytics } from "@/app/_lib/db/analytics";
+import { safeJsonError } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { periodDeltas, type PeriodDeltas } from "@/app/_lib/analytics-deltas";
 import { deltaWindows } from "@/app/_lib/analytics-cohort";
@@ -63,8 +64,6 @@ export async function GET(request: Request) {
     }, jobId);
     return NextResponse.json(payload);
   } catch (error) {
-    console.error("[api/analytics] failed to build pipeline analytics", error);
-    const message = error instanceof Error ? error.message : "Failed to build analytics.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return safeJsonError(error, "api:analytics", "ANALYTICS_READ_FAILED");
   }
 }

@@ -4,7 +4,7 @@ import { pipelineCalibrationBandCandidates } from "@/app/_lib/db/pipeline";
 import { heldOutEntryIds } from "@/app/_lib/decision-record-store";
 import { CALIBRATION_BIN_COUNT } from "@/app/_lib/calibration";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { jsonError } from "@/app/_lib/api-response";
+import { safeJsonError } from "@/app/_lib/api-response";
 import { createTtlCache, calibrationBandCacheKey } from "@/app/_lib/analytics-cache";
 
 
@@ -59,6 +59,6 @@ export async function GET(request: Request) {
     });
     return NextResponse.json(payload);
   } catch (error) {
-    return jsonError(error, "Failed to load the score band.");
+    return safeJsonError(error, "api:analytics:calibration:band", "ANALYTICS_SCORE_BAND_READ_FAILED");
   }
 }

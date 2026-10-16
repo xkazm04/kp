@@ -17,11 +17,12 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readApiResponseSource } from "../../_lib/api-errors/read-source.ts";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const src = readFileSync(path.join(HERE, "route.ts"), "utf8");
 const runnerSrc = readFileSync(path.join(HERE, "..", "..", "_lib", "python-runner.ts"), "utf8");
-const responsesSrc = readFileSync(path.join(HERE, "..", "..", "_lib", "api-response.ts"), "utf8");
+const responsesSrc = readApiResponseSource(path.join(HERE, "..", "..", "_lib", "api-response.ts"));
 
 test("the profile_cli spawn is bounded by an explicit 60s-class timeout, not the 600s backstop", () => {
   // Lot PR made the route share the lib's bound instead of declaring a twin: the
