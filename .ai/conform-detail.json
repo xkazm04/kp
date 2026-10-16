@@ -6686,6 +6686,79 @@
           "evidence": "app/features/tools/profile/CandidateDetailModal.tsx:125 The complete entry rendering contains a score, date, and link, but no requirement-edited or superseded state; the opened analysis-reference constructor retains only slug, score, and createdAt."
         }
       ]
+    },
+    "03de9bcc-53c7-4571-9782-d203eb627b06/combining-signals-into-a-hire-decision": {
+      "context": "decisions-review-ui",
+      "subject": "combining-signals-into-a-hire-decision",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T00:51:18.096Z",
+      "worker": "6fba37b7-b487-4e83-bdfd-c8771b4d0f86",
+      "techniques": [
+        {
+          "technique": "a-hold-that-blocks-auto-advance",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/decisions/DecisionsAnalysisParts.tsx:184 Strengths and red flags share one list capped at four, and only inside the analysis modal. A hold's flags are not on the glance card, and the score is not subordinate to them."
+        },
+        {
+          "technique": "discrepancy-between-signals-is-itself-a-signal",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/decisions/DecisionsAnalysisModalBench.tsx:69 The bench orders peers by one match total. No within-candidate discrepancy rule, tolerance, or composite cap appears in these files."
+        },
+        {
+          "technique": "outcome-feedback-loop-per-team",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/decisions/DecisionsRulesModal.tsx:207 Family-floor chips send the recruiter to Analytics to edit a recommendation. This tab does not feed outcomes back into a rule."
+        },
+        {
+          "technique": "promote-floor-calibrated-against-real-outcomes",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/decisions/DecisionsRulesModal.tsx:176 The screening reject cutoff is a free 0–100 field. The modal does not show a resolved-outcome count, an uncalibrated label, or a derived band beside the number that drives auto-reject."
+        },
+        {
+          "technique": "terminal-decisions-stay-with-a-person",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/decisions/DecisionsAiReviewCardLadder.tsx:33 The ladder replaced the narrative so the card can be decided at a glance. The analysis-modal note is optional (DecisionsAnalysisParts.tsx:239). Bulk accept calls bulkDecideReviews(\"accept\") on one click (DecisionsBatchBar.tsx:84); bulk reject arms a confirm. Group-eval does require a non-empty reason (DecisionsGroupEvalRejectModal.tsx:107), and the screen-wave commit is a second confirm."
+        },
+        {
+          "technique": "weight-signals-by-validity-not-by-precision",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/decisions/DecisionsAiReviewCardLadder.tsx:6 This block ranks one candidate against the role's pipeline. It does not assign composite weights. An unassessed scorecard rating is painted as words, not dots (line 54), which is the absence rule and not a weight."
+        }
+      ],
+      "registryProposal": "The promote-floor technique is written for a threshold that advances people. This surface's maxMatchToReject is a typed reject-below cutoff, and the devcase promote_floor is a different number. The technique never says whether a human-typed reject cutoff is the same object.",
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "Red flags sit a click behind the card (DecisionsAnalysisParts.tsx:194, capped at 4) while score and rank sit on it; bulk accept fires unconfirmed, bulk reject is gated.",
+          "evaluatedAt": "2026-08-23",
+          "worker": null,
+          "reason": "replaced by 6fba37b7-b487-4e83-bdfd-c8771b4d0f86"
+        }
+      ]
+    },
+    "587be52c-034e-4f95-b9e2-cb5a9340de3d/combining-signals-into-a-hire-decision": {
+      "context": "autonomy-control-room",
+      "subject": "combining-signals-into-a-hire-decision",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T00:51:18.096Z",
+      "worker": "6fba37b7-b487-4e83-bdfd-c8771b4d0f86",
+      "techniques": [
+        {
+          "technique": "outcome-feedback-loop-per-team",
+          "verdict": "deviation",
+          "evidence": "app/api/devcase/outcomes/route.ts:22 The same handler says the corpus, and so the recommendation, is the caller's workspace (lines 20–21). calibrate() reads that workspace only (app/_lib/dev-outcomes.ts:658). setPromoteFloor writes the global key (app/_lib/dev-control.ts:156). The panel's apply button posts setFloor (CalibrationPanel.tsx:149)."
+        },
+        {
+          "technique": "promote-floor-calibrated-against-real-outcomes",
+          "verdict": "conformant",
+          "evidence": "app/control/CalibrationPanel.tsx:225 Apply is hidden until at least four resolved outcomes exist, and the armed key is the floor value. Bands show per-band counts (line 261). The sentence is composed from rationale.kind plus params (line 34), not frozen prose. The self-grading caveat was not on this panel."
+        }
+      ],
+      "registryProposal": "The per-team technique already forbids applying one team's floor beyond that team. This room is the case the application node--outcome-feedback-loop-per-team describes, and the code still matches that write-up."
     }
   }
 }

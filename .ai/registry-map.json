@@ -5558,7 +5558,11 @@
           "revision": 2,
           "changedAt": "2026-09-27",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/control/page.tsx:32 The room applies a promote floor that is one org-wide key, while the suggestion it applies is calibrated from the caller's workspace only.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:bcc62660e7a59154",
+          "evaluatedRevision": 2
         },
         {
           "subject": "quality-gates",
@@ -11189,13 +11193,12 @@
           "changedAt": "2026-09-27",
           "confidence": "probable",
           "state": "deviation",
-          "evidence": "Red flags sit a click behind the card (DecisionsAnalysisParts.tsx:194, capped at 4) while score and rank sit on it; bulk accept fires unconfirmed, bulk reject is gated.",
-          "evaluatedAt": "2026-08-23",
-          "evaluatedAgainst": "sha256-b2:dd6e5e896064ed0f",
-          "evaluatedRevision": 1,
+          "evidence": "app/features/hiring/decisions/DecisionsAnalysisParts.tsx:218 The queue card is meant to be decided from the score and rank, while the narrative that carries red flags lives one click deeper and is capped at four items.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:bcc62660e7a59154",
+          "evaluatedRevision": 2,
           "source": "conform",
-          "revisionsBehind": 1,
-          "stale": true
+          "revisionsBehind": 1
         }
       ],
       "governance": "governed"
