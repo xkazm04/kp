@@ -1,0 +1,180 @@
+{
+ "schema": "conform-run/1",
+ "worker": "5400c5bb-e8dd-4ae2-86d8-fec909238a65",
+ "subject": "automated-screening-fairness-gates",
+ "evaluatedAt": "2026-10-16T01:11:08.366853+00:00",
+ "provider": "grok",
+ "model": "grok-4.7",
+ "pairs": [
+  {
+   "context": "screening-fairness",
+   "subject": "automated-screening-fairness-gates",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_lib/screen-wave.ts:583 A committed screening wave applies rejection itself, with actor system, so reject is an executable automated outcome for anyone who clears the score gates.",
+   "techniques": [
+    {
+     "technique": "never-auto-reject-a-protected-cohort",
+     "verdict": "deviation",
+     "evidence": "app/_lib/screen-wave.ts:88 Protected people are kept, but the shield the wave names and audits is the early-career label, which the technique treats as an age proxy rather than an instrument-failure test."
+    },
+    {
+     "technique": "hold-as-the-canonical-fallback-verdict",
+     "verdict": "deviation",
+     "evidence": "app/_lib/screen-wave.ts:649 The non-reject outcome is keep, and an unscored candidate's keep is not written into a queue a person must work."
+    },
+    {
+     "technique": "fail-closed-on-an-unclassifiable-candidate",
+     "verdict": "deviation",
+     "evidence": "app/_lib/automation-fairness.ts:67 Null and 0 are refused, but a missing or non-finite matchScore fails both this test and the floor test and the function then returns allowed:true."
+    },
+    {
+     "technique": "route-vocabulary-narrower-than-verdict-vocabulary",
+     "verdict": "deviation",
+     "evidence": "app/_lib/automation-fairness.ts:73 A BAU score under the floor is an allowed automated reject, so reject is in the machine route rather than narrowed to hold."
+    },
+    {
+     "technique": "defense-in-depth-recheck-at-the-apply-boundary",
+     "verdict": "conformant",
+     "evidence": "app/_lib/automation-fairness.ts:57 The backstop re-derives shield membership from the entry and the live registry, and refuses a missing entry, rather than trusting a caller flag."
+    },
+    {
+     "technique": "blocked-rejection-as-an-audited-event",
+     "verdict": "deviation",
+     "evidence": "app/_lib/screen-wave.ts:351 Only an unknown archetype on a commit writes an event, and that event is one English sentence with no proposer, proposed outcome, or rule id; a known protected keep writes none."
+    }
+   ],
+   "registryProposal": "The membership rule forbids career-stage labels, but the only shield flag this code can read is fairnessProtected or scoringModel early_career, so a conformant 'record too thin' member has no field that is not itself a label."
+  },
+  {
+   "context": "pipeline-api",
+   "subject": "automated-screening-fairness-gates",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/api/pipeline/command/route.ts:100 Confirming reject-below rejects every id the score filter still matches; these routes never consult a shielded-cohort predicate before that write.",
+   "techniques": [
+    {
+     "technique": "never-auto-reject-a-protected-cohort",
+     "verdict": "deviation",
+     "evidence": "app/api/pipeline/command/route.ts:100 The confirmed set is whoever is under the typed score; a human confirm of that set does not drop a protected archetype."
+    },
+    {
+     "technique": "route-vocabulary-narrower-than-verdict-vocabulary",
+     "verdict": "deviation",
+     "evidence": "app/api/pipeline/command/execute.ts:93 The bar's executed action is a threshold rejection, so reject is applied by the command rather than kept out of the machine route."
+    },
+    {
+     "technique": "defense-in-depth-recheck-at-the-apply-boundary",
+     "verdict": "deviation",
+     "evidence": "app/api/pipeline/command/execute.ts:90 The apply call carries the entry id, stage, and threshold, and does not re-derive shield membership or an unscored state."
+    }
+   ]
+  },
+  {
+   "context": "tests-scoring-fairness",
+   "subject": "automated-screening-fairness-gates",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/tests/test_early_career_single_source.py:37 The single-source pin that guards the auto-reject shield locks the protected set to the student and career-switcher labels.",
+   "techniques": [
+    {
+     "technique": "never-auto-reject-a-protected-cohort",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/tests/test_early_career_single_source.py:37 The test does enforce one registry source and bans a shadowed literal, and the set it pins is the career-stage label the technique says not to use."
+    }
+   ]
+  },
+  {
+   "context": "group-eval-comparison",
+   "subject": "automated-screening-fairness-gates",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/hiring/decisions/GroupEvalModal.tsx:136 The advisory limit is stated only for committee and eligibility-list mode, and the AI comparison is still rendered before the recruiter's accept or reject controls.",
+   "techniques": [
+    {
+     "technique": "never-auto-reject-a-protected-cohort",
+     "verdict": "not-applicable",
+     "evidence": "app/features/hiring/decisions/groupEval/GroupEvalPerCandidateTabs.tsx:88 Rejection in this modal is a recruiter click, not an unattended wave."
+    },
+    {
+     "technique": "route-vocabulary-narrower-than-verdict-vocabulary",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/decisions/groupEval/GroupEvalPerCandidateTabs.tsx:114 The per-candidate verdict is painted as ordinary ink text on the same surface as the reject and advance buttons, with no separate non-routable recommendation field and no withhold-until-the-reviewer-decides step."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "automated-screening-fairness-gates",
+   "context": "hiring-decisions-api",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-16T01:11:08.366853+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "automated-screening-fairness-gates"
+   ],
+   "techniques": [
+    "blocked-rejection-as-an-audited-event",
+    "defense-in-depth-recheck-at-the-apply-boundary",
+    "fail-closed-on-an-unclassifiable-candidate",
+    "hold-as-the-canonical-fallback-verdict",
+    "never-auto-reject-a-protected-cohort",
+    "route-vocabulary-narrower-than-verdict-vocabulary"
+   ],
+   "deviations": 1,
+   "context": "screening-fairness",
+   "via": "curator-multi:grok",
+   "model": "grok-4.7"
+  },
+  {
+   "ts": "2026-10-16T01:11:08.366853+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "automated-screening-fairness-gates"
+   ],
+   "techniques": [
+    "defense-in-depth-recheck-at-the-apply-boundary",
+    "never-auto-reject-a-protected-cohort",
+    "route-vocabulary-narrower-than-verdict-vocabulary"
+   ],
+   "deviations": 1,
+   "context": "pipeline-api",
+   "via": "curator-multi:grok",
+   "model": "grok-4.7"
+  },
+  {
+   "ts": "2026-10-16T01:11:08.366853+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "automated-screening-fairness-gates"
+   ],
+   "techniques": [
+    "never-auto-reject-a-protected-cohort"
+   ],
+   "deviations": 1,
+   "context": "tests-scoring-fairness",
+   "via": "curator-multi:grok",
+   "model": "grok-4.7"
+  },
+  {
+   "ts": "2026-10-16T01:11:08.366853+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "automated-screening-fairness-gates"
+   ],
+   "techniques": [
+    "never-auto-reject-a-protected-cohort",
+    "route-vocabulary-narrower-than-verdict-vocabulary"
+   ],
+   "deviations": 1,
+   "context": "group-eval-comparison",
+   "via": "curator-multi:grok",
+   "model": "grok-4.7"
+  }
+ ]
+}

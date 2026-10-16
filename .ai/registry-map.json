@@ -15131,7 +15131,11 @@
           "revision": 5,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/hiring/decisions/GroupEvalModal.tsx:136 The advisory limit is stated only for committee and eligibility-list mode, and the AI comparison is still rendered before the recruiter's accept or reject controls.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:1f4e2b1f7486ecbc",
+          "evaluatedRevision": 5
         }
       ],
       "governance": "governed"
@@ -23951,7 +23955,11 @@
           "revision": 5,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/pipeline/command/route.ts:100 Confirming reject-below rejects every id the score filter still matches; these routes never consult a shielded-cohort predicate before that write.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:1f4e2b1f7486ecbc",
+          "evaluatedRevision": 5
         },
         {
           "subject": "authorization",
@@ -27323,7 +27331,11 @@
           "revision": 5,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/screen-wave.ts:583 A committed screening wave applies rejection itself, with actor system, so reject is an executable automated outcome for anyone who clears the score gates.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:1f4e2b1f7486ecbc",
+          "evaluatedRevision": 5
         },
         {
           "subject": "bulk-adverse-action-governance",
@@ -31380,7 +31392,11 @@
           "revision": 5,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_early_career_single_source.py:37 The single-source pin that guards the auto-reject shield locks the protected set to the student and career-switcher labels.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:1f4e2b1f7486ecbc",
+          "evaluatedRevision": 5
         },
         {
           "subject": "translation-quality-measurement",
