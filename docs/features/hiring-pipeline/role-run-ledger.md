@@ -128,6 +128,25 @@ stage-wiring increments independent of each other — and it is why the defaults
 keyless: the two-minute keyless start means the run's *sequencing* must be
 demonstrable with no provider configured.
 
+### The producer seam (`app/_lib/role-run-producers/`)
+
+`producerRunners(producers)` turns a list of `{ kind, usesLlm, run }` into the `runners`
+map, and is the one place that decides which runner a stage gets:
+
+| Situation | The stage runs |
+| --- | --- |
+| LLM producer, provider available | the producer |
+| LLM producer, no provider / `KP_OFFLINE` / `KP_ROLE_RUN_LLM=0` | the keyless default, unchanged |
+| any producer throws | the keyless default (logged by error name only - a provider message can echo a prompt) |
+| local producer (a policy engine, no model) | the producer |
+
+"Provider available" is `roleRunLlmAvailable()`: the `claude` CLI on PATH or a Gemini key,
+and not offline. The LLM layer is the existing Python provider registry (`claude_cli`
+adapter included), reached through the existing `*-run.ts` runners with
+`env: buildLlmConfigEnv()`; a producer never spawns `claude` itself. The engine opens the
+`withLlmRoleRun` scope around each runner, so a producer's metered calls are attributed to
+the run and count against its budget. Producers write no PII and resolve no gate.
+
 ## The per-run LLM budget
 
 Cost per run is unbounded by construction (S1 fan-out x S2 LLM calls), so `advanceRoleRun`
