@@ -8,6 +8,12 @@ import {
   type RoleRunStageKind,
   type RoleRunStageStatus,
 } from "../role-run-stages.ts";
+import {
+  RoleRunGateMissingError,
+  isGateReceipt,
+  isGateResolution,
+  type RoleRunGateReceipt,
+} from "../role-run-gate-receipt.ts";
 
 // The role-run ledger (ADR-0011). A run is STATE, not a call stack: `role_runs` is one
 // row per (job, cycle), and `role_run_stages` is the append-only log of typed stage
@@ -194,7 +200,27 @@ export type AppendStageInput = {
   branchRef?: string | null;
   status: RoleRunStageStatus;
   payload: unknown;
+  /** Required for a gated stage's resolution (`complete`/`terminal` after the human
+   *  gate). Minted only by commitRoleRunGate once the approval is verified and spent. */
+  gateReceipt?: RoleRunGateReceipt;
 };
+
+/** The gate is enforced at the write door, not only in the engine: a gated resolution
+ *  row without a committed-approval receipt (for THIS run and THIS kind) and a named
+ *  approver in its payload is refused before anything is written. */
+function assertGateEvidence(input: AppendStageInput): void {
+  if (!isGateResolution(input.kind, input.status)) return;
+  const receipt = input.gateReceipt;
+  if (!isGateReceipt(receipt)) throw new RoleRunGateMissingError(input.kind, "no gate receipt");
+  if (receipt.runId !== input.runId || receipt.kind !== input.kind) {
+    throw new RoleRunGateMissingError(input.kind, "the receipt is for a different run or gate");
+  }
+  const p = input.payload as { gate?: unknown; decision?: unknown; approverRef?: unknown } | null | undefined;
+  const approver = typeof p?.approverRef === "string" ? p.approverRef.trim() : "";
+  if (!approver || typeof p?.gate !== "string" || typeof p?.decision !== "string") {
+    throw new RoleRunGateMissingError(input.kind, "gate, decision and approverRef are required in the payload");
+  }
+}
 
 /** Append one artifact. Throws RoleRunPiiError when the payload breaks ADR-0011 §5, and
  *  throws when the run id is not this tenant's — both BEFORE the insert, so a rejected
@@ -207,6 +233,7 @@ export function appendStageArtifact(
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): RoleRunStageArtifact {
   assertStagePayloadPiiFree(input.payload);
+  assertGateEvidence(input);
   const d = db();
   const branchRef = input.branchRef?.trim() ? input.branchRef.trim() : null;
   const payloadJson = JSON.stringify(input.payload ?? {});

@@ -1,22 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runScreenWave, ScreenWaveApprovalError } from "@/app/_lib/screen-wave";
-import type { ScreenWaveRefusalReason } from "@/app/_lib/screen-wave-contract";
+import { SCREEN_WAVE_APPROVAL_CODES } from "@/app/_lib/screen-wave-refusal-codes";
 import { DecisionConfigError, validateScreeningOverride } from "@/app/_lib/decision-config-schema";
 import { normalizeSpareList } from "@/app/_lib/screen-wave-spare";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { resolveApprover } from "@/app/_lib/auth/operator-approver";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
-import { jsonRefusal, requireCapabilityCoded, safeJsonError, type RefusalErrorCode } from "@/app/_lib/api-response";
+import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
-
-const SCREEN_WAVE_APPROVAL_CODES = {
-  required: "SCREEN_WAVE_APPROVAL_REQUIRED",
-  expired: "SCREEN_WAVE_APPROVAL_EXPIRED",
-  mismatch: "SCREEN_WAVE_APPROVAL_MISMATCH",
-  spent: "SCREEN_WAVE_APPROVAL_SPENT",
-  unattributed: "SCREEN_WAVE_APPROVAL_UNATTRIBUTED",
-} as const satisfies Record<ScreenWaveRefusalReason, RefusalErrorCode>;
 
 export const maxDuration = 60;
 
