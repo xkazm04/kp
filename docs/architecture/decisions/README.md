@@ -33,6 +33,8 @@ to be true for it to change?*
 - add a decision reason to the ATS record, or change what the ATS POST re-checks before it sends → [0020](0020-an-ats-decision-releases-a-reason-only-when-the-server-built-it.md)
 - add a table keyed by a candidate capability token, or change what an erasure does to an offer or schedule link → [0021](0021-an-erasure-revokes-every-live-capability-link-the-candidate-holds.md)
 - import a value into a `"use client"` file, or add a helper to `app/_lib/db/` that client code needs → [0022](0022-a-client-module-never-reaches-the-database.md)
+- add an estimated cost to a failed/unpriced LLM call, or drop the `outcome = 'ok'` filter from a spend query → [0024](0024-llm-usage-ledger-never-guesses.md)
+- write a read -> compute -> write transaction, or call a DEFERRED transaction a bug → [0025](0025-read-modify-write-locks-at-begin-or-rechecks.md)
 
 ## Index
 
@@ -61,6 +63,8 @@ to be true for it to change?*
 | [0021](0021-an-erasure-revokes-every-live-capability-link-the-candidate-holds.md) | An erasure revokes every live capability link the candidate holds | accepted | 2026-10-08 |
 | [0022](0022-a-client-module-never-reaches-the-database.md) | A client module never reaches the database | accepted | 2026-10-08 |
 | [0023](0023-the-allowance-is-keyed-on-the-subscription-anchor.md) | The allowance is keyed on the subscription anchor, not the calendar month | accepted | 2026-10-09 |
+| [0024](0024-llm-usage-ledger-never-guesses.md) | The usage ledger never guesses a number it cannot measure | accepted | 2026-09-07 |
+| [0025](0025-read-modify-write-locks-at-begin-or-rechecks.md) | A read-modify-write takes the write lock at BEGIN or re-checks its precondition in the UPDATE | accepted | 2026-10-16 |
 
 ## Writing a new one
 
