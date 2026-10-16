@@ -2249,7 +2249,7 @@ the scoring half is `ObservedIsArchetypeIndependentTest` in
   Android) still falls back to "generic engineering" in `design_case` — see
   `docs/_archive/dev-d3-hardening-findings.md` residuals.
 - `design-artifacts --focus-probes-json` is the Python half of Rec B (CV
-  hypothesis → covert probe). `runDesignArtifacts` (`app/_lib/devcase-run-design.ts`)
+  hypothesis → covert probe). `runDesignArtifacts` (`app/_lib/devcase-run.ts`)
   still has no argument to forward a panel, so designed cases from the app
   never confirm over-claimed skills.
 - Apply tokens and work sessions never expire: `getPostingByToken`
