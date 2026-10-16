@@ -78,11 +78,11 @@ for (const [rel, useCase] of Object.entries(LLM_SPAWN_MODULES)) {
 
   // Identifier presence is not enough: a comment or unused import kept every
   // site but analyze-run green while the spawn options omitted env. Each
-  // spawnPython/spawnChild call's options literal must carry env: buildLlmConfigEnv().
+  // spawnPython/spawnChild/runJobfitCli call's options literal must carry env: buildLlmConfigEnv().
   test(`${rel} pins env: buildLlmConfigEnv() on the spawn options (${useCase})`, () => {
     const stripped = withoutComments(readFileSync(path.join(APP_ROOT, rel), "utf-8"));
-    const spawns = stripped.match(/\b(?:spawnPython|spawnChild)\s*\(/g) ?? [];
-    assert.ok(spawns.length >= 1, `${rel} has no spawnPython/spawnChild call — re-pin this contract`);
+    const spawns = stripped.match(/\b(?:spawnPython|spawnChild|runJobfitCli)\s*(?:<[^>(]*>)?\s*\(/g) ?? [];
+    assert.ok(spawns.length >= 1, `${rel} has no spawnPython/spawnChild/runJobfitCli call — re-pin this contract`);
     const envs = stripped.match(/env:\s*buildLlmConfigEnv\(\)/g) ?? [];
     assert.equal(
       envs.length,

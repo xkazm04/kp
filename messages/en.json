@@ -10380,7 +10380,8 @@
       "interviewer_brief": "interviewer brief",
       "schedule_invite": "scheduling invite",
       "consent_expiry": "consent expiry reminder",
-      "interview_letter": "interview feedback letter"
+      "interview_letter": "interview feedback letter",
+      "schedule_nudge": "scheduling nudge"
     },
     "cohort": {
       "title": "Cohort probe insights",

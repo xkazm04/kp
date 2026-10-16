@@ -10380,7 +10380,8 @@
       "interviewer_brief": "Interviewer-Briefing",
       "schedule_invite": "Termin-Einladung",
       "consent_expiry": "Erinnerung an das Einwilligungsende",
-      "interview_letter": "Interview-Rückmeldung"
+      "interview_letter": "Interview-Rückmeldung",
+      "schedule_nudge": "Terminerinnerung zur Buchung"
     },
     "cohort": {
       "title": "Kohorten-Auswertung der Prüfpunkte",

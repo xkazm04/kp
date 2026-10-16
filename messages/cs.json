@@ -10380,7 +10380,8 @@
       "interviewer_brief": "Podklady pro tazatele",
       "schedule_invite": "Pozvánka k naplánování",
       "consent_expiry": "připomenutí konce souhlasu",
-      "interview_letter": "Zpětná vazba k pohovoru"
+      "interview_letter": "Zpětná vazba k pohovoru",
+      "schedule_nudge": "Připomenutí k naplánování"
     },
     "cohort": {
       "title": "Přehled sond napříč kohortou",

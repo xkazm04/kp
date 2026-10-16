@@ -10380,7 +10380,8 @@
       "interviewer_brief": "Brief de l’intervieweur",
       "schedule_invite": "Invitation à planifier",
       "consent_expiry": "rappel d’expiration du consentement",
-      "interview_letter": "retour d’entretien"
+      "interview_letter": "retour d’entretien",
+      "schedule_nudge": "Relance de planification"
     },
     "cohort": {
       "title": "Analyse des sondes sur la cohorte",
