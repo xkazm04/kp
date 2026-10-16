@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, type LucideIcon } from "lucide-react";
-import { PANEL_SUNKEN } from "./ui/recipes";
+import { ARROW_LINK, PANEL_SUNKEN } from "./ui/recipes";
 import { MotionizedGlyph } from "./glyph/MotionizedGlyph";
 import { glyphForTab, type GlyphId } from "./glyph/glyphRegistry";
 import { GLYPH_SIZE } from "./glyph/glyphSizes";
@@ -60,7 +60,7 @@ export function ChainEmptyState({
               key={link.tab}
               type="button"
               onClick={() => router.push(buildTabSwitchUrl(link.tab, search.toString()))}
-              className="focus-ring inline-flex items-center gap-1 text-sm font-semibold text-coral hover:underline"
+              className={ARROW_LINK}
             >
               {link.label} <ArrowRight size={13} aria-hidden />
             </button>

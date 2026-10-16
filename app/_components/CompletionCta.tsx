@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Check, X } from "lucide-react";
+import { ARROW_LINK } from "./ui/recipes";
 import { buildUrl, clearedTabScopedParams, type TabScopedParamKey, type WorkspaceTabId } from "@/app/features/shell/tabs";
 
 export type CompletionLink = {
@@ -52,7 +53,7 @@ export function CompletionCta({
             onClick={() =>
               router.push(buildUrl({ tab: link.tab, ...clearedTabScopedParams(), ...link.params }, search.toString()))
             }
-            className="focus-ring inline-flex items-center gap-1 text-sm font-semibold text-coral hover:underline"
+            className={ARROW_LINK}
           >
             {link.label} <ArrowRight size={13} aria-hidden />
           </button>
