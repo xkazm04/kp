@@ -29,7 +29,7 @@ import { commsSendSuppression } from "./comms";
 import { isRelayConfigured } from "./comms-relay";
 import { resolveCommsLocale } from "./comms-locale";
 import { commsTranslator } from "./comms-translator";
-import { isSimTitle } from "@/app/features/shell/simulation/constants";
+import { isSimTitle } from "@/app/_lib/sim-marker";
 import { offerExpiresAtMs, resolveOfferTtlDays } from "./offer-policy";
 import { publicBaseUrl } from "./public-base-url.ts";
 import type { Locale } from "@/i18n/locales";

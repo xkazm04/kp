@@ -1,6 +1,6 @@
 import { sendComm, type OutboundMessage } from "./comms";
 import { recordOutbox, type OutboxEntry } from "./db/devcase";
-import { isSimTitle } from "@/app/features/shell/simulation/constants";
+import { isSimTitle } from "@/app/_lib/sim-marker";
 import type { OutboxStatus } from "./comms-status";
 import type { DeliveryClaim } from "./comms-truth";
 import type { PipelineEntry } from "./db/core";
