@@ -2286,7 +2286,7 @@ export function recordEntryConsent(
     const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(entryId, workspaceId) as PipelineRow;
     return rowToEntry(row);
   });
-  return tx();
+  return tx.immediate(); // write lock at BEGIN: the consent_given_at read below must not go stale before the UPDATE
 }
 
 /** Mint (or return) the entry's opaque self-service erasure token — the
