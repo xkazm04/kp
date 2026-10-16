@@ -5797,7 +5797,11 @@
           "revision": 7,
           "changedAt": "2026-09-18",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "app/features/settings/billing/BillingSelfHostPanel.tsx:21 The billing settings tab replaces the plan catalog and upgrade controls with an unmetered status panel when self-hosted, ensuring copy and interface actions respect deployment mode.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:58f21c0561a86e45",
+          "evaluatedRevision": 7
         },
         {
           "subject": "settings",

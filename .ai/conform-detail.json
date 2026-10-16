@@ -7316,6 +7316,108 @@
         "at": "2026-10-16T04:31:13.047911+00:00",
         "reason": "reviewer (sonnet): The deviation rests on hostOf in app/_lib/offline.ts, which is not among the context's llm-* files. It is also the wrong target: hostOf only builds an offline-mode allowlist, and its doc comment says a malformed value 'simply fails to widen the allowlist rather than throwing', so it fails closed. It"
       }
+    },
+    "3a7c3a7b-a8f1-4566-aabc-3e5e2b4c471b/plan-entitlements": {
+      "context": "billing-subscriptions",
+      "subject": "plan-entitlements",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T21:12:44.080Z",
+      "techniques": [
+        {
+          "technique": "capability-gate-predicates",
+          "verdict": "deviation",
+          "evidence": "app/_lib/billing/entitlements.ts:54 Lookup misses on billing state resolve to PLANS.free, granting unverified tenants the free allowance instead of refusing, and meterAllows returns a bare boolean."
+        },
+        {
+          "technique": "deployment-mode-short-circuit",
+          "verdict": "conformant",
+          "evidence": "app/_lib/billing/entitlements.ts:213 In unmetered self-hosted deployments resolvedLimit short-circuits all meters to null (unlimited) in the shared resolution funnel before limits or balances are read."
+        },
+        {
+          "technique": "entitlement-lifecycle-revocation",
+          "verdict": "conformant",
+          "evidence": "app/_lib/billing/entitlements.ts:64 Subscription statuses map to entitlement explicitly with a bounded 7-day grace period for past_due/unpaid, while stale revokes and reordered events are guarded."
+        },
+        {
+          "technique": "id-vs-label-split",
+          "verdict": "conformant",
+          "evidence": "app/_lib/billing/plans.ts:38 Tiers separate machine-persisted identifiers (PlanId) from human-facing display labels (name), ensuring stored tenant rows do not mutate on copy renames."
+        },
+        {
+          "technique": "inherited-tier-not-cloned-tier",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/billing/plans.ts:117 All commercial terms are uniform catalog tiers; custom enterprise deals are unmetered contracts without per-tenant inherited capability records."
+        },
+        {
+          "technique": "live-catalog-edit-is-a-lifecycle-event",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/billing/plans.ts:1 The tier model is defined as an immutable TypeScript structure in source code deployed via CI/CD, with no operator database table or live catalog editor."
+        },
+        {
+          "technique": "price-book-authority",
+          "verdict": "conformant",
+          "evidence": "app/_lib/billing/price-reconcile.ts:48 Prices are display duplicates validated against the live Polar price book through daily standing reconciliation that alerts on error drift."
+        },
+        {
+          "technique": "provider-publishes-state-not-decision",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/billing/gateway.ts:64 The service is a consumer of billing webhooks rather than an external provider computing and serving entitlement states to third-party services."
+        },
+        {
+          "technique": "subtractive-entitlement",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/billing/plans.ts:42 Entitlements are positive allowances per plan without subscription-level subtractive rows or capability removal overrides."
+        },
+        {
+          "technique": "tier-model-single-source",
+          "verdict": "conformant",
+          "evidence": "app/_lib/billing/plans.ts:58 All tier definitions, limits, display prices, and retirement metadata are declared in a single dictionary imported by gates, reducers, and the UI."
+        }
+      ],
+      "withdrawn": {
+        "worker": "0f68226d-943d-4645-bf30-1227972fe7ae",
+        "state": "deviation",
+        "at": "2026-10-16T21:13:05.123773+00:00",
+        "reason": "reviewer (sonnet): The technique anchors cite things I could not find: entitlements.ts has no meterAllows function, and the stale-revoke and reordered-event guards are not at line 64 or anywhere in that file. The deviation itself is also contested: line 54 returns PLANS.free for a missing state, but the comments at li"
+      }
+    },
+    "6b5c4717-aa35-46d9-a266-50a296a27e09/plan-entitlements": {
+      "context": "billing-plan-and-spend",
+      "subject": "plan-entitlements",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T21:12:44.080Z",
+      "worker": "0f68226d-943d-4645-bf30-1227972fe7ae",
+      "techniques": [
+        {
+          "technique": "deployment-mode-short-circuit",
+          "verdict": "conformant",
+          "evidence": "app/features/settings/billing/billingTypes.ts:76 The interface consumes the server deployment mode to suppress checkout buttons, pricing cards, and upgrade banners on self-hosted instances."
+        },
+        {
+          "technique": "entitlement-lifecycle-revocation",
+          "verdict": "conformant",
+          "evidence": "app/features/settings/billing/billingTypes.ts:104 Active and dunning subscriptions are routed to the customer portal rather than checkout, avoiding parallel subscription creation while respecting grace periods."
+        },
+        {
+          "technique": "id-vs-label-split",
+          "verdict": "conformant",
+          "evidence": "app/features/settings/billing/BillingPlanCatalog.tsx:54 UI cards render the human-facing display label plan.name while internal keying and checkout dispatch use the stable plan.id."
+        },
+        {
+          "technique": "price-book-authority",
+          "verdict": "conformant",
+          "evidence": "app/features/settings/billing/BillingTab.tsx:110 Post-checkout success is asserted only when server billing state confirms the granted plan, preventing client-side timers from falsely claiming entitlement."
+        },
+        {
+          "technique": "tier-model-single-source",
+          "verdict": "conformant",
+          "evidence": "app/features/settings/billing/BillingPlanCatalog.tsx:137 The plan catalog view maps over data.catalog.plans, rendering limits and tiers directly from the shared single-source catalog."
+        }
+      ]
     }
   }
 }
