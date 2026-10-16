@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { NextRequest, NextResponse } from "next/server";
 import { listRecentTasks, listTaskParams } from "@/app/_lib/db/tasks";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { callerCapabilities, requireCapability } from "@/app/_lib/auth/current-user";
 import { dockMayStart, taskKindCapability } from "@/app/_lib/task-admission";
@@ -31,10 +31,9 @@ const TASKS_START_RATE_LIMIT = { limit: 120, windowMs: 10 * 60_000 };
 // then looked its entry up in the wrong team and failed "entry not found" — or,
 // worse, succeeded against the wrong cohort and billed a real LLM run for it.
 // /api/analyze already did this correctly and is the shape both verbs now copy.
-export async function GET() {
+export const GET = withWorkspace(async (ws: string) => {
   try {
     ensureRecovered(); // self-heal orphaned 'running'/'queued' rows on the first read after a restart/crash
-    const ws = await currentWorkspace();
     const tasks = listRecentTasks(recentTaskCutoffIso(), undefined, ws);
     // Each dead row carries its REPLAY VERDICT (app/_lib/task-replay.ts) — the same
     // decision POST /api/tasks/[id]/retry refuses by — so the table offers Retry only
@@ -51,9 +50,9 @@ export async function GET() {
     // path and SQLite detail, and the dock renders what it is handed.
     return safeJsonError(error, "api:tasks", "TASK_LIST_FAILED");
   }
-}
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   try {
     // THROTTLE (rate-limit-contract.test.ts). This route reaches the SAME queue
     // that /api/jds/generate gates behind requireOperator and /api/analyze throttles
@@ -89,7 +88,6 @@ export async function POST(request: NextRequest) {
     if (denied) return denied;
     // The tenant comes from the SESSION, never the body — a client-supplied
     // workspace would let any caller run work against another team's data.
-    const ws = await currentWorkspace();
     // …and the SECOND budget, per kind class (app/_lib/task-budget.ts). The 120
     // above was calibrated for the cheapest thing that comes through this door and
     // admitted 120 repo clones, 120 board-wide screen sweeps and 120 cohort
@@ -112,4 +110,4 @@ export async function POST(request: NextRequest) {
     // the thrown message is store detail, never client copy.
     return safeJsonError(error, "api:tasks", "TASK_START_FAILED");
   }
-}
+});

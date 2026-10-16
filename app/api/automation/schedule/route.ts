@@ -20,6 +20,7 @@ import { ensureDb } from "@/app/_lib/db/core";
 import { schedulerLiveness, schedulerLivenessReason } from "@/app/_lib/scheduler-health";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 // Forcing a tick runs a FULL policy pass — a Python-spawning sweep over every
 // active entry that drafts outreach and mutates the board. It is operator-gated,
@@ -102,14 +103,14 @@ function clockLiveness() {
 
 // Control surface for the automation clock: read status + recent runs, toggle it
 // on/off, set the cadence, or force an immediate tick.
-export async function GET() {
+export const GET = withSession(async () => {
   // Operator-only: exposes the automation clock state + recent run history.
   const denied = await requireOperator();
   if (denied) return denied;
   return NextResponse.json(await schedulePayload());
-}
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withSession(async (request: NextRequest) => {
   // Operator-only: toggling the clock / forcing a tick arms autonomous outreach.
   const denied = await requireOperator();
   if (denied) return denied;
@@ -180,4 +181,4 @@ export async function POST(request: NextRequest) {
     // keeps the detail; the client gets the code.
     return safeJsonError(error, "api:automation/schedule", "SCHEDULE_UPDATE_FAILED");
   }
-}
+});

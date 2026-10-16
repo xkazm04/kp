@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { NextRequest, NextResponse } from "next/server";
 import { getTask } from "@/app/_lib/db/tasks";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { taskKindCapability } from "@/app/_lib/task-admission";
@@ -41,12 +41,11 @@ const TASKS_RETRY_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
 // offers and the answer this door gives can never disagree. It is an existence check,
 // not a ban: a crash-interrupted row whose workdir survived is still replayable.
 
-export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   const { id } = await context.params;
   try {
     // Scoped read: a retry both reveals the original row and spends money, so
     // another team's task must be unreachable here, not merely unstartable.
-    const ws = await currentWorkspace();
     // An absent or unreadable body is the whole-run replay (the original contract).
     const body = (await request.json().catch(() => null)) as { scope?: unknown } | null;
     const task = getTask(id, ws);
@@ -109,4 +108,4 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // message carries the db path and SQLite detail, never client copy.
     return safeJsonError(error, "api:tasks/retry", "TASK_RETRY_FAILED");
   }
-}
+});

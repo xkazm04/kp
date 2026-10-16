@@ -113,11 +113,15 @@ test("a viewer cannot read the feedback inbox either", async () => {
   assert.equal((await bodyOf(r)).code, "FEEDBACK_READ_FORBIDDEN");
 });
 
-test("a session-less caller is refused with the same code at 401", async () => {
+test("a session-less caller is refused at 401 by the wrapper, before the capability code", async () => {
   signedInAs(null);
   const r = await GET();
-  assert.equal(r.status, 401, "unauthenticated is 401, under-privileged is 403 — requireCapability's split");
-  assert.equal((await bodyOf(r)).code, "FEEDBACK_READ_FORBIDDEN");
+  // UPDATED DELIBERATELY: withWorkspace answers the session refusal first (ADR
+  // draft-route-chain-refusal-order), as the bare Unauthorized envelope with no capability
+  // code; a caller with no session has nothing to be told about capabilities.
+  // Unauthenticated is 401, under-privileged is still 403 FEEDBACK_READ_FORBIDDEN above.
+  assert.equal(r.status, 401);
+  assert.deepEqual(await r.json(), { error: "Unauthorized" });
 });
 
 test("an admin (members:manage) reads the inbox, addresses included", async () => {
