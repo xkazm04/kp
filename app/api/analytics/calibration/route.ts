@@ -6,7 +6,7 @@ import { asCalibrationOutcome, computeCalibration, computeCalibrationCohorts, ca
 import { liveScreeningRecommendation } from "@/app/_lib/calibration-recommendation";
 import { getDecisionConfig, type ScreeningRule } from "@/app/_lib/decision-config-store";
 import { effectiveFloor } from "@/app/_lib/decision-config-schema";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { createTtlCache, calibrationCacheKey } from "@/app/_lib/analytics-cache";
 
@@ -42,7 +42,7 @@ const calibrationCache = createTtlCache<Record<string, unknown>>();
 // screen gate, i.e. interview/offer/hired collapsed into one); `hired` is "reached
 // the terminal stage", which needs only stage data and no performance rating. The
 // response echoes `outcome` for the same reason it echoes `measures`.
-export async function GET(request: Request) {
+export const GET = withWorkspace(async (ws: string, request: Request) => {
   try {
     const params = new URL(request.url).searchParams;
     const roleFamily = params.get("roleFamily");
@@ -63,7 +63,6 @@ export async function GET(request: Request) {
     // P1 — both producers are per-team reliability metrics: scope BOTH to the
     // caller's workspace (the pipeline branch previously defaulted, leaking the
     // default workspace's calibration curve to every team).
-    const ws = await currentWorkspace();
     const family = roleFamily || null;
     // The outcome axis rides in the SOURCE slot of the key (a `source:outcome`
     // composite): both vocabularies are closed and colon-free, so the compound is
@@ -167,4 +166,4 @@ export async function GET(request: Request) {
     // analytics routes: log with context + structured 500, never a bare crash.
     return safeJsonError(error, "api:analytics:calibration", "ANALYTICS_CALIBRATION_READ_FAILED");
   }
-}
+});

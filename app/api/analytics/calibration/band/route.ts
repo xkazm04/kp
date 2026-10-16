@@ -3,7 +3,7 @@ import { analysisCalibrationBandCandidates } from "@/app/_lib/db/analyses";
 import { pipelineCalibrationBandCandidates } from "@/app/_lib/db/pipeline";
 import { heldOutEntryIds } from "@/app/_lib/decision-record-store";
 import { CALIBRATION_BIN_COUNT } from "@/app/_lib/calibration";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { createTtlCache, calibrationBandCacheKey } from "@/app/_lib/analytics-cache";
 
@@ -22,7 +22,7 @@ const bandCache = createTtlCache<Record<string, unknown>>();
 //
 // ?bin=0..9 (the fixed 10 probability bins) · ?source=pipeline|analysis|holdout
 //   (default pipeline) · ?roleFamily= mirrors the panel's family selector.
-export async function GET(request: Request) {
+export const GET = withWorkspace(async (ws: string, request: Request) => {
   try {
     const params = new URL(request.url).searchParams;
     const rawSource = params.get("source");
@@ -37,7 +37,6 @@ export async function GET(request: Request) {
     const loPct = bin * (100 / CALIBRATION_BIN_COUNT);
     const hiPct = (bin + 1) * (100 / CALIBRATION_BIN_COUNT);
     const inclusiveHi = bin === CALIBRATION_BIN_COUNT - 1;
-    const ws = await currentWorkspace();
     const family = roleFamily || null;
 
     const payload = bandCache.get(calibrationBandCacheKey(ws, source, family, bin), () => {
@@ -61,4 +60,4 @@ export async function GET(request: Request) {
   } catch (error) {
     return safeJsonError(error, "api:analytics:calibration:band", "ANALYTICS_SCORE_BAND_READ_FAILED");
   }
-}
+});

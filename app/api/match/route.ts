@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { listCorpusJobs } from "@/app/_lib/db/jobs";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { writeMatchInput, type MatchInputBody } from "@/app/_lib/match-input";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
@@ -35,13 +35,12 @@ import {
 // scripted loop meets it in a second.
 const MATCH_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };
 
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (workspaceId: string, request: NextRequest) => {
   let workdir: string | null = null;
   try {
     const body = (await request.json()) as MatchInputBody & { limit?: number; weights?: unknown };
     const limit = resolveMatchLimit(body.limit);
 
-    const workspaceId = await currentWorkspace();
     // The limiter sits AFTER the body parse (which costs nothing and is needed to
     // refuse a malformed request honestly) but BEFORE createWorkdir — the first
     // thing here that touches the disk — so a throttled call leaves no temp dir and
@@ -130,4 +129,4 @@ export async function POST(request: NextRequest) {
   } finally {
     if (workdir) await cleanupWorkdir(workdir);
   }
-}
+});

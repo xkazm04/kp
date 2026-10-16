@@ -1,6 +1,6 @@
 import { getServerLocale } from "@/i18n/server";
 import { isLocale } from "@/i18n/locales";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jsonOk, jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
@@ -44,13 +44,12 @@ import { COHORT_CAP, COHORT_MIN, type CohortRunResponse, type CohortSummary, typ
 /** The strip's length. */
 const RECENT_COHORTS = 12;
 
-export async function GET() {
+export const GET = withWorkspace(async (ws: string) => {
   const opDenied = await requireOperator();
   if (opDenied) return opDenied;
   const denied = await requireCapabilityCoded("read", requireCapability);
   if (denied) return denied;
   try {
-    const ws = await currentWorkspace();
     const deps = cohortViewDeps();
     const jdDeps = cohortJdDeps();
     const out: CohortSummary[] = [];
@@ -66,13 +65,13 @@ export async function GET() {
   } catch (error) {
     return safeJsonError(error, "api:analyze/cohort", "COHORT_LOAD_FAILED");
   }
-}
+});
 
 // POST CohortRunRequest -> CohortRunResponse. Mirrors /api/analyze: the recruiter seat,
 // a per-IP limiter ahead of any spend, the ai_candidates billing gate for the members that
 // would be analysed FRESH (a reused analysis spends nothing; an unmetered self-hosted
 // install stays unmetered — meterGate answers null there), then the row and the task.
-export async function POST(request: Request) {
+export const POST = withWorkspace(async (ws: string, request: Request) => {
   const opDenied = await requireOperator();
   if (opDenied) return opDenied;
   const denied = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -83,7 +82,6 @@ export async function POST(request: Request) {
     return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
   try {
-    const ws = await currentWorkspace();
     const body = parseCohortRunRequest(await request.json().catch(() => null));
     if (!body || body.members.length < COHORT_MIN || body.members.length > COHORT_CAP) {
       return jsonRefusal("COHORT_REQUEST_INVALID", 400, { min: COHORT_MIN, max: COHORT_CAP });
@@ -149,4 +147,4 @@ export async function POST(request: Request) {
   } catch (error) {
     return safeJsonError(error, "api:analyze/cohort", "COHORT_START_FAILED");
   }
-}
+});

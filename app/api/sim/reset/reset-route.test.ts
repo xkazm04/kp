@@ -282,7 +282,7 @@ test("simResidue never claims a cold tenant is dirty", () => {
 });
 
 test("the status door reads and never writes", () => {
-  const getBody = src.slice(src.indexOf("export async function GET"), src.indexOf("// Clear all artifacts"));
+  const getBody = src.slice(src.search(/export (?:async function|const) GET\b/), src.indexOf("// Clear all artifacts"));
   assert.doesNotMatch(getBody, /resetSim|beginSimRun|endSimRun|renewSimRun/, "a status read that claimed or purged would be a trap");
   assert.match(getBody, /await currentWorkspace\(\)/, "and it answers about the CALLER's tenant, never the default");
 });

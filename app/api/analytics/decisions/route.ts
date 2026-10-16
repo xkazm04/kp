@@ -7,7 +7,7 @@ import {
   hasEvent,
   type PipelineEvent,
 } from "@/app/_lib/db/pipeline";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { listDecisionRecordsForRefs } from "@/app/_lib/decision-record-store";
 import {
   GROUP_EVAL_EVENT_KIND,
@@ -153,7 +153,7 @@ function enrichPage(rows: PipelineEvent[], workspaceId: string): EnrichedEvent[]
 // a time on scroll so the full audit trail is never pulled into the client at
 // once. `hasMore`/`nextOffset` let the client chain pages without re-deriving
 // the math, and `total` powers the "showing X of Y" footer.
-export async function GET(request: Request) {
+export const GET = withWorkspace(async (ws: string, request: Request) => {
   try {
     const { searchParams } = new URL(request.url);
     const limit = clampInt(searchParams.get("limit"), DEFAULT_LIMIT, 1, MAX_LIMIT);
@@ -171,7 +171,6 @@ export async function GET(request: Request) {
     // P1 — the decision log is a per-team audit trail; scope both the count and
     // the page to the caller's workspace (previously unscoped → every team saw
     // the default workspace's trail).
-    const ws = await currentWorkspace();
     // A contradictory kind × attribution pair selects nothing. Answering it here keeps
     // the store's "empty list = unfiltered" convention from turning "no rows match" into
     // "here is the whole trail" (UAT LUC-ANA-12).
@@ -218,4 +217,4 @@ export async function GET(request: Request) {
     // connection: a constraint string or the db path was reaching the analytics tab.
     return safeJsonError(error, "api:analytics/decisions", "DECISION_LOG_LOAD_FAILED");
   }
-}
+});
