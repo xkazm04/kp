@@ -6,7 +6,8 @@ import { ARROW_LINK, PANEL_SUNKEN } from "./ui/recipes";
 import { MotionizedGlyph } from "./glyph/MotionizedGlyph";
 import { glyphForTab, type GlyphId } from "./glyph/glyphRegistry";
 import { GLYPH_SIZE } from "./glyph/glyphSizes";
-import { buildTabSwitchUrl, type WorkspaceTabId } from "@/app/features/shell/tabs";
+import type { WorkspaceTabId } from "@/app/features/shell/tabs";
+import { chainLinkHref, type ChainLink } from "./chainLinkHref";
 
 // Chain-aware empty state: an empty tab explains WHERE its data comes from and
 // links to the upstream step instead of dead-ending ("no candidates" → set up a
@@ -14,8 +15,8 @@ import { buildTabSwitchUrl, type WorkspaceTabId } from "@/app/features/shell/tab
 // chain it teaches: JD (library) → job (jobs) → channel (channels) → candidates
 // (pipeline) → decisions → schedule → offer/hired. Each call site declares its
 // own upstream link(s) — the copy lives in that tab's catalog namespace, the
-// navigation always goes through buildTabSwitchUrl so the destination opens
-// clean. Client-only: meant for tab bodies inside the Workspace SPA.
+// navigation always goes through chainLinkHref (buildTabSwitchUrl plus the link's
+// optional `params`) so the destination opens clean, or pre-scoped when the caller knows the scope. Client-only: meant for tab bodies inside the Workspace SPA.
 export function ChainEmptyState({
   icon: Icon,
   glyph,
@@ -36,7 +37,7 @@ export function ChainEmptyState({
   tab?: WorkspaceTabId;
   title: string;
   body?: string;
-  links: { tab: WorkspaceTabId; label: string }[];
+  links: ChainLink[];
   // Non-navigation affordance rendered alongside the links (e.g. the Pipeline
   // empty state's "watch the hiring story" tour trigger).
   extraAction?: React.ReactNode;
@@ -59,7 +60,7 @@ export function ChainEmptyState({
             <button
               key={link.tab}
               type="button"
-              onClick={() => router.push(buildTabSwitchUrl(link.tab, search.toString()))}
+              onClick={() => router.push(chainLinkHref(link, search.toString()))}
               className={ARROW_LINK}
             >
               {link.label} <ArrowRight size={13} aria-hidden />

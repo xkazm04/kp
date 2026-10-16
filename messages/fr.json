@@ -2544,6 +2544,8 @@
     "stopTourAction": "Arrêter la visite guidée",
     "newIntakeAliases": "recrutement poste nouvelle conversation besoin",
     "tourSub": "Lance la démo en direct : fiche de poste → sourcing → présélection → entretien → offre → recruté",
+    "finishSetupAction": "Terminer la configuration",
+    "finishSetupSub": "Reprendre la configuration initiale là où vous l’aviez laissée",
     "hintNavigate": "naviguer",
     "hintOpen": "ouvrir",
     "hintClose": "fermer",
@@ -7512,6 +7514,7 @@
       "currencyLabel": "Devise des salaires",
       "currencyHint": "Le tableau du pipeline affiche les fourchettes de salaire dans cette devise. Rien n’est converti.",
       "previewOnboarding": "Aperçu du parcours d’intégration",
+      "finishSetup": "Terminer la configuration",
       "backup": {
         "confirmWord": "REMPLACER",
         "title": "Sauvegarde et restauration",

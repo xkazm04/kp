@@ -12,6 +12,8 @@ import { useCapabilities } from "./useCapabilities";
 import { paletteItemId, paletteListView } from "./workspacePaletteResults";
 import { useOptionalSimulation } from "./simulation/SimulationProvider";
 import { useOptionalCompanionDock } from "./companion/CompanionDockProvider";
+import { requestOnboardingReopen } from "./setup/onboardingReopen";
+import { useSetupUnfinished } from "./setup/useSetupUnfinished";
 import { useWorkspaceCommandPaletteItems } from "./useWorkspaceCommandPaletteItems";
 import { useWorkspaceCommandPaletteSearch } from "./useWorkspaceCommandPaletteSearch";
 import { WorkspacePaletteLedger } from "./WorkspacePaletteLedger";
@@ -123,6 +125,8 @@ export function CommandPalette({
     () => (companion ? (q: string) => companion.openDock(q) : null),
     [companion]
   );
+  const setupUnfinished = useSetupUnfinished();
+  const finishSetup = sim && setupUnfinished ? requestOnboardingReopen : null;
   const items = useWorkspaceCommandPaletteItems({
     query,
     hits,
@@ -136,6 +140,7 @@ export function CommandPalette({
     simResume: sim?.resume ?? null,
     simStop: sim?.stop ?? null,
     askCandi,
+    finishSetup,
     capabilities,
     nav,
     t,

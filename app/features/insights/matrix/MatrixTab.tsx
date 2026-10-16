@@ -275,7 +275,7 @@ function MatrixGridView({ m }: { m: ReturnType<typeof useMatrixTab> }) {
           </button>
         </div>
       ) : state === "empty" ? (
-        <MatrixEmptyState candidateCount={data!.candidates.length} positionCount={data!.positions.length} />
+        <MatrixEmptyState candidateCount={data!.candidates.length} positionCount={data!.positions.length} job={scopedPosition?.id ?? null} />
       ) : state === "filtered" ? (
         // The dataset has candidates/positions, but the min-fit floor or family filter
         // hid them all — show a recoverable empty state instead of sticky headers over

@@ -143,8 +143,9 @@ kp's first consumer is the companion mic (`app/features/shell/companion/Companio
 which dictates into the composer rather than sending: see
 [docs/features/companion/README.md](../features/companion/README.md).
 
-The second is the intake composer's voice bar
-(`app/features/library/jds/intake/IntakeVoiceBar.tsx` over `useIntakeDictation.ts`), which adds
+The second is the Studio kit's voice bar
+(`app/_components/studio/StudioVoiceBar.tsx` over `useStudioDictation.ts`, mounted by the intake
+composer at `coats/atelier/IntakeAtelierDesk.tsx`), which adds
 the live level meter to the same dictate-into-the-composer contract: see
 [docs/features/intake/README.md](../features/intake/README.md).
 
