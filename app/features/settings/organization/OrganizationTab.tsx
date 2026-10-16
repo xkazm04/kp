@@ -13,6 +13,8 @@ import { readClientOrgCurrency, readClientOrgName, type OrgCurrency } from "@/ap
 import { Defer } from "@/app/_components/ui/Defer";
 import { EYEBROW, INTRO, PAGE_HEADER, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { OnboardingExperience } from "@/app/features/shell/setup/OnboardingExperience";
+import { requestOnboardingReopen } from "@/app/features/shell/setup/onboardingReopen";
+import { useSetupUnfinished } from "@/app/features/shell/setup/useSetupUnfinished";
 import { OrganizationGeneralPanel } from "./OrganizationGeneralPanel";
 import type { AppLanguage } from "@/app/features/shared/memberUi";
 
@@ -47,6 +49,10 @@ export function OrganizationTab() {
   // after the write landed - and it can say nothing at all about a refusal.
   const [languageSave, setLanguageSave] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [onboarding, setOnboarding] = useState(false);
+  // While first-run setup is unfinished this button is the real way back in (live
+  // wizard, persists and stamps); preview mode stamps nothing, so it could never
+  // finish a setup. Once finished it is the harmless preview again.
+  const setupUnfinished = useSetupUnfinished();
   const [name, setName] = useState<string>(() => readClientOrgName());
   const language: AppLanguage = (isLocale(appLocale) ? appLocale : "en") as AppLanguage;
 
@@ -165,10 +171,10 @@ export function OrganizationTab() {
         </div>
         <button
           type="button"
-          onClick={() => setOnboarding(true)}
+          onClick={setupUnfinished ? requestOnboardingReopen : () => setOnboarding(true)}
           className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-coral/40 bg-coral/5 px-3 py-1.5 text-sm font-semibold text-coral transition-colors hover:bg-coral/10 dark:rounded-lg"
         >
-          <Rocket size={14} aria-hidden /> {t("previewOnboarding")}
+          <Rocket size={14} aria-hidden /> {setupUnfinished ? t("finishSetup") : t("previewOnboarding")}
         </button>
       </header>
 

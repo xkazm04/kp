@@ -2544,6 +2544,8 @@
     "stopTourAction": "Stop guided tour",
     "newIntakeAliases": "intake role new conversation hiring need",
     "tourSub": "Runs the live demo: JD → sourcing → screening → interview → offer → hired",
+    "finishSetupAction": "Finish setup",
+    "finishSetupSub": "Pick up the first-run setup where you left off",
     "hintNavigate": "navigate",
     "hintOpen": "open",
     "hintClose": "close",
@@ -7512,6 +7514,7 @@
       "currencyLabel": "Salary currency",
       "currencyHint": "The pipeline board labels salary bands in this currency. Nothing is converted.",
       "previewOnboarding": "Preview onboarding flow",
+      "finishSetup": "Finish setup",
       "backup": {
         "confirmWord": "REPLACE",
         "title": "Backup & restore",

@@ -2544,6 +2544,8 @@
     "stopTourAction": "Ukončit komentovanou prohlídku",
     "newIntakeAliases": "nábor role nová konverzace potřeba",
     "tourSub": "Spustí živou ukázku: JD → sourcing → screening → pohovor → nabídka → přijetí",
+    "finishSetupAction": "Dokončit nastavení",
+    "finishSetupSub": "Navázat na úvodní nastavení tam, kde jste skončili",
     "hintNavigate": "pohyb",
     "hintOpen": "otevřít",
     "hintClose": "zavřít",
@@ -7512,6 +7514,7 @@
       "currencyLabel": "Měna mezd",
       "currencyHint": "V této měně označuje pipeline nástěnka mzdová pásma. Nic se nepřepočítává.",
       "previewOnboarding": "Náhled onboardingu",
+      "finishSetup": "Dokončit nastavení",
       "backup": {
         "confirmWord": "NAHRADIT",
         "title": "Zálohování a obnovení",

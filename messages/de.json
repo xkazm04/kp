@@ -2544,6 +2544,8 @@
     "stopTourAction": "Geführte Tour beenden",
     "newIntakeAliases": "aufnahme rolle neues gespräch personalbedarf",
     "tourSub": "Startet die Live-Demo: JD → Sourcing → Screening → Interview → Angebot → eingestellt",
+    "finishSetupAction": "Einrichtung abschließen",
+    "finishSetupSub": "Die Ersteinrichtung dort fortsetzen, wo Sie aufgehört haben",
     "hintNavigate": "navigieren",
     "hintOpen": "öffnen",
     "hintClose": "schließen",
@@ -7512,6 +7514,7 @@
       "currencyLabel": "Gehaltswährung",
       "currencyHint": "Das Pipeline-Board beschriftet Gehaltsbänder in dieser Währung. Es wird nichts umgerechnet.",
       "previewOnboarding": "Onboarding-Ablauf ansehen",
+      "finishSetup": "Einrichtung abschließen",
       "backup": {
         "confirmWord": "ERSETZEN",
         "title": "Sicherung & Wiederherstellung",
