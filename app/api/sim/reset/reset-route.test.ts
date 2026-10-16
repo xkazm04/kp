@@ -203,7 +203,7 @@ test("a failure answers the CODE, never the thrown store message", () => {
 });
 
 test("the purge is scoped to the CALLER's tenant, not the default", () => {
-  assert.match(src, /await currentWorkspace\(\)/, "the tenant comes from the session, never a hardcoded default");
+  assert.match(src, /withWorkspace\(async \(ws: string/, "the tenant comes from the session (via withWorkspace), never a hardcoded default");
   assert.match(src, /resetSim\(ws\)/, "and it is threaded into the purge");
   assert.match(src, /beginSimRun\(ws\)/, "the lock is per-workspace too");
 });
@@ -284,7 +284,7 @@ test("simResidue never claims a cold tenant is dirty", () => {
 test("the status door reads and never writes", () => {
   const getBody = src.slice(src.search(/export (?:async function|const) GET\b/), src.indexOf("// Clear all artifacts"));
   assert.doesNotMatch(getBody, /resetSim|beginSimRun|endSimRun|renewSimRun/, "a status read that claimed or purged would be a trap");
-  assert.match(getBody, /await currentWorkspace\(\)/, "and it answers about the CALLER's tenant, never the default");
+  assert.match(getBody, /withWorkspace\(async \(ws: string/, "and it answers about the CALLER's tenant, never the default");
 });
 
 // --- The no-purge claim: resuming a reloaded walk ------------------------------

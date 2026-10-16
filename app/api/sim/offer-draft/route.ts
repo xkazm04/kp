@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getJob } from "@/app/_lib/db/jobs";
 import { resolveSimEntry, setSimApproval } from "@/app/_lib/sim-entry";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { namespaceTranslator } from "@/app/_lib/catalog-translator";
 import { resolveCommsLocale } from "@/app/_lib/comms-locale";
@@ -14,7 +14,7 @@ import { SIM_SALARY } from "@/app/features/shell/simulation/constants";
 // Deterministic offer draft for the simulation spine — NO LLM (salary from the
 // job-band midpoint), so the keyless run doesn't depend on the Claude CLI offer
 // task. Sets the offer_review approval the recruiter then "Send offer"-extends.
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (workspaceId: string, request: NextRequest) => {
   try {
     const { entryId } = (await request.json()) as { entryId?: string };
     if (!entryId) return jsonRefusal("SIM_ENTRY_REQUIRED", 400);
@@ -27,7 +27,6 @@ export async function POST(request: NextRequest) {
     // title carries the (SIM) marker, and nothing else. The team scoping keeps a
     // stranger's id from resolving; the marker keeps a REAL candidate's row out of
     // this ungated door (a real id 404s exactly like a missing one). See sim-entry.ts.
-    const workspaceId = await currentWorkspace();
     const entry = resolveSimEntry(entryId, workspaceId);
     if (!entry) return jsonRefusal("SIM_ENTRY_NOT_FOUND", 404);
 
@@ -62,4 +61,4 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:sim/offer-draft", "SIM_OFFER_DRAFT_FAILED");
   }
-}
+});

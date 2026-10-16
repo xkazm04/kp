@@ -3,7 +3,7 @@ import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { approveLifecycleCase } from "@/app/_lib/db/devcase";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 // The shared by-id owner guard (sibling module - a route file may export only handlers).
 import { ownedLifecycle } from "../../../devcase-owned-lifecycle";
 import { isAtReviewGate } from "@/app/_lib/devcase-orchestrator";
@@ -59,7 +59,7 @@ function coerceCaseEdits(raw: unknown): { edits: Record<string, unknown>; timebo
 // automated walk. W5-4: the body may carry reviewer edits to the designed case
 // ({ case: { title?, brief?, tasks?, timeboxHours? } }) — the gate's promise
 // was review/EDIT/approve, not a blind sign-off.
-export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: Request, context: { params: Promise<{ id: string }> }) => {
   // Director gate (2026-09-03): the control room's doors carried no operator check, so a
   // demo cookie could reach them. Identity presence for now; the capability slice follows.
   const denied = await requireOperator();
@@ -78,7 +78,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     // OWNERSHIP. A lifecycle id is a globally-unique point-read key, so this route used
     // to approve ANOTHER studio's lifecycle into a live case on a known id. A cross-tenant
     // id now answers the same 404 a nonexistent one does - never an existence oracle.
-    const lc = ownedLifecycle(id, await currentWorkspace());
+    const lc = ownedLifecycle(id, ws);
     if (!lc) return NextResponse.json({ error: "lifecycle not found" }, { status: 404 });
     if (isAtReviewGate(lc.stage)) {
       // Persist the dev case + flip to "approved" atomically (the one shared
@@ -154,4 +154,4 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     // the thrown message carries SQLITE_* codes, the db path or child stderr.
     return safeJsonError(error, "api:devcase/lifecycle/approve", "DEVCASE_APPROVE_FAILED");
   }
-}
+});

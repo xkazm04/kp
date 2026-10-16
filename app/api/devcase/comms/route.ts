@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { listOutbox } from "@/app/_lib/db/devcase";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 
 
 // The comms outbox — every outbound message (acks, invites), the audit log of what the
@@ -24,10 +24,10 @@ function outboxLimitFrom(raw: string | null): number {
   return Math.min(n, MAX_OUTBOX_LIMIT);
 }
 
-export async function GET(request: NextRequest) {
+export const GET = withWorkspace(async (ws: string, request: NextRequest) => {
   try {
     const limit = outboxLimitFrom(new URL(request.url).searchParams.get("limit"));
-    const rows = listOutbox(limit + 1, await currentWorkspace());
+    const rows = listOutbox(limit + 1, ws);
     const truncated = rows.length > limit;
     return NextResponse.json({
       outbox: truncated ? rows.slice(0, limit) : rows,
@@ -40,4 +40,4 @@ export async function GET(request: NextRequest) {
     // db path. Log it, answer a code the studio renders in the reader's language.
     return safeJsonError(error, "api:devcase/comms", "DEVCASE_OUTBOX_FAILED");
   }
-}
+});

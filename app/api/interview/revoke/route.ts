@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revokeOpenInterviewSessions } from "@/app/_lib/db/interviews";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { readEntityId } from "../entry-id";
 
@@ -9,7 +9,7 @@ import { readEntityId } from "../entry-id";
 // an entry (wrong candidate, changed mind, link shared too widely) without
 // minting a replacement. /connect refuses revoked sessions; the portal shows a
 // friendly closed message.
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   try {
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
     const entryId = readEntityId(body.entryId);
@@ -22,9 +22,9 @@ export async function POST(request: NextRequest) {
     // answers `{ ok: true, revoked: 0 }` — the same shape an already-revoked
     // entry gets, which is deliberate: a distinct refusal would confirm which
     // entry ids exist on other tenants.
-    const revoked = revokeOpenInterviewSessions(entryId, await currentWorkspace());
+    const revoked = revokeOpenInterviewSessions(entryId, ws);
     return NextResponse.json({ ok: true, revoked });
   } catch (error) {
     return safeJsonError(error, "api:interview:revoke", "INTERVIEW_CREATE_FAILED");
   }
-}
+});

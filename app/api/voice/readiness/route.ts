@@ -14,6 +14,7 @@ import {
   sharedProbeMemory,
   type ReadinessAdapters,
 } from "@/app/_lib/voice/readiness";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 // Operator readiness for the realtime voice plane (challenge-r09 voice-provider-io/B):
 // the Spend strip's voice rows (SpendVoiceFacts.tsx). See app/_lib/voice/readiness.ts
@@ -43,7 +44,7 @@ async function failovers() {
   return countInterviewFailovers(await currentWorkspace(), new Date(Date.now() - FAILOVER_WINDOW_MS).toISOString());
 }
 
-export async function GET() {
+export const GET = withSession(async () => {
   const denied = await requireHomeOrgReader();
   if (denied) return denied;
   try {
@@ -54,9 +55,9 @@ export async function GET() {
   } catch (err) {
     return safeJsonError(err, "api:voice/readiness", "VOICE_READINESS_FAILED");
   }
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withSession(async (request: Request) => {
   const denied = await requireHomeOrgReader();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -74,4 +75,4 @@ export async function POST(request: Request) {
   } catch (err) {
     return safeJsonError(err, "api:voice/readiness", "VOICE_READINESS_FAILED");
   }
-}
+});

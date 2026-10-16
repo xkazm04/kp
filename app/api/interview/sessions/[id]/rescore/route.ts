@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { rateLimit } from "@/app/_lib/rate-limit";
 import { attachInterviewScorecard, getInterviewSessionInWorkspace } from "@/app/_lib/db/interviews";
 import { interviewScoringState } from "@/app/_lib/interview-scoring-state";
 import { finalizeCandidateInterviewScoring, type FinalizeScoringDeps } from "@/app/_lib/interview-scorecard-commit";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 
 const RESCORE_RATE_LIMIT = { limit: 10, windowMs: 10 * 60_000 };
 
@@ -19,11 +19,7 @@ export type RescoreDeps = {
 // completed interview session holding a transcript that failed or dropped scoring.
 // Operator-gated, scoped to currentWorkspace, throttled per session ID, guarded
 // against already-scored sessions via interviewScoringState and requireUnscored CAS.
-export async function POST(
-  _request: NextRequest,
-  context: { params: Promise<{ id: string }> },
-  deps?: RescoreDeps
-) {
+export const POST = withWorkspace(async (ws: string, _request: NextRequest, context: { params: Promise<{ id: string }> }, deps?: RescoreDeps) => {
   const denied = await requireOperator();
   if (denied) return denied;
 
@@ -32,7 +28,6 @@ export async function POST(
 
   try {
     const { id } = await context.params;
-    const ws = await currentWorkspace();
     const session = getInterviewSessionInWorkspace(id, ws);
     if (!session) {
       return jsonRefusal("INTERVIEW_SESSION_NOT_FOUND", 404);
@@ -79,4 +74,4 @@ export async function POST(
   } catch (error) {
     return safeJsonError(error, "api:interview:sessions:[id]:rescore", "INTERVIEW_RESCORE_FAILED");
   }
-}
+});

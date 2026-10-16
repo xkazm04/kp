@@ -2,7 +2,7 @@ import { createReadStream } from "node:fs";
 import { Readable } from "node:stream";
 import { NextRequest, NextResponse } from "next/server";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { interviewRecordingRowForSession } from "@/app/_lib/db/interviews";
 import { recordingFilePath, recordingFileSize, recordingRetentionDue } from "@/app/_lib/interview-recording";
@@ -25,12 +25,11 @@ import { parseByteRange, parseRecordingAttempt } from "@/app/_lib/interview-reco
 // is re-evaluated here, so a recording past its window is gone from the wire whether or
 // not anything has deleted it yet (registry: candidate-consent-and-retention /
 // read-time-gate-not-just-the-sweep).
-export async function GET(request: NextRequest, context: { params: Promise<{ sessionId: string }> }) {
+export const GET = withWorkspace(async (ws: string, request: NextRequest, context: { params: Promise<{ sessionId: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
     const { sessionId } = await context.params;
-    const ws = await currentWorkspace();
     const row = interviewRecordingRowForSession(sessionId, ws);
     if (!row) return jsonRefusal("INTERVIEW_RECORDING_NOT_FOUND", 404);
     if (recordingRetentionDue(row)) return jsonRefusal("INTERVIEW_RECORDING_NOT_FOUND", 404);
@@ -78,4 +77,4 @@ export async function GET(request: NextRequest, context: { params: Promise<{ ses
   } catch (error) {
     return safeJsonError(error, "api:interview:recording/[sessionId]", "INTERVIEW_RECORDING_FAILED");
   }
-}
+});

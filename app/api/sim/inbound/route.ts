@@ -3,12 +3,12 @@ import { getJob } from "@/app/_lib/db/jobs";
 import { createPipelineEntry, listPipeline } from "@/app/_lib/db/pipeline";
 import { listMatrixProfiles } from "@/app/_lib/db/profiles";
 import { simCvIntakeTarget } from "@/app/_lib/cv-intake";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
 import { stageWithRole } from "@/app/_lib/pipeline-stages";
 import { inferProfileLocale } from "@/app/_lib/comms-locale";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { SIM_SCREEN_POLICY } from "@/app/features/shell/simulation/constants";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 
 
 // Simulate an inbound application arriving via a channel (the careers/apply page):
@@ -24,13 +24,12 @@ import { SIM_SCREEN_POLICY } from "@/app/features/shell/simulation/constants";
 // to the DEFAULT team's board, and the walk's own correctly-scoped /api/pipeline read
 // came back empty and halted on error.noScreened. Pinned by sim-inbound-scope.test.ts
 // (and, for the helper's guarantees, cv-intake-sim-scope.test.ts).
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   try {
     const { jobId } = (await request.json()) as { jobId?: string };
     if (!jobId) return jsonRefusal("SIM_JOB_REQUIRED", 400);
     // The caller's team, resolved once: the role is read as that team sees it and the
     // sim writes into it.
-    const ws = await currentWorkspace();
     const job = getJob(jobId, ws);
     if (!job) return jsonRefusal("SIM_JOB_NOT_FOUND", 404);
 
@@ -85,4 +84,4 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:sim/inbound", "SIM_INBOUND_FAILED");
   }
-}
+});

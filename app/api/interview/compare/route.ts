@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isEarlyCareer } from "@/app/_lib/archetypes";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { interviewedForJob, latestInterviewByEntry } from "@/app/_lib/db/interviews";
 import { listEntriesForJob } from "@/app/_lib/db/pipeline";
 import { getHumanScorecards } from "@/app/_lib/interview-prep";
@@ -55,7 +55,7 @@ function coverageForSession(
 // scoringModel), so the grid compares candidates on the axes for THEIR cohort —
 // a student's 6 potential constructs and an experienced hire's 5 axes line up
 // within their own cohort rather than being forced onto one rubric.
-export async function GET(request: NextRequest) {
+export const GET = withWorkspace(async (workspace: string, request: NextRequest) => {
   const jobId = request.nextUrl.searchParams.get("job");
   if (!jobId) return jsonRefusal("INTERVIEW_JOB_REQUIRED", 400);
   try {
@@ -67,7 +67,6 @@ export async function GET(request: NextRequest) {
     // opening compare on a corpus role. A gated recruiter route, so the session is
     // the authority; and pipeline_entries / interview_sessions always carry a real
     // workspace_id (never the corpus NULL), so strict equality is right here.
-    const workspace = await currentWorkspace();
     // Attach EVERY human scorecard on the candidate (PREP1) — one per (interviewer,
     // round), read through readHumanScorecards, workspace-scoped. The grid used to
     // read the `humanScorecard` headline mirror, the latest save overall, so a second
@@ -128,4 +127,4 @@ export async function GET(request: NextRequest) {
     // handler, which in dev forwards internal detail (idea-ab117371).
     return safeJsonError(error, "api:interview:compare", "INTERVIEW_LOOKUP_FAILED");
   }
-}
+});

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDevCase } from "@/app/_lib/db/devcase";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 
@@ -15,17 +15,17 @@ import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 // is globally unique, so getDevCase is a point read - but a case id is not an authority
 // to read another team's design, so a record from any other workspace answers exactly
 // what an unknown id answers (no existence oracle).
-export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+export const GET = withWorkspace(async (ws: string, _request: Request, context: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const { id } = await context.params;
   try {
     const record = getDevCase(id);
-    if (!record || record.workspaceId !== (await currentWorkspace())) {
+    if (!record || record.workspaceId !== (ws)) {
       return jsonRefusal("DEVCASE_CASE_NOT_FOUND", 404);
     }
     return NextResponse.json({ case: record });
   } catch (error) {
     return safeJsonError(error, "api:devcase/[id]", "DEVCASE_CASE_LIST_FAILED");
   }
-}
+});

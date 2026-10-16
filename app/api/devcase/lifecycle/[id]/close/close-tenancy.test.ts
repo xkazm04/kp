@@ -155,10 +155,10 @@ test("the close route enumerates postings in the LIFECYCLE's workspace, never th
 
 test("the session-derived dev-studio routes resolve currentWorkspace() and thread it into every scoped call", () => {
   const lifecycle = code("lifecycle/route.ts");
-  assert.match(lifecycle, /currentWorkspace\(\)/);
+  assert.match(lifecycle, /withWorkspace\(async \(/);
   // The GET resolves the tenant once into `ws` (challenge-r09 devcase-lifecycle/A): the
   // same tenant scopes the per-case intake counts the rows now carry.
-  assert.match(lifecycle, /const ws = await currentWorkspace\(\)/, "the GET resolves the tenant once");
+  assert.match(lifecycle, /withWorkspace\(async \(ws: string/, "the GET receives the tenant once");
   assert.match(lifecycle, /listLifecycles\([^)]*(currentWorkspace\(\)|\bws\b)[^)]*\)/, "lifecycle GET must scope listLifecycles");
   assert.match(lifecycle, /caseIntakeCounts\([\s\S]*?,\s*ws\s*\)/, "the row counts are read in the same tenant");
   // The POST resolves the tenant ONCE into `workspace` and passes that to the
@@ -166,7 +166,7 @@ test("the session-derived dev-studio routes resolve currentWorkspace() and threa
   // inline call or that variable: pinning the inline form would have forced a
   // third redundant `await currentWorkspace()` in one handler, and the sibling
   // assertions below already read the variable form (`listPostings(ws)`).
-  assert.match(lifecycle, /const workspace = await currentWorkspace\(\)/, "the POST resolves the tenant once");
+  assert.match(lifecycle, /withWorkspace\(async \(workspace: string/, "the POST receives the tenant once");
   assert.match(lifecycle, /createLifecycle\([^)]*(currentWorkspace\(\)|workspace)[^)]*\)/, "lifecycle POST must scope createLifecycle");
   // The runner task must carry it too — the row was created for this team while
   // its task ran as the default one, so progress surfaced in the wrong tray.
@@ -174,11 +174,11 @@ test("the session-derived dev-studio routes resolve currentWorkspace() and threa
   assert.doesNotMatch(lifecycle, /listLifecycles\(\)/, "no bare listLifecycles() may remain");
 
   const control = code("control/route.ts");
-  assert.match(control, /currentWorkspace\(\)/);
+  assert.match(control, /withWorkspace\(async \(/);
   // The tenant stays the FIRST argument; the sweep also takes the client key now that
   // each resumed lifecycle spends a slot of the agent task budget (wave 18b), so the
   // trailing arguments are open — what this pins is the workspace, not the arity.
-  assert.match(control, /reconcile\(\s*await currentWorkspace\(\)\s*(,[^)]*)?\)/, "reconcile must sweep the caller's workspace");
+  assert.match(control, /reconcile\(\s*(?:ws|workspace|workspaceId)\s*(,[^)]*)?\)/, "reconcile must sweep the caller's workspace");
   assert.doesNotMatch(control, /listLifecycles\(\)/, "the control room's GET must be workspace-scoped");
   // The reconcile sweep spawns runners: both the dedupe probe and the task must
   // use the workspace being swept, or it checks the default team and duplicates.

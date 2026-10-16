@@ -158,7 +158,7 @@ test("the promote and source routes refuse another team's entity", () => {
   // inline now lives in one producer used by all six by-id doors. Pin the call and the
   // 404 it feeds; the comparison itself is pinned at the producer below.
   const promote = read("..", "api", "devcase", "promote", "route.ts");
-  assert.match(promote, /const sub = ownedSubmission\(body\.submissionId, await currentWorkspace\(\)\);/);
+  assert.match(promote, /const sub = ownedSubmission\(body\.submissionId, (?:ws|workspaceId)\);/);
   assert.match(promote, /if \(!sub\) \{/, "…and 404s when the guard refuses");
   assert.match(read("..", "api", "devcase", "source", "route.ts"), /devCase\.workspaceId !== ws/);
   // The one producer: the rule itself, written once.

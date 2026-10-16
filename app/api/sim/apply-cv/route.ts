@@ -4,7 +4,7 @@ import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { extractUploadedText, ingestCvApplication, simCvIntakeTarget } from "@/app/_lib/cv-intake";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { DEFAULT_LOCALE, isLocale } from "@/i18n/locales";
 
 export const maxDuration = 60;
@@ -17,7 +17,7 @@ const MAX_EMAIL_LENGTH = 254;
 // server-side by the REAL extractor, normalized into a matchable V2 candidate, and
 // landed at "Accepted" on the chosen role — the exact path a forwarded email or an
 // ad-form attachment takes through ingestCvApplication. Keyless: no LLM key needed.
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   // Spawns a Python subprocess per call; self-limit like /api/extract-text.
   if (!rateLimit(`sim-apply-cv:${clientIpFrom(request.headers)}`, { limit: 20, windowMs: 10 * 60_000 })) {
     return jsonRefusal("TOO_MANY_REQUESTS", 429);
@@ -42,7 +42,6 @@ export async function POST(request: NextRequest) {
     // The CALLER's team: the sim files into it (below), so it is also whose lifecycle
     // decides whether the role still takes applicants - a corpus role one team closed
     // is closed for that team only (job_workspace_state).
-    const ws = await currentWorkspace();
     const job = getJob(jobId, ws);
     if (!job) return jsonRefusal("SIM_JOB_NOT_FOUND", 404);
     if (!isJobOpenForApplications(getJobStatus(job.id, ws))) return jsonRefusal("SIM_ROLE_CLOSED", 410);
@@ -106,7 +105,7 @@ export async function POST(request: NextRequest) {
     // Python traceback. Same treatment as the sibling /api/sim/inbound.
     return safeJsonError(error, "api:sim/apply-cv", "SIM_CV_INTAKE_FAILED");
   }
-}
+});
 
 // Best-effort display name from a résumé filename ("jane_doe_cv.pdf" → "Jane Doe")
 // when the sim form leaves the name blank — purely cosmetic for the demo. The real

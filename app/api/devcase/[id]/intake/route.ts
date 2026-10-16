@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { closeCaseIntake } from "@/app/_lib/db/devcase";
 import { recordAudit } from "@/app/_lib/dev-control";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
@@ -23,7 +23,7 @@ import { ownedDevCase } from "../../devcase-owned-lifecycle";
 // AUTHORITY: identity presence, then `pipeline:write` - the same seat publish now asks,
 // so the reopen half is never looser than the stop half. TENANT: a case from another
 // workspace answers exactly what an unknown id answers (DEVCASE_CASE_NOT_FOUND).
-export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: Request, context: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const forbidden = await requireCapabilityCoded("pipeline:write", requireCapability);
@@ -32,7 +32,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   try {
     const body = (await request.json().catch(() => ({}))) as { action?: unknown } | null;
     if (body?.action !== "stop") return jsonRefusal("DEVCASE_INTAKE_ACTION_UNKNOWN", 400);
-    const devCase = ownedDevCase(id, await currentWorkspace());
+    const devCase = ownedDevCase(id, ws);
     if (!devCase) return jsonRefusal("DEVCASE_CASE_NOT_FOUND", 404);
 
     const result = closeCaseIntake(devCase.id, devCase.workspaceId, lifecycleOwnsIntake);
@@ -53,4 +53,4 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     // better-sqlite3: the thrown message can carry SQLITE_* detail and the db path.
     return safeJsonError(error, "api:devcase/[id]/intake", "DEVCASE_INTAKE_STOP_FAILED");
   }
-}
+});
