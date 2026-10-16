@@ -11,7 +11,6 @@ import path from "node:path";
 import { cleanupUnitDb, UNIT_DB_DIR } from "../testing/unit-db.ts";
 import { ensureDb } from "./core.ts";
 import { ingestLlmUsageLog, insertLlmUsage } from "./llm.ts";
-import { withLlmRoleRun } from "../llm-request-context.ts";
 
 after(() => cleanupUnitDb());
 
@@ -20,11 +19,10 @@ const roleRunIds = (useCase: string): (string | null)[] =>
     (r) => r.role_run_id
   );
 
-test("insertLlmUsage stamps an explicit roleRunId, else the ambient one, else NULL", () => {
+test("insertLlmUsage stamps an explicit roleRunId, else NULL", () => {
   insertLlmUsage({ useCase: "rr_direct", provider: "claude_cli", source: "llm", outcome: "ok", roleRunId: "run-explicit" });
-  withLlmRoleRun("run-ambient", () => insertLlmUsage({ useCase: "rr_direct", provider: "claude_cli", source: "llm", outcome: "ok" }));
   insertLlmUsage({ useCase: "rr_direct", provider: "claude_cli", source: "llm", outcome: "ok" });
-  assert.deepEqual(roleRunIds("rr_direct"), ["run-explicit", "run-ambient", null]);
+  assert.deepEqual(roleRunIds("rr_direct"), ["run-explicit", null]);
 });
 
 test("the sidecar fold stamps the role run of the spawn, and leaves other spawns NULL", () => {

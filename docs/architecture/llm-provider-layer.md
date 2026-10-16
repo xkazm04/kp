@@ -157,8 +157,8 @@ reserved for multi-tenancy, see the organization doc):
 `role_runs.id` a metered call was made for. It is stamped from an ambient
 `withLlmRoleRun()` scope (`llm-request-context.ts`) that the role-run engine opens around a
 stage runner: `spawnPython` reads it synchronously at spawn and the sidecar fold writes it
-on every line of that spawn; `insertLlmUsage` takes an explicit `roleRunId` or falls back
-to the ambient one. NULL means "not part of a role run" (every earlier row, and every call
+on every line of that spawn; `insertLlmUsage` takes an explicit `roleRunId` (no ambient
+lookup: `db/llm.ts` stays off `llm-request-context`). NULL means "not part of a role run" (every earlier row, and every call
 outside one). The Claude CLI path has no dollar cost: such rows keep `cost_usd` NULL
 (unpriced, counted beside the sum) and a run's budget is read in calls and tokens.
 

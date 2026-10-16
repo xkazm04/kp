@@ -6,11 +6,14 @@
 import "better-sqlite3";
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { cleanupUnitDb } from "./testing/unit-db.ts";
+import { cleanupUnitDb, UNIT_DB_DIR } from "./testing/unit-db.ts";
 import { advanceRoleRun, type StageRunner } from "./role-run-engine.ts";
 import { getOrCreateRoleRun, listStageArtifacts } from "./db/role-runs.ts";
 import { ensureDb } from "./db/core.ts";
-import { insertLlmUsage, sumRoleRunUsage } from "./db/llm.ts";
+import { ingestLlmUsageLog, insertLlmUsage, sumRoleRunUsage } from "./db/llm.ts";
+import { currentLlmRoleRunId } from "./llm-request-context.ts";
+import { writeFileSync } from "node:fs";
+import path from "node:path";
 import { insertJob } from "./job-ingest.ts";
 import { createPipelineEntry } from "./db/pipeline.ts";
 import type { JobRecord } from "./db/core.ts";
@@ -93,17 +96,22 @@ test("positive control: a run under the ceiling is unaffected", async () => {
 test("a stage's own metered calls (ambient attribution) stop the NEXT stage, never the one running", async () => {
   seedCandidates("jd-budget-d", 3);
   const { run } = getOrCreateRoleRun({ jobId: "jd-budget-d" });
-  // A stand-in producer: makes two metered "LLM calls" with NO explicit run id - the
-  // engine's ambient scope must attribute them.
+  // A stand-in producer: makes two metered "LLM calls" the way a spawn does - a sidecar
+  // folded with the ambient role run python-runner reads at spawn. The engine's scope
+  // (not the test) is what names the run.
   const spendy: StageRunner = (ctx) => {
-    insertLlmUsage({ useCase: "role_run_test", provider: "claude_cli", source: "llm", outcome: "ok", inputTokens: 10, outputTokens: 5 });
-    insertLlmUsage({ useCase: "role_run_test", provider: "claude_cli", source: "llm", outcome: "ok", inputTokens: 10, outputTokens: 5 });
+    const line = JSON.stringify({ use_case: "role_run_test", provider: "claude_cli", input_tokens: 10, output_tokens: 5, source: "llm" });
+    const sidecar = path.join(UNIT_DB_DIR, "budget-ambient.ndjson");
+    writeFileSync(sidecar, `${line}
+${line.replace("10", "11")}
+`, "utf-8");
+    ingestLlmUsageLog(sidecar, currentLlmRoleRunId());
     return { status: "complete", payload: { jobId: ctx.run.jobId, roleSpecHash: "h", rubricVersion: "1", rubricKeys: ["java"], lintFindings: [] } };
   };
   const result = await advanceRoleRun(run.id, { runners: { role_spec: spendy }, budget: { maxCalls: 2, maxTokens: null, maxCostUsd: null } });
   assert.deepEqual(result.produced.map((p) => p.kind), ["role_spec"], "the stage that spent finished and wrote its artifact");
   assert.equal(result.budgetExceeded?.dimension, "calls");
-  assert.deepEqual(sumRoleRunUsage(run.id), { calls: 2, tokens: 30, costUsd: null, unpricedCalls: 2 });
+  assert.deepEqual(sumRoleRunUsage(run.id), { calls: 2, tokens: 31, costUsd: null, unpricedCalls: 2 });
 });
 
 function seedCandidates(jobId: string, n: number): void {

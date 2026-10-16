@@ -1,8 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFileSync, rmSync } from "node:fs";
 import { parseLedgerLine, type LlmUsageInput } from "../llm-usage-ledger";
-import { currentLlmRoleRunId } from "../llm-request-context";
-import type { RoleRunUsage } from "../role-run-budget";
 import { ensureDb, safeRowParse } from "./core";
 
 // ---- Multi-provider LLM layer (docs/architecture/llm-provider-layer.md) -----------------
@@ -200,8 +198,9 @@ export type LlmUsageWrite = LlmUsageInput & {
    *  useCase + source + billed unit iff `requestId` is present. NULL keys stay
    *  distinct under the unique index (unkeyed writers and every pre-column row). */
   ingestKey?: string | null;
-  /** The role run this call was made for. Omitted ⇒ the ambient role-run scope
-   *  (llm-request-context.ts), else NULL. */
+  /** The role run this call was made for. Omitted => NULL. (The sidecar fold takes the
+   *  ambient role run from python-runner at spawn; this module stays off that graph so
+   *  llm-config's module budget does not pay for it.) */
   roleRunId?: string | null;
 };
 
@@ -260,7 +259,7 @@ export function insertLlmUsage(input: LlmUsageWrite): LlmUsageIngestResult {
     input.reason ?? null,
     input.requestId ?? null,
     ingestKey,
-    input.roleRunId ?? currentLlmRoleRunId()
+    input.roleRunId ?? null
   ).changes;
   const inserted = written;
   const skipped = inserted === 1 ? 0 : ingestKey ? 1 : 0;
@@ -422,6 +421,10 @@ export type LlmActivityFilters = {
   outcome?: "ok" | "failed";
   cursor?: { ts: string; id: number };
 };
+
+/** What a role run's own llm_usage rows add up to. `costUsd` sums ONLY the priced calls;
+ *  `unpricedCalls` (the Claude CLI) sits beside the sum, never inside it. */
+export type RoleRunUsage = { calls: number; tokens: number; costUsd: number | null; unpricedCalls: number };
 
 /** What one role run's own llm_usage rows add up to (role_run_id, stamped by the ambient
  *  withLlmRoleRun scope). Deterministic template serves are not LLM calls and are not

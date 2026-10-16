@@ -13,17 +13,8 @@ import { positiveNumericEnv } from "./env.ts";
 //
 // Pure and DB-free: the engine reads the usage (db/llm.ts sumRoleRunUsage) and hands it here.
 
-/** What a run's own ledger rows add up to. `costUsd` sums ONLY the priced calls. */
-export type RoleRunUsage = {
-  /** Metered LLM calls, failed attempts included (a timeout still sent the prompt). */
-  calls: number;
-  /** Input + output tokens over the calls that reported usage. */
-  tokens: number;
-  /** Dollars over the calls that carry a price; null when none does. */
-  costUsd: number | null;
-  /** Calls with no price (the CLI path): beside the sum, never inside it. */
-  unpricedCalls: number;
-};
+export type { RoleRunUsage } from "./db/llm.ts";
+import type { RoleRunUsage } from "./db/llm.ts";
 
 export const EMPTY_ROLE_RUN_USAGE: RoleRunUsage = { calls: 0, tokens: 0, costUsd: null, unpricedCalls: 0 };
 

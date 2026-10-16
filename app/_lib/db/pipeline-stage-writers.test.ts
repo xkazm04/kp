@@ -190,6 +190,11 @@ const CALLERS: Record<string, Row> = {
     count: 1,
     why: "files at the entry stage of the workspace axis (simulation)",
   },
+  "app/_lib/role-run-producers/slate.ts -> createPipelineEntry": {
+    cls: "not-a-move",
+    count: 1,
+    why: "files a rediscovered candidate at the workspace's screened landing (no stage named), and only when the candidate has NO entry for this role, so it can never hit the re-add transition that revives a closed one",
+  },
   "app/_lib/agent-hire/lifecycle.ts -> createPipelineEntry": {
     cls: "not-a-move",
     count: 1,
