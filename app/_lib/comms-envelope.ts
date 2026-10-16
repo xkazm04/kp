@@ -56,6 +56,7 @@ export const KNOWN_COMM_KINDS = [
   "case_invite",
   "interviewer_brief",
   "schedule_invite",
+  "schedule_nudge",
   // The interview FEEDBACK LETTER a recruiter approved (spark interview-feedback-letter).
   // Not "feedback": that kind is the dev-case brief's (devcase-feedback.ts), a different
   // message to a different audience.

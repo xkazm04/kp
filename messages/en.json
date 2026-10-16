@@ -612,6 +612,10 @@
       "body": "Hi {name},\n\nA quick reminder that your interview for {role} is coming up at {slot}.{length} We're looking forward to speaking with you. See you then!\n\n{team}",
       "slotFallback": "your scheduled time"
     },
+    "interviewNudge": {
+      "subject": "Still need a time? Pick your interview for {role}",
+      "body": "Hi {name},\n\nYou haven't picked a time for your {role} interview yet. Choose a slot that suits you here:\n{link}\n\nThe link stays open for a limited time, so it's best to book soon. If none of the times work, just reply and we'll sort something out.\n\n{team}"
+    },
     "offerReminder": {
       "subject": "Reminder: your offer for {role} is still open",
       "body": "Hi {name},\n\nA quick reminder that your offer for {role} is still open and waiting for your decision. To keep it, please let us know by {deadline}.\n\nReview the details and respond here:\n{link}\n\nIf you have any questions before deciding, just reply. We're happy to help.\n\n{team}"

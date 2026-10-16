@@ -4,13 +4,15 @@
     python -m pipeline.jobfit.jobs_cli ingest    --ad-file <path>     [--job-id ID]
 
 `normalize` deterministically turns a structured record (e.g. the JD-builder's
-RoleSpec) into a Job — no LLM. `ingest` parses a prose ad via the Claude CLI
-(subscription) then normalizes. Output:
+RoleSpec) into a Job — no LLM. `ingest` parses a prose ad via the configured LLM
+provider (the Claude CLI by default) then normalizes; with no provider available it
+degrades to a deterministic structural parse (title from the first line, the ad as the
+description, nothing invented). Output:
     {"job": {<Job, camelCase>}, "source": "deterministic" | "llm"}.
 Invoked by /api/jds/save (authored JDs) and /api/jobs/ingest (prose ads).
 On failure the shared {"error", "status", "code"} envelope goes to stderr, so a
-malformed record answers 400/invalid_input and a missing provider 500/engine_error
-instead of both reaching the browser as the same anonymous 500.
+malformed record answers 400/invalid_input instead of reaching the browser as an
+anonymous 500. A missing provider is no longer a fault for `ingest` (it degrades).
 """
 
 from __future__ import annotations
@@ -21,7 +23,7 @@ import sys
 from pathlib import Path
 
 from ._cli import CliError, configure_stdio, emit_error, invalid_input
-from .jobs import ingest_raw_ad, normalize_job
+from .jobs import ingest_ad_deterministic, ingest_raw_ad, normalize_job
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -46,10 +48,15 @@ def main(argv: list[str] | None = None) -> int:
             from .llm import resolve_provider
 
             provider = resolve_provider("jd_ingest", timeout=120)
-            if not provider.available():
-                raise RuntimeError("No LLM provider available for ad ingestion (configure one in Models, or install the Claude CLI).")
-            job = ingest_raw_ad(text, provider=provider, job_id=args.job_id)
-            source = "llm"
+            if provider.available():
+                job = ingest_raw_ad(text, provider=provider, job_id=args.job_id)
+                source = "llm"
+            else:
+                # Keyless degradation is a product property: no provider means a
+                # structural draft (every unstated field listed in defaulted_fields),
+                # not a 500.
+                job = ingest_ad_deterministic(text, job_id=args.job_id)
+                source = "deterministic"
     except Exception as exc:  # noqa: BLE001 — clean error envelope on stderr
         # The shared envelope names the failure: a bad record is the caller's
         # input (400/invalid_input), a missing provider is an engine fault (500).

@@ -100,6 +100,7 @@ export function AnalyzeTab() {
           // multi-CV comparison instead of the faked stage timeline.
           variantsDone={result.variantProgress?.done}
           variantsTotal={result.variantProgress?.total}
+          startedAt={flags.runStartedAt}
           onCancel={handlers.cancel}
         />
       ) : null}

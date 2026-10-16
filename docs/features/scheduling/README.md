@@ -802,6 +802,8 @@ The reminder sweep's old bare-English `"your scheduled time"` substitution is th
 catalog key `comms.interviewReminder.slotFallback` in all four locales. Pinned
 across cs/de/fr by `app/_lib/comms-dispatch-locale.test.ts`.
 
+**Book-your-interview nudge (pending links).** The reminder sweep only serves confirmed invites, so a link nobody opened used to age out in silence. `sendDueScheduleNudges` (`interview-reminders.ts`, same heartbeat job) sends ONE `schedule_nudge` letter (`comms.interviewNudge.*`, four locales) to a still-`pending` invite once it has sat un-booked for `SCHEDULE_NUDGE_AFTER_MS` (2 days, from the link's expiry anchor) and before it expires. It has its own `nudge_sent_at` / `nudge_attempts` / `nudge_last_attempt_at` columns (a nudge must never mark the later interview reminder as sent) and reuses the reminder retry cap and backoff. No automation event is written; the Outbox row is the record.
+
 **The interviewer's calendar hold is the length of the interview.**
 `dispatchInterviewerBrief`'s inline `.ics` inlined `30` minutes while the
 candidate's own `.ics`, the free/busy window and the slot proposer all used

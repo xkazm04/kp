@@ -8,6 +8,7 @@ import {
   STAGE_ORDER,
   deriveProgressDisplay,
   headlineStageOf,
+  elapsedSecondsSince,
   type StageId,
   type StageStatus,
   type StageState,
@@ -27,17 +28,21 @@ const STAGE_SUB_KEY = {
   saving: "stages.savingSub",
 } as const;
 
-// A once-per-second elapsed clock for the run (mounts with the panel, i.e. at the
-// run's start; the panel unmounts when the run ends). Shown beside the indeterminate
+// A once-per-second elapsed clock for the run, shown beside the indeterminate
 // engine span so a slow/stalled model call reads as genuinely in-progress — the
-// number keeps climbing while the stage honestly stays "analyzing".
-function useElapsedSeconds(): number {
-  const [elapsed, setElapsed] = useState(0);
+// number keeps climbing while the stage honestly stays "analyzing". `startedAt` is
+// the run's REAL start (persisted by the caller): a panel remounted by a resume after
+// a page reload must not restart at zero. Without it the clock starts at mount.
+function useElapsedSeconds(startedAt?: number): number {
+  const [mountedAt] = useState(() => Date.now());
+  const origin = startedAt ?? mountedAt;
+  const [elapsed, setElapsed] = useState(() => elapsedSecondsSince(origin, Date.now()));
   useEffect(() => {
-    const startedAt = Date.now();
-    const id = window.setInterval(() => setElapsed(Math.floor((Date.now() - startedAt) / 1000)), 1000);
+    const tick = () => setElapsed(elapsedSecondsSince(origin, Date.now()));
+    tick();
+    const id = window.setInterval(tick, 1000);
     return () => window.clearInterval(id);
-  }, []);
+  }, [origin]);
   return elapsed;
 }
 
@@ -48,6 +53,7 @@ export function AnalysisProgress({
   variantCount,
   variantsDone,
   variantsTotal,
+  startedAt,
   onCancel
 }: {
   stages: StageState;
@@ -60,6 +66,8 @@ export function AnalysisProgress({
   // stage timeline.
   variantsDone?: number;
   variantsTotal?: number;
+  /** Epoch ms of the run's real start; keeps the elapsed clock honest across a resume. */
+  startedAt?: number;
   onCancel?: () => void;
 }) {
   const t = useTranslations("analyze");
@@ -72,7 +80,7 @@ export function AnalysisProgress({
   // Direction 3 — a ticking elapsed clock for the run, shown while the bar is
   // indeterminate so a slow/stalled engine call visibly keeps counting rather than
   // sitting on a lie. The number below (progress readout) reads it out verbally.
-  const elapsedSeconds = useElapsedSeconds();
+  const elapsedSeconds = useElapsedSeconds(startedAt);
 
   return (
     // `aria-label` needs a role to survive: on a bare <div> (an implicit

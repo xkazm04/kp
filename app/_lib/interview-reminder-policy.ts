@@ -83,3 +83,32 @@ export function reminderRetryDelayMs(attemptsMade: number): number {
   const exp = REMINDER_RETRY_BASE_MS * 2 ** (attemptsMade - 1);
   return Math.min(exp, REMINDER_RETRY_MAX_BACKOFF_MS);
 }
+
+// --- Book-your-interview nudge for links nobody has used yet --------------------
+//
+// The reminder sweep above only serves CONFIRMED invites. A candidate who got a
+// self-scheduling link but never picked a slot (status 'pending') heard nothing
+// until the link aged out, which is the addressable half of the pending->booked
+// conversion. The nudge fires once the link has sat un-booked for
+// SCHEDULE_NUDGE_AFTER_MS (measured from the link's own expiry anchor, so a
+// cancel-reopened link restarts it) and only while the link still works; it reuses
+// the reminder retry cap and backoff, on its own columns (a nudge must never mark
+// the later interview reminder as already sent).
+
+/** How long a link must sit un-booked before the candidate is nudged. */
+export const SCHEDULE_NUDGE_AFTER_MS = 2 * 24 * 60 * 60 * 1000; // 2 days
+
+/** Whether a pending link is due its one "book your interview" nudge: old enough,
+ *  not yet expired (`ttlMs` is the link TTL; an expired link is dead, a nudge to it
+ *  would point at a closed page). Pure, so the cadence is unit-testable. */
+export function isScheduleNudgeDue(opts: {
+  nowMs: number;
+  anchorMs: number;
+  ttlMs: number;
+  afterMs?: number;
+}): boolean {
+  const { nowMs, anchorMs, ttlMs, afterMs = SCHEDULE_NUDGE_AFTER_MS } = opts;
+  if (Number.isNaN(anchorMs)) return false;
+  const age = nowMs - anchorMs;
+  return age >= afterMs && age < ttlMs;
+}
