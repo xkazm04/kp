@@ -25,7 +25,7 @@ const read = (rel: string) => readFileSync(resolve(HERE, rel), "utf8").replace(/
 /** Every code the registry declares as a REFUSAL, read as source (api-response.ts
  *  imports next/server, which the bare unit runner does not resolve). */
 function refusalCodes(): Set<string> {
-  const src = read("../../_lib/api-response.ts");
+  const src = read("../../_lib/api-response.ts") + read("../../_lib/api-errors/store-errors.ts") + read("../../_lib/api-errors/refusal-errors.ts");
   const block = src.slice(src.indexOf("export const REFUSAL_ERRORS"), src.indexOf("export type RefusalErrorCode"));
   const codes = new Set<string>();
   for (const m of block.matchAll(/^\s{2}([A-Z][A-Z0-9_]*):/gm)) codes.add(m[1]!);
@@ -110,7 +110,7 @@ test("STAGE_MIGRATION_FAILED no longer claims nothing was saved", () => {
   // The route moves candidates FIRST and writes the axis SECOND (deliberately), so a
   // failure genuinely can land with people already moved. "Nothing was saved" told
   // the operator the opposite of what the ordering guarantees.
-  const registry = read("../../_lib/api-response.ts");
+  const registry = read("../../_lib/api-response.ts") + read("../../_lib/api-errors/store-errors.ts") + read("../../_lib/api-errors/refusal-errors.ts");
   const line = registry.split("\n").find((l) => l.includes("STAGE_MIGRATION_FAILED:"));
   assert.ok(line, "the code must still exist");
   assert.ok(!/Nothing was saved/i.test(line!), "the message must not deny a partial state the ordering allows");

@@ -45,7 +45,7 @@ test("spawnFailureCode names every runner failure and nothing else", () => {
 });
 
 test("every runtime failure code resolves in all four catalogs and is a registered refusal", () => {
-  const registry = read("app/_lib/api-response.ts");
+  const registry = read("app/_lib/api-response.ts") + read("app/_lib/api-errors/store-errors.ts") + read("app/_lib/api-errors/refusal-errors.ts");
   const refusals = registry.slice(registry.indexOf("export const REFUSAL_ERRORS"));
   for (const c of RUNTIME_CODES) {
     assert.match(refusals, new RegExp(`\\n  ${c}: "`), `${c} is in REFUSAL_ERRORS`);

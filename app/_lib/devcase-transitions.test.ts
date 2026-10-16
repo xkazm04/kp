@@ -25,6 +25,7 @@ import {
   LIFECYCLE_TRANSITION_ERROR,
 } from "./devcase-transitions.ts";
 import { createLifecycle, getLifecycle, updateLifecycle } from "./db/devcase.ts";
+import { readApiResponseSource } from "./api-errors/read-source.ts";
 
 after(() => cleanupUnitDb());
 
@@ -110,7 +111,7 @@ test("an undeclared caller keeps the historical unconditional write", () => {
 
 test("the refusal code is spelled the same in the store layer and the route registry", () => {
   const here = path.dirname(fileURLToPath(import.meta.url));
-  const registry = readFileSync(path.join(here, "api-response.ts"), "utf8");
+  const registry = readApiResponseSource(path.join(here, "api-response.ts"));
   assert.ok(
     registry.includes(`  ${LIFECYCLE_TRANSITION_ERROR}: "`),
     "REFUSAL_ERRORS must carry the code IllegalLifecycleTransition throws, or the reader localizes nothing"

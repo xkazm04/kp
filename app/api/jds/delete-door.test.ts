@@ -61,7 +61,7 @@ test("DELETE /api/jds/[slug] gates, then checks authority, then checks liveness"
 });
 
 test("the delete codes exist in the shared registries", () => {
-  const src = read("../../_lib/api-response.ts");
+  const src = read("../../_lib/api-response.ts") + read("../../_lib/api-errors/store-errors.ts") + read("../../_lib/api-errors/refusal-errors.ts");
   assert.match(src, /JD_DELETE_FAILED:/, "STORE_ERRORS must carry the generic delete failure");
   assert.match(src, /JD_LIVE_CANNOT_DELETE:/, "REFUSAL_ERRORS must carry the live-role refusal");
   assert.match(src, /JD_DELETE_FORBIDDEN:/, "REFUSAL_ERRORS must carry the authority refusal");
