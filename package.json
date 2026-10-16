@@ -78,6 +78,7 @@
     "perf:first-load": "node scripts/perf/first-load.mjs",
     "style:divergence": "node scripts/style/style-divergence.mjs",
     "style:shoot": "node scripts/style/shoot.mjs",
+    "preflight:delivery": "node scripts/delivery-preflight.mjs",
     "test:perf": "node scripts/perf/__tests__/ci-budget.test.mjs && node scripts/perf/__tests__/first-load.test.mjs && node scripts/perf/__tests__/check-budget.test.mjs && node scripts/perf/__tests__/devbench.test.mjs && node scripts/perf/__tests__/sqlite-writer-knee.test.mjs",
     "security:actions": "node scripts/security/check-actions.mjs",
     "security:secrets": "node scripts/security/secret-scan.mjs",
