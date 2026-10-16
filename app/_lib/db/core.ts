@@ -9,6 +9,7 @@ import type { PipelineStage } from "../pipeline-stages";
 import { assertTenancyReady } from "../tenancy";
 import { multiWorkspaceEnabled } from "../workspace-lock";
 import { seedBenchmarkTeam } from "./seed-benchmark-team";
+import { seedInterviewScorecards } from "./seed-interview-scorecards";
 import { adoptedExistingSeed, markSeedRan, seedAlreadyRan } from "./seed-marks";
 import { addColumns, parseAddColumn } from "./add-columns";
 import { fixtureSeedEnabled } from "./seed-gate";
@@ -2747,6 +2748,7 @@ export function ensureDb(): Database.Database {
     seedCandidates(db);
     seedAnalyses(db);
     seedPipeline(db);
+    seedInterviewScorecards(db); // completed demo interviews: the scorecard arm of kpi:reasons
     seedBenchmarkTeam(db); // a 2nd org team so the Phase-2 org benchmark (org_id-join) has cross-team data
     // A fixture-seeded tenant is an ESTABLISHED demo environment, not a first
     // run — mark it onboarded so the setup wizard doesn't ambush existing dev
