@@ -17345,7 +17345,11 @@
           "revision": 3,
           "changedAt": "2026-09-29",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "app/features/library/jds/intake/jdsIntakeBriefModel.ts:25 The brief model establishes a three-valued basis classification, separates minimal spine fields from importance-graded open facets, and preserves source turn citations across incremental diffs.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:97f14df41d8eb363",
+          "evaluatedRevision": 3
         },
         {
           "subject": "prompt-assembly",
@@ -17429,7 +17433,11 @@
           "revision": 3,
           "changedAt": "2026-09-29",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/library/jds/intake/JdsIntakeBriefEdit.tsx:167 The edit form collapses requirement grading to a single must/nice select and automatically locks acquirability to the diagonal, omitting any control to adjust learnability or weight.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:97f14df41d8eb363",
+          "evaluatedRevision": 3
         },
         {
           "subject": "role-intake-conversation",

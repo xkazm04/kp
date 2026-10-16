@@ -7167,6 +7167,83 @@
           "evidence": "scripts/i18n/catalog-check.mjs:236 The typography check receives the stored message directly; this path does not expand ICU branches, substitute typed placeholders or extract rendered samples before checking copy."
         }
       ]
+    },
+    "a626dbb6-a28d-4c99-be26-a5d9592ba2eb/hiring-need-as-structured-brief": {
+      "context": "jd-intake-brief-logic",
+      "subject": "hiring-need-as-structured-brief",
+      "bundle": "recruiting",
+      "state": "conformant",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T02:40:43.068Z",
+      "worker": "bc80a685-b1d7-40e8-b8b4-31a5f43a8ee8",
+      "techniques": [
+        {
+          "technique": "per-field-provenance-stated-inferred-default",
+          "verdict": "conformant",
+          "evidence": "app/features/library/jds/intake/jdsIntakeBriefModel.ts:28 Normalises undefined or off-vocabulary basis to default while strictly separating stated requestor words from inferred agent readings."
+        },
+        {
+          "technique": "minimal-spine-with-open-facets",
+          "verdict": "conformant",
+          "evidence": "app/features/library/jds/intake/jdsIntakeBriefModel.ts:46 Ranks open facets across core, valuable, and context tiers while de-duplicating facet values against spine fields and success criteria."
+        },
+        {
+          "technique": "source-turn-traceability",
+          "verdict": "conformant",
+          "evidence": "app/features/library/jds/intake/intakeDelta.ts:32 Attaches source turn transcript indices to each section row reference during brief diffing to drive transcript highlighting."
+        },
+        {
+          "technique": "graded-requirements-two-axes",
+          "verdict": "conformant",
+          "evidence": "app/features/library/jds/intake/briefSections.ts:85 Extracts acquirability via the learnable flag on requirement lines alongside necessity kind and continuous weight ordering."
+        },
+        {
+          "technique": "merge-that-never-regresses-a-stated-value",
+          "verdict": "conformant",
+          "evidence": "app/features/library/jds/intake/intakeBriefDraft.ts:49 Discards stored brief edit drafts if the underlying intake row version has advanced, preventing silent reverts of confirmed content."
+        }
+      ]
+    },
+    "4d98cf58-e6bc-4b08-9b46-c446af784e1d/hiring-need-as-structured-brief": {
+      "context": "jd-intake-studio",
+      "subject": "hiring-need-as-structured-brief",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T02:40:43.068Z",
+      "worker": "bc80a685-b1d7-40e8-b8b4-31a5f43a8ee8",
+      "techniques": [
+        {
+          "technique": "graded-requirements-two-axes",
+          "verdict": "deviation",
+          "evidence": "app/features/library/jds/intake/JdsIntakeBriefEdit.tsx:135 The requirements editor exposes only a single must/nice dropdown and hardcodes hardness on the diagonal when adding rows, preventing independent grading of acquirability."
+        },
+        {
+          "technique": "per-field-provenance-stated-inferred-default",
+          "verdict": "conformant",
+          "evidence": "app/features/library/jds/intake/JdsIntakeBriefAtoms.tsx:18 Defines visual color mappings for stated, inferred, and default provenance, rendered as indicators beside every brief row."
+        },
+        {
+          "technique": "source-turn-traceability",
+          "verdict": "conformant",
+          "evidence": "app/features/library/jds/intake/JdsIntakeBriefAtoms.tsx:80 Renders source turn citations as clickable footnote buttons that scroll to and highlight the corresponding transcript turn."
+        },
+        {
+          "technique": "minimal-spine-with-open-facets",
+          "verdict": "conformant",
+          "evidence": "app/features/library/jds/intake/JdsIntakeBriefEdit.tsx:220 Permits requestors to define and add arbitrary key-value context facets with open labels rather than forcing input into fixed forms."
+        },
+        {
+          "technique": "promote-readiness-gate",
+          "verdict": "conformant",
+          "evidence": "app/features/library/jds/intake/IntakeStudioActions.tsx:78 Inspects promotion blockers and names the missing requirements on the disabled promote action button in the user's language."
+        },
+        {
+          "technique": "merge-that-never-regresses-a-stated-value",
+          "verdict": "conformant",
+          "evidence": "app/features/library/jds/intake/JdsIntakeBriefEdit.tsx:106 Submits edits through withEditProvenance so only newly typed or changed fields flip to stated while preserving untouched provenance."
+        }
+      ]
     }
   }
 }
