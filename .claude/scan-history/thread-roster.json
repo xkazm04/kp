@@ -1,0 +1,2154 @@
+{
+ "sourceRev": "9c20a787",
+ "groups": [
+  "Job & JD Management",
+  "Developer Assessment",
+  "Voice Interviews",
+  "Candidate Matching & Scoring",
+  "Hiring Decisions & Automation",
+  "Hiring Pipeline"
+ ],
+ "roster": [
+  {
+   "oldName": "lib-matching",
+   "oldId": "a7b66cef-a559-41be-a0d6-899eb8b42902",
+   "group": "Candidate Matching & Scoring",
+   "files": [
+    "app/_lib/comparison.test.ts",
+    "app/_lib/comparison.ts",
+    "app/_lib/factor-points.test.ts",
+    "app/_lib/factor-points.ts",
+    "app/_lib/fit-thresholds.test.ts",
+    "app/_lib/fit-thresholds.ts",
+    "app/_lib/match-candidate.test.ts",
+    "app/_lib/match-candidate.ts",
+    "app/_lib/match-input-tenancy.test.ts",
+    "app/_lib/match-input.ts",
+    "app/_lib/match-score-resolve.ts",
+    "app/_lib/match-score.test.ts",
+    "app/_lib/match-score.ts",
+    "app/_lib/reasoning-cache-first.test.ts",
+    "app/_lib/reasoning-cache-key.test.ts",
+    "app/_lib/reasoning-cache-key.ts",
+    "app/_lib/reasoning-cache-policy.test.ts",
+    "app/_lib/reasoning-cache-policy.ts",
+    "app/_lib/reasoning-run.ts",
+    "app/_lib/rematch-source.test.ts"
+   ],
+   "filesNotInAnyCurrentContext": 10,
+   "currentContexts": [
+    {
+     "id": "e7a9bc1c-fe25-4247-a48f-d05ce318eb98",
+     "files": 6
+    },
+    {
+     "id": "cb276b0e-97aa-483b-9f18-5cbd0dbb4140",
+     "files": 3
+    },
+    {
+     "id": "124722c0-47ae-4af5-be2f-b62f65cef7de",
+     "files": 1
+    },
+    {
+     "id": "5ad725da-11a7-4a45-a0c2-8cc423e89c2a",
+     "files": 1
+    }
+   ]
+  },
+  {
+   "oldName": "matrix-ui-1",
+   "oldId": "587453e3-1627-4164-acad-3e5494e79a26",
+   "group": "Candidate Matching & Scoring",
+   "files": [
+    "app/features/insights/matrix/MatrixDataNotices.tsx",
+    "app/features/insights/matrix/MatrixEmptyState.tsx",
+    "app/features/insights/matrix/MatrixFilterRow.tsx",
+    "app/features/insights/matrix/MatrixGrid.tsx",
+    "app/features/insights/matrix/focus/MatchCard.tsx",
+    "app/features/insights/matrix/focus/MatchCardSkillChips.tsx",
+    "app/features/insights/matrix/focus/MatchJobCompare.tsx",
+    "app/features/insights/matrix/focus/MatchResults.tsx",
+    "app/features/insights/matrix/focus/MatchResultsBulkToolbar.tsx",
+    "app/features/insights/matrix/focus/MatchResultsGroupEvalBanner.tsx",
+    "app/features/insights/matrix/focus/MatchResultsHeader.tsx",
+    "app/features/insights/matrix/focus/MatchWeightsPanel.tsx",
+    "app/features/insights/matrix/focus/MatrixCandidateFocus.tsx",
+    "app/features/insights/matrix/focus/matchResultsWriteback.test.ts",
+    "app/features/insights/matrix/focus/matchView.test.ts",
+    "app/features/insights/matrix/focus/matchView.ts",
+    "app/features/insights/matrix/focus/matchWeightsPanel.test.ts",
+    "app/features/insights/matrix/focus/useMatchCardReasoning.ts",
+    "app/features/insights/matrix/focus/useMatchResultsPipeline.ts",
+    "app/features/insights/matrix/focus/useMatchTabRun.ts"
+   ],
+   "filesNotInAnyCurrentContext": 0,
+   "currentContexts": [
+    {
+     "id": "70882e8e-b0ba-4ae9-88a5-ac07259aecc0",
+     "files": 16
+    },
+    {
+     "id": "5315fdef-5698-4668-9ba8-8ac3de782a75",
+     "files": 4
+    }
+   ]
+  },
+  {
+   "oldName": "matrix-ui-2",
+   "oldId": "6658e0c5-b6bf-42e7-af14-925dd4d3556b",
+   "group": "Candidate Matching & Scoring",
+   "files": [
+    "app/features/insights/matrix/MatrixReasoningPopover.tsx",
+    "app/features/insights/matrix/MatrixSelectBar.tsx",
+    "app/features/insights/matrix/MatrixShared.tsx",
+    "app/features/insights/matrix/MatrixTab.tsx",
+    "app/features/insights/matrix/MatrixToolbar.tsx",
+    "app/features/insights/matrix/matrixPopover.test.ts",
+    "app/features/insights/matrix/matrixPopover.ts",
+    "app/features/insights/matrix/matrixRows.test.ts",
+    "app/features/insights/matrix/matrixRows.ts",
+    "app/features/insights/matrix/matrixStats.test.ts",
+    "app/features/insights/matrix/matrixStats.ts",
+    "app/features/insights/matrix/matrixTabTypes.ts",
+    "app/features/insights/matrix/useMatrixTab.ts"
+   ],
+   "filesNotInAnyCurrentContext": 0,
+   "currentContexts": [
+    {
+     "id": "5315fdef-5698-4668-9ba8-8ac3de782a75",
+     "files": 13
+    }
+   ]
+  },
+  {
+   "oldName": "py-match-reasoning",
+   "oldId": "b02c9ae5-749e-43ff-a0ac-2befb7871370",
+   "group": "Candidate Matching & Scoring",
+   "files": [
+    "pipeline/jobfit/group_compare.py",
+    "pipeline/jobfit/group_compare_cli.py",
+    "pipeline/jobfit/match_cli.py",
+    "pipeline/jobfit/match_reasoning.py",
+    "pipeline/jobfit/matrix_cli.py",
+    "pipeline/jobfit/reasoning_cli.py",
+    "pipeline/jobfit/tests/test_group_compare.py",
+    "pipeline/jobfit/tests/test_match_cli.py",
+    "pipeline/jobfit/tests/test_match_reasoning.py",
+    "pipeline/jobfit/tests/test_matrix_cli.py"
+   ],
+   "filesNotInAnyCurrentContext": 0,
+   "currentContexts": [
+    {
+     "id": "e69ea8c8-1943-4054-97d1-78001e6d4530",
+     "files": 5
+    },
+    {
+     "id": "4c01cda6-93db-4db4-a5fa-d5153653d9c6",
+     "files": 4
+    },
+    {
+     "id": "9ed899f6-f780-480d-971c-bc022e87e049",
+     "files": 1
+    }
+   ]
+  },
+  {
+   "oldName": "py-scoring-core",
+   "oldId": "4851fcf5-128f-46ed-ad8d-ebe2322864c7",
+   "group": "Candidate Matching & Scoring",
+   "files": [
+    "pipeline/jobfit/archetype.py",
+    "pipeline/jobfit/matching.py",
+    "pipeline/jobfit/models.py",
+    "pipeline/jobfit/profiling.py",
+    "pipeline/jobfit/taxonomy.py",
+    "pipeline/jobfit/taxonomy_check.py",
+    "pipeline/jobfit/tests/test_matching.py",
+    "pipeline/jobfit/tests/test_profiling.py",
+    "pipeline/jobfit/tests/test_taxonomy_check.py",
+    "pipeline/jobfit/tests/test_transform.py",
+    "pipeline/jobfit/transform.py"
+   ],
+   "filesNotInAnyCurrentContext": 0,
+   "currentContexts": [
+    {
+     "id": "e69ea8c8-1943-4054-97d1-78001e6d4530",
+     "files": 4
+    },
+    {
+     "id": "65c926f0-e6c4-4fb4-afe3-20a847eb91b2",
+     "files": 3
+    },
+    {
+     "id": "4c01cda6-93db-4db4-a5fa-d5153653d9c6",
+     "files": 2
+    },
+    {
+     "id": "7b52c055-91b2-4e97-b7bf-0c8081b156d0",
+     "files": 2
+    }
+   ]
+  },
+  {
+   "oldName": "salary-and-matching-and-analyses",
+   "oldId": "bb3709b4-47a0-4f5c-abb1-dd44435f5670",
+   "group": "Candidate Matching & Scoring",
+   "files": [
+    "app/_lib/db/analyses-identity.test.ts",
+    "app/_lib/db/analyses-tenancy.test.ts",
+    "app/_lib/db/analyses.ts",
+    "app/_lib/salary-band.test.ts",
+    "app/_lib/salary-band.ts",
+    "app/api/benchmarks/route.ts",
+    "app/api/benchmarks/salary/route.ts",
+    "app/api/match/reasoning/route.ts",
+    "app/api/match/route.ts",
+    "app/api/matrix/route.ts"
+   ],
+   "filesNotInAnyCurrentContext": 0,
+   "currentContexts": [
+    {
+     "id": "e4c8726b-397c-49bb-8adc-895fb59a788c",
+     "files": 3
+    },
+    {
+     "id": "e8793bc2-2220-4c18-9f74-07e55dd3e439",
+     "files": 3
+    },
+    {
+     "id": "5ad725da-11a7-4a45-a0c2-8cc423e89c2a",
+     "files": 2
+    },
+    {
+     "id": "80b0c56c-d9e3-4842-bdb4-f46cbaa565ca",
+     "files": 2
+    }
+   ]
+  },
+  {
+   "oldName": "salary-market-and-taxonomy",
+   "oldId": "846ca094-7a21-46e8-ab8b-49f9cc245609",
+   "group": "Candidate Matching & Scoring",
+   "files": [
+    "app/_lib/role-families.test.ts",
+    "app/_lib/role-families.ts",
+    "app/_lib/rolespec.test.ts",
+    "app/_lib/rolespec.ts",
+    "app/_lib/skill-profile.test.ts",
+    "app/_lib/skill-profile.ts",
+    "pipeline/jobfit/align_candidates_csas.py",
+    "pipeline/jobfit/market_config.py",
+    "pipeline/jobfit/market_salary_cli.py",
+    "pipeline/jobfit/salary_band.py",
+    "pipeline/jobfit/tests/test_align_candidates_csas.py",
+    "pipeline/jobfit/tests/test_market_config.py",
+    "pipeline/jobfit/tests/test_salary_band.py"
+   ],
+   "filesNotInAnyCurrentContext": 0,
+   "currentContexts": [
+    {
+     "id": "5ad725da-11a7-4a45-a0c2-8cc423e89c2a",
+     "files": 4
+    },
+    {
+     "id": "9ed899f6-f780-480d-971c-bc022e87e049",
+     "files": 4
+    },
+    {
+     "id": "cb276b0e-97aa-483b-9f18-5cbd0dbb4140",
+     "files": 2
+    },
+    {
+     "id": "cc5e60e6-18d9-4c04-8aaa-7b7629216be6",
+     "files": 2
+    },
+    {
+     "id": "9e9394dd-7db6-4f2a-b864-614fb416d9e9",
+     "files": 1
+    }
+   ]
+  },
+  {
+   "oldName": "api-devcase-1",
+   "oldId": "265fc416-df9c-4cfe-afdf-cb89c1873817",
+   "group": "Developer Assessment",
+   "files": [
+    "app/api/devcase/comms/route.ts",
+    "app/api/devcase/control/route.ts",
+    "app/api/devcase/feedback/route.ts",
+    "app/api/devcase/inbound/route.ts",
+    "app/api/devcase/lifecycle/[id]/approve/approve-gate.test.ts",
+    "app/api/devcase/lifecycle/[id]/approve/route.ts",
+    "app/api/devcase/lifecycle/[id]/close/close-tenancy.test.ts",
+    "app/api/devcase/lifecycle/[id]/close/route.test.ts",
+    "app/api/devcase/lifecycle/[id]/close/route.ts",
+    "app/api/devcase/lifecycle/[id]/redesign/route.ts",
+    "app/api/devcase/lifecycle/route.ts",
+    "app/api/devcase/outcomes/route.ts",
+    "app/api/devcase/postings/route.ts",
+    "app/api/devcase/promote/route.ts",
+    "app/api/devcase/publish/route.ts",
+    "app/api/devcase/session/[id]/chat/route.ts",
+    "app/api/devcase/session/[id]/route.ts",
+    "app/api/devcase/session/[id]/submit/route.ts",
+    "app/api/devcase/session/route.ts",
+    "app/api/devcase/session/session-intake-guards.test.ts"
+   ],
+   "filesNotInAnyCurrentContext": 0,
+   "currentContexts": [
+    {
+     "id": "3e73bfbb-2232-43f7-9bd5-09155de4db6a",
+     "files": 11
+    },
+    {
+     "id": "ee108e0b-98d6-4259-8c7a-5e79ee66d6f0",
+     "files": 9
+    }
+   ]
+  },
+  {
+   "oldName": "api-devcase-2",
+   "oldId": "3dd8ddd3-50da-402a-ac03-b40518ca707d",
+   "group": "Developer Assessment",
+   "files": [
+    "app/_lib/repo-activity.test.ts",
+    "app/_lib/repo-activity.ts",
+    "app/_lib/repo-snapshot.test.ts",
+    "app/_lib/repo-snapshot.ts",
+    "app/api/devcase/route.test.ts",
+    "app/api/devcase/route.ts",
+    "app/api/devcase/skill-profile/route.ts",
+    "app/api/devcase/source/route.ts",
+    "app/api/devcase/submit/route.ts",
+    "app/api/skill-profile/[token]/verify/route.test.ts",
+    "app/api/skill-profile/[token]/verify/route.ts",
+    "pipeline/jobfit/devcase/scenarios.py",
+    "pipeline/jobfit/devcase/seed_materializer.py",
+    "pipeline/jobfit/devcase/source.py",
+    "pipeline/jobfit/devcase/submission_eval.py",
+    "pipeline/jobfit/devcase/submission_scenarios.py"
+   ],
+   "filesNotInAnyCurrentContext": 0,
+   "currentContexts": [
+    {
+     "id": "3e73bfbb-2232-43f7-9bd5-09155de4db6a",
+     "files": 5
+    },
+    {
+     "id": "ec7480d1-b046-46b8-ad78-ba60c3612b85",
+     "files": 5
+    },
+    {
+     "id": "3a572009-313e-4210-b608-2c84f4e5eb34",
+     "files": 4
+    },
+    {
+     "id": "29da5120-0f66-4432-8a78-4e81724005bf",
+     "files": 2
+    }
+   ]
+  },
+  {
+   "oldName": "devcase-candidate-and-devcase",
+   "oldId": "d840d3a4-5c5c-40cf-a506-2546602e1766",
+   "group": "Developer Assessment",
+   "files": [
+    "app/_lib/db/devcase-publish-dedup.test.ts",
+    "app/_lib/db/devcase-seed-freeze.test.ts",
+    "app/_lib/db/devcase-tenancy.test.ts",
+    "app/_lib/db/devcase.ts",
+    "app/devcase/apply/[token]/DevApplyForm.tsx",
+    "app/devcase/apply/[token]/LiveWorkSurface.tsx",
+    "app/devcase/apply/[token]/error.tsx",
+    "app/devcase/apply/[token]/liveWorkDraft.test.ts",
+    "app/devcase/apply/[token]/liveWorkDraft.ts",
+    "app/devcase/apply/[token]/loading.tsx",
+    "app/devcase/apply/[token]/page.tsx"
+   ],
+   "filesNotInAnyCurrentContext": 0,
+   "currentContexts": [
+    {
+     "id": "728873cd-7037-4f22-a761-a8c5fc288975",
+     "files": 4
+    },
+    {
+     "id": "b6bca1b3-f9ac-4a72-b5f3-b23620767ea0",
+     "files": 4
+    },
+    {
+     "id": "db992340-afa9-40c7-9d40-157d49c6f532",
+     "files": 3
+    }
+   ]
+  },
+  {
+   "oldName": "devcase-workspace-1",
+   "oldId": "95f2b67b-b9ba-4df5-af43-e333ba34e4aa",
+   "group": "Developer Assessment",
+   "files": [
+    "app/features/tools/devcases/DevAnalysisDesignCard.tsx",
+    "app/features/tools/devcases/DevAnalysisReflectionCard.tsx",
+    "app/features/tools/devcases/DevAnalysisView.tsx",
+    "app/features/tools/devcases/DevApplyTokenPill.tsx",
+    "app/features/tools/devcases/DevCaseDetail.publish.test.ts",
+    "app/features/tools/devcases/DevCaseDetail.publish.ts",
+    "app/features/tools/devcases/DevCaseDetail.seed.test.ts",
+    "app/features/tools/devcases/DevCaseDetail.seed.ts",
+    "app/features/tools/devcases/DevCaseDetail.tsx",
+    "app/features/tools/devcases/DevCaseDetailChannels.tsx",
+    "app/features/tools/devcases/DevCaseDetailHeader.tsx",
+    "app/features/tools/devcases/DevCaseDetailInternal.tsx",
+    "app/features/tools/devcases/DevCaseDetailShortlist.tsx",
+    "app/features/tools/devcases/DevCasesEmpty.tsx",
+    "app/features/tools/devcases/DevCasesEmptyLedger.tsx",
+    "app/features/tools/devcases/DevCasesTable.tsx",
+    "app/features/tools/devcases/DevCohortProbePanel.tsx",
+    "app/features/tools/devcases/DevCompareSubmissions.tsx",
+    "app/features/tools/devcases/DevEvalPanel.tsx",
+    "app/features/tools/devcases/DevEvalPanelChecks.tsx",
+    "app/features/tools/devcases/useDevTabNeedAnalysis.ts"
+   ],
+   "filesNotInAnyCurrentContext": 0,
+   "currentContexts": [
+    {
+     "id": "7d113095-ed5e-4399-8e75-50a1ecb523d5",
+     "files": 14
+    },
+    {
+     "id": "a4026dc2-d6bb-4214-914a-29103ca51fd8",
+     "files": 11
+    },
+    {
+     "id": "82c3e0fd-b156-4895-a829-eec4f379ad63",
+     "files": 6
+    },
+    {
+     "id": "4c37e038-7aa5-48e7-80a6-7ac407103d96",
+     "files": 4
+    },
+    {
+     "id": "3d20d62c-576f-415f-804c-4f747379f55a",
+     "files": 3
+    },
+    {
+     "id": "bacab51a-4810-48e4-8926-12b3bb6efc79",
+     "files": 3
+    },
+    {
+     "id": "9435610d-c621-4497-842c-37b7091276f3",
+     "files": 1
+    }
+   ]
+  },
+  {
+   "oldName": "devcase-workspace-2",
+   "oldId": "c010569c-5582-4f28-a870-687f5e711137",
+   "group": "Developer Assessment",
+   "files": [
+    "app/features/tools/devcases/DevEvalPanelIntegrity.tsx",
+    "app/features/tools/devcases/DevEvalPanelProcessTrace.tsx",
+    "app/features/tools/devcases/DevEvalPanelScores.tsx",
+    "app/features/tools/devcases/DevHelpers.test.ts",
+    "app/features/tools/devcases/DevHelpers.ts",
+    "app/features/tools/devcases/DevInterviewKit.tsx",
+    "app/features/tools/devcases/DevLabels.ts",
+    "app/features/tools/devcases/DevLifecycleReviewPanel.tsx",
+    "app/features/tools/devcases/DevLifecycleRow.tsx",
+    "app/features/tools/devcases/DevLifecycleSection.tsx",
+    "app/features/tools/devcases/DevNeedForm.tsx",
+    "app/features/tools/devcases/DevProbeStrengthBanner.tsx",
+    "app/features/tools/devcases/DevProvenanceStrip.tsx",
+    "app/features/tools/devcases/DevScoreBar.tsx",
+    "app/features/tools/devcases/DevShared.tsx",
+    "app/features/tools/devcases/DevSubmissionForm.tsx",
+    "app/features/tools/devcases/DevSubmissionRow.tsx",
+    "app/features/tools/devcases/DevSubmissionRowOutcome.tsx",
+    "app/features/tools/devcases/DevSubmissionRowSkillProfile.tsx"
+   ],
+   "filesNotInAnyCurrentContext": 0,
+   "currentContexts": [
+    {
+     "id": "82c3e0fd-b156-4895-a829-eec4f379ad63",
+     "files": 11
+    },
+    {
+     "id": "4c37e038-7aa5-48e7-80a6-7ac407103d96",
+     "files": 10
+    },
+    {
+     "id": "3d20d62c-576f-415f-804c-4f747379f55a",
+     "files": 5
+    },
+    {
+     "id": "bacab51a-4810-48e4-8926-12b3bb6efc79",
+     "files": 5
+    },
+    {
+     "id": "7d113095-ed5e-4399-8e75-50a1ecb523d5",
+     "files": 4
+    },
+    {
+     "id": "a4026dc2-d6bb-4214-914a-29103ca51fd8",
+     "files": 2
+    },
+    {
+     "id": "9435610d-c621-4497-842c-37b7091276f3",
+     "files": 1
+    }
+   ]
+  },
+  {
+   "oldName": "devcase-workspace-3",
+   "oldId": "dae1c08b-d292-4aca-ac23-d9126381b07d",
+   "group": "Developer Assessment",
+   "files": [
+    "app/features/tools/devcases/DevTab.approve-error.test.ts",
+    "app/features/tools/devcases/DevTab.tsx",
+    "app/features/tools/devcases/DevTabCasesView.tsx",
+    "app/features/tools/devcases/DevTabDefineView.tsx",
+    "app/features/tools/devcases/DevTabSwitcher.tsx",
+    "app/features/tools/devcases/DevTabViews.ts",
+    "app/features/tools/devcases/DevTypes.ts",
+    "app/features/tools/devcases/OutboxRows.tsx",
+    "app/features/tools/devcases/OutboxSection.tsx",
+    "app/features/tools/devcases/ResendButton.tsx",
+    "app/features/tools/devcases/devEvalTaskState.test.ts",
+    "app/features/tools/devcases/devEvalTaskState.ts",
+    "app/features/tools/devcases/devcase-canary-catalog.test.ts",
+    "app/features/tools/devcases/devcase-vocabulary.test.ts",
+    "app/features/tools/devcases/outbox-kind-catalog.test.ts",
+    "app/features/tools/devcases/outboxView.test.ts",
+    "app/features/tools/devcases/outboxView.ts",
+    "app/features/tools/devcases/useDevSubmissionRow.ts",
+    "app/features/tools/devcases/useDevTabActions.ts",
+    "app/features/tools/devcases/useDevTabData.ts"
+   ],
+   "filesNotInAnyCurrentContext": 0,
+   "currentContexts": [
+    {
+     "id": "bacab51a-4810-48e4-8926-12b3bb6efc79",
+     "files": 9
+    },
+    {
+     "id": "9b7307a3-ad7a-4237-9364-3503d0720eec",
+     "files": 8
+    },
+    {
+     "id": "3d20d62c-576f-415f-804c-4f747379f55a",
+     "files": 6
+    },
+    {
+     "id": "4c37e038-7aa5-48e7-80a6-7ac407103d96",
+     "files": 6
+    },
+    {
+     "id": "9435610d-c621-4497-842c-37b7091276f3",
+     "files": 6
+    },
+    {
+     "id": "82c3e0fd-b156-4895-a829-eec4f379ad63",
+     "files": 4
+    },
+    {
+     "id": "a4026dc2-d6bb-4214-914a-29103ca51fd8",
+     "files": 1
+    }
+   ]
+  },
+  {
+   "oldName": "lib-devcase-11",
+   "oldId": "1d494a11-6f36-489e-a4bf-e96bab33296a",
+   "group": "Developer Assessment",
+   "files": [
+    "app/_lib/code-review-status.test.ts",
+    "app/_lib/code-review-status.ts",
+    "app/_lib/dev-control.ts",
+    "app/_lib/dev-outcomes-tenancy.test.ts",
+    "app/_lib/dev-outcomes.test.ts",
+    "app/_lib/dev-outcomes.ts",
+    "app/_lib/devcase-authenticity.test.ts",
+    "app/_lib/devcase-authenticity.ts",
+    "app/_lib/devcase-cohort.test.ts",
+    "app/_lib/devcase-cohort.ts",
+    "app/_lib/devcase-compare.test.ts",
+    "app/_lib/devcase-compare.ts",
+    "app/_lib/devcase-constraints.ts",
+    "app/_lib/devcase-feedback.test.ts",
+    "app/_lib/devcase-feedback.ts"
+   ],
+   "filesNotInAnyCurrentContext": 6,
+   "currentContexts": [
+    {
+     "id": "003cd283-f6d8-41bb-a936-5e2c3d23a76e",
+     "files": 6
+    },
+    {
+     "id": "9a7b6d11-28e3-4f45-a4f5-7b1b1dd1f134",
+     "files": 3
+    }
+   ]
+  },
+  {
+   "oldName": "lib-devcase-12",
+   "oldId": "9083c7ba-cc2c-4ea6-a273-cd6e274a23d1",
+   "group": "Developer Assessment",
+   "files": [
+    "app/_lib/devcase-interview-kit.test.ts",
+    "app/_lib/devcase-interview-kit.ts",
+    "app/_lib/devcase-orchestrator.ts",
+    "app/_lib/devcase-probe-audit.test.ts",
+    "app/_lib/devcase-probe-audit.ts",
+    "app/_lib/devcase-promote.test.ts",
+    "app/_lib/devcase-run.ts",
+    "app/_lib/devcase-seed-diff.test.ts",
+    "app/_lib/devcase-seed-diff.ts",
+    "app/_lib/devcase-session-auth.test.ts",
+    "app/_lib/devcase-session-auth.ts",
+    "app/_lib/devcase-sla.test.ts",
+    "app/_lib/devcase-sla.ts",
+    "app/_lib/devcase-source-promote-tenancy.test.ts"
+   ],
+   "filesNotInAnyCurrentContext": 0,
+   "currentContexts": [
+    {
+     "id": "9a7b6d11-28e3-4f45-a4f5-7b1b1dd1f134",
+     "files": 9
+    },
+    {
+     "id": "003cd283-f6d8-41bb-a936-5e2c3d23a76e",
+     "files": 5
+    }
+   ]
+  },
+  {
+   "oldName": "py-devcase-1",
+   "oldId": "1a459514-ddb9-4d4c-a81d-c9c05c183ac3",
+   "group": "Developer Assessment",
+   "files": [
+    "pipeline/jobfit/devcase/__init__.py",
+    "pipeline/jobfit/devcase/_synth.py",
+    "pipeline/jobfit/devcase/analyze.py",
+    "pipeline/jobfit/devcase/artifact_checks.py",
+    "pipeline/jobfit/devcase/baseline.py",
+    "pipeline/jobfit/devcase/calibrate.py",
+    "pipeline/jobfit/devcase/chat.py",
+    "pipeline/jobfit/devcase/design.py",
+    "pipeline/jobfit/devcase/devcase_cli.py",
+    "pipeline/jobfit/devcase/evaluate.py",
+    "pipeline/jobfit/devcase/interview_scenario.py",
+    "pipeline/jobfit/devcase/lifecycle_audits.py",
+    "pipeline/jobfit/devcase/lifecycle_eval.py",
+    "pipeline/jobfit/devcase/llm_judge.py",
+    "pipeline/jobfit/devcase/models.py",
+    "pipeline/jobfit/devcase/process_events.py",
+    "pipeline/jobfit/devcase/prompt_signals.py",
+    "pipeline/jobfit/devcase/provenance.py",
+    "pipeline/jobfit/devcase/real_corpus.py",
+    "pipeline/jobfit/devcase/reflect.py"
+   ],
+   "filesNotInAnyCurrentContext": 0,
+   "currentContexts": [
+    {
+     "id": "ec7480d1-b046-46b8-ad78-ba60c3612b85",
+     "files": 20
+    }
+   ]
+  },
+  {
+   "oldName": "decisions-ui-1",
+   "oldId": "7e638408-0fbb-4f30-af5a-8e34949942b3",
+   "group": "Hiring Decisions & Automation",
+   "files": [
+    "app/features/hiring/decisions/DecisionsAiReviewCard.tsx",
+    "app/features/hiring/decisions/DecisionsAiReviewCardBody.tsx",
+    "app/features/hiring/decisions/DecisionsAiReviewCardLadder.tsx",
+    "app/features/hiring/decisions/DecisionsAiReviewsSection.tsx",
+    "app/features/hiring/decisions/DecisionsAnalysisModalBench.tsx",
+    "app/features/hiring/decisions/DecisionsAnalysisParts.tsx",
+    "app/features/hiring/decisions/DecisionsAnalysisSummaryModal.tsx",
+    "app/features/hiring/decisions/DecisionsBanners.tsx",
+    "app/features/hiring/decisions/DecisionsComplianceImpactCheck.tsx",
+    "app/features/hiring/decisions/DecisionsComplianceSection.tsx",
+    "app/features/hiring/decisions/DecisionsEmptyHandoff.tsx",
+    "app/features/hiring/decisions/DecisionsEmptyShared.tsx",
+    "app/features/hiring/decisions/DecisionsGroupEvalRejectModal.tsx",
+    "app/features/hiring/decisions/DecisionsHeader.tsx",
+    "app/features/hiring/decisions/DecisionsModals.tsx",
+    "app/features/hiring/decisions/DecisionsPeerViz.tsx",
+    "app/features/hiring/decisions/DecisionsReconsiderQueue.tsx",
+    "app/features/hiring/decisions/DecisionsRoleRow.tsx",
+    "app/features/hiring/decisions/DecisionsRulesModal.tsx",
+    "app/features/hiring/decisions/DecisionsScreenWaveConfirmModal.tsx",
+    "app/features/hiring/decisions/useDecisionsScreenWave.ts"
+   ],
+   "filesNotInAnyCurrentContext": 1,
+   "currentContexts": [
+    {
+     "id": "03de9bcc-53c7-4571-9782-d203eb627b06",
+     "files": 20
+    }
+   ]
+  },
+  {
+   "oldName": "decisions-ui-2",
+   "oldId": "60c30c3f-d9e1-499c-a13c-312cb15f2fc0",
+   "group": "Hiring Decisions & Automation",
+   "files": [
+    "app/features/hiring/decisions/DecisionsScreenWaveLists.tsx",
+    "app/features/hiring/decisions/DecisionsScreenWaveModal.tsx",
+    "app/features/hiring/decisions/DecisionsShared.tsx",
+    "app/features/hiring/decisions/DecisionsTab.tsx",
+    "app/features/hiring/decisions/GroupEvalModal.tsx",
+    "app/features/hiring/decisions/decisionsAiReviewCardLogic.ts",
+    "app/features/hiring/decisions/decisionsAnalysisSummaryData.ts",
+    "app/features/hiring/decisions/decisionsComplianceState.ts",
+    "app/features/hiring/decisions/decisionsFloorDisclosure.test.ts",
+    "app/features/hiring/decisions/decisionsFloorDisclosure.ts",
+    "app/features/hiring/decisions/decisionsGroupEvalRejectReason.test.ts",
+    "app/features/hiring/decisions/decisionsOfferCardScore.test.ts",
+    "app/features/hiring/decisions/decisionsPeerCompare.test.ts",
+    "app/features/hiring/decisions/decisionsPeerCompare.ts",
+    "app/features/hiring/decisions/decisionsQueueTypes.ts",
+    "app/features/hiring/decisions/decisionsScoreStaleness.test.ts",
+    "app/features/hiring/decisions/decisionsScreenWaveTypes.ts",
+    "app/features/hiring/decisions/decisionsSelectionHygiene.test.ts",
+    "app/features/hiring/decisions/decisionsSelectionHygiene.ts",
+    "app/features/hiring/decisions/useDecisionsQueue.ts"
+   ],
+   "filesNotInAnyCurrentContext": 0,
+   "currentContexts": [
+    {
+     "id": "b564f01b-cf9d-42a8-8cf7-08ec2311c9c5",
+     "files": 13
+    },
+    {
+     "id": "03de9bcc-53c7-4571-9782-d203eb627b06",
+     "files": 5
+    },
+    {
+     "id": "1e9fd764-5fe9-4af8-b360-cd7e86dc09c9",
+     "files": 2
+    }
+   ]
+  },
+  {
+   "oldName": "group-eval-ui",
+   "oldId": "57cb356c-4b1d-4504-ab4e-677f0269bbe7",
+   "group": "Hiring Decisions & Automation",
+   "files": [
+    "app/features/hiring/decisions/groupEval/GroupEvalAiVerdict.tsx",
+    "app/features/hiring/decisions/groupEval/GroupEvalComparisonCells.tsx",
+    "app/features/hiring/decisions/groupEval/GroupEvalComparisonRows.tsx",
+    "app/features/hiring/decisions/groupEval/GroupEvalComparisonTable.tsx",
+    "app/features/hiring/decisions/groupEval/GroupEvalFairnessPanel.tsx",
+    "app/features/hiring/decisions/groupEval/GroupEvalLegacyView.tsx",
+    "app/features/hiring/decisions/groupEval/GroupEvalNotices.tsx",
+    "app/features/hiring/decisions/groupEval/GroupEvalPerCandidateTabs.tsx",
+    "app/features/hiring/decisions/groupEval/GroupEvalPrimitives.tsx",
+    "app/features/hiring/decisions/groupEval/GroupEvalRisks.tsx",
+    "app/features/hiring/decisions/groupEval/GroupEvalSalaryCell.tsx",
+    "app/features/hiring/decisions/groupEval/cache-key.ts",
+    "app/features/hiring/decisions/groupEval/fairness-guard.test.ts",
+    "app/features/hiring/decisions/groupEval/groupEvalComparisonLeadCrown.test.ts",
+    "app/features/hiring/decisions/groupEval/groupEvalHelpers.ts",
+    "app/features/hiring/decisions/groupEval/groupEvalRobustness.test.ts",
+    "app/features/hiring/decisions/groupEval/groupEvalSalaryScale.ts",
+    "app/features/hiring/decisions/groupEval/lead-story.test.ts",
+    "app/features/hiring/decisions/groupEval/localize.test.ts",
+    "app/features/hiring/decisions/groupEval/localize.ts",
+    "app/features/hiring/decisions/groupEval/useGroupEval.ts"
+   ],
+   "filesNotInAnyCurrentContext": 1,
+   "currentContexts": [
+    {
+     "id": "1e9fd764-5fe9-4af8-b360-cd7e86dc09c9",
+     "files": 20
+    }
+   ]
+  },
+  {
+   "oldName": "lib-automation",
+   "oldId": "87020d16-135f-493a-a5ac-0228da2141dd",
+   "group": "Hiring Decisions & Automation",
+   "files": [
+    "app/_lib/automation-cache-key.test.ts",
+    "app/_lib/automation-cache-key.ts",
+    "app/_lib/automation-event-tenancy.test.ts",
+    "app/_lib/automation-fairness.test.ts",
+    "app/_lib/automation-fairness.ts",
+    "app/_lib/automation-pass.test.ts",
+    "app/_lib/automation-pass.ts",
+    "app/_lib/automation-roi.test.ts",
+    "app/_lib/automation-roi.ts",
+    "app/_lib/automation-run.ts",
+    "app/api/automation/[task]/route.ts",
+    "app/api/automation/run/route.ts",
+    "app/api/automation/schedule/route.ts"
+   ],
+   "filesNotInAnyCurrentContext": 0,
+   "currentContexts": [
+    {
+     "id": "c29afd56-b78f-4c8c-bfa8-75a8a24a80c2",
+     "files": 8
+    },
+    {
+     "id": "110a08ce-19c1-41ae-9566-bc45b3f90d47",
+     "files": 3
+    },
+    {
+     "id": "01537eaf-44d0-4058-8141-9172d479c156",
+     "files": 2
+    }
+   ]
+  },
+  {
+   "oldName": "lib-decisions-1",
+   "oldId": "e7ab7a81-aa15-4231-a67f-b9b79469a301",
+   "group": "Hiring Decisions & Automation",
+   "files": [
+    "app/_lib/approval-kinds.ts",
+    "app/_lib/decision-attribution.test.ts",
+    "app/_lib/decision-attribution.ts",
+    "app/_lib/decision-config-isolation.test.ts",
+    "app/_lib/decision-config-schema.test.ts",
+    "app/_lib/decision-config-schema.ts",
+    "app/_lib/decision-config-store.ts",
+    "app/_lib/decision-config-tenancy.test.ts",
+    "app/_lib/decision-hash.test.ts",
+    "app/_lib/decision-hash.ts",
+    "app/_lib/decision-record-store-batch.test.ts",
+    "app/_lib/decision-record-store-tenancy.test.ts"
+   ],
+   "filesNotInAnyCurrentContext": 11,
+   "currentContexts": [
+    {
+     "id": "1f6c2946-3e45-464e-9113-c7b7a39187dd",
+     "files": 1
+    }
+   ]
+  },
+  {
+   "oldName": "lib-decisions-2",
+   "oldId": "bb3586f4-ad05-48ca-a0db-968e81bf34c2",
+   "group": "Hiring Decisions & Automation",
+   "files": [
+    "app/_lib/decision-record-store.test.ts",
+    "app/_lib/decision-record-store.ts",
+    "app/_lib/decision-records-tenancy.test.ts",
+    "app/_lib/screen-wave-approval.test.ts",
+    "app/_lib/screen-wave-approval.ts",
+    "app/_lib/screen-wave-family-floor.test.ts",
+    "app/_lib/screen-wave-holdout.test.ts",
+    "app/_lib/screen-wave-holdout.ts",
+    "app/_lib/screen-wave-tenancy.test.ts",
+    "app/_lib/screen-wave.test.ts",
+    "app/_lib/screen-wave.ts"
+   ],
+   "filesNotInAnyCurrentContext": 3,
+   "currentContexts": [
+    {
+     "id": "01537eaf-44d0-4058-8141-9172d479c156",
+     "files": 8
+    }
+   ]
+  },
+  {
+   "oldName": "lib-group-eval",
+   "oldId": "168c7fb0-e73b-415f-a3b4-754200f79447",
+   "group": "Hiring Decisions & Automation",
+   "files": [
+    "app/_lib/group-eval-cohort-run.test.ts",
+    "app/_lib/group-eval-cohort.test.ts",
+    "app/_lib/group-eval-cohort.ts",
+    "app/_lib/group-eval-dedupe.test.ts",
+    "app/_lib/group-eval-dedupe.ts",
+    "app/_lib/group-eval-differentiators.test.ts",
+    "app/_lib/group-eval-differentiators.ts",
+    "app/_lib/group-eval-governance-persist.test.ts",
+    "app/_lib/group-eval-governance.test.ts",
+    "app/_lib/group-eval-governance.ts",
+    "app/_lib/group-eval-i18n-facts.test.ts",
+    "app/_lib/group-eval-risk-gate.test.ts",
+    "app/_lib/group-eval-run.ts",
+    "app/_lib/group-eval-selection-cache.test.ts",
+    "app/_lib/group-eval-selection-rerun.test.ts",
+    "app/_lib/group-eval-separation.test.ts",
+    "app/_lib/group-eval-separation.ts",
+    "app/_lib/group-eval-tenancy.test.ts",
+    "app/_lib/group-eval.ts"
+   ],
+   "filesNotInAnyCurrentContext": 19,
+   "currentContexts": []
+  },
+  {
+   "oldName": "py-automation",
+   "oldId": "8d3f924f-69d7-4621-a70a-467598f6d627",
+   "group": "Hiring Decisions & Automation",
+   "files": [
+    "app/api/decisions/config/route.ts",
+    "app/api/decisions/decisions-auth.test.ts",
+    "app/api/decisions/group-eval/route.ts",
+    "app/api/decisions/jd-freshness/route.ts",
+    "app/api/decisions/peer-context/route.ts",
+    "app/api/decisions/reconsider/route.ts",
+    "app/api/decisions/records/route.ts",
+    "app/api/decisions/screen-wave/route.ts",
+    "pipeline/jobfit/automation.py",
+    "pipeline/jobfit/automation_cli.py",
+    "pipeline/jobfit/calibration_drift.py",
+    "pipeline/jobfit/insights.py",
+    "pipeline/jobfit/recruiter.py",
+    "pipeline/jobfit/recruiter_cli.py",
+    "pipeline/jobfit/tests/test_automation.py",
+    "pipeline/jobfit/tests/test_automation_cli.py",
+    "pipeline/jobfit/tests/test_calibration_drift.py",
+    "pipeline/jobfit/tests/test_insights.py",
+    "pipeline/jobfit/tests/test_recruiter.py",
+    "pipeline/jobfit/tests/test_recruiter_cli.py"
+   ],
+   "filesNotInAnyCurrentContext": 0,
+   "currentContexts": [
+    {
+     "id": "1427e2ae-3cf6-48f4-a866-6c5a0dc67559",
+     "files": 8
+    },
+    {
+     "id": "8b2d6213-b08e-4a6a-b1bd-485ef0ccbd89",
+     "files": 2
+    },
+    {
+     "id": "9ed899f6-f780-480d-971c-bc022e87e049",
+     "files": 2
+    },
+    {
+     "id": "cc5e60e6-18d9-4c04-8aaa-7b7629216be6",
+     "files": 2
+    },
+    {
+     "id": "d09edd3b-6dba-47f6-8b6b-64e838611396",
+     "files": 2
+    },
+    {
+     "id": "e69ea8c8-1943-4054-97d1-78001e6d4530",
+     "files": 2
+    },
+    {
+     "id": "10943bc8-3713-4897-a618-ac1437d7c455",
+     "files": 1
+    },
+    {
+     "id": "9e9394dd-7db6-4f2a-b864-614fb416d9e9",
+     "files": 1
+    }
+   ]
+  },
+  {
+   "oldName": "api-pipeline",
+   "oldId": "73216450-b7b9-4ef8-aec8-dc8085a0b14e",
+   "group": "Hiring Pipeline",
+   "files": [
+    "app/api/attention/route.ts",
+    "app/api/pipeline/[id]/consent/route.ts",
+    "app/api/pipeline/[id]/route.ts",
+    "app/api/pipeline/[id]/timeline/route.ts",
+    "app/api/pipeline/batch/authz-parity.test.ts",
+    "app/api/pipeline/batch/route.test.ts",
+    "app/api/pipeline/batch/route.ts",
+    "app/api/pipeline/command/command-tenancy.test.ts",
+    "app/api/pipeline/command/route.test.ts",
+    "app/api/pipeline/command/route.ts",
+    "app/api/pipeline/entry-route.test.ts",
+    "app/api/pipeline/error-message-hygiene.test.ts",
+    "app/api/pipeline/events/events-tenancy.test.ts",
+    "app/api/pipeline/events/route.ts",
+    "app/api/pipeline/outcomes/outcomes-route.test.ts",
+    "app/api/pipeline/outcomes/route.ts",
+    "app/api/pipeline/pipeline-routes.test.ts",
+    "app/api/pipeline/route.ts",
+    "app/api/pipeline/stage-impact/route.ts",
+    "app/api/pipeline/stage-migration/route.ts",
+    "app/api/pipeline/stage-migration/stage-migration-route.test.ts"
+   ],
+   "filesNotInAnyCurrentContext": 0,
+   "currentContexts": [
+    {
+     "id": "903990c9-54d2-4ed6-af82-defd5db63d49",
+     "files": 20
+    },
+    {
+     "id": "80b0c56c-d9e3-4842-bdb4-f46cbaa565ca",
+     "files": 1
+    }
+   ]
+  },
+  {
+   "oldName": "db-pipeline",
+   "oldId": "9ae4573c-7bff-4c32-ac10-968559f15114",
+   "group": "Hiring Pipeline",
+   "files": [
+    "app/_lib/db/consent-read-gate.test.ts",
+    "app/_lib/db/ko-decline-tenancy.test.ts",
+    "app/_lib/db/pipeline-calibration-band.test.ts",
+    "app/_lib/db/pipeline-calibration.test.ts",
+    "app/_lib/db/pipeline-event-actor.test.ts",
+    "app/_lib/db/pipeline-events-sort.test.ts",
+    "app/_lib/db/pipeline-events-tenancy.test.ts",
+    "app/_lib/db/pipeline-isolation.test.ts",
+    "app/_lib/db/pipeline-job-stats.test.ts",
+    "app/_lib/db/pipeline-profile-gaps.test.ts",
+    "app/_lib/db/pipeline-reopen.test.ts",
+    "app/_lib/db/pipeline-stage-migration.test.ts",
+    "app/_lib/db/pipeline-store.test.ts",
+    "app/_lib/db/pipeline-tenancy.test.ts",
+    "app/_lib/db/pipeline.ts"
+   ],
+   "filesNotInAnyCurrentContext": 1,
+   "currentContexts": [
+    {
+     "id": "f77c7ea2-aef7-4d0a-93ae-1600bf15f53f",
+     "files": 12
+    },
+    {
+     "id": "2425bd9e-0405-4136-a914-7cd4d57bee3c",
+     "files": 1
+    },
+    {
+     "id": "9de20269-8dd9-4ca8-a864-0037ee9ca817",
+     "files": 1
+    }
+   ]
+  },
+  {
+   "oldName": "lib-offers",
+   "oldId": "a5cbe7fd-09b3-4d76-a1a8-722f7fabfbb0",
+   "group": "Hiring Pipeline",
+   "files": [
+    "app/_lib/offer-finalize-tenancy.test.ts",
+    "app/_lib/offer-finalize.ts",
+    "app/_lib/offer-lifecycle.test.ts",
+    "app/_lib/offer-policy.test.ts",
+    "app/_lib/offer-policy.ts",
+    "app/_lib/offer-reextend-terms.test.ts",
+    "app/_lib/offer-reminders.ts",
+    "app/_lib/offers-store.test.ts",
+    "app/_lib/offers-store.ts",
+    "app/_lib/offers-tenancy.test.ts",
+    "app/api/offer/[token]/route.ts",
+    "app/api/offer/token-route.test.ts"
+   ],
+   "filesNotInAnyCurrentContext": 0,
+   "currentContexts": [
+    {
+     "id": "1f6c2946-3e45-464e-9113-c7b7a39187dd",
+     "files": 10
+    },
+    {
+     "id": "6e08a191-7d84-4e75-9938-e5e87eba6449",
+     "files": 2
+    }
+   ]
+  },
+  {
+   "oldName": "lib-pipeline",
+   "oldId": "889c7602-29ab-426a-a34e-10a0bdd0a1fe",
+   "group": "Hiring Pipeline",
+   "files": [
+    "app/_lib/attention-tenancy.test.ts",
+    "app/_lib/attention.ts",
+    "app/_lib/pipeline-axis-server.ts",
+    "app/_lib/pipeline-axis.ts",
+    "app/_lib/pipeline-command.test.ts",
+    "app/_lib/pipeline-command.ts",
+    "app/_lib/pipeline-entry-action.ts",
+    "app/_lib/pipeline-events-public.test.ts",
+    "app/_lib/pipeline-events-public.ts",
+    "app/_lib/pipeline-fairness.test.ts",
+    "app/_lib/pipeline-github-handle.test.ts",
+    "app/_lib/pipeline-score-cache.test.ts",
+    "app/_lib/pipeline-score-cache.ts",
+    "app/_lib/pipeline-screening.test.ts",
+    "app/_lib/pipeline-source-projection.test.ts",
+    "app/_lib/pipeline-stage-roles.test.ts",
+    "app/_lib/pipeline-stages.ts",
+    "app/_lib/pipeline-status.test.ts",
+    "app/_lib/pipeline-status.ts",
+    "app/_lib/reinstate-seal.test.ts"
+   ],
+   "filesNotInAnyCurrentContext": 0,
+   "currentContexts": [
+    {
+     "id": "ea210994-45ae-4cb6-8143-23633254094a",
+     "files": 18
+    },
+    {
+     "id": "01537eaf-44d0-4058-8141-9172d479c156",
+     "files": 1
+    },
+    {
+     "id": "1f6c2946-3e45-464e-9113-c7b7a39187dd",
+     "files": 1
+    }
+   ]
+  },
+  {
+   "oldName": "pipeline-board-1",
+   "oldId": "aeff198e-a263-4309-aaf4-da50a7b5b64f",
+   "group": "Hiring Pipeline",
+   "files": [
+    "app/features/hiring/pipeline/CommandBar.tsx",
+    "app/features/hiring/pipeline/PassPreviewModal.tsx",
+    "app/features/hiring/pipeline/PipelineActivityFeed.tsx",
+    "app/features/hiring/pipeline/PipelineAiActionsGrid.tsx",
+    "app/features/hiring/pipeline/PipelineAttentionStrip.tsx",
+    "app/features/hiring/pipeline/PipelineBoard.tsx",
+    "app/features/hiring/pipeline/PipelineBoardOffAxisStrip.tsx",
+    "app/features/hiring/pipeline/PipelineBoardStageCell.tsx",
+    "app/features/hiring/pipeline/PipelineBoardToolbar.tsx",
+    "app/features/hiring/pipeline/PipelineBulkActionBar.tsx",
+    "app/features/hiring/pipeline/PipelineBulkDecideRow.tsx",
+    "app/features/hiring/pipeline/PipelineBulkOutreachButton.tsx",
+    "app/features/hiring/pipeline/PipelineCandidateDrawer.tsx",
+    "app/features/hiring/pipeline/PipelineCandidateDrawerTypes.test.ts",
+    "app/features/hiring/pipeline/PipelineCandidateDrawerTypes.ts",
+    "app/features/hiring/pipeline/PipelineCandidateMenu.tsx",
+    "app/features/hiring/pipeline/PipelineCandidateNoteField.tsx",
+    "app/features/hiring/pipeline/PipelineCandidateResultView.tsx",
+    "app/features/hiring/pipeline/PipelineCandidateRow.tsx",
+    "app/features/hiring/pipeline/PipelineCommsList.tsx"
+   ],
+   "filesNotInAnyCurrentContext": 4,
+   "currentContexts": [
+    {
+     "id": "98501252-cbce-4e0c-a2f0-712967e6604d",
+     "files": 7
+    },
+    {
+     "id": "a84a06f8-4280-473d-acc3-0cdcf6f98cad",
+     "files": 7
+    },
+    {
+     "id": "01ce0010-7ed5-4f5c-9374-dd1283978131",
+     "files": 1
+    },
+    {
+     "id": "77829982-8043-4752-ae30-4475929d182e",
+     "files": 1
+    }
+   ]
+  },
+  {
+   "oldName": "pipeline-board-2",
+   "oldId": "c7455bbb-4909-4c48-afeb-d0cf2d6663c9",
+   "group": "Hiring Pipeline",
+   "files": [
+    "app/features/hiring/pipeline/PipelineConsentPanel.tsx",
+    "app/features/hiring/pipeline/PipelineDegradedIntakeBanner.tsx",
+    "app/features/hiring/pipeline/PipelineDrawerFooterLinks.tsx",
+    "app/features/hiring/pipeline/PipelineDrawerHeader.tsx",
+    "app/features/hiring/pipeline/PipelineDrawerHistoryList.tsx",
+    "app/features/hiring/pipeline/PipelineEmptyFirstCandidate.tsx",
+    "app/features/hiring/pipeline/PipelineFacetRow.tsx",
+    "app/features/hiring/pipeline/PipelineFilterBar.tsx",
+    "app/features/hiring/pipeline/PipelineFilterMenu.tsx",
+    "app/features/hiring/pipeline/PipelineGithubEvidenceCard.tsx",
+    "app/features/hiring/pipeline/PipelineHireOutcomeCard.tsx",
+    "app/features/hiring/pipeline/PipelineHumanScorecardCard.tsx",
+    "app/features/hiring/pipeline/PipelineInterviewOutcomeCard.tsx",
+    "app/features/hiring/pipeline/PipelineInterviewTelemetryStrip.tsx",
+    "app/features/hiring/pipeline/PipelineMotion.tsx",
+    "app/features/hiring/pipeline/PipelineMoveStageControl.tsx",
+    "app/features/hiring/pipeline/PipelinePopulatedBoard.tsx",
+    "app/features/hiring/pipeline/PipelineRematchAffordance.tsx",
+    "app/features/hiring/pipeline/PipelineSalaryBenchmarkHint.tsx",
+    "app/features/hiring/pipeline/PipelineSavedViews.tsx"
+   ],
+   "filesNotInAnyCurrentContext": 4,
+   "currentContexts": [
+    {
+     "id": "98501252-cbce-4e0c-a2f0-712967e6604d",
+     "files": 8
+    },
+    {
+     "id": "a84a06f8-4280-473d-acc3-0cdcf6f98cad",
+     "files": 5
+    },
+    {
+     "id": "01ce0010-7ed5-4f5c-9374-dd1283978131",
+     "files": 2
+    },
+    {
+     "id": "77829982-8043-4752-ae30-4475929d182e",
+     "files": 1
+    }
+   ]
+  },
+  {
+   "oldName": "pipeline-board-3",
+   "oldId": "9a8a63d8-838c-45bd-a44f-8877342b3c36",
+   "group": "Hiring Pipeline",
+   "files": [
+    "app/features/hiring/pipeline/PipelineSelfSchedulingPanel.tsx",
+    "app/features/hiring/pipeline/PipelineShared.tsx",
+    "app/features/hiring/pipeline/PipelineSlaEditor.tsx",
+    "app/features/hiring/pipeline/PipelineStatHeader.tsx",
+    "app/features/hiring/pipeline/PipelineTab.tsx",
+    "app/features/hiring/pipeline/PipelineTimelineItemRow.tsx",
+    "app/features/hiring/pipeline/PipelineTodayRail.tsx",
+    "app/features/hiring/pipeline/PipelineTokenLink.tsx",
+    "app/features/hiring/pipeline/PipelineViewDialog.tsx",
+    "app/features/hiring/pipeline/PipelineVoiceScreenPanel.tsx",
+    "app/features/hiring/pipeline/SchedulerControl.tsx",
+    "app/features/hiring/pipeline/SchedulerRemindersRow.tsx",
+    "app/features/hiring/pipeline/SchedulerRunHistory.tsx",
+    "app/features/hiring/pipeline/SchedulerSummaryBadges.tsx",
+    "app/features/hiring/pipeline/SchedulerToolbar.tsx",
+    "app/features/hiring/pipeline/drawerCommsTruth.test.ts",
+    "app/features/hiring/pipeline/passReasonText.ts",
+    "app/features/hiring/pipeline/pipelineBoardFilters.test.ts",
+    "app/features/hiring/pipeline/pipelineBoardFilters.ts",
+    "app/features/hiring/pipeline/pipelineBoardGrid.ts"
+   ],
+   "filesNotInAnyCurrentContext": 1,
+   "currentContexts": [
+    {
+     "id": "77829982-8043-4752-ae30-4475929d182e",
+     "files": 7
+    },
+    {
+     "id": "a84a06f8-4280-473d-acc3-0cdcf6f98cad",
+     "files": 6
+    },
+    {
+     "id": "98501252-cbce-4e0c-a2f0-712967e6604d",
+     "files": 4
+    },
+    {
+     "id": "bfeaddc0-56a8-4128-9a38-f1a7f89428e7",
+     "files": 2
+    }
+   ]
+  },
+  {
+   "oldName": "pipeline-board-4",
+   "oldId": "68fa10fb-c326-4991-a4e7-b8e3fd288dc1",
+   "group": "Hiring Pipeline",
+   "files": [
+    "app/features/hiring/pipeline/pipelineBoardLayout.test.ts",
+    "app/features/hiring/pipeline/pipelineBoardLayout.ts",
+    "app/features/hiring/pipeline/pipelineBulkConfirm.test.ts",
+    "app/features/hiring/pipeline/pipelineBulkConfirm.ts",
+    "app/features/hiring/pipeline/pipelineEventCatalog.test.ts",
+    "app/features/hiring/pipeline/pipelineEventCatalog.ts",
+    "app/features/hiring/pipeline/pipelineMenuPosition.test.ts",
+    "app/features/hiring/pipeline/pipelineMenuPosition.ts",
+    "app/features/hiring/pipeline/pipelineMoveTargets.test.ts",
+    "app/features/hiring/pipeline/pipelineMoveTargets.ts",
+    "app/features/hiring/pipeline/pipelineRematchLink.test.ts",
+    "app/features/hiring/pipeline/pipelineRenderDiet.test.ts",
+    "app/features/hiring/pipeline/pipelineRenderDiet.ts",
+    "app/features/hiring/pipeline/pipelineSelectionScope.test.ts",
+    "app/features/hiring/pipeline/pipelineSelectionScope.ts",
+    "app/features/hiring/pipeline/pipelineStageFilter.test.ts",
+    "app/features/hiring/pipeline/pipelineTabHelpers.ts",
+    "app/features/hiring/pipeline/pipelineTranslator.ts",
+    "app/features/hiring/pipeline/pipelineViews.test.ts",
+    "app/features/hiring/pipeline/pipelineViews.ts"
+   ],
+   "filesNotInAnyCurrentContext": 0,
+   "currentContexts": [
+    {
+     "id": "bfeaddc0-56a8-4128-9a38-f1a7f89428e7",
+     "files": 11
+    },
+    {
+     "id": "01ce0010-7ed5-4f5c-9374-dd1283978131",
+     "files": 7
+    },
+    {
+     "id": "a84a06f8-4280-473d-acc3-0cdcf6f98cad",
+     "files": 2
+    }
+   ]
+  },
+  {
+   "oldName": "pipeline-board-5",
+   "oldId": "412efb81-f2c2-4e9c-a73b-43df31b19c88",
+   "group": "Hiring Pipeline",
+   "files": [
+    "app/_lib/db/agents-store.test.ts",
+    "app/_lib/db/agents-tenancy.test.ts",
+    "app/_lib/db/agents.ts",
+    "app/_lib/db/tasks-tenancy.test.ts",
+    "app/_lib/db/tasks.ts",
+    "app/features/hiring/pipeline/result-view-unpriced.test.ts",
+    "app/features/hiring/pipeline/usePipelineBoardData.ts",
+    "app/features/hiring/pipeline/usePipelineBoardScroll.ts",
+    "app/features/hiring/pipeline/usePipelineBulk.ts",
+    "app/features/hiring/pipeline/usePipelineCandidateDrawerState.ts",
+    "app/features/hiring/pipeline/usePipelineFilters.ts",
+    "app/features/hiring/pipeline/usePipelineNavigation.ts",
+    "app/features/hiring/pipeline/usePipelineSavedViews.ts",
+    "app/features/hiring/pipeline/usePipelineSla.ts",
+    "app/features/hiring/pipeline/usePipelineTabState.ts",
+    "app/features/hiring/pipeline/useSchedulerControlState.ts"
+   ],
+   "filesNotInAnyCurrentContext": 2,
+   "currentContexts": [
+    {
+     "id": "9de20269-8dd9-4ca8-a864-0037ee9ca817",
+     "files": 5
+    },
+    {
+     "id": "a84a06f8-4280-473d-acc3-0cdcf6f98cad",
+     "files": 5
+    },
+    {
+     "id": "01ce0010-7ed5-4f5c-9374-dd1283978131",
+     "files": 1
+    },
+    {
+     "id": "77829982-8043-4752-ae30-4475929d182e",
+     "files": 1
+    },
+    {
+     "id": "98501252-cbce-4e0c-a2f0-712967e6604d",
+     "files": 1
+    },
+    {
+     "id": "bfeaddc0-56a8-4128-9a38-f1a7f89428e7",
+     "files": 1
+    }
+   ]
+  },
+  {
+   "oldName": "pipeline-composer",
+   "oldId": "479bdd1c-0bd7-4c36-a87b-9d62fa891ee3",
+   "group": "Hiring Pipeline",
+   "files": [
+    "app/features/settings/hiring/HiringTab.tsx",
+    "app/features/settings/hiring/PipelineComposerBits.tsx",
+    "app/features/settings/hiring/PipelineStepPolicy.tsx",
+    "app/features/settings/hiring/PipelineStepsEditor.tsx",
+    "app/features/settings/hiring/impact/ImpactDecisionsCard.tsx",
+    "app/features/settings/hiring/impact/ImpactOverviewCard.tsx",
+    "app/features/settings/hiring/impact/ImpactScheduleCard.tsx",
+    "app/features/settings/hiring/impact/PlanImpactStrip.tsx",
+    "app/features/settings/hiring/impact/impactShared.tsx",
+    "app/features/settings/hiring/pipelineComposerModel.test.ts",
+    "app/features/settings/hiring/pipelineComposerModel.ts",
+    "app/features/settings/hiring/useHiringComposer.ts"
+   ],
+   "filesNotInAnyCurrentContext": 0,
+   "currentContexts": [
+    {
+     "id": "7bd8fe8d-c885-4bea-a2d7-619df91e42f1",
+     "files": 12
+    }
+   ]
+  },
+  {
+   "oldName": "api-jd-library",
+   "oldId": "5d158dfb-27e2-4acb-a36e-839b3683eb4e",
+   "group": "Job & JD Management",
+   "files": [
+    "app/_lib/jd-build-run.ts",
+    "app/_lib/jd-limits.test.ts",
+    "app/_lib/jd-limits.ts",
+    "app/_lib/jd-lint.test.ts",
+    "app/_lib/jd-lint.ts",
+    "app/_lib/jd-template-tokens.ts",
+    "app/api/jds/[slug]/analyses/route.ts",
+    "app/api/jds/[slug]/ingest-job/route.ts",
+    "app/api/jds/[slug]/retry-analysis/route.ts",
+    "app/api/jds/[slug]/revisions/route.ts",
+    "app/api/jds/[slug]/route.ts",
+    "app/api/jds/authz-parity.test.ts",
+    "app/api/jds/error-message-hygiene.test.ts",
+    "app/api/jds/generate/route.ts",
+    "app/api/jds/route.ts",
+    "app/api/jds/save/ingest-job.ts",
+    "app/api/jds/save/route.ts",
+    "app/api/jds/save/save-ingest-contract.test.ts",
+    "app/api/jds/template-tenancy.test.ts"
+   ],
+   "filesNotInAnyCurrentContext": 0,
+   "currentContexts": [
+    {
+     "id": "ac8ef8dd-93b1-4db2-ae1b-c18171d86d01",
+     "files": 13
+    },
+    {
+     "id": "03ead2c6-6756-41a6-84c9-7b0843d9e216",
+     "files": 6
+    }
+   ]
+  },
+  {
+   "oldName": "api-jobs",
+   "oldId": "10e29778-7b2c-4509-a75d-5298fe0f51e0",
+   "group": "Job & JD Management",
+   "files": [
+    "app/_lib/campaign-run.ts",
+    "app/_lib/job-ingest.ts",
+    "app/_lib/split-ads.test.ts",
+    "app/_lib/split-ads.ts",
+    "app/_lib/split-list.ts",
+    "app/api/jobs/[id]/agent-fit/route.ts",
+    "app/api/jobs/[id]/campaign/route.ts",
+    "app/api/jobs/[id]/candidates/outreach/route.ts",
+    "app/api/jobs/[id]/candidates/route.ts",
+    "app/api/jobs/[id]/close/route.ts",
+    "app/api/jobs/[id]/publish/route.ts",
+    "app/api/jobs/[id]/rediscover/route.ts",
+    "app/api/jobs/[id]/route.ts",
+    "app/api/jobs/[id]/winnability/route.ts",
+    "app/api/jobs/close-tenancy.test.ts",
+    "app/api/jobs/ingest/route.ts",
+    "app/api/jobs/lifecycle-signals.test.ts",
+    "app/api/jobs/route.ts",
+    "app/api/jobs/status/route.ts",
+    "app/api/rediscovery/alerts/route.ts",
+    "app/api/rediscovery/alerts/sweep-tenancy.test.ts"
+   ],
+   "filesNotInAnyCurrentContext": 0,
+   "currentContexts": [
+    {
+     "id": "7cf5e627-e188-4ecb-9129-45193097b0c0",
+     "files": 14
+    },
+    {
+     "id": "03ead2c6-6756-41a6-84c9-7b0843d9e216",
+     "files": 2
+    },
+    {
+     "id": "e8793bc2-2220-4c18-9f74-07e55dd3e439",
+     "files": 2
+    },
+    {
+     "id": "5ad725da-11a7-4a45-a0c2-8cc423e89c2a",
+     "files": 1
+    },
+    {
+     "id": "a52e7c0d-e73d-49ee-b465-526da5899c6f",
+     "files": 1
+    },
+    {
+     "id": "ebfe3268-6c14-4997-a49c-091483d763b5",
+     "files": 1
+    }
+   ]
+  },
+  {
+   "oldName": "api-role-intake",
+   "oldId": "6acb495e-b544-47a9-a05b-a38483a02961",
+   "group": "Job & JD Management",
+   "files": [
+    "app/api/intake/[id]/attachments/route.ts",
+    "app/api/intake/[id]/brief/route.ts",
+    "app/api/intake/[id]/message/route.ts",
+    "app/api/intake/[id]/promote/route.ts",
+    "app/api/intake/[id]/reopen/route.ts",
+    "app/api/intake/[id]/route.ts",
+    "app/api/intake/[id]/voice-complete/route.ts",
+    "app/api/intake/[id]/voice-connect/route.ts",
+    "app/api/intake/[id]/voice-turn/route.ts",
+    "app/api/intake/attachments-guard.test.ts",
+    "app/api/intake/route.ts"
+   ],
+   "filesNotInAnyCurrentContext": 0,
+   "currentContexts": [
+    {
+     "id": "14d4d7df-d27a-4533-a471-e4ed40575d8d",
+     "files": 11
+    }
+   ]
+  },
+  {
+   "oldName": "jd-library-1",
+   "oldId": "6ad27bbe-d7fb-43ca-a2c2-d0fd1810e598",
+   "group": "Job & JD Management",
+   "files": [
+    "app/features/library/jds/JdsBuilder.tsx",
+    "app/features/library/jds/JdsBuilderChecklist.tsx",
+    "app/features/library/jds/JdsBuilderFields.tsx",
+    "app/features/library/jds/JdsCandidateList.tsx",
+    "app/features/library/jds/JdsEmptyShelf.tsx",
+    "app/features/library/jds/JdsEmptyStates.tsx",
+    "app/features/library/jds/JdsGeneratePanel.tsx",
+    "app/features/library/jds/JdsLedgerBadges.tsx",
+    "app/features/library/jds/JdsLedgerCoachTrace.tsx",
+    "app/features/library/jds/JdsLedgerDetailModal.tsx",
+    "app/features/library/jds/JdsLedgerDetailPanels.tsx",
+    "app/features/library/jds/JdsLedgerDetailRail.tsx",
+    "app/features/library/jds/JdsLedgerFilterMenu.tsx",
+    "app/features/library/jds/JdsLedgerRow.tsx",
+    "app/features/library/jds/JdsLedgerRowIngest.tsx",
+    "app/features/library/jds/JdsLedgerTable.tsx",
+    "app/features/library/jds/JdsLedgerTableHead.tsx",
+    "app/features/library/jds/JdsLintPanel.tsx",
+    "app/features/library/jds/JdsModalEditor.tsx",
+    "app/features/library/jds/JdsModalEditorStagedBanner.tsx"
+   ],
+   "filesNotInAnyCurrentContext": 0,
+   "currentContexts": [
+    {
+     "id": "23ea22ae-fc24-4af0-a51f-58347b533287",
+     "files": 10
+    },
+    {
+     "id": "add575f8-16e7-4f11-b0d7-30b2d4fad43a",
+     "files": 6
+    },
+    {
+     "id": "46245a9c-ff38-4cd4-88c3-b64b7cc7d185",
+     "files": 4
+    }
+   ]
+  },
+  {
+   "oldName": "jd-library-2",
+   "oldId": "ddc4e011-2aed-43d2-a891-994cc2e699e1",
+   "group": "Job & JD Management",
+   "files": [
+    "app/features/library/jds/JdsRevisionList.tsx",
+    "app/features/library/jds/JdsSavedLedger.tsx",
+    "app/features/library/jds/JdsSavedLedgerPanel.tsx",
+    "app/features/library/jds/JdsTab.tsx",
+    "app/features/library/jds/JdsTemplateManager.tsx",
+    "app/features/library/jds/JdsTemplateManagerEditor.tsx",
+    "app/features/library/jds/JdsTemplateManagerList.tsx",
+    "app/features/library/jds/jdsBuilderLogic.ts",
+    "app/features/library/jds/jdsEditClient.test.ts",
+    "app/features/library/jds/jdsEditClient.ts",
+    "app/features/library/jds/jdsHooks.ts",
+    "app/features/library/jds/jdsLedgerArtifacts.ts",
+    "app/features/library/jds/jdsLedgerLogic.ts",
+    "app/features/library/jds/jdsLedgerNav.test.ts",
+    "app/features/library/jds/jdsLedgerNav.ts",
+    "app/features/library/jds/jdsLibrary.test.ts",
+    "app/features/library/jds/jdsLibrary.ts",
+    "app/features/library/jds/jdsLintWiring.test.ts",
+    "app/features/library/jds/jdsTemplateManagerLogic.ts",
+    "app/features/library/jds/useJdEditor.ts"
+   ],
+   "filesNotInAnyCurrentContext": 0,
+   "currentContexts": [
+    {
+     "id": "46245a9c-ff38-4cd4-88c3-b64b7cc7d185",
+     "files": 9
+    },
+    {
+     "id": "add575f8-16e7-4f11-b0d7-30b2d4fad43a",
+     "files": 6
+    },
+    {
+     "id": "23ea22ae-fc24-4af0-a51f-58347b533287",
+     "files": 5
+    }
+   ]
+  },
+  {
+   "oldName": "jobs-and-jobs-workspace",
+   "oldId": "9cc626c5-d1c4-4760-a776-9cd5c47e88db",
+   "group": "Job & JD Management",
+   "files": [
+    "app/_lib/db/campaign-tenancy.test.ts",
+    "app/_lib/db/campaign.ts",
+    "app/_lib/db/intakes-tenancy.test.ts",
+    "app/_lib/db/intakes.ts",
+    "app/_lib/db/jds-store.test.ts",
+    "app/_lib/db/jds-tenancy.test.ts",
+    "app/_lib/db/jobs-store.test.ts",
+    "app/_lib/db/jobs-tenancy.test.ts",
+    "app/_lib/db/jobs.ts",
+    "app/features/library/jobs/jobsStatusMerge.test.ts",
+    "app/features/library/jobs/jobsStatusMerge.ts",
+    "app/features/library/jobs/jobsTabDeepLink.ts",
+    "app/features/library/jobs/useJobsList.ts"
+   ],
+   "filesNotInAnyCurrentContext": 2,
+   "currentContexts": [
+    {
+     "id": "b6bca1b3-f9ac-4a72-b5f3-b23620767ea0",
+     "files": 5
+    },
+    {
+     "id": "a7075610-e714-4a96-82ec-6999c4f8945e",
+     "files": 4
+    },
+    {
+     "id": "2425bd9e-0405-4136-a914-7cd4d57bee3c",
+     "files": 2
+    }
+   ]
+  },
+  {
+   "oldName": "jobs-workspace-1",
+   "oldId": "57cb204b-0b1c-4319-ac45-23f5738e3af8",
+   "group": "Job & JD Management",
+   "files": [
+    "app/features/library/jobs/JobsAgentFitCoverage.tsx",
+    "app/features/library/jobs/JobsAgentFitSpecPanel.tsx",
+    "app/features/library/jobs/JobsAgentFitStatus.tsx",
+    "app/features/library/jobs/JobsAgentFitTab.tsx",
+    "app/features/library/jobs/JobsCampaignTab.tsx",
+    "app/features/library/jobs/JobsCampaignTabVariantCard.tsx",
+    "app/features/library/jobs/JobsCoachPanel.tsx",
+    "app/features/library/jobs/JobsCoachPanelLoosenList.tsx",
+    "app/features/library/jobs/JobsCoachPanelStageEditButton.tsx",
+    "app/features/library/jobs/JobsCompareInterviews.tsx",
+    "app/features/library/jobs/JobsCompareInterviewsCohortTable.tsx",
+    "app/features/library/jobs/JobsCompareInterviewsEvidenceCard.tsx",
+    "app/features/library/jobs/JobsDraftsPanel.tsx",
+    "app/features/library/jobs/JobsEmptyLaunchpad.tsx",
+    "app/features/library/jobs/JobsIngestAdPanel.tsx",
+    "app/features/library/jobs/JobsIngestAdPanelResults.tsx",
+    "app/features/library/jobs/JobsLifecycleStrip.tsx",
+    "app/features/library/jobs/JobsPostingModal.tsx",
+    "app/features/library/jobs/JobsPostingModalFooter.tsx",
+    "app/features/library/jobs/JobsRecruiterCandidates.tsx"
+   ],
+   "filesNotInAnyCurrentContext": 4,
+   "currentContexts": [
+    {
+     "id": "181b8632-82ec-4203-a308-42e58eca6c49",
+     "files": 5
+    },
+    {
+     "id": "d2c749a4-1821-4c77-af16-2254725a3b3f",
+     "files": 5
+    },
+    {
+     "id": "6e4380dc-8992-4f22-8017-d42ce053a5ca",
+     "files": 4
+    },
+    {
+     "id": "a7075610-e714-4a96-82ec-6999c4f8945e",
+     "files": 2
+    }
+   ]
+  },
+  {
+   "oldName": "jobs-workspace-2",
+   "oldId": "25d0af17-ca66-4053-a869-53eaf4884d22",
+   "group": "Job & JD Management",
+   "files": [
+    "app/features/library/jobs/JobsRecruiterCandidatesCard.tsx",
+    "app/features/library/jobs/JobsRecruiterCandidatesColumn.tsx",
+    "app/features/library/jobs/JobsRecruiterCandidatesFairness.tsx",
+    "app/features/library/jobs/JobsRediscoverPanel.tsx",
+    "app/features/library/jobs/JobsRediscoveryFeed.tsx",
+    "app/features/library/jobs/JobsRediscoveryFeedRow.tsx",
+    "app/features/library/jobs/JobsRow.tsx",
+    "app/features/library/jobs/JobsShared.tsx",
+    "app/features/library/jobs/JobsTab.tsx",
+    "app/features/library/jobs/JobsTabFilters.tsx",
+    "app/features/library/jobs/JobsTabResults.tsx",
+    "app/features/library/jobs/JobsTable.tsx",
+    "app/features/library/jobs/JobsTypes.test.ts",
+    "app/features/library/jobs/JobsTypes.ts",
+    "app/features/library/jobs/jobMarkdown.test.ts",
+    "app/features/library/jobs/jobsAgentFitLogic.ts",
+    "app/features/library/jobs/jobsAgentFitModel.test.ts",
+    "app/features/library/jobs/jobsAgentFitModel.ts",
+    "app/features/library/jobs/jobsCampaignTabLogic.ts",
+    "app/features/library/jobs/jobsCampaignTabTypes.ts"
+   ],
+   "filesNotInAnyCurrentContext": 5,
+   "currentContexts": [
+    {
+     "id": "a7075610-e714-4a96-82ec-6999c4f8945e",
+     "files": 8
+    },
+    {
+     "id": "82d9357b-d510-47ef-9578-f63aeeea4d3e",
+     "files": 3
+    },
+    {
+     "id": "d2c749a4-1821-4c77-af16-2254725a3b3f",
+     "files": 3
+    },
+    {
+     "id": "6e4380dc-8992-4f22-8017-d42ce053a5ca",
+     "files": 1
+    }
+   ]
+  },
+  {
+   "oldName": "jobs-workspace-3",
+   "oldId": "682fa75e-3a22-46be-ae07-9cd83e44d9b0",
+   "group": "Job & JD Management",
+   "files": [
+    "app/features/library/jobs/jobsCoachApply.test.ts",
+    "app/features/library/jobs/jobsCoachApply.ts",
+    "app/features/library/jobs/jobsCoachPanelTypes.ts",
+    "app/features/library/jobs/jobsCoachSalary.test.ts",
+    "app/features/library/jobs/jobsCoachSalary.ts",
+    "app/features/library/jobs/jobsCompareCohorts.test.ts",
+    "app/features/library/jobs/jobsCompareCohorts.ts",
+    "app/features/library/jobs/jobsCompareInterviewsTypes.ts",
+    "app/features/library/jobs/jobsIngestAdPanelLogic.ts",
+    "app/features/library/jobs/jobsIngestLatch.test.ts",
+    "app/features/library/jobs/jobsIngestLatch.ts",
+    "app/features/library/jobs/jobsMarkdown.ts",
+    "app/features/library/jobs/jobsPostingModalLogic.ts",
+    "app/features/library/jobs/jobsRecruiterCandidatesLogic.ts",
+    "app/features/library/jobs/jobsRediscoveryAdd.test.ts",
+    "app/features/library/jobs/jobsRediscoveryAdd.ts",
+    "app/features/library/jobs/jobsRediscoveryFeedLogic.ts",
+    "app/features/library/jobs/jobsRediscoveryFeedTypes.ts",
+    "app/features/library/jobs/jobsRequestGuard.test.ts",
+    "app/features/library/jobs/jobsRequestGuard.ts"
+   ],
+   "filesNotInAnyCurrentContext": 1,
+   "currentContexts": [
+    {
+     "id": "181b8632-82ec-4203-a308-42e58eca6c49",
+     "files": 4
+    },
+    {
+     "id": "6e4380dc-8992-4f22-8017-d42ce053a5ca",
+     "files": 4
+    },
+    {
+     "id": "82d9357b-d510-47ef-9578-f63aeeea4d3e",
+     "files": 4
+    },
+    {
+     "id": "d2c749a4-1821-4c77-af16-2254725a3b3f",
+     "files": 4
+    },
+    {
+     "id": "a7075610-e714-4a96-82ec-6999c4f8945e",
+     "files": 3
+    }
+   ]
+  },
+  {
+   "oldName": "lib-rediscovery",
+   "oldId": "ea1426e0-b97b-4278-a42e-22edb0381e1e",
+   "group": "Job & JD Management",
+   "files": [
+    "app/_lib/rediscover.test.ts",
+    "app/_lib/rediscover.ts",
+    "app/_lib/rediscovery-alert-store.ts",
+    "app/_lib/rediscovery-alert-story.test.ts",
+    "app/_lib/rediscovery-consent-gate.test.ts",
+    "app/_lib/rediscovery-prior-link.test.ts",
+    "app/_lib/rediscovery-prior-link.ts",
+    "app/_lib/rediscovery-rank.test.ts",
+    "app/_lib/rediscovery-rank.ts",
+    "app/_lib/rediscovery-relevance.ts",
+    "app/_lib/rediscovery-store-tenancy.test.ts",
+    "app/_lib/rediscovery-sweep-bounds.test.ts",
+    "app/_lib/rediscovery-tenancy.test.ts"
+   ],
+   "filesNotInAnyCurrentContext": 0,
+   "currentContexts": [
+    {
+     "id": "124722c0-47ae-4af5-be2f-b62f65cef7de",
+     "files": 13
+    }
+   ]
+  },
+  {
+   "oldName": "py-jobs-intake",
+   "oldId": "cc0ba277-fe65-4589-acee-cef5cff49953",
+   "group": "Job & JD Management",
+   "files": [
+    "pipeline/jobfit/ats.py",
+    "pipeline/jobfit/campaign.py",
+    "pipeline/jobfit/campaign_cli.py",
+    "pipeline/jobfit/intake.py",
+    "pipeline/jobfit/intake_cli.py",
+    "pipeline/jobfit/jobs.py",
+    "pipeline/jobfit/jobs_cli.py",
+    "pipeline/jobfit/rolebrief.py",
+    "pipeline/jobfit/tests/test_ats.py",
+    "pipeline/jobfit/tests/test_campaign.py",
+    "pipeline/jobfit/tests/test_intake.py",
+    "pipeline/jobfit/tests/test_jobs.py",
+    "pipeline/jobfit/tests/test_rolebrief.py"
+   ],
+   "filesNotInAnyCurrentContext": 0,
+   "currentContexts": [
+    {
+     "id": "9ed899f6-f780-480d-971c-bc022e87e049",
+     "files": 8
+    },
+    {
+     "id": "cc5e60e6-18d9-4c04-8aaa-7b7629216be6",
+     "files": 5
+    }
+   ]
+  },
+  {
+   "oldName": "role-intake",
+   "oldId": "9cf2a4af-f438-4035-a673-d8e4b65542c9",
+   "group": "Job & JD Management",
+   "files": [
+    "app/features/library/jds/intake/JdsIntakeAttachmentsPane.tsx",
+    "app/features/library/jds/intake/JdsIntakeBriefEdit.tsx",
+    "app/features/library/jds/intake/JdsIntakeBriefPanel.tsx",
+    "app/features/library/jds/intake/JdsIntakeBriefTitle.tsx",
+    "app/features/library/jds/intake/JdsIntakeChat.tsx",
+    "app/features/library/jds/intake/JdsIntakeDraftPane.tsx",
+    "app/features/library/jds/intake/JdsIntakeLayoutTriptych.tsx",
+    "app/features/library/jds/intake/JdsIntakePanel.tsx",
+    "app/features/library/jds/intake/JdsIntakeVoice.tsx",
+    "app/features/library/jds/intake/intakeLayoutShared.ts",
+    "app/features/library/jds/intake/jdsIntakeLogic.ts",
+    "app/features/library/jds/intake/voiceOrchestration.test.ts",
+    "app/features/library/jds/intake/voiceOrchestration.ts"
+   ],
+   "filesNotInAnyCurrentContext": 5,
+   "currentContexts": [
+    {
+     "id": "475eb882-f8e1-47ea-9d34-2534405506c6",
+     "files": 3
+    },
+    {
+     "id": "4d98cf58-e6bc-4b08-9b46-c446af784e1d",
+     "files": 3
+    },
+    {
+     "id": "a626dbb6-a28d-4c99-be26-a5d9592ba2eb",
+     "files": 2
+    }
+   ]
+  },
+  {
+   "oldName": "role-intake-and-shared-utils",
+   "oldId": "b140a3d2-f36e-411c-a538-1bd2cf9287a7",
+   "group": "Job & JD Management",
+   "files": [
+    "app/_lib/brief-edit.test.ts",
+    "app/_lib/brief-edit.ts",
+    "app/_lib/intake-brief.test.ts",
+    "app/_lib/intake-brief.ts",
+    "app/_lib/intake-draft.test.ts",
+    "app/_lib/intake-draft.ts",
+    "app/_lib/intake-export.test.ts",
+    "app/_lib/intake-export.ts",
+    "app/_lib/intake-run.ts",
+    "app/_lib/useAddToPipeline.test.ts",
+    "app/_lib/useAddToPipeline.ts",
+    "app/_lib/useInfiniteScroll.ts",
+    "app/_lib/useJsonFetch.ts",
+    "app/_lib/useLoader.ts",
+    "app/_lib/useReachOut.ts",
+    "app/_lib/useReducedMotion.ts"
+   ],
+   "filesNotInAnyCurrentContext": 7,
+   "currentContexts": [
+    {
+     "id": "74171ef0-a76e-499a-8dbc-5f0af5bebeb6",
+     "files": 7
+    },
+    {
+     "id": "03ead2c6-6756-41a6-84c9-7b0843d9e216",
+     "files": 2
+    }
+   ]
+  },
+  {
+   "oldName": "api-voice-interview",
+   "oldId": "a2d27178-b63a-4414-a1ab-4e23457e06b2",
+   "group": "Voice Interviews",
+   "files": [
+    "app/_lib/run-of-show.test.ts",
+    "app/_lib/run-of-show.ts",
+    "app/_lib/student-interview.test.ts",
+    "app/_lib/student-interview.ts",
+    "app/api/interview/by-entry/route.ts",
+    "app/api/interview/compare/route.ts",
+    "app/api/interview/complete/complete-usage-attribution.test.ts",
+    "app/api/interview/complete/route.ts",
+    "app/api/interview/connect/connect-response-contract.test.ts",
+    "app/api/interview/connect/route.ts",
+    "app/api/interview/create/route.ts",
+    "app/api/interview/error-message-hygiene.test.ts",
+    "app/api/interview/revoke/route.ts",
+    "app/api/interview/sessions/route.ts",
+    "app/api/interview/simulate/attach/route.ts",
+    "app/api/interview/simulate/attach/sim-session.test.ts",
+    "app/api/interview/simulate/attach/sim-session.ts",
+    "app/api/interview/simulate/route.ts"
+   ],
+   "filesNotInAnyCurrentContext": 0,
+   "currentContexts": [
+    {
+     "id": "0f0b2b00-f446-41b0-af7a-d927592c28de",
+     "files": 14
+    },
+    {
+     "id": "07674871-c817-4ade-8ddf-22cc01b8493d",
+     "files": 4
+    }
+   ]
+  },
+  {
+   "oldName": "eval-voice-and-voice-runtime",
+   "oldId": "5b6decdf-74e8-4c24-a0f7-d4f87c9c57f3",
+   "group": "Voice Interviews",
+   "files": [
+    "app/_lib/voice/self-hosted.test.ts",
+    "app/_lib/voice/self-hosted.ts",
+    "app/_lib/voice/telemetry-format.test.ts",
+    "app/_lib/voice/telemetry-format.ts",
+    "app/_lib/voice/types.ts",
+    "app/_lib/voice/voice-env.test.ts",
+    "pipeline/jobfit/eval/voice/__init__.py",
+    "pipeline/jobfit/eval/voice/app_client.py",
+    "pipeline/jobfit/eval/voice/audio.py",
+    "pipeline/jobfit/eval/voice/el_ws.py",
+    "pipeline/jobfit/eval/voice/session_runner.py",
+    "pipeline/jobfit/eval/voice/tts.py",
+    "pipeline/jobfit/eval/voice/v0_smoke.py",
+    "pipeline/jobfit/eval/voice/wer.py"
+   ],
+   "filesNotInAnyCurrentContext": 0,
+   "currentContexts": [
+    {
+     "id": "40e7d65d-bb8a-4321-aa57-b845a86def9a",
+     "files": 8
+    },
+    {
+     "id": "eb0e8133-4575-4d03-8155-dcf219192bf4",
+     "files": 4
+    },
+    {
+     "id": "32edd29b-5216-47e3-ab63-71922348536b",
+     "files": 2
+    }
+   ]
+  },
+  {
+   "oldName": "interview-ui-and-voice-interview-portal-and-interviews",
+   "oldId": "57d7627f-22f6-4f18-ae4a-14ae8d81e5e1",
+   "group": "Voice Interviews",
+   "files": [
+    "app/_lib/db/interviews-tenancy.test.ts",
+    "app/_lib/db/interviews.ts",
+    "app/features/tools/interview/InterviewAttachToCandidate.tsx",
+    "app/features/tools/interview/InterviewModeCards.tsx",
+    "app/features/tools/interview/InterviewSimTab.tsx",
+    "app/features/tools/interview/InterviewStartPanel.tsx",
+    "app/interview-lab/page.tsx",
+    "app/interview/[token]/error.tsx",
+    "app/interview/[token]/loading.tsx",
+    "app/interview/[token]/page.tsx"
+   ],
+   "filesNotInAnyCurrentContext": 0,
+   "currentContexts": [
+    {
+     "id": "4c37e038-7aa5-48e7-80a6-7ac407103d96",
+     "files": 4
+    },
+    {
+     "id": "bacab51a-4810-48e4-8926-12b3bb6efc79",
+     "files": 4
+    },
+    {
+     "id": "fac691e4-ce40-4718-bde7-5781f40c813c",
+     "files": 3
+    },
+    {
+     "id": "b6bca1b3-f9ac-4a72-b5f3-b23620767ea0",
+     "files": 2
+    },
+    {
+     "id": "f3c7a16c-32b1-4b6a-8df4-6181ab2734dc",
+     "files": 1
+    }
+   ]
+  },
+  {
+   "oldName": "lib-voice-interview-11",
+   "oldId": "fdf3b6c9-10c5-454d-ad32-ddde91a11c65",
+   "group": "Voice Interviews",
+   "files": [
+    "app/_lib/interview-consent.test.ts",
+    "app/_lib/interview-consent.ts",
+    "app/_lib/interview-duration.mjs",
+    "app/_lib/interview-duration.test.ts",
+    "app/_lib/interview-lab.ts",
+    "app/_lib/interview-plan.ts",
+    "app/_lib/interview-planned-minutes.ts",
+    "app/_lib/interview-prep-run.test.ts",
+    "app/_lib/interview-prep-run.ts",
+    "app/_lib/interview-prep-staleness.test.ts",
+    "app/_lib/interview-prep-strings.ts",
+    "app/_lib/interview-prep-tenancy.test.ts",
+    "app/_lib/interview-prep.ts",
+    "app/_lib/interview-recommendation.test.ts",
+    "app/_lib/interview-recommendation.ts"
+   ],
+   "filesNotInAnyCurrentContext": 0,
+   "currentContexts": [
+    {
+     "id": "07674871-c817-4ade-8ddf-22cc01b8493d",
+     "files": 10
+    },
+    {
+     "id": "efd0489d-4270-4455-97ca-28fce88d5c8a",
+     "files": 5
+    }
+   ]
+  },
+  {
+   "oldName": "lib-voice-interview-12",
+   "oldId": "0ade409a-c10e-4d3f-afe2-bed09b9010c2",
+   "group": "Voice Interviews",
+   "files": [
+    "app/_lib/interview-reminder-policy.test.ts",
+    "app/_lib/interview-reminder-policy.ts",
+    "app/_lib/interview-reminders.ts",
+    "app/_lib/interview-rubric-catalog.test.ts",
+    "app/_lib/interview-rubric.test.ts",
+    "app/_lib/interview-rubric.ts",
+    "app/_lib/interview-run.test.ts",
+    "app/_lib/interview-run.ts",
+    "app/_lib/interview-scorecard.test.ts",
+    "app/_lib/interview-scorecard.ts",
+    "app/_lib/interview-telemetry.test.ts",
+    "app/_lib/interview-telemetry.ts",
+    "app/_lib/interview-transcript.test.ts",
+    "app/_lib/interview-transcript.ts"
+   ],
+   "filesNotInAnyCurrentContext": 0,
+   "currentContexts": [
+    {
+     "id": "efd0489d-4270-4455-97ca-28fce88d5c8a",
+     "files": 11
+    },
+    {
+     "id": "07674871-c817-4ade-8ddf-22cc01b8493d",
+     "files": 3
+    }
+   ]
+  },
+  {
+   "oldName": "py-interview-signals",
+   "oldId": "6ab515be-805b-4b35-a28d-b63b6a7a7d73",
+   "group": "Voice Interviews",
+   "files": [
+    "pipeline/jobfit/agentfit.py",
+    "pipeline/jobfit/agentfit_cli.py",
+    "pipeline/jobfit/authenticity.py",
+    "pipeline/jobfit/interview.py",
+    "pipeline/jobfit/live_case.py",
+    "pipeline/jobfit/soft_signals.py",
+    "pipeline/jobfit/tests/test_agentfit.py",
+    "pipeline/jobfit/tests/test_authenticity.py",
+    "pipeline/jobfit/tests/test_live_case.py",
+    "pipeline/jobfit/tests/test_soft_signals.py"
+   ],
+   "filesNotInAnyCurrentContext": 0,
+   "currentContexts": [
+    {
+     "id": "e69ea8c8-1943-4054-97d1-78001e6d4530",
+     "files": 3
+    },
+    {
+     "id": "4c01cda6-93db-4db4-a5fa-d5153653d9c6",
+     "files": 2
+    },
+    {
+     "id": "65c926f0-e6c4-4fb4-afe3-20a847eb91b2",
+     "files": 1
+    },
+    {
+     "id": "7b52c055-91b2-4e97-b7bf-0c8081b156d0",
+     "files": 1
+    },
+    {
+     "id": "7f1cebc0-2929-4145-8eeb-c0b7c7ceaa8f",
+     "files": 1
+    },
+    {
+     "id": "9ed899f6-f780-480d-971c-bc022e87e049",
+     "files": 1
+    },
+    {
+     "id": "b1c5ba42-9188-4765-a9e0-3ad6eefc951f",
+     "files": 1
+    }
+   ]
+  },
+  {
+   "oldName": "voice-runtime-1",
+   "oldId": "5e8c1a9d-62a1-4673-a0eb-2c27ecefc5f7",
+   "group": "Voice Interviews",
+   "files": [
+    "app/_lib/voice/candidate-brief.test.ts",
+    "app/_lib/voice/candidate-brief.ts",
+    "app/_lib/voice/connect-failover.test.ts",
+    "app/_lib/voice/connect-failover.ts",
+    "app/_lib/voice/eleven-agent-diff.mjs",
+    "app/_lib/voice/eleven-agent-diff.test.ts",
+    "app/_lib/voice/elevenlabs.ts",
+    "app/_lib/voice/finalize-status.test.ts",
+    "app/_lib/voice/finalize-status.ts",
+    "app/_lib/voice/index.ts",
+    "app/_lib/voice/language-lock.test.ts",
+    "app/_lib/voice/language-lock.ts",
+    "app/_lib/voice/minute-prices.test.ts",
+    "app/_lib/voice/minute-prices.ts",
+    "app/_lib/voice/openai-events.test.ts",
+    "app/_lib/voice/openai-session.test.ts",
+    "app/_lib/voice/openai.ts",
+    "app/_lib/voice/preflight.test.ts",
+    "app/_lib/voice/preflight.ts"
+   ],
+   "filesNotInAnyCurrentContext": 0,
+   "currentContexts": [
+    {
+     "id": "32edd29b-5216-47e3-ab63-71922348536b",
+     "files": 12
+    },
+    {
+     "id": "eb0e8133-4575-4d03-8155-dcf219192bf4",
+     "files": 7
+    }
+   ]
+  },
+  {
+   "oldName": "voice-ui-components",
+   "oldId": "9de4d799-279c-429b-a0ca-2afecf4543b1",
+   "group": "Voice Interviews",
+   "files": [
+    "app/_components/voice/InterviewSidebar.tsx",
+    "app/_components/voice/MicTestPanel.tsx",
+    "app/_components/voice/VoiceInterview.tsx",
+    "app/_components/voice/VoiceInterviewClient.tsx",
+    "app/_components/voice/VoiceLiveControls.tsx",
+    "app/_components/voice/VoiceSettings.tsx",
+    "app/_components/voice/VoiceStatusPill.tsx",
+    "app/_components/voice/VoiceTranscript.tsx",
+    "app/_components/voice/micErrorText.ts",
+    "app/_components/voice/transport/elevenlabs.ts",
+    "app/_components/voice/transport/openai.ts",
+    "app/_components/voice/ui-types.ts",
+    "app/_components/voice/useMicTest.ts",
+    "app/_components/voice/useTranscriptPersistence.ts"
+   ],
+   "filesNotInAnyCurrentContext": 0,
+   "currentContexts": [
+    {
+     "id": "e2f41475-e943-47a4-bf2d-7e3ee529366d",
+     "files": 14
+    }
+   ]
+  }
+ ],
+ "currentMapContexts": 210,
+ "summary": {
+  "rosterContexts": 55,
+  "rosterFiles": 899,
+  "currentContextsTouched": 86,
+  "rosterNamesWithNoCurrentContext": [
+   "lib-group-eval"
+  ]
+ }
+}
