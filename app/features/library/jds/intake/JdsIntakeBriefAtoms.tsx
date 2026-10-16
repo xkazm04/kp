@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { provenanceTone, type BriefRequirement, type ProvenanceTone } from "./jdsIntakeBriefModel";
 
 // The leaf pieces the live-brief body draws with, split from
-// JdsIntakeBriefBody.tsx so both stay under the 200-line cap.
+// AtelierBriefPlane.tsx so both stay under the 200-line cap.
 //
 // The colour contract is the app's own (docs/design/README.md: "coral = act,
 // moss = good, amber = maybe, steel = commentary") applied to the one axis this

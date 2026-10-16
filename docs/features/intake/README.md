@@ -1013,7 +1013,7 @@ always in the DOM for assistive tech so a screen reader hears the sentence once,
 complete. The header says "writing" only while a line is actually being written.
 
 `coats/atelier/AtelierBriefPlane.tsx` is the FRAME — head, edit/frozen states, the
-App-master slot, the ghost empty state — and `JdsIntakeBriefBody.tsx` draws the brief.
+App-master slot, the ghost empty state — and the `AtelierBriefPlane` sections (`briefSections.ts`) draw the brief.
 The body is the winner of a `/prototype` round run against the shipped flat
 sections and a ranked "Scorecard"; both losers and the switcher between them were
 deleted at consolidation.
