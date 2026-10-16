@@ -6057,7 +6057,11 @@
           "revision": 15,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/billing/entitlements.ts:343 Credit consumption has no returned reversal handle even though the lifecycle route debits before creating and starting work, so a pre-start failure can leave prepaid units consumed.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:7247db31eb8f3dce",
+          "evaluatedRevision": 15
         }
       ],
       "governance": "governed"
@@ -27599,7 +27603,11 @@
           "revision": 15,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/agent/dispatch.mjs:609 A provider exception exits before meter.record runs, leaving a potentially billable failed attempt without a ledger row.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:7247db31eb8f3dce",
+          "evaluatedRevision": 15
         },
         {
           "subject": "supply-chain",
