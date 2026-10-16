@@ -22,12 +22,15 @@ import re
 import unittest
 from pathlib import Path
 
-from pipeline.jobfit import automation
+from pipeline.jobfit import appmaster, automation
+from pipeline.jobfit.llm.capabilities import DEFAULT_MODELS
 from pipeline.jobfit.match_reasoning import REASONING_PROMPT_VERSION
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 REASONING_RUN_TS = REPO_ROOT / "app" / "_lib" / "reasoning-run.ts"
 AUTOMATION_RUN_TS = REPO_ROOT / "app" / "_lib" / "automation-run.ts"
+INTAKE_BRIEF_TS = REPO_ROOT / "app" / "_lib" / "intake-brief.ts"
+USAGE_TS = REPO_ROOT / "app" / "_lib" / "github" / "usage.ts"
 
 # task id (the TS AUTOMATION_VERSION key) -> the Python constant that must equal it.
 # Kept as an explicit map so BOTH directions are checkable: every TS key must appear
@@ -182,6 +185,46 @@ class AutomationVersionLockstepTest(unittest.TestCase):
                 "X",
             ),
             {"a": "NEW"},
+        )
+
+
+class AppMasterVersionLockstepTest(unittest.TestCase):
+    """intake-brief.ts stamps the app-master prompt version into every spec it composes;
+    it must equal appmaster.py's, or the Art. 12 trace names a prompt that did not
+    produce the artifact."""
+
+    def test_prompt_version_matches_python(self) -> None:
+        self.assertEqual(
+            _extract_ts_const(INTAKE_BRIEF_TS.read_text(encoding="utf-8"), "APP_MASTER_PROMPT_VERSION"),
+            appmaster.APP_MASTER_PROMPT_VERSION,
+            "intake-brief.ts APP_MASTER_PROMPT_VERSION drifted from appmaster.py — bump both.",
+        )
+
+    def test_rubric_version_is_imported_not_retyped(self) -> None:
+        text = _strip_ts_comments(INTAKE_BRIEF_TS.read_text(encoding="utf-8"))
+        self.assertNotIn('"app-master-rubric-v1"', text)
+        self.assertIn("rubricVersion: APP_MASTER_RUBRIC_VERSION", text)
+        backbone = (REPO_ROOT / "app" / "_lib" / "app-master" / "backbone.ts").read_text(encoding="utf-8")
+        self.assertEqual(
+            _extract_ts_const(backbone, "APP_MASTER_RUBRIC_VERSION"), appmaster.APP_MASTER_RUBRIC_VERSION
+        )
+
+
+class GeminiDefaultModelLockstepTest(unittest.TestCase):
+    """The Gemini default model id is declared once (capabilities.DEFAULT_MODELS);
+    gemini.py reads it and usage.ts (TS-direct GitHub review call) mirrors it."""
+
+    def test_gemini_py_reads_the_registry(self) -> None:
+        from pipeline.jobfit import gemini
+
+        self.assertEqual(gemini.GEMINI_MODEL, DEFAULT_MODELS["gemini"])
+
+    def test_usage_ts_matches_the_registry(self) -> None:
+        self.assertEqual(
+            _extract_ts_const(USAGE_TS.read_text(encoding="utf-8"), "GEMINI_MODEL"),
+            DEFAULT_MODELS["gemini"],
+            "app/_lib/github/usage.ts GEMINI_MODEL drifted from capabilities.DEFAULT_MODELS['gemini'] — "
+            "move both, and the price rows in base.py MTOK_PRICES + usage.ts.",
         )
 
 
