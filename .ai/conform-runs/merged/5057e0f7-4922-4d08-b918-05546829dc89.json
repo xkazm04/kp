@@ -1,0 +1,150 @@
+{
+  "schema": "conform-run/1",
+  "worker": "5057e0f7-4922-4d08-b918-05546829dc89",
+  "subject": "optional-dependency-degradation",
+  "evaluatedAt": "2026-10-16T04:30:52.001494+00:00",
+  "provider": "agy",
+  "model": "gemini-3.8-flash-high",
+  "pairs": [
+    {
+      "context": "candidate-apply-api",
+      "subject": "optional-dependency-degradation",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evidence": "app/api/intake/[id]/voice-connect/route.ts:90 Unconfigured voice relays reject requests with an explicit INTAKE_VOICE_NOT_CONFIGURED refusal and return missing environment variables as machine data instead of failing generically.",
+      "techniques": [
+        {
+          "technique": "capability-honest-refusal",
+          "verdict": "conformant",
+          "evidence": "app/api/intake/[id]/voice-connect/route.ts:90 Returns 503 with closed-union refusal code INTAKE_VOICE_NOT_CONFIGURED and structured missing configuration variables."
+        },
+        {
+          "technique": "absent-degrades-malformed-fails-fast",
+          "verdict": "conformant",
+          "evidence": "app/api/apply/[id]/route.ts:340 An absent candidate email gracefully degrades to profile creation for later enrichment, while a present malformed email is rejected with 400 APPLY_EMAIL_INVALID."
+        },
+        {
+          "technique": "fallback-retirement-condition",
+          "verdict": "conformant",
+          "evidence": "app/api/intake/[id]/message/route.ts:235 Degraded dialog turns emit explicit fallbackReason metadata on the wire so fallback usage remains observable and measurable."
+        },
+        {
+          "technique": "refusal-is-not-failure",
+          "verdict": "conformant",
+          "evidence": "app/api/intake/[id]/message/route.ts:241 Client request aborts are caught and answered with status 499 rather than logging an incident as a storage or service fault."
+        },
+        {
+          "technique": "probe-the-grant-not-the-config",
+          "verdict": "conformant",
+          "evidence": "app/api/apply/[id]/route.ts:135 Capability tokens are granted only when the caller demonstrates possession through a lead token rather than bare unauthenticated matching criteria."
+        }
+      ]
+    },
+    {
+      "context": "llm-api",
+      "subject": "optional-dependency-degradation",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evidence": "app/api/llm/test/verdict.ts:32 LLM test errors are mapped to a closed union of machine codes separating permanent unavailability from transient provider issues without leaking raw server text.",
+      "techniques": [
+        {
+          "technique": "capability-honest-refusal",
+          "verdict": "conformant",
+          "evidence": "app/api/llm/test/verdict.ts:32 Maps LLM test errors into a closed token union (TestErrorCode), separating permanent absence from transient provider issues."
+        },
+        {
+          "technique": "probe-the-grant-not-the-config",
+          "verdict": "conformant",
+          "evidence": "app/api/llm/keys/test/route.ts:58 Builds an isolated configuration probe environment for the exact provider key under test with no fallback routing."
+        },
+        {
+          "technique": "refusal-is-not-failure",
+          "verdict": "conformant",
+          "evidence": "app/api/automation/[task]/route.ts:63 Handles intentional automation task refusals via structured machine codes rather than propagating them as server failures."
+        },
+        {
+          "technique": "absent-degrades-malformed-fails-fast",
+          "verdict": "conformant",
+          "evidence": "app/api/llm/keys/route.ts:103 Refuses to save provider keys fast with MODEL_KEY_ENCRYPTION_UNCONFIGURED if KP_SECRET is unset rather than failing late during encryption."
+        },
+        {
+          "technique": "misconfiguration-never-reaches-a-fallback",
+          "verdict": "conformant",
+          "evidence": "app/api/llm/config/route.ts:14 Model pinning enforces that invalid configurations fail subsequent LLM calls loudly at resolve time rather than silently degrading."
+        }
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "optional-dependency-degradation",
+      "context": "db-core-migrations",
+      "reason": "SQLite is the mandatory primary database engine rather than an optional dependency (integrity failure halts process boot with DB_INTEGRITY_FAILED); schema migrations and integrity checks are core invariants."
+    },
+    {
+      "subject": "optional-dependency-degradation",
+      "context": "group-eval-shared",
+      "reason": "The context contains only frontend/shared type definitions and URL parameter grammar for candidate comparison, with no external service or infrastructure dependencies to degrade."
+    },
+    {
+      "subject": "optional-dependency-degradation",
+      "context": "llm-config-provider",
+      "reason": "withdrawn after review: reviewer (sonnet): The deviation rests on hostOf in app/_lib/offline.ts, which is not among the context's llm-* files. It is also the wrong target: hostOf only builds an offline-mode allowlist, and its doc comment says a malformed value 'simply fails to widen the allowlist rather than throwing', so it fails closed. It"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-16T04:30:52.001494+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "optional-dependency-degradation"
+      ],
+      "techniques": [
+        "absent-degrades-malformed-fails-fast",
+        "capability-honest-refusal",
+        "fallback-retirement-condition",
+        "probe-the-grant-not-the-config",
+        "refusal-is-not-failure"
+      ],
+      "deviations": 0,
+      "context": "candidate-apply-api",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-16T04:30:52.001494+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "optional-dependency-degradation"
+      ],
+      "techniques": [
+        "absent-degrades-malformed-fails-fast",
+        "capability-honest-refusal",
+        "misconfiguration-never-reaches-a-fallback",
+        "probe-the-grant-not-the-config",
+        "refusal-is-not-failure"
+      ],
+      "deviations": 0,
+      "context": "llm-api",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-16T04:30:52.001494+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "optional-dependency-degradation"
+      ],
+      "techniques": [
+        "absent-degrades-malformed-fails-fast",
+        "guarded-singleton-accessor",
+        "misconfiguration-never-reaches-a-fallback",
+        "probe-the-grant-not-the-config"
+      ],
+      "deviations": 1,
+      "context": "llm-config-provider",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    }
+  ]
+}

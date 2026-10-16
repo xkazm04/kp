@@ -20929,7 +20929,11 @@
           "revision": 17,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "app/api/llm/test/verdict.ts:32 LLM test errors are mapped to a closed union of machine codes separating permanent unavailability from transient provider issues without leaking raw server text.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:641cb6bf0b2c6916",
+          "evaluatedRevision": 17
         },
         {
           "subject": "agent-runtime-assembly",
