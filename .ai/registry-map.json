@@ -8161,7 +8161,11 @@
           "revision": 10,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/i18n/catalog-check.mjs:217 Carried literals are checked by substring presence, allowing changed numbers and missing repeated occurrences despite the standard requiring identity and count.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:f00a2dbd4e8fdce1",
+          "evaluatedRevision": 10
         },
         {
           "subject": "i18n",

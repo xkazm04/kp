@@ -7146,6 +7146,27 @@
           "evidence": "app/_lib/pipeline-command.ts:113 Missing scores are excluded without numeric coercion, but the returned target list silently drops them instead of emitting named unscored spared outcomes."
         }
       ]
+    },
+    "65792460-c7df-4a0e-ad4b-224ea3acd82b/copy-quality-gates": {
+      "context": "ci-doc-gates",
+      "subject": "copy-quality-gates",
+      "bundle": "localization",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T02:22:38.065Z",
+      "worker": "59987069-12c0-4042-938c-5de96b9bdd0f",
+      "techniques": [
+        {
+          "technique": "format-aware-check-catalog",
+          "verdict": "deviation",
+          "evidence": "scripts/i18n/catalog-check.mjs:217 Direct calls returned [] for both literalErrors('12 12', '12') and literalErrors('12', '312'); multiplicity and literal identity are not enforced."
+        },
+        {
+          "technique": "rendered-string-extraction",
+          "verdict": "deviation",
+          "evidence": "scripts/i18n/catalog-check.mjs:236 The typography check receives the stored message directly; this path does not expand ICU branches, substitute typed placeholders or extract rendered samples before checking copy."
+        }
+      ]
     }
   }
 }
