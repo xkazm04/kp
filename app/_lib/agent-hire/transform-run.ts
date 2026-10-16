@@ -1,5 +1,3 @@
-import { writeFile } from "node:fs/promises";
-import path from "node:path";
 import { saveAgentFitSpec, type AgentFitSpecRecord } from "../db/agents";
 import { getJob } from "../db/jobs";
 import { ensureDb } from "../db/core";
@@ -8,7 +6,7 @@ import { getRoleRubric } from "../db/role-rubrics";
 import { DEFAULT_WORKSPACE_ID, getWorkspaceDefaultLocale } from "../db/workspaces";
 import type { Locale } from "@/i18n/locales";
 import { buildLlmConfigEnv } from "../llm-config";
-import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, PipelineError, spawnPython } from "../python-runner";
+import { runJobfitCli } from "../python-runner";
 import { fetchConnectorCatalog } from "./bridge-client";
 
 // Job → AgentFitSpec transform runner (WP1). The runDevcaseCli envelope, one
@@ -119,6 +117,11 @@ export function persistAgentFit(
   })();
 }
 
+/** Wall-clock deadline for one agent_fit spawn. The transform chains several LLM steps
+ *  (fit, spec, budget, metrics), so it gets more headroom than a single analyze run
+ *  (ANALYZE_TIMEOUT_MS = 300s) but a real deadline, not the 10-minute hang backstop. */
+export const AGENT_FIT_TIMEOUT_MS = 420_000;
+
 export async function runAgentFit(
   jobId: string,
   signal?: AbortSignal,
@@ -134,29 +137,26 @@ export async function runAgentFit(
   // the transform itself must never depend on the bridge being alive.
   const catalog = await fetchConnectorCatalog();
 
-  const workdir = await createWorkdir();
-  try {
-    const jobPath = path.join(workdir, "job.json");
-    const catalogPath = path.join(workdir, "catalog.json");
-    await writeFile(jobPath, JSON.stringify(job), "utf-8");
-    await writeFile(catalogPath, JSON.stringify(catalog.connectors), "utf-8");
-    // KP_LLM_CONFIG so the agent_fit use case resolves BYOM keys / model routing.
-    const { result } = spawnPython(agentFitArgs(jobPath, catalogPath, lang), { signal, env: buildLlmConfigEnv() });
-    const { stdout, stderr, exitCode } = await result;
-    if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
-    const envelope = toAgentFitEnvelope(parsePythonJson<unknown>(stdout, stderr));
+  // KP_LLM_CONFIG so the agent_fit use case resolves BYOM keys / model routing.
+  const raw = await runJobfitCli<unknown>(
+    (paths) => agentFitArgs(paths.job, paths.catalog, lang),
+    {
+      inputs: { job, catalog: catalog.connectors },
+      timeoutMs: AGENT_FIT_TIMEOUT_MS,
+      signal,
+      env: buildLlmConfigEnv(),
+    }
+  );
+  const envelope = toAgentFitEnvelope(raw);
 
-    const { record, entryId } = persistAgentFit(jobId, envelope, workspaceId);
-    return {
-      record,
-      entryId,
-      result: envelope.result,
-      source: envelope.source,
-      perStepSources: envelope.perStepSources ?? {},
-      fallbackReason: envelope.fallbackReason ?? {},
-      catalogSource: catalog.source,
-    };
-  } finally {
-    await cleanupWorkdir(workdir);
-  }
+  const { record, entryId } = persistAgentFit(jobId, envelope, workspaceId);
+  return {
+    record,
+    entryId,
+    result: envelope.result,
+    source: envelope.source,
+    perStepSources: envelope.perStepSources ?? {},
+    fallbackReason: envelope.fallbackReason ?? {},
+    catalogSource: catalog.source,
+  };
 }

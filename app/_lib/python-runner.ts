@@ -721,3 +721,52 @@ export function parseStderrError(stderr: string, exitCode: number | null): Pytho
     code: codeForStatus(status),
   };
 }
+
+// ── runJobfitCli: the one spawn envelope ──────────────────────────────────────
+// Every jobfit CLI runner used to hand-copy createWorkdir → write JSON args →
+// spawnPython → exit check → parse → cleanup, and the copies drifted: 14 runners
+// passed no timeoutMs and so inherited the 10-minute DEFAULT_TIMEOUT_MS hang
+// backstop (analyze-run.ts documents the defect that caused). `timeoutMs` is REQUIRED
+// here, so a missing deadline is a type error instead of a review finding.
+
+export type RunJobfitCliOptions<T> = {
+  /** JSON files to write into the workdir, keyed by name (`job` → `job.json`). Their
+   *  absolute paths reach `args` when it is a function. */
+  inputs?: Record<string, unknown>;
+  /** REQUIRED wall-clock deadline in ms (a deadline, not the default hang backstop). */
+  timeoutMs: number;
+  signal?: AbortSignal;
+  env?: Record<string, string | undefined>;
+  /** Narrow the parsed stdout JSON into the caller's type. Defaults to a plain assertion
+   *  of `T`, which is only as safe as the CLI's contract; pass a guard at a data boundary. */
+  parse?: (raw: unknown) => T;
+};
+
+/** Run a jobfit CLI to completion: fresh workdir, JSON input files, spawn with the
+ *  required deadline, non-zero exit => PipelineError(parseStderrError), parse stdout,
+ *  and the workdir is removed on success AND failure. `args` is the argv, or a function
+ *  of the input file paths (and the workdir) when flags need them. */
+export async function runJobfitCli<T>(
+  args: string[] | ((paths: Record<string, string>, workdir: string) => string[]),
+  opts: RunJobfitCliOptions<T>,
+): Promise<T> {
+  const workdir = await createWorkdir();
+  try {
+    const paths: Record<string, string> = {};
+    for (const [name, value] of Object.entries(opts.inputs ?? {})) {
+      const file = path.join(workdir, `${name}.json`);
+      await writeFile(file, JSON.stringify(value), "utf-8");
+      paths[name] = file;
+    }
+    const argv = typeof args === "function" ? args(paths, workdir) : args;
+    const { result } = spawnPython(argv, { timeoutMs: opts.timeoutMs, signal: opts.signal, env: opts.env });
+    const { stdout, stderr, exitCode } = await result;
+    if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
+    const raw = parsePythonJson<unknown>(stdout, stderr);
+    // Boundary: stdout is the CLI's JSON envelope; without a `parse` guard the caller
+    // vouches for its shape via T.
+    return opts.parse ? opts.parse(raw) : (raw as T);
+  } finally {
+    await cleanupWorkdir(workdir);
+  }
+}
