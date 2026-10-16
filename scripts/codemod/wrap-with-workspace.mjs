@@ -120,7 +120,13 @@ for (const file of files) {
   const IMPORT_LINE = "import { " + [...wrappersUsed].sort().join(", ") + ' } from "@/app/_lib/auth/workspace-context";';
   // Imports: swap the resolver import when nothing else uses it, else add ours.
   const resolverImport = /import\s*\{\s*currentWorkspace\s*\}\s*from\s*"[^"]+";?(\r?\n)/;
-  const stillUses = /\bcurrentWorkspace\b/.test(out.replace(resolverImport, ""));
+  // Identifier uses only (a mention in a comment must not keep the import alive).
+  let stillUses = false;
+  (function scan(n) {
+    if (ts.isImportDeclaration(n)) return;
+    if (ts.isIdentifier(n) && n.text === "currentWorkspace") stillUses = true;
+    ts.forEachChild(n, scan);
+  })(ts.createSourceFile(file, out, ts.ScriptTarget.Latest, true));
   if (!stillUses && resolverImport.test(out)) {
     out = out.replace(resolverImport, IMPORT_LINE + "$1");
   } else {
