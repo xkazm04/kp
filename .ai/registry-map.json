@@ -8477,7 +8477,11 @@
           "revision": 6,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/companion-blocks.ts:72 A missing chart point is deleted and the later numbers stay, so they are drawn against earlier category labels instead of the series being dropped.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:f3ecee1630629b34",
+          "evaluatedRevision": 6
         },
         {
           "subject": "mcp-tools",
@@ -8681,7 +8685,11 @@
           "revision": 6,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/companion_cli.py:372 A companion turn is one blocking completion whose standing prompt teaches tone, blocks, voice, and actions, and never a progress line the runtime could lift while the operator waits.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:f3ecee1630629b34",
+          "evaluatedRevision": 6
         }
       ],
       "governance": "governed"
@@ -28288,7 +28296,11 @@
           "revision": 6,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/shell/companion/companionPrefs.ts:23 Dock and voice are two drawings of one conversation, so a long answer and a pending choice are not routed by whether the operator must read or only decide, and the collapsed mark cannot answer a proposal.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:f3ecee1630629b34",
+          "evaluatedRevision": 6
         },
         {
           "subject": "mcp-tools",
@@ -28469,7 +28481,11 @@
           "revision": 6,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/shell/companion/voice/VoiceParts.tsx:54 Tables and charts scroll inside the voice strip, so the surface the operator keeps up while working paginates reading material instead of sending them to the conversation.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:f3ecee1630629b34",
+          "evaluatedRevision": 6
         },
         {
           "subject": "prompt-assembly",
