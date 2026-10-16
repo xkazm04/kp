@@ -7541,6 +7541,83 @@
           "evidence": "pipeline/jobfit/tests/test_whole_token_classification.py:59 Asserts whole-token matching excludes short taxonomy surfaces from matching inside unrelated words."
         }
       ]
+    },
+    "c780fee6-52c0-484e-b383-875b9aa63a1e/candidate-self-scheduling": {
+      "context": "schedule-calendar-invites",
+      "subject": "candidate-self-scheduling",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T22:23:03.377Z",
+      "worker": "58d504bf-ba53-4b20-945f-ef9523feb934",
+      "techniques": [
+        {
+          "technique": "reschedule-cap-with-a-recruiter-bypass",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/schedule/ScheduleInviteRecruiterControls.tsx:6 Recruiter controls in the schedule lifecycle panel lack any reschedule affordance to repair mistaken bookings on the recruiter's authority."
+        },
+        {
+          "technique": "propose-your-own-times-escalation",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/schedule/ScheduleInviteAttentionSection.tsx:72 Recruiters are only offered a binary decline button without an affordance to offer alternative dates or negotiate times."
+        },
+        {
+          "technique": "server-authored-slot-labels",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/schedule/ScheduleInviteAttentionSection.tsx:57 Proposal time chips are rendered using server-formatted labels via slotLabel."
+        },
+        {
+          "technique": "withdraw-is-not-cancel",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/schedule/ScheduleInviteRecruiterControls.tsx:65 The recruiter controls cleanly separate company-initiated cancellation from candidate withdrawals."
+        }
+      ]
+    },
+    "709a141d-f0e3-40a9-9afa-120c1b2f726c/candidate-self-scheduling": {
+      "context": "calendar-scheduling",
+      "subject": "candidate-self-scheduling",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T22:23:03.377Z",
+      "worker": "58d504bf-ba53-4b20-945f-ef9523feb934",
+      "techniques": [
+        {
+          "technique": "propose-your-own-times-escalation",
+          "verdict": "deviation",
+          "evidence": "app/_lib/schedule-slots.ts:309 The slot validation engine drops candidate-proposed alternative times on weekends, strictly limiting proposals to standard business weekdays."
+        },
+        {
+          "technique": "server-authored-slot-labels",
+          "verdict": "conformant",
+          "evidence": "app/_lib/schedule-slots.ts:197 Slot labels are minted purely on the server from the instant and anchor timezone."
+        },
+        {
+          "technique": "structural-slot-validation-on-submit",
+          "verdict": "conformant",
+          "evidence": "app/_lib/schedule-slots.ts:249 offeredSlotFor enforces structural set membership across time, window, business day, and exact minute without range heuristics."
+        },
+        {
+          "technique": "reschedule-cap-with-a-recruiter-bypass",
+          "verdict": "conformant",
+          "evidence": "app/_lib/schedule-store.ts:641 Recruiter moves bypass incrementing the candidate's reschedule count in the database update transaction."
+        },
+        {
+          "technique": "withdraw-is-not-cancel",
+          "verdict": "deviation",
+          "evidence": "app/_lib/schedule-store.ts:717 Candidate withdrawal sets the terminal state 'declined' irreversibly with no mechanism to undo while the round remains active."
+        },
+        {
+          "technique": "interviewer-timezone-anchoring",
+          "verdict": "deviation",
+          "evidence": "app/_lib/schedule-slots.ts:130 The scheduling engine relies on a global environment variable rather than storing an explicit timezone identifier on the invitation."
+        },
+        {
+          "technique": "adjustments-asked-at-the-booking-step",
+          "verdict": "deviation",
+          "evidence": "app/_lib/schedule-store.ts:191 The schedule store and invitation record lack any schema fields for storing or routing candidate adjustment requests."
+        }
+      ]
     }
   }
 }

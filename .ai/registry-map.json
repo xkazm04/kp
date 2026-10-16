@@ -6253,7 +6253,11 @@
           "revision": 2,
           "changedAt": "2026-09-28",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/schedule-slots.ts:310 The scheduling engine automatically invalidates candidate-proposed times that fall outside 08:00–18:00 business hours, defeating the purpose of the proposal escalation mechanism.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:5f91a309371dfe89",
+          "evaluatedRevision": 2
         },
         {
           "subject": "guest-execution-bounding",
@@ -26847,7 +26851,11 @@
           "revision": 2,
           "changedAt": "2026-09-28",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/hiring/schedule/ScheduleInviteRecruiterControls.tsx:6 The recruiter controls omit any recruiter-side reschedule capability, eliminating the recruiter bypass path needed to correct scheduling errors without debiting candidate attempts.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:5f91a309371dfe89",
+          "evaluatedRevision": 2
         },
         {
           "subject": "eval-harness",
