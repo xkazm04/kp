@@ -24,7 +24,7 @@ import {
   compareDecisions,
   matchesSubject,
   type SubjectScan,
-} from "@/app/features/insights/analytics/analyticsDecisionLogTypes";
+} from "@/app/_lib/analytics-decision-types";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 

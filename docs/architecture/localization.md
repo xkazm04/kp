@@ -294,7 +294,7 @@ SSR and the *browser's* after hydration: the same "bare `undefined`" bug the
 rule above names, with the extra sting that the two renders can disagree.
 `Intl.Collator` instances are cached per locale rather than built per
 comparison. Modules that sort outside this hook
-(`analyticsDecisionLogTypes.ts`, `profileRosterView.ts`) hold their own
+(`app/_lib/analytics-decision-types.ts`, `profileRosterView.ts`) hold their own
 collator and take the locale as a parameter for the same reason.
 
 Some places format for a reader who is **not** the UI user, and take the

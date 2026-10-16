@@ -45,7 +45,7 @@ import {
   toggleExpandedId,
   type Decision,
   type DecisionPage,
-} from "../analyticsDecisionLogTypes";
+} from "@/app/_lib/analytics-decision-types";
 
 /** Every data column plus the spanning detail row. */
 const COLUMN_COUNT = 6;

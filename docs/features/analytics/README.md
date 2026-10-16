@@ -826,7 +826,7 @@ is disclosed via `subjectScan.capped`, above which the table states which most-r
 of how many were searched.
 
 **One clock, named.** Both tables render through `formatAuditTime(iso, locale, zone)`
-(`analyticsDecisionLogTypes.ts`) where the zone is the reader's resolved time zone, print
+(`app/_lib/analytics-decision-types.ts`) where the zone is the reader's resolved time zone, print
 `Times in {zone}` beside the count, and keep raw ISO in each cell's `title`. The CSV carries
 **both** a rendered `Time ({zone})` matching the screen and `Time (ISO, UTC)` for the machine;
 previously the screen showed an unmarked UTC instant while the export wrote true ISO, so the two

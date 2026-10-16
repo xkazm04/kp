@@ -12,7 +12,7 @@ import { buildUrl, clearedTabScopedParams } from "@/app/features/shell/tabs";
 import { matchVerdictReasons, waveReasonText } from "@/app/_lib/decision-attribution";
 import { MATCH_VERDICT_KIND } from "@/app/_lib/match-verdict";
 import type { MatchReasonsTranslator } from "@/app/features/insights/matrix/focus/matchReasons";
-import { resolveAuditTimeZone } from "./analyticsDecisionLogTypes";
+import { resolveAuditTimeZone } from "@/app/_lib/analytics-decision-types";
 import { DecisionRecordsTable } from "./sections/DecisionRecordsTable";
 // `import type` only — decision-record-store has server imports; types are erased.
 import type { DecisionRecord, ChainVerdict } from "@/app/_lib/decision-record-store";

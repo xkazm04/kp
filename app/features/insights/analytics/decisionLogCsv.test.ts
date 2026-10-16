@@ -9,7 +9,7 @@ import {
   type DecisionCsvRender,
   type DecisionCsvScope,
 } from "./decisionLogCsv";
-import type { Decision, DecisionPage } from "./analyticsDecisionLogTypes";
+import type { Decision, DecisionPage } from "@/app/_lib/analytics-decision-types";
 
 // The decision log's export is an AUDIT artifact: two surfaces offer it (the
 // Analytics table, the Decisions tab header) and a regulator may receive it. What
