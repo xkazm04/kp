@@ -1509,6 +1509,9 @@
     "ROLE_RUN_NOT_FOUND": "Tento průběh role se nepodařilo najít.",
     "ROLE_RUN_GATE_INVALID": "Uveďte bránu (zamítnutí, pozvání na pohovor nebo nabídka), větev kandidáta a při potvrzení také své rozhodnutí.",
     "ROLE_RUN_GATE_NOT_PARKED": "Tento kandidát na této bráně nečeká. Načtěte průběh znovu a zjistěte, v jakém je stavu.",
+    "ROLE_RUN_START_INVALID": "Uveďte roli, pro kterou se má průběh spustit.",
+    "ROLE_RUN_JOB_NOT_FOUND": "Tato role není k dispozici.",
+    "ROLE_RUN_BUSY": "Tento průběh se právě posouvá dál. Za chvíli stránku načtěte znovu a uvidíte, v jakém je stavu.",
     "MATRIX_BUILD_FAILED": "Matici vhodnosti se nepodařilo sestavit. Zkuste to prosím znovu.",
     "MATCH_REASONING_FAILED": "Tuto shodu se nepodařilo vysvětlit. Zkuste to prosím znovu.",
     "MATRIX_INPUT_INVALID": "Z tohoto požadavku nešlo matici vhodnosti sestavit.",
@@ -1789,6 +1792,7 @@
     "AGENT_HIRE_FROM_NEED_FAILED": "Roli z této potřeby se nepodařilo sestavit a odeslat. Zkuste to prosím znovu.",
     "ROLE_SLATE_FAILED": "Seznam kandidátů pro tuto roli se nepodařilo načíst. Zkuste to prosím znovu.",
     "ROLE_RUN_GATE_FAILED": "Bránu tohoto průběhu role se nepodařilo načíst ani zaznamenat. Zkuste to prosím znovu.",
+    "ROLE_RUN_ADVANCE_FAILED": "Průběh role se nepodařilo spustit ani posunout dál. Zkuste to prosím znovu.",
     "HIRE_AUTOMATION_DISABLED": "Strojové najímání není v této instalaci povoleno.",
     "HIRE_UNAUTHORIZED": "Neautorizováno.",
     "HIRE_NEED_REQUIRED": "Popište potřebu: práci, důkaz, že je potřeba, a co bude znamenat hotovo.",
@@ -3789,7 +3793,8 @@
         "jobseekerScan": "Sken pracovního trhu",
         "interviewRecordingRetention": "Uchovávání záznamů pohovorů",
         "gigScan": "Sken nabídek zakázek",
-        "gigSync": "Synchronizace běhů zakázek"
+        "gigSync": "Synchronizace běhů zakázek",
+        "roleRunAdvance": "Posun průběhů rolí"
       },
       "unverified": "Nejdřív spusťte jeden sken ručně. Časovač lze zapnout, až sken proběhne úspěšně.",
       "jobToggleTitle": "Pozastavit nebo obnovit: {job}",

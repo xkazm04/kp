@@ -1509,6 +1509,9 @@
     "ROLE_RUN_NOT_FOUND": "That role run could not be found.",
     "ROLE_RUN_GATE_INVALID": "Name the gate (rejection, interview invite or offer), the candidate branch and, to commit, your decision.",
     "ROLE_RUN_GATE_NOT_PARKED": "That candidate is not waiting at this gate. Reload the run to see where it stands.",
+    "ROLE_RUN_START_INVALID": "Name the role this run should start for.",
+    "ROLE_RUN_JOB_NOT_FOUND": "That role isn't available.",
+    "ROLE_RUN_BUSY": "This run is already being advanced. Reload in a moment to see where it stands.",
     "MATRIX_BUILD_FAILED": "Could not build the fit matrix. Please try again.",
     "MATCH_REASONING_FAILED": "Could not explain that match. Please try again.",
     "MATRIX_INPUT_INVALID": "The fit matrix could not be built from that request.",
@@ -1789,6 +1792,7 @@
     "AGENT_HIRE_FROM_NEED_FAILED": "Could not compose and dispatch a role from that need. Please try again.",
     "ROLE_SLATE_FAILED": "Could not load this role's candidate slate. Please try again.",
     "ROLE_RUN_GATE_FAILED": "Could not load or record this role-run gate. Please try again.",
+    "ROLE_RUN_ADVANCE_FAILED": "Could not start or advance this role run. Please try again.",
     "HIRE_AUTOMATION_DISABLED": "Machine hiring is not enabled on this installation.",
     "HIRE_UNAUTHORIZED": "Unauthorized.",
     "HIRE_NEED_REQUIRED": "Describe the need: the work, the evidence that it is needed, and what would count as done.",
@@ -3789,7 +3793,8 @@
         "jobseekerScan": "Job-market scan",
         "interviewRecordingRetention": "Interview recording retention",
         "gigScan": "Gig listing scan",
-        "gigSync": "Gig run sync"
+        "gigSync": "Gig run sync",
+        "roleRunAdvance": "Role run advance"
       },
       "unverified": "Run one scan by hand first. The timer can be switched on once a scan has succeeded.",
       "jobToggleTitle": "Pause or resume {job}",

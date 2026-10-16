@@ -22,6 +22,7 @@ export const SCHEDULER_JOB_NAMES = [
   "interview_recording_retention",
   "gig_scan",
   "gig_sync",
+  "role_run_advance",
 ] as const;
 export type SchedulerJobName = (typeof SCHEDULER_JOB_NAMES)[number];
 
@@ -83,6 +84,10 @@ export const SCHEDULER_JOBS: readonly SchedulerJobDef[] = [
   // a created schedule is not consent, and a deployment with no Personas pairing has
   // nothing to ask.
   { name: "gig_sync", labelKey: "gigSync", defaultIntervalMinutes: 15, defaultEnabled: false, fanOut: "per-workspace", requiresVerifiedRun: false },
+  // Role runs (ADR-0011): one live pass over every running run (role-run-live.ts tickRoleRuns).
+  // Every 5 minutes - a pass is a ledger read when nothing is runnable, and parks at the human
+  // gates and each run's LLM budget - but OFF by default: a pass may call a model.
+  { name: "role_run_advance", labelKey: "roleRunAdvance", defaultIntervalMinutes: 5, defaultEnabled: false, fanOut: "per-workspace", requiresVerifiedRun: false },
 ];
 
 export function schedulerJob(name: SchedulerJobName): SchedulerJobDef {

@@ -149,9 +149,7 @@ the run and count against its budget. Producers write no PII and resolve no gate
 
 ### The producers wired so far
 
-Compose them with `producerRunners([roleSpecProducer(), slateProducer(), screenProducer()])`
-and pass the result as `advanceRoleRun(id, { runners })`. Nothing composes them yet, so the
-default stays the keyless floor.
+`liveRoleRunRunners()` (`app/_lib/role-run-live.ts`) composes them as `producerRunners([roleSpecProducer(), slateProducer(), screenProducer()])`; it is the runner set every live trigger uses (below). `advanceRoleRun` itself keeps the keyless floor as its default, so tests and direct callers are unchanged. Of the three, only S0 calls a model today.
 
 | Stage | Producer | Uses a model? | What it adds over the floor |
 | --- | --- | --- | --- |
@@ -203,6 +201,18 @@ waited), reported separately.
 - `app/_lib/db/role-runs-store.test.ts` — the real schema: the unique index, `seq` ordering, tenancy in both directions, append-only history
 - `app/_lib/db/role-runs-tenancy.test.ts` — source guard: every ledger query is workspace-scoped, and nothing updates or deletes an artifact
 - `app/_lib/role-run-engine.test.ts` — the full JD → offer-draft run against real `jobs` and `pipeline_entries` rows, resume at a ceiling, the fan-out, and that no artifact carries a name the board row does carry
+
+## Live triggers
+
+A run is started and advanced by three doors, all of which call `advanceRoleRunLive` (`app/_lib/role-run-live.ts`): producers over the keyless floor, at most 60 stages per pass, the next pass resumes from the ledger.
+
+| Door | What it does |
+| --- | --- |
+| `POST /api/role-runs` `{ jobId, cycle? }` | Operator + `pipeline:write`. Gets or creates the run for (team, job, cycle) and takes one pass. 201 on create, 200 on resume. |
+| `POST /api/role-runs/[id]/advance` | Operator + `pipeline:write`. One pass over an existing run (after a gate was resolved, or the budget raised). |
+| Clock job `role_run_advance` | Scheduler registry, every 5 minutes, **off by default**. One pass over every `running` run of every team. |
+
+Start and advance share one rate limit (30 / 10 min / IP). Every pass stops at the three human gates (the Art. 22 commit path is untouched: no trigger resolves a gate) and at the per-run LLM budget. One pass per run at a time (in-process single-flight): a second trigger answers `409 ROLE_RUN_BUSY` (the clock skips it). A run id from another team is a 404. `KP_ROLE_RUN_LLM=0` / `KP_OFFLINE` / no provider keep every stage on the keyless floor.
 
 ## Known gaps
 

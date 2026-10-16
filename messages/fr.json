@@ -1509,6 +1509,9 @@
     "ROLE_RUN_NOT_FOUND": "Ce parcours de poste est introuvable.",
     "ROLE_RUN_GATE_INVALID": "Indiquez l'étape (refus, invitation à un entretien ou offre), la branche du candidat et, pour valider, votre décision.",
     "ROLE_RUN_GATE_NOT_PARKED": "Ce candidat n'attend pas à cette étape. Rechargez le parcours pour voir où il en est.",
+    "ROLE_RUN_START_INVALID": "Indiquez le poste pour lequel lancer ce parcours.",
+    "ROLE_RUN_JOB_NOT_FOUND": "Ce poste n'est pas disponible.",
+    "ROLE_RUN_BUSY": "Ce parcours est déjà en cours de traitement. Rechargez dans un instant pour voir où il en est.",
     "MATRIX_BUILD_FAILED": "Impossible de construire la matrice d'adéquation. Veuillez réessayer.",
     "MATCH_REASONING_FAILED": "Impossible d'expliquer cette correspondance. Veuillez réessayer.",
     "MATRIX_INPUT_INVALID": "La matrice d'adéquation n'a pas pu être construite à partir de cette demande.",
@@ -1789,6 +1792,7 @@
     "AGENT_HIRE_FROM_NEED_FAILED": "Impossible de composer et d'envoyer un rôle à partir de ce besoin. Veuillez réessayer.",
     "ROLE_SLATE_FAILED": "Impossible de charger la liste des candidats de ce rôle. Veuillez réessayer.",
     "ROLE_RUN_GATE_FAILED": "Impossible de charger ou d'enregistrer cette étape de validation du parcours. Veuillez réessayer.",
+    "ROLE_RUN_ADVANCE_FAILED": "Impossible de lancer ou de faire avancer ce parcours. Veuillez réessayer.",
     "HIRE_AUTOMATION_DISABLED": "Le recrutement automatisé n'est pas activé sur cette installation.",
     "HIRE_UNAUTHORIZED": "Non autorisé.",
     "HIRE_NEED_REQUIRED": "Décrivez le besoin : le travail, la preuve qu'il est nécessaire et ce qui vaudra pour terminé.",
@@ -3789,7 +3793,8 @@
         "jobseekerScan": "Analyse du marché de l’emploi",
         "interviewRecordingRetention": "Conservation des enregistrements d’entretien",
         "gigScan": "Analyse des missions",
-        "gigSync": "Synchronisation des missions en cours"
+        "gigSync": "Synchronisation des missions en cours",
+        "roleRunAdvance": "Avancement des parcours"
       },
       "unverified": "Lancez d’abord une analyse à la main. Le minuteur pourra être activé dès qu’une analyse aura réussi.",
       "jobToggleTitle": "Mettre en pause ou reprendre : {job}",

@@ -1918,6 +1918,30 @@ const ROUTES: RouteSpec[] = [
     servedBefore: 'jsonRefusal("ROLE_RUN_NOT_FOUND", 404)',
   },
   // ------------------------------------------------------------------
+  // ADDED with the routes (live role-run triggers, ADR-0011). Start and advance share ONE budget
+  // key: each pass can spend model calls. The missing-job 400, unknown-job and unknown-run 404s
+  // are served ahead of the throttle.
+  {
+    rel: "./role-runs/route.ts",
+    key: "`role-run-advance:${clientIpFrom(request.headers)}`",
+    limit: 30,
+    optsSrc: "ADVANCE_RATE_LIMIT",
+    optsDef: "const ADVANCE_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "getOrCreateRoleRun(",
+    servedBefore: 'jsonRefusal("ROLE_RUN_JOB_NOT_FOUND", 404)',
+  },
+  {
+    rel: "./role-runs/[id]/advance/route.ts",
+    key: "`role-run-advance:${clientIpFrom(request.headers)}`",
+    limit: 30,
+    optsSrc: "ADVANCE_RATE_LIMIT",
+    optsDef: "const ADVANCE_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };",
+    refusalCode: "TOO_MANY_REQUESTS",
+    expensive: "advanceRoleRunLive(id",
+    servedBefore: 'jsonRefusal("ROLE_RUN_NOT_FOUND", 404)',
+  },
+  // ------------------------------------------------------------------
   // ADDED with the routes (spark interview-feedback-letter, WP-beta). The recruiter's three
   // feedback-letter doors. Operator-gated with `pipeline:write`, but open mode makes the
   // operator gate a documented no-op, so each self-limits. Every limiter sits AFTER the

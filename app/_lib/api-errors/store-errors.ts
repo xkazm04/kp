@@ -280,6 +280,7 @@ export const STORE_ERRORS = {
   ROLE_SLATE_FAILED: "Could not load this role's candidate slate. Please try again.",
   // ADR-0011 — the role-run gate preview/commit doors.
   ROLE_RUN_GATE_FAILED: "Could not load or record this role-run gate. Please try again.",
+  ROLE_RUN_ADVANCE_FAILED: "Could not start or advance this role run. Please try again.",
   // The LLM usage ledger's row-level read (Insights -> Activity). It sits on
   // better-sqlite3, so a thrown message can carry the DB path and the failing SQL;
   // this route was the one door in the Models/Insights surface still forwarding

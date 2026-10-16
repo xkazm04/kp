@@ -171,6 +171,22 @@ const JOB_HANDLERS: Record<Exclude<SchedulerJobName, "policy_pass">, () => Promi
       log: `gig sync: ${totals.workspaces} workspace(s), drafted ${totals.drafted}, failed ${totals.failed}, running ${totals.running}, unreachable ${totals.unreachable}; outcomes accepted ${totals.accepted}, rejected ${totals.rejected}, unreadable ${totals.pollUnreadable}`,
     };
   },
+  // Role runs (ADR-0011): one live pass over every `running` run - producers over the keyless
+  // floor (role-run-live.ts). Parks at the three human gates and at each run's LLM budget; a
+  // run already being advanced by a route call is skipped. OFF by default (a created
+  // schedule is not consent to spend model calls). `null` when nothing was produced - at a
+  // short cadence an empty row every tick would be noise.
+  role_run_advance: async () => {
+    const { tickRoleRuns } = await import("./app/_lib/role-run-live");
+    const t = await tickRoleRuns();
+    if (t.produced === 0 && t.failed === 0 && t.parkedOnBudget === 0) return null;
+    if (t.failed > 0 && t.produced === 0) throw new Error(`role_run_advance: ${t.failed} run(s) failed to advance`);
+    return {
+      status: "ok",
+      summary: t,
+      log: `role runs: ${t.runs} running, ${t.produced} stage(s) produced, ${t.parkedOnBudget} parked on budget, ${t.failed} failed`,
+    };
+  },
 };
 
 

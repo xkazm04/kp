@@ -699,6 +699,12 @@ export const REFUSAL_ERRORS = {
   ROLE_RUN_GATE_INVALID: "Name the gate (rejection, interview invite or offer), the candidate branch and, to commit, your decision.",
   /** The branch is not parked at the named gate (409). Nothing was spent. */
   ROLE_RUN_GATE_NOT_PARKED: "That candidate is not waiting at this gate. Reload the run to see where it stands.",
+  /** POST /api/role-runs named no job (400). */
+  ROLE_RUN_START_INVALID: "Name the role this run should start for.",
+  /** The job to start a run for is not visible to this team (404). */
+  ROLE_RUN_JOB_NOT_FOUND: "That role isn't available.",
+  /** A pass over this run is already in flight (409); nothing was started. */
+  ROLE_RUN_BUSY: "This run is already being advanced. Reload in a moment to see where it stands.",
   /** The board's column axis changed since the composer read it (409) — refused BEFORE
    *  anybody is moved, since the stage ids the mapping names may no longer exist. */
   PIPELINE_AXIS_STALE: "Someone saved a newer version of this pipeline. Reload and make your change again.",
