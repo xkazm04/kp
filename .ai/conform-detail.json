@@ -6951,6 +6951,201 @@
           "evidence": "app/_components/table/useTableSort.ts:118 Sorting consumes the active UI locale; directory searches found no credential or environment configuration readers."
         }
       ]
+    },
+    "01537eaf-44d0-4058-8141-9172d479c156/bulk-adverse-action-governance": {
+      "context": "screening-fairness",
+      "subject": "bulk-adverse-action-governance",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T01:54:47.754Z",
+      "worker": "033c2a52-c848-4e18-85ff-2b8670657702",
+      "techniques": [
+        {
+          "technique": "preview-then-approve-the-signed-set",
+          "verdict": "deviation",
+          "evidence": "app/_lib/screen-wave-approval.ts:81 Set signing, policy binding, exclusions and expiry exist, but the spend ledger is process-local rather than durable or shared."
+        },
+        {
+          "technique": "small-cohort-floor-with-no-silent-exemption",
+          "verdict": "deviation",
+          "evidence": "app/_lib/screen-wave.ts:562 Window flooring and effective thresholds exist, but the wave does not seal an insufficient-sample condition or the required role-family and stage pooling keys."
+        },
+        {
+          "technique": "tie-safe-cutoff-resolved-toward-the-candidate",
+          "verdict": "conformant",
+          "evidence": "app/_lib/screen-wave.ts:204 Calls the inspected helper that walks a straddling tie backwards; the wave records the adjusted count and explains spared ties."
+        },
+        {
+          "technique": "unscored-excluded-never-coerced",
+          "verdict": "deviation",
+          "evidence": "app/_lib/screen-wave.test.ts:99 This fixture commits a rejection with one of three candidates unscored; exclusion and explicit keep outcomes exist, but the required high-unscored-share refusal does not."
+        }
+      ]
+    },
+    "b564f01b-cf9d-42a8-8cf7-08ec2311c9c5/bulk-adverse-action-governance": {
+      "context": "decisions-screen-wave-logic",
+      "subject": "bulk-adverse-action-governance",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T01:54:47.754Z",
+      "worker": "033c2a52-c848-4e18-85ff-2b8670657702",
+      "techniques": [
+        {
+          "technique": "cohort-drift-forces-a-fresh-review",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/decisions/decisionsScreenWaveMachine.ts:104 The replacement preview preserves a refusal notice but overwrites the previous preview without retaining a named membership or policy delta."
+        },
+        {
+          "technique": "preview-then-approve-the-signed-set",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/decisions/decisionsScreenWaveMachine.ts:150 Changing a per-person exclusion requests a fresh preview; the reducer separately retains the exclusions associated with the displayed approval token."
+        },
+        {
+          "technique": "reversal-queue-that-reads-the-sealed-reason",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/decisions/decisionsQueueTypes.ts:12 The reason model omits the original sealed rationale and supports reconstruction through current catalogs instead."
+        },
+        {
+          "technique": "tie-safe-cutoff-resolved-toward-the-candidate",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/decisions/decisionsPeerCompare.ts:65 This calculation supplies informational peer standing, not an adverse selection cutoff."
+        },
+        {
+          "technique": "unscored-excluded-never-coerced",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/decisions/decisionsPeerCompare.ts:30 The inspected peer-score path preserves absence for informational comparison; it does not select candidates for rejection."
+        }
+      ]
+    },
+    "03de9bcc-53c7-4571-9782-d203eb627b06/bulk-adverse-action-governance": {
+      "context": "decisions-review-ui",
+      "subject": "bulk-adverse-action-governance",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T01:54:47.754Z",
+      "worker": "033c2a52-c848-4e18-85ff-2b8670657702",
+      "techniques": [
+        {
+          "technique": "cohort-drift-forces-a-fresh-review",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/decisions/useDecisionsScreenWave.ts:98 The UI triggers another review after refusal, but receives and displays only a refusal message rather than identifying who or what changed."
+        },
+        {
+          "technique": "preview-then-approve-the-signed-set",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/decisions/useDecisionsScreenWave.ts:88 Commit echoes the displayed preview's token and associated exclusions; the inspected lists also expose individual spare controls."
+        },
+        {
+          "technique": "reversal-queue-that-reads-the-sealed-reason",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/decisions/useDecisionsQueue.ts:303 Current localized reconstruction replaces the byte-pinned rationale required for reconsideration."
+        },
+        {
+          "technique": "small-cohort-floor-with-no-silent-exemption",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/decisions/DecisionsScreenWaveModal.tsx:191 The inspected wave preview reports rejection and cohort counts but provides no insufficient-sample disclosure for small waves."
+        },
+        {
+          "technique": "tie-safe-cutoff-resolved-toward-the-candidate",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/decisions/DecisionsScreenWaveLists.tsx:82 The presentation explicitly explains when tie safety reduced the requested rejection window."
+        },
+        {
+          "technique": "unscored-excluded-never-coerced",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/decisions/DecisionsScreenWaveLists.tsx:148 Unscored candidates remain visible with absent scores, but are mixed into the generic kept list instead of receiving the required separate scoring group."
+        }
+      ]
+    },
+    "6e4380dc-8992-4f22-8017-d42ce053a5ca/bulk-adverse-action-governance": {
+      "context": "jobs-candidates-compare",
+      "subject": "bulk-adverse-action-governance",
+      "bundle": "recruiting",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T01:54:47.754Z",
+      "techniques": [
+        {
+          "technique": "cohort-drift-forces-a-fresh-review",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsRecruiterCandidatesLogic.ts:195 This sorts displayed comparison rows; it does not retain a delayed bulk adverse approval."
+        },
+        {
+          "technique": "contest-door-at-the-point-of-decision",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/JobsCompareInterviews.tsx:16 The surface reads recruiter comparison data rather than delivering a candidate decision notice."
+        },
+        {
+          "technique": "preview-then-approve-the-signed-set",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsRecruiterCandidatesLogic.ts:143 The local action adds an individual candidate; no bulk adverse commit was found."
+        },
+        {
+          "technique": "reversal-queue-that-reads-the-sealed-reason",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/JobsCompareInterviews.tsx:89 These cards present interview evidence rather than a rejection reversal queue."
+        },
+        {
+          "technique": "small-cohort-floor-with-no-silent-exemption",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsRecruiterCandidatesLogic.ts:187 This gates availability of a comparison audit, not the size of a proportional adverse-action window."
+        },
+        {
+          "technique": "tie-safe-cutoff-resolved-toward-the-candidate",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsRecruiterCandidatesLogic.ts:197 The comparator orders informational rows without selecting an irreversible bottom slice."
+        },
+        {
+          "technique": "unscored-excluded-never-coerced",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsCompareCohorts.ts:112 This handles missing ratings in an informational CSV export, which the technique explicitly excludes from its adverse-selection scope."
+        }
+      ],
+      "withdrawn": {
+        "worker": "033c2a52-c848-4e18-85ff-2b8670657702",
+        "state": "not-applicable",
+        "at": "2026-10-16T01:55:17.536196+00:00",
+        "reason": "reviewer (sonnet): The not-applicable anchor JobsRecruiterCandidates.tsx:123 only renders a CandidatesLadder, so it does not show that no bulk adverse action exists in app/features/library/jobs, and the absence terms (runScreenWave, rejectBottomPercent, autoRejectEnabled) are implementation identifiers. My own grep of"
+      }
+    },
+    "ea210994-45ae-4cb6-8143-23633254094a/bulk-adverse-action-governance": {
+      "context": "pipeline-actions-commands",
+      "subject": "bulk-adverse-action-governance",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T01:54:47.754Z",
+      "worker": "033c2a52-c848-4e18-85ff-2b8670657702",
+      "techniques": [
+        {
+          "technique": "cohort-drift-forces-a-fresh-review",
+          "verdict": "deviation",
+          "evidence": "app/_lib/pipeline-command.ts:155 The resolver intersects previewed and current IDs instead of refusing cohort drift and requiring a fresh review; its approval also has no expiry or policy binding."
+        },
+        {
+          "technique": "preview-then-approve-the-signed-set",
+          "verdict": "deviation",
+          "evidence": "app/api/pipeline/command/route.ts:170 Reviewed-set binding is optional and uses caller-supplied IDs rather than a required signed, expiring, single-use approval."
+        },
+        {
+          "technique": "small-cohort-floor-with-no-silent-exemption",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/pipeline-command.ts:14 This adverse command uses a score threshold rather than a proportional window, so window-floor arithmetic does not apply."
+        },
+        {
+          "technique": "tie-safe-cutoff-resolved-toward-the-candidate",
+          "verdict": "conformant",
+          "evidence": "app/_lib/pipeline-command.ts:114 The adverse threshold uses a strict comparison, keeping candidates exactly at the boundary together on the favourable side."
+        },
+        {
+          "technique": "unscored-excluded-never-coerced",
+          "verdict": "deviation",
+          "evidence": "app/_lib/pipeline-command.ts:113 Missing scores are excluded without numeric coercion, but the returned target list silently drops them instead of emitting named unscored spared outcomes."
+        }
+      ]
     }
   }
 }

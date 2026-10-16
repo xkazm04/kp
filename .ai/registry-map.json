@@ -11096,7 +11096,11 @@
           "revision": 6,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/hiring/decisions/useDecisionsQueue.ts:303 Reconsideration renders the reason through the current translation catalog instead of displaying the original sealed rationale verbatim.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:f33d2cefcafef4c0",
+          "evaluatedRevision": 6
         },
         {
           "subject": "hiring-need-as-structured-brief",
@@ -11300,7 +11304,11 @@
           "revision": 6,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/hiring/decisions/decisionsQueueTypes.ts:12 The reconsideration model carries a reason code and parameters without the sealed rationale text, preventing verbatim review of the original reason.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:f33d2cefcafef4c0",
+          "evaluatedRevision": 6
         },
         {
           "subject": "hitl-approval",
@@ -23609,7 +23617,11 @@
           "revision": 6,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/pipeline/command/route.ts:169 The command defaults to the live matching cohort and only binds previewed IDs conditionally, so bulk rejection can proceed without a signed reviewed set.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:f33d2cefcafef4c0",
+          "evaluatedRevision": 6
         },
         {
           "subject": "selection-score-calibration",
@@ -27351,7 +27363,11 @@
           "revision": 6,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/screen-wave-approval.ts:81 Approval consumption lives only in process memory, allowing another worker or a process restart to lose the required single-use guarantee.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:f33d2cefcafef4c0",
+          "evaluatedRevision": 6
         },
         {
           "subject": "selection-score-calibration",
