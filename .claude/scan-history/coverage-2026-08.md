@@ -2274,6 +2274,16 @@ that column is `n/r`. None of the six is a thread context, so no thread count ch
 | `llm-config-and-agent-workforce` | 2026-09-04 | n/r | ran | ran | ran | ran | ran | 7 / 4 / 1 | 5 capability debt markers closed; repo-wide unjudged debt 71 -> 66 |
 
 
+## The thread roster, re-keyed onto the current map
+
+`.claude/scan-history/thread-roster.json` pins the goal's 55 contexts (the 143-map at `9c20a787`) by FILE LIST and
+joins each to the contexts that now own those files, with per-context overlap counts (the "current contexts"
+column the tables above lack). Regenerate with `node scripts/scan/thread-roster.mjs`; `--check` fails when it is
+stale against `context-map.json`. Measured against the 210-context map at `main` `339881990`: the roster is
+**55 contexts / 899 files, spread over 86 current contexts** (82 against the 191-map of 2026-09-16), and
+`lib-group-eval` has no file in any current context. The goal's denominator is therefore "the 86 current contexts
+that own roster files", weighted by roster files, not "55 names".
+
 ## What to do with this file
 
 A `/scan-sweep` run should **write this file itself**, per context, at the moment it picks
