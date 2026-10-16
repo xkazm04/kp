@@ -19,7 +19,7 @@
 // most likely to grant the access is named first.
 import { NextResponse } from "next/server";
 import { requireCapability } from "@/app/_lib/auth/current-user";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { isCapability, MEMBER_ROLES, resolveCapabilities, type MemberRole } from "@/app/_lib/auth/roles";
 import { jsonRefusal } from "@/app/_lib/api-response";
 import { listMembershipsForWorkspace } from "@/app/_lib/db/memberships";
@@ -29,13 +29,12 @@ import { getWorkspaceOrgId } from "@/app/_lib/db/workspaces";
 const HOLDERS_CAP = 5;
 const RANK: ReadonlyMap<MemberRole, number> = new Map(MEMBER_ROLES.map((r, i) => [r, i]));
 
-export async function GET(req: Request) {
+export const GET = withWorkspace(async (workspaceId: string, req: Request) => {
   const denied = await requireCapability("read");
   if (denied) return denied;
   const cap = new URL(req.url).searchParams.get("cap");
   if (!isCapability(cap)) return jsonRefusal("CAPABILITY_UNKNOWN", 400);
 
-  const workspaceId = await currentWorkspace();
   const orgId = getWorkspaceOrgId(workspaceId);
   const rows: Array<{ name: string | null; email: string; role: MemberRole }> = [];
   for (const m of listMembershipsForWorkspace(workspaceId)) {
@@ -48,4 +47,4 @@ export async function GET(req: Request) {
   rows.sort((a, b) => (RANK.get(a.role) ?? RANK.size) - (RANK.get(b.role) ?? RANK.size));
 
   return NextResponse.json({ holders: rows.slice(0, HOLDERS_CAP) });
-}
+});

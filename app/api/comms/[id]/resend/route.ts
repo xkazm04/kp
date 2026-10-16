@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getOutboxEntry, getPostingByToken, listOutboxFiltered } from "@/app/_lib/db/devcase";
 import { getPipelineEntry, recordAutomationEvent } from "@/app/_lib/db/pipeline";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { CommsBodyRejectedError, CommsSuppressedError, sendComm } from "@/app/_lib/comms";
@@ -49,7 +49,7 @@ function caseInviteLinkIsDead(body: string, workspaceId: string): boolean {
 // message re-dispatches through the live channel as a NEW outbox row (the
 // original row is untouched, the trail stays append-only), and the resend is
 // stamped on the candidate's history when the ref resolves to an entry.
-export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: Request, context: { params: Promise<{ id: string }> }) => {
   // Identity first: a demo cookie is a valid session the proxy accepts, and
   // comms_relay_config is a single global row — without this, an anonymous demo
   // workspace dead-letter POSTs a real candidate-shaped envelope at the install's
@@ -78,7 +78,6 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         ? overrideBody.recipient.trim()
         : null;
 
-    const ws = await currentWorkspace();
     const original = getOutboxEntry(id, ws);
     if (!original) return NextResponse.json({ error: "Message not found." }, { status: 404 });
     if (!original.recipient || !original.subject || !original.body || !original.kind) {
@@ -158,4 +157,4 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   } finally {
     resendInFlight.delete(id);
   }
-}
+});

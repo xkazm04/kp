@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { billingOrgForWorkspace } from "@/app/_lib/billing";
 import { DEPLOYMENT_ALERT_KINDS, isBillingAlertResolution } from "@/app/_lib/billing/alerts";
 import { getBillingAlert, resolveBillingAlert, type BillingAlert } from "@/app/_lib/db/billing";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { HOME_ORG_ID, isHomeOrgReader } from "@/app/_lib/auth/require-operator";
 import { requireOrgCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
@@ -21,7 +21,7 @@ import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 // reachable only by the home-org operator. CAS: the store's compensating WHERE
 // (`resolved_at IS NULL`) makes a second call a 409, never a re-kind.
 
-export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: Request, context: { params: Promise<{ id: string }> }) => {
   // The billing door, `org:manage` — requireBillingAuthority (authority.ts) spelled out,
   // so this write asks its capability in its own source (route-capability-coverage).
   const denied = await requireOrgCapability("org:manage");
@@ -35,7 +35,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   if (!isBillingAlertResolution(resolution)) return jsonRefusal("BILLING_ALERT_RESOLUTION_INVALID", 400);
 
   try {
-    const orgId = billingOrgForWorkspace(await currentWorkspace());
+    const orgId = billingOrgForWorkspace(ws);
     const alert = await findAlert(id, orgId);
     if (!alert) return jsonRefusal("BILLING_ALERT_NOT_FOUND", 404);
     if (alert.resolvedAt !== null) return jsonRefusal("BILLING_ALERT_NOT_OPEN", 409);
@@ -45,7 +45,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   } catch (error) {
     return safeJsonError(error, "api/billing/alerts/[id]", "BILLING_ALERT_RESOLVE_FAILED");
   }
-}
+});
 
 /** The caller's own org's alert, or — for the home-org operator only — a
  *  deployment-level alert recorded under the home org. */

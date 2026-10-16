@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deliver, getAtsRecordResult } from "@/app/_lib/ats-egress";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { jsonRefusal } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
@@ -30,7 +30,7 @@ import { BODY_TOO_LARGE, readJsonWithLimit } from "@/app/_lib/request-body";
 const TEST_PING_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
 const MAX_TEST_BODY_BYTES = 4 * 1024;
 
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (workspaceId: string, request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // AFTER the operator gate, so a rejected caller never spends an operator's budget.
@@ -44,7 +44,6 @@ export async function POST(request: NextRequest) {
   let data: Parameters<typeof deliver>[1] = { ping: true };
   if (body.entryId !== undefined && body.entryId !== null && body.entryId !== "") {
     if (typeof body.entryId !== "string") return jsonRefusal("ATS_CANDIDATE_NOT_FOUND", 404);
-    const workspaceId = await currentWorkspace();
     const { record, refusal } = getAtsRecordResult(body.entryId, workspaceId);
     if (refusal) {
       console.info(`[ats] test ping refused for ${body.entryId}: ${refusal.reason}`);
@@ -58,4 +57,4 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, status: result.status });
   }
   return NextResponse.json({ ok: false, reason: result.reason }, { status: 400 });
-}
+});

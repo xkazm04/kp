@@ -8,6 +8,7 @@ import { requireOrgCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { COMMS_PROBE_TIMEOUT_MS, relayTimeoutMs } from "@/app/_lib/comms";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 // Send a signed `relay.test` envelope to the ACTIVE relay (env → stored config)
 // so an integrator can confirm reachability + signature verification before any
@@ -26,7 +27,7 @@ import { COMMS_PROBE_TIMEOUT_MS, relayTimeoutMs } from "@/app/_lib/comms";
 // wiring a relay up.
 const PROBE_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };
 
-export async function POST(request: NextRequest) {
+export const POST = withSession(async (request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("org:manage", requireOrgCapability);
@@ -79,4 +80,4 @@ export async function POST(request: NextRequest) {
           : "network error";
     return NextResponse.json({ ok: false, reason }, { status: 400 });
   }
-}
+});

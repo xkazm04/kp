@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { emailInboundDomain } from "@/app/_lib/comms-truth";
 import { isRelayConfigured } from "@/app/_lib/comms-relay";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 
 // REC-10 — the comms capability bits, served tiny so any client surface that
@@ -30,7 +31,7 @@ import { requireOperator } from "@/app/_lib/auth/require-operator";
 // PROJECTION, not the resolver's record: the response is these two bits and nothing
 // else. `resolveRelay()` also holds the relay URL and its decrypted signing secret —
 // this handler must never grow into returning them.
-export async function GET() {
+export const GET = withSession(async () => {
   const denied = await requireOperator();
   if (denied) return denied;
   // A refused read reaches useCommsCapability as a non-2xx, which it already folds to
@@ -38,4 +39,4 @@ export async function GET() {
   // copy and `emailInboundDomain: null` shows the honest not-wired state. No consumer
   // renders an error for this route, so the gate needs no new refusal vocabulary.
   return NextResponse.json({ relayConfigured: isRelayConfigured(), emailInboundDomain: emailInboundDomain() });
-}
+});

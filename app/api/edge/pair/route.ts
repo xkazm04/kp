@@ -6,11 +6,12 @@ import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { currentSession, requireOrgCapability } from "@/app/_lib/auth/current-user";
 import { currentOrgId } from "@/app/_lib/auth/session";
 import { DEFAULT_ORG_ID } from "@/app/_lib/db/organizations";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 // Publish this install's sealing key so the edge can hold event bodies it cannot
 // read. One-way and idempotent (see pairEdge): the keypair is never rotated, because
 // rotating it would orphan every event already sealed to the old key.
-export async function POST() {
+export const POST = withSession(async () => {
   const denied = await requireOperator();
   if (denied) return denied;
   // AUTHORIZATION (write-routes-check-a-capability). requireOperator above proves a
@@ -41,4 +42,4 @@ export async function POST() {
     return jsonRefusal("EDGE_PAIR_REFUSED", 400);
   }
   return NextResponse.json({ ok: true, config: getEdgeConfig() });
-}
+});

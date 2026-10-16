@@ -5,6 +5,7 @@ import { isLlmProvider, isLlmUseCase, LLM_PROVIDERS, LLM_USE_CASES } from "@/app
 import { isHomeOrgReader, requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireOrgCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal } from "@/app/_lib/api-response";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 
 // Models admin API, headless-first (docs/architecture/llm-provider-layer.md): pin a
@@ -33,7 +34,7 @@ async function requireModelAdmin(): Promise<NextResponse | null> {
   return jsonRefusal("MODEL_ADMIN_FORBIDDEN", 403);
 }
 
-export async function GET() {
+export const GET = withSession(async () => {
   const denied = await requireOperator();
   if (denied) return denied;
   return NextResponse.json({
@@ -48,9 +49,9 @@ export async function GET() {
     // ModelsRoutingPanel already treats an absent row as "no health to show".
     ...((await isHomeOrgReader()) ? { health: routingHealth(LLM_USE_CASES) } : {}),
   });
-}
+});
 
-export async function PUT(request: NextRequest) {
+export const PUT = withSession(async (request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const underPrivileged = await requireModelAdmin();
@@ -91,9 +92,9 @@ export async function PUT(request: NextRequest) {
     return jsonRefusal("MODEL_ROUTING_STALE", 409, { rows: listLlmConfig() });
   }
   return NextResponse.json({ ok: true, rows: listLlmConfig() });
-}
+});
 
-export async function DELETE(request: NextRequest) {
+export const DELETE = withSession(async (request: NextRequest) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const underPrivileged = await requireModelAdmin();
@@ -111,4 +112,4 @@ export async function DELETE(request: NextRequest) {
   const result = deleteLlmConfig(body.useCase, expectedUpdatedAt);
   if (result.stale) return jsonRefusal("MODEL_ROUTING_STALE", 409, { rows: listLlmConfig() });
   return NextResponse.json({ ok: true, removed: result.removed, rows: listLlmConfig() });
-}
+});

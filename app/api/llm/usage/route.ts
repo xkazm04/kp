@@ -3,6 +3,7 @@ import { promptCacheStats } from "@/app/_lib/db/analyses";
 import { aggregateLlmUsage } from "@/app/_lib/db/llm";
 import { requireHomeOrgReader } from "@/app/_lib/auth/require-operator";
 import { isLlmUseCase, LLM_USE_CASES } from "@/app/_lib/llm-config";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 
 // Usage/cost read surface for the Models tab — the first reader of the llm_usage
@@ -23,7 +24,7 @@ function windowDays(raw: string | null): number {
   return Math.min(Math.max(parsed, 1), MAX_DAYS);
 }
 
-export async function GET(request: NextRequest) {
+export const GET = withSession(async (request: NextRequest) => {
   const denied = await requireHomeOrgReader();
   if (denied) return denied;
   const days = windowDays(request.nextUrl.searchParams.get("days"));
@@ -45,4 +46,4 @@ export async function GET(request: NextRequest) {
     failedCalls: selectedRows.reduce((total, row) => total + row.failedCalls, 0),
     promptCache: promptCacheStats(),
   });
-}
+});

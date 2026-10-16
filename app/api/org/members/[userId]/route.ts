@@ -8,6 +8,7 @@ import { getMembership } from "@/app/_lib/db/memberships";
 import { DEFAULT_WORKSPACE_ID } from "@/app/_lib/db/workspaces";
 import { changeMemberRole, setMemberPermissions, setMemberStatus, removeMember, type MemberOpResult } from "@/app/_lib/org-service";
 import { isMemberRole, isCapability, overrideFromDesired, canAssignRole, resolveCapabilities, type Capability } from "@/app/_lib/auth/roles";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 /** A membership's EFFECTIVE capability set as one comparable string: sorted, so two
  *  readings of the same seat always agree, and role-inclusive, because a role change
@@ -27,7 +28,7 @@ function opStatus(reason?: MemberOpResult["reason"]): number {
 // Update a member (P0): role, status, and/or the desired capability set on a team.
 // members:manage-gated; the service enforces last-owner protection, and permission
 // grants are capped to what the acting user can delegate.
-export async function PATCH(request: NextRequest, context: { params: Promise<{ userId: string }> }) {
+export const PATCH = withSession(async (request: NextRequest, context: { params: Promise<{ userId: string }> }) => {
   const denied = await requireCapability("members:manage");
   if (denied) return denied;
   const { userId } = await context.params;
@@ -113,7 +114,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ u
     if (!r.ok) return NextResponse.json({ error: r.reason }, { status: opStatus(r.reason as MemberOpResult["reason"]) });
   }
   return NextResponse.json({ ok: true });
-}
+});
 
 // Remove a member entirely (user + credentials + memberships). members:manage;
 // the service refuses to remove the org's last owner.
@@ -126,7 +127,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ u
 // capability — the impact enumeration is reconnaissance and must not be cheaper
 // to obtain than the act it previews. The destructive response is a receipt
 // (casualties per table), not a boolean.
-export async function DELETE(request: NextRequest, context: { params: Promise<{ userId: string }> }) {
+export const DELETE = withSession(async (request: NextRequest, context: { params: Promise<{ userId: string }> }) => {
   const denied = await requireCapability("members:manage");
   if (denied) return denied;
   const { userId } = await context.params;
@@ -139,4 +140,4 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
   return confirmed
     ? NextResponse.json({ ok: true, removed: r.impact })
     : NextResponse.json({ preview: true, impact: r.impact });
-}
+});
