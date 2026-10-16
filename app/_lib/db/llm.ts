@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync, rmSync } from "node:fs";
 import { parseLedgerLine, type LlmUsageInput } from "../llm-usage-ledger";
+import { currentLlmRoleRunId } from "../llm-request-context";
 import { ensureDb, safeRowParse } from "./core";
 
 // ---- Multi-provider LLM layer (docs/architecture/llm-provider-layer.md) -----------------
@@ -198,6 +199,9 @@ export type LlmUsageWrite = LlmUsageInput & {
    *  useCase + source + billed unit iff `requestId` is present. NULL keys stay
    *  distinct under the unique index (unkeyed writers and every pre-column row). */
   ingestKey?: string | null;
+  /** The role run this call was made for. Omitted ⇒ the ambient role-run scope
+   *  (llm-request-context.ts), else NULL. */
+  roleRunId?: string | null;
 };
 
 /** The billed unit that distinguishes two meters of the same request (a cache
@@ -238,8 +242,8 @@ export function insertLlmUsage(input: LlmUsageWrite): LlmUsageIngestResult {
   const ingestKey = llmUsageIngestKey(input);
   const db = ensureDb();
   const written = db.prepare(
-    `INSERT INTO llm_usage (ts, use_case, provider, model, input_tokens, output_tokens, cached_tokens, cost_usd, source, outcome, reason, request_id, ingest_key)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO llm_usage (ts, use_case, provider, model, input_tokens, output_tokens, cached_tokens, cost_usd, source, outcome, reason, request_id, ingest_key, role_run_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(ingest_key) DO NOTHING`
   ).run(
     new Date().toISOString(),
@@ -254,7 +258,8 @@ export function insertLlmUsage(input: LlmUsageWrite): LlmUsageIngestResult {
     input.outcome,
     input.reason ?? null,
     input.requestId ?? null,
-    ingestKey
+    ingestKey,
+    input.roleRunId ?? currentLlmRoleRunId()
   ).changes;
   const inserted = written;
   const skipped = inserted === 1 ? 0 : ingestKey ? 1 : 0;
@@ -275,8 +280,8 @@ export function insertLlmUsage(input: LlmUsageWrite): LlmUsageIngestResult {
  * operation is wrapped by the caller so ledger I/O can never break a spawn — the
  * ledger is telemetry, off the critical path.
  */
-export function ingestLlmUsageLog(logPath: string): number {
-  return ingestLlmUsageResult(logPath).inserted;
+export function ingestLlmUsageLog(logPath: string, roleRunId: string | null = null): number {
+  return ingestLlmUsageResult(logPath, roleRunId).inserted;
 }
 
 /** What one fold did: rows written, and rows REFUSED because this exact sidecar
@@ -317,7 +322,7 @@ function ingestKeyFor(logPath: string, index: number, line: string): string {
  * COUNTED rather than swallowed: a non-zero `skipped` means a cleanup failed, which
  * is an operator-actionable fact.
  */
-export function ingestLlmUsageResult(logPath: string): LlmUsageIngestResult {
+export function ingestLlmUsageResult(logPath: string, roleRunId: string | null = null): LlmUsageIngestResult {
   let raw: string;
   try {
     raw = readFileSync(logPath, "utf-8");
@@ -338,8 +343,8 @@ export function ingestLlmUsageResult(logPath: string): LlmUsageIngestResult {
     const fold = db.transaction((batch: typeof rows) => {
       const stmt = db.prepare(
         `INSERT OR IGNORE INTO llm_usage
-           (ts, use_case, provider, model, input_tokens, output_tokens, cached_tokens, cost_usd, source, outcome, reason, request_id, ingest_key)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+           (ts, use_case, provider, model, input_tokens, output_tokens, cached_tokens, cost_usd, source, outcome, reason, request_id, ingest_key, role_run_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       );
       let written = 0;
       for (const { row, key } of batch) {
@@ -356,7 +361,8 @@ export function ingestLlmUsageResult(logPath: string): LlmUsageIngestResult {
           row.outcome,
           row.reason ?? null,
           row.requestId ?? null,
-          key
+          key,
+          roleRunId
         ).changes;
       }
       return written;

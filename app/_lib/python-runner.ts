@@ -4,7 +4,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { positiveNumericEnv } from "./env";
-import { currentLlmRequestId, currentSpawnLane, type SpawnLane } from "./llm-request-context";
+import { currentLlmRequestId, currentLlmRoleRunId, currentSpawnLane, type SpawnLane } from "./llm-request-context";
 import { opsLog } from "./ops-telemetry";
 
 // Fold a finished spawn's LLM-usage sidecar (NDJSON written by Python's
@@ -12,10 +12,10 @@ import { opsLog } from "./ops-telemetry";
 // import so the generic process runner doesn't eagerly pull in the DB layer, and
 // non-blocking — the metering ledger is telemetry and must never affect the
 // spawn it rides on. A spawn with no LLM call leaves no file (a harmless no-op).
-async function ingestUsageLog(logPath: string): Promise<void> {
+async function ingestUsageLog(logPath: string, roleRunId: string | null = null): Promise<void> {
   try {
     const { ingestLlmUsageLog } = await import("./db/llm");
-    ingestLlmUsageLog(logPath);
+    ingestLlmUsageLog(logPath, roleRunId);
   } catch (err) {
     opsLog("warn", "ledger:write:failed", { err: String(err) });
   }
@@ -481,6 +481,9 @@ export function spawnPython(
   const llmRequestId = currentLlmRequestId();
   // The admission lane, read at the same synchronous moment for the same reason.
   const lane = currentSpawnLane();
+  // The role run these metered calls belong to, read at the same synchronous moment
+  // (llm-request-context.ts, "The role run"); null outside a run.
+  const roleRunId = currentLlmRoleRunId();
   // Admission first, fork second (see the semaphore header): the interpreter is not
   // started until a slot is held, which is the whole point — counting spawns after
   // starting them would bound nothing.
@@ -502,7 +505,7 @@ export function spawnPython(
   // sidecar, and ingestUsageLog treats a missing file as a no-op.
   // Skip ingest entirely when the operator opted out — usageLogPath is their token
   // (e.g. "0"), not a real sidecar, so there is nothing to fold in.
-  if (!optOut) void result.finally(() => ingestUsageLog(usageLogPath)).catch(() => {});
+  if (!optOut) void result.finally(() => ingestUsageLog(usageLogPath, roleRunId)).catch(() => {});
   return { result };
 }
 
