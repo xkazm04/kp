@@ -99,6 +99,22 @@ that `supersedes` / `superseded-by` are reciprocal.
 Run it locally with `npm run docs:check`. Fixtures:
 `node scripts/docs/__tests__/check-adrs.test.mjs`.
 
+## Numbering: assign the number at merge, not at authoring
+
+Two design runs in flight both read this directory, both took the next free
+id, and both filed a `0009` (renumbered to 0011/0012 after the fact). A number
+allocated by reading a branch's directory collides whenever two ADRs are
+authored in parallel, which this project does by policy. So:
+
+- On a branch, author the record as `draft-<slug>.md` with `id: "unassigned"`
+  and no index row.
+- When it merges, the docs lane takes the next free id from `main`, renames the
+  file, sets `id:`, and adds the README guide line and index row in the same
+  commit. `npm run docs:check` only validates numbered records, so keep drafts
+  out of `main`.
+- Cross-references to a draft cite its slug until the number exists.
+
+
 ## Status vocabulary
 
 ## Status vocabulary
