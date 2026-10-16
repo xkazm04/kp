@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
 import { createPipelineEntry } from "@/app/_lib/db/pipeline";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { AutomationError, runAutomationTask } from "@/app/_lib/automation-run";
 import { REFUSAL_FOR } from "@/app/_lib/automation-refusal-codes";
 import { inferProfileLocale } from "@/app/_lib/comms-locale";
@@ -28,10 +28,9 @@ export const maxDuration = 180;
 //     dispatches through the durable Outbox, gated on a per-entry `outreach_sent`
 //     marker — so the candidate is contacted at most once (first-contact, not a
 //     resend) even across repeat clicks.
-export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   try {
     const { id } = await context.params;
-    const ws = await currentWorkspace();
     // Visibility gate, ahead of every read of the role and every spend — same as the
     // candidates read this button sits on and every other by-id job route
     // (docs/features/jobs README § "By-id job routes re-apply the list's visibility
@@ -164,4 +163,4 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     if (error instanceof CommsBodyRejectedError) return jsonRefusal("OUTREACH_BODY_TOO_LONG", 422);
     return safeJsonError(error, "api:jobs:candidates:outreach", "OUTREACH_FAILED");
   }
-}
+});

@@ -9,12 +9,12 @@ import { groundedJdBand, withGroundedBand } from "@/app/_lib/salary-band";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 
 // The best-effort re-ingest on a body edit is one LLM parse.
 export const maxDuration = 60;
 
-export async function GET(request: Request, context: { params: Promise<{ slug: string }> }) {
+export const GET = withWorkspace(async (ws: string, request: Request, context: { params: Promise<{ slug: string }> }) => {
   const { slug } = await context.params;
   try {
     // Tenancy: serve the JD from the CALLER'S library. `/api/jds/*` is a gated
@@ -26,7 +26,6 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
     // workspace while the read looked in the default one; and it handed the DEFAULT
     // team's full body + build artifacts (a private, often unfinished draft) to any
     // other team's signed-in recruiter who knew the slug.
-    const ws = await currentWorkspace();
     const row = loadJd(slug, ws);
     if (!row) {
       return jsonRefusal("JD_NOT_FOUND", 404);
@@ -60,7 +59,7 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
   } catch (error) {
     return safeJsonError(error, "api:jds/[slug]", "JD_LOAD_FAILED");
   }
-}
+});
 
 // W8-4 (JDL1) — the library was fully append-only: no update, delete or
 // archive path existed anywhere (the only DELETE FROM jds is the simulation
@@ -70,7 +69,7 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
 //   { title, body }      — edit in place (same validateJdFields as save);
 //   { archived: bool }   — archive/unarchive (archived JDs leave listJds and
 //                          the pickers; the public page renders with a banner).
-export async function PATCH(request: Request, context: { params: Promise<{ slug: string }> }) {
+export const PATCH = withWorkspace(async (ws: string, request: Request, context: { params: Promise<{ slug: string }> }) => {
   // The JD detail PAGE (/jds/[slug]) is public/shareable, so edit + archive must be
   // recruiter-only at the handler — not just hidden in the UI. This API route is
   // not: `/api/jds/*` sits behind the session gate (public-routes.ts), and GET above
@@ -86,7 +85,6 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
   if (under) return under;
   const { slug } = await context.params;
-  const ws = await currentWorkspace();
   try {
     const existing = loadJd(slug, ws);
     if (!existing) return jsonRefusal("JD_NOT_FOUND", 404);
@@ -162,7 +160,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
   } catch (error) {
     return safeJsonError(error, "api:jds/[slug]", "JD_SAVE_FAILED");
   }
-}
+});
 
 // The Ledger's trash door. The library is the shelf of DESCRIPTIONS regardless of
 // liveness, so a draft that should never have existed needs a way out that isn't
@@ -178,7 +176,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
 //      erase a colleague's draft. jds-delete-access.ts owns the rule; the list
 //      route folds the same function into `canDelete` so the icon and the door
 //      cannot disagree.
-export async function DELETE(_request: Request, context: { params: Promise<{ slug: string }> }) {
+export const DELETE = withWorkspace(async (ws: string, _request: Request, context: { params: Promise<{ slug: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // The capability gate stays FIRST and coarse: a viewer has no business at any
@@ -187,7 +185,6 @@ export async function DELETE(_request: Request, context: { params: Promise<{ slu
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
   if (under) return under;
   const { slug } = await context.params;
-  const ws = await currentWorkspace();
   try {
     const existing = loadJd(slug, ws);
     if (!existing) return jsonRefusal("JD_NOT_FOUND", 404);
@@ -215,4 +212,4 @@ export async function DELETE(_request: Request, context: { params: Promise<{ slu
   } catch (error) {
     return safeJsonError(error, "api:jds/[slug]", "JD_DELETE_FAILED");
   }
-}
+});

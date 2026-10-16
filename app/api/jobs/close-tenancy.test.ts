@@ -15,7 +15,7 @@ const dir = path.dirname(fileURLToPath(import.meta.url));
 
 test("POST /api/jobs/[id]/close scopes the entry withdrawal to the caller's workspace", () => {
   const src = readFileSync(path.join(dir, "[id]/close/route.ts"), "utf8");
-  assert.match(src, /currentWorkspace\(\)/, "close must resolve the caller's workspace");
+  assert.match(src, /withWorkspace\(async \(ws: string/, "close must receive the caller's workspace from withWorkspace");
   assert.match(src, /closeEntriesByJobId\([^)]*\bws\b[^)]*\)/, "close must pass the workspace to closeEntriesByJobId");
   assert.doesNotMatch(src, /closeEntriesByJobId\(id\)/, "close must not call closeEntriesByJobId with a bare id");
 });

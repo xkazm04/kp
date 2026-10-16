@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { readRoleSlate } from "@/app/_lib/db/role-slate";
@@ -14,12 +14,11 @@ import { readRoleSlate } from "@/app/_lib/db/role-slate";
 //
 // Operator-gated: a slate names candidates, so it is recruiter-facing only. No
 // capability-token variant exists on purpose.
-export async function GET(_request: Request, { params }: { params: Promise<{ jobId: string }> }) {
+export const GET = withWorkspace(async (ws: string, _request: Request, { params }: { params: Promise<{ jobId: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
     const { jobId } = await params;
-    const ws = await currentWorkspace();
     const slate = readRoleSlate(jobId, new Map(), ws);
     return NextResponse.json({
       jobId: slate.jobId,
@@ -46,4 +45,4 @@ export async function GET(_request: Request, { params }: { params: Promise<{ job
   } catch (error) {
     return safeJsonError(error, "api:roles/slate", "ROLE_SLATE_FAILED");
   }
-}
+});

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { loadJd, saveJd } from "@/app/_lib/db/jobs";
 import { jdJobId, validateJdFields } from "@/app/_lib/jd-limits";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { currentUser, requireCapability } from "@/app/_lib/auth/current-user";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
@@ -30,7 +30,7 @@ const SAVE_RATE_LIMIT = { limit: 30, windowMs: 10 * 60_000 };
 // "Source into Pipeline" would dead-end (POST /api/jobs/jd-<slug>/publish 404s).
 // The builder reads this flag and offers a retry (re-POST with `slug`) rather
 // than letting the user click into that dead end. See docs/features/jobs/README.md.
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   // Saving a generated JD as a draft (and ingesting its Job) is a recruiter write,
   // so it shares the same operator gate as POST /api/jds. The guided sim drives this
   // route under the operator's own session (or open mode), so it's unaffected.
@@ -72,7 +72,6 @@ export async function POST(request: NextRequest) {
     // best-effort ingest can be re-attempted without saving a duplicate JD. Reject
     // an unknown retry slug so a retry can't mint a `jd-<slug>` Job with no backing
     // draft.
-    const ws = await currentWorkspace();
     let slug: string;
     if (body.slug) {
       if (!loadJd(body.slug, ws)) {
@@ -102,4 +101,4 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:jds/save", "JD_SAVE_FAILED");
   }
-}
+});

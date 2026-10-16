@@ -8,7 +8,7 @@ import {
 } from "@/app/_lib/db/job-postings";
 import { fetchPostingText } from "@/app/_lib/job-posting-fetch";
 import { isOffline } from "@/app/_lib/offline";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/api-response";
@@ -21,13 +21,12 @@ import { POSTING_MAX_CHARS, POSTING_MIN_CHARS } from "./posting-import-limits";
 //        workspace), a pasted advertisement, or a fetched careers page.
 // Operator-internal on both verbs; NOT on the public allow-list.
 
-export async function GET(request: Request) {
+export const GET = withWorkspace(async (ws: string, request: Request) => {
   const denied = await requireOperator();
   if (denied) return denied;
   try {
     const url = new URL(request.url);
     const limitParam = Number(url.searchParams.get("limit"));
-    const ws = await currentWorkspace();
     const postings = listJobPostings(ws, {
       q: url.searchParams.get("q") ?? undefined,
       roleFamily: url.searchParams.get("roleFamily") ?? undefined,
@@ -37,7 +36,7 @@ export async function GET(request: Request) {
   } catch (error) {
     return safeJsonError(error, "api:job-postings", "JOB_LIST_FAILED");
   }
-}
+});
 
 type ImportBody = {
   source?: unknown;
@@ -52,7 +51,7 @@ type ImportBody = {
 
 const str = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
 
-export async function POST(request: Request) {
+export const POST = withWorkspace(async (ws: string, request: Request) => {
   const denied = await requireOperator();
   if (denied) return denied;
   // AUTHORIZATION (write-routes-check-a-capability). requireOperator above only proves
@@ -105,7 +104,6 @@ export async function POST(request: Request) {
       return jsonRefusal("TOO_MANY_REQUESTS", 429);
     }
 
-    const ws = await currentWorkspace();
 
     if (source === "seed") {
       // One-shot per workspace (seed mark), so a second call reports inserted: 0
@@ -153,4 +151,4 @@ export async function POST(request: Request) {
   } catch (error) {
     return safeJsonError(error, "api:job-postings", "JOB_INGEST_FAILED");
   }
-}
+});

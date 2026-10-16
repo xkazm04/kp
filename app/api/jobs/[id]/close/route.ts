@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { canWriteJobLifecycle, getJob } from "@/app/_lib/db/jobs";
 import { closeEntriesByJobId } from "@/app/_lib/db/pipeline";
 import { getJobStatus, setJobStatus } from "@/app/_lib/job-ingest";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { safeJsonError } from "@/app/_lib/api-response";
 
 
@@ -10,14 +10,13 @@ import { safeJsonError } from "@/app/_lib/api-response";
 // → published, full stop): a filled role kept its apply link live, kept
 // appearing open in the catalog, and kept being ranked against the pool.
 // Idempotent mirror of /publish; the apply page + API gate on the status.
-export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, _request: Request, context: { params: Promise<{ id: string }> }) => {
   const { id } = await context.params;
   // Tenancy (job-postings-lifecycle #1): mirror /publish, which scopes its entry
   // operations to the caller's workspace. Without this, closeEntriesByJobId fell to
   // DEFAULT_WORKSPACE_ID and withdrew NONE of a non-default team's in-flight
   // candidates — the close "succeeded" with withdrawn:0 while the funnel kept
   // chasing a retired role.
-  const ws = await currentWorkspace();
   try {
     const job = getJob(id, ws);
     if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
@@ -54,4 +53,4 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   } catch (error) {
     return safeJsonError(error, "api:jobs/close", "JOB_CLOSE_FAILED");
   }
-}
+});

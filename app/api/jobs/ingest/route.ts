@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ingestJobAd, insertJob, jobContentHash } from "@/app/_lib/job-ingest";
 import { canWriteJobLifecycle } from "@/app/_lib/db/jobs";
 import { MIN_AD_CHARS } from "@/app/_lib/split-ads";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 
@@ -16,14 +16,13 @@ export const maxDuration = 180;
 // Direction #1: turn a prose job ad into a structured, matchable Job in the
 // corpus. The Claude CLI parses the ad (jobs_cli ingest); the result is upserted
 // and content-hash-guarded so the same ad doesn't pile up duplicate jobs.
-export async function POST(request: NextRequest) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
   try {
     const body = (await request.json()) as { adText?: string; jobId?: unknown };
     const adText = (body.adText ?? "").trim();
     if (adText.length < MIN_AD_CHARS) {
       return jsonRefusal("JOB_AD_TOO_SHORT", 400);
     }
-    const ws = await currentWorkspace();
 
     // An explicit jobId means "re-parse this ad INTO that existing job", i.e. a content
     // overwrite of a named row — insertJob's ON CONFLICT UPDATE rewrites its title,
@@ -68,4 +67,4 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return safeJsonError(error, "api:jobs/ingest", "JOB_INGEST_FAILED");
   }
-}
+});

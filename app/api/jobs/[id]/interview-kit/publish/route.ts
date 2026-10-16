@@ -4,7 +4,7 @@
 //        or already published — one answer on purpose) · PAYLOAD_TOO_LARGE 413 ·
 //        FORBIDDEN_CAPABILITY 403
 import { NextRequest, NextResponse } from "next/server";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
@@ -33,7 +33,7 @@ const MAX_PUBLISH_BODY_BYTES = 4 * 1024;
  *  the store as a multi-megabyte bind parameter. */
 const MAX_KIT_ID_LEN = 64;
 
-export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   // Publishing decides what candidates are asked, so it asks the same capability every
   // other recruiter write on this surface does — and it runs FIRST, so a refused seat
   // learns nothing about which job or kit ids exist.
@@ -46,7 +46,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   if (denied) return denied;
   try {
     const { id } = await context.params;
-    const ws = await currentWorkspace();
     // Ownership before anything else: the same gate /publish and /close use. 404, not
     // 403, so the door can't be used to probe another team's job ids.
     if (!getJob(id, ws) || !canWriteJobLifecycle(id, ws)) return jsonRefusal("JOB_NOT_FOUND", 404);
@@ -74,4 +73,4 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   } catch (error) {
     return safeJsonError(error, "api:jobs/interview-kit/publish", "INTERVIEW_KIT_FAILED");
   }
-}
+});

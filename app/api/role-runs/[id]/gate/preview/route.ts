@@ -3,7 +3,7 @@ import { RoleRunGateNotParkedError } from "@/app/_lib/role-run-engine";
 import { isRoleRunGate } from "@/app/_lib/role-run-gates";
 import { previewRoleRunGate } from "@/app/_lib/role-run-gate-preview";
 import { getRoleRun } from "@/app/_lib/db/role-runs";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { jsonRefusal, requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
@@ -21,14 +21,13 @@ import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 // preceded by a preview, and a recruiter walking a slate of twenty stays far under it.
 const GATE_RATE_LIMIT = { limit: 120, windowMs: 10 * 60_000 };
 
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const under = await requireCapabilityCoded("pipeline:write", requireCapability);
   if (under) return under;
   try {
     const { id } = await params;
-    const ws = await currentWorkspace();
     const body = (await request.json().catch(() => null)) as { gate?: unknown; branchRef?: unknown } | null;
     const branchRef = typeof body?.branchRef === "string" ? body.branchRef.trim() : "";
     if (!isRoleRunGate(body?.gate) || !branchRef) return jsonRefusal("ROLE_RUN_GATE_INVALID", 400);
@@ -42,4 +41,4 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (error instanceof RoleRunGateNotParkedError) return jsonRefusal("ROLE_RUN_GATE_NOT_PARKED", 409);
     return safeJsonError(error, "api:role-runs/gate/preview", "ROLE_RUN_GATE_FAILED");
   }
-}
+});

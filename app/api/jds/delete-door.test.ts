@@ -41,7 +41,7 @@ test("a NULL creator claim matches nobody — never everybody", () => {
 
 test("DELETE /api/jds/[slug] gates, then checks authority, then checks liveness", () => {
   const src = read("./[slug]/route.ts");
-  const at = src.indexOf("export async function DELETE");
+  const at = src.search(/export (?:async function|const) DELETE\b/);
   assert.ok(at >= 0, "the route must export a DELETE handler");
   const body = src.slice(at);
 

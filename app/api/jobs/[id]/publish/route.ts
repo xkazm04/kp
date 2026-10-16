@@ -7,7 +7,7 @@ import { runPostingTranslations } from "@/app/_lib/job-translate-run";
 import { isLocale, type Locale } from "@/i18n/locales";
 import { reopenEntriesByJobId } from "@/app/_lib/db/pipeline";
 import { classifyPublish, setJobStatus } from "@/app/_lib/job-ingest";
-import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { openReceipt, readReceipt, claimResume } from "@/app/_lib/golive-receipt-store";
 import { runGoLive } from "@/app/_lib/golive-run";
@@ -70,20 +70,18 @@ export function parsePublishBody(
  *  req open forever while the desk reported honest, useless progress. */
 const MAX_TARGET_HIRES = 50;
 
-export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const GET = withWorkspace(async (ws: string, _request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   const denied = await requireOperator();
   if (denied) return denied;
   const { id } = await context.params;
-  const ws = await currentWorkspace();
   const job = getJob(id, ws);
   if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
   const receipt = readReceipt(id, ws);
   return NextResponse.json({ ok: true, receipt });
-}
+});
 
-export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export const POST = withWorkspace(async (ws: string, request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   const { id } = await context.params;
-  const ws = await currentWorkspace();
   try {
     // Read before anything else: a malformed target must not take the billing gate,
     // spawn a sourcing child, or leave the role live under a 400.
@@ -248,4 +246,4 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   } catch (error) {
     return safeJsonError(error, "api:jobs/publish", "JOB_PUBLISH_FAILED");
   }
-}
+});

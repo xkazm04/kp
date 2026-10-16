@@ -5,6 +5,7 @@ import { requireCapabilityCoded, safeJsonError } from "@/app/_lib/api-response";
 import { requireCapability } from "@/app/_lib/auth/current-user";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { getRolePriorities, setRolePriorities } from "@/app/_lib/role-priorities-store";
+import { withSession } from "@/app/_lib/auth/workspace-context";
 
 // The role coach's PATTERN PRIORITIES — the three-level weight (critical / important /
 // minor) a recruiter hangs on each pattern their candidate pool shows against this role.
@@ -28,7 +29,7 @@ async function resolve(id: string): Promise<{ ws: string } | null> {
   return { ws };
 }
 
-export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+export const GET = withSession(async (_request: Request, context: { params: Promise<{ id: string }> }) => {
   // AUTH POSTURE (ADR 0005): a trusted session first, identity before authority.
   const denied = await requireOperator();
   if (denied) return denied;
@@ -40,9 +41,9 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   } catch (error) {
     return safeJsonError(error, "api:jobs/priorities", "JOB_PRIORITIES_FAILED");
   }
-}
+});
 
-export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
+export const PUT = withSession(async (request: Request, context: { params: Promise<{ id: string }> }) => {
   // AUTH POSTURE (ADR 0005): a trusted session first, identity before authority.
   const denied = await requireOperator();
   if (denied) return denied;
@@ -68,4 +69,4 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
   } catch (error) {
     return safeJsonError(error, "api:jobs/priorities", "JOB_PRIORITIES_FAILED");
   }
-}
+});
