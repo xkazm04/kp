@@ -1308,10 +1308,6 @@
       "raw-button": 1,
       "bare-rounded": 1
     },
-    "features/library/jds/intake/JdsIntakeBriefBody.tsx": {
-      "raw-stone-text": 1,
-      "raw-status-hue": 1
-    },
     "features/library/jds/intake/JdsIntakeBriefEdit.tsx": {
       "raw-text-size": 6
     },

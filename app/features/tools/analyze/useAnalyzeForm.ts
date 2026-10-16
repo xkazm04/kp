@@ -7,7 +7,7 @@ import {
   applyStageEvent,
   initialStageState,
   type StageState,
-} from "@/app/_components/AnalysisProgress";
+} from "@/app/_components/analysis-progress-logic";
 import { type Analysis, type GithubAnalysis } from "@/app/_lib/schemas";
 import { useGithubErrorMessage } from "@/app/_lib/use-github-error";
 import { useErrorMessage } from "@/app/_lib/use-error-message";

@@ -1,4 +1,4 @@
-import { SIM_TITLE_LIKE } from "@/app/features/shell/simulation/constants";
+import { SIM_TITLE_LIKE } from "@/app/_lib/sim-marker";
 import { ensureDb } from "./core.ts";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces.ts";
 import { getPipelineAxis } from "../pipeline-axis-server.ts";

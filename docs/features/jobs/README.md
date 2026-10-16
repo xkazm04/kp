@@ -147,7 +147,7 @@ is `jobLifecycleInOverlay` in `app/_lib/db/core.ts`.
 When a JD is **Generated**, the market-salary analysis produces a band with
 its own provenance (`web-grounded` vs `estimated`), a confidence level, and
 cited sources. That band is the single source of truth the Pipeline matches
-against: `ingestStructuredJob` (`app/api/jds/save/ingest-job.ts`) sets
+against: `ingestStructuredJob` (`app/_lib/jd-ingest.ts`) sets
 `job.salaryBand` from the analysis's `salary`, normalizing a
 backwards/degenerate range rather than dropping it. The band is intentionally
 **read-only** in the builder — a hand-typed number couldn't honestly wear the
@@ -294,7 +294,7 @@ JD figure beside it was already fixed for (`app/_lib/palette-preview/resolve-lib
 1. **Save the JD draft** (`saveJd`) — the markdown/title row in `jds`. If this
    fails, the whole request errors and nothing is saved.
 2. **Ingest the role as a structured `jd-<slug>` Job**
-   (`ingestStructuredJob`, `app/api/jds/save/ingest-job.ts`) — best-effort,
+   (`ingestStructuredJob`, `app/_lib/jd-ingest.ts`) — best-effort,
    wrapped in try/catch, never blocks the JD save. The response field
    `jobIngested` reports whether it ran. The client-sent `role` payload is
    parsed at the boundary via `parseRoleSpec` (`app/_lib/rolespec.ts`) — the
@@ -794,7 +794,7 @@ kit" and §"The kit in the interview".
 |---|---|
 | `app/_lib/job-ingest.ts` | `setJobStatus`, `getJobStatus`, `isJobOpenForApplications`, draft/published/closed lifecycle. |
 | `app/api/jds/route.ts`, `app/api/jds/save/route.ts` | Manual paste / AI-builder save + best-effort ingest. |
-| `app/api/jds/save/ingest-job.ts` | `ingestStructuredJob` — JD → structured `jobs` row. |
+| `app/_lib/jd-ingest.ts` | `ingestStructuredJob` — JD → structured `jobs` row. |
 | `app/api/jds/[slug]/**` | Analyses, retry-analysis, revisions, per-slug JD read, `ingest-job` (make a saved JD matchable). Retry's row-fallback replay (`replayParamsFromIntent` in `app/_lib/jd-build-start.ts`) carries the intake brief for promoted JDs; JDs promoted before this change replay without it. |
 | `app/api/jobs/route.ts`, `app/api/jobs/[id]/route.ts` | Job listing / read. |
 | `app/api/jobs/[id]/publish/route.ts` | Draft → published + source into Pipeline. |
@@ -1433,7 +1433,7 @@ locales.
 author never made without saying so. (1) `role-design-v5` (`pipeline/jobfit/devcase/design.py`)
 extends the grounding rule to responsibilities, nice-to-haves and languages, and the keyless
 fallback returns `languages: []` instead of `["English"]` — that English used to become a
-Languages section and, via `ingest-job.ts` → `apply.ts`, a `ko_lang` knockout question for every
+Languages section and, via `jd-ingest.ts` → `apply.ts`, a `ko_lang` knockout question for every
 applicant. (2) `runJdBuild` sets the role's languages with `statedLanguages`
 (`app/_lib/jd-role-trace.ts`): a brief's non-empty `languages` win, otherwise only model
 languages the author's own input STATES survive, so a keyless build with no stated language

@@ -1,6 +1,6 @@
 import { fileApplication, type ProfileBuilder } from "@/app/_lib/application-filing";
 import type { getJob } from "@/app/_lib/db/jobs";
-import { markSimTitle } from "@/app/features/shell/simulation/constants";
+import { markSimTitle } from "@/app/_lib/sim-marker";
 import {
   cleanupWorkdir,
   createWorkdir,

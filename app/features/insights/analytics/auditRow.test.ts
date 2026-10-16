@@ -4,7 +4,7 @@
 // Two kinds of assertion live here, deliberately:
 //
 //   1. BEHAVIOUR, over the pure helpers both tables and the decision-log route
-//      share (analyticsDecisionLogTypes.ts). The Czech collation, the
+//      share (app/_lib/analytics-decision-types.ts). The Czech collation, the
 //      diacritic-folded subject search, the one clock and the export provenance
 //      block are all testable without a DOM or a DB, so they are pinned directly.
 //   2. SOURCE-level guards, over the .tsx surfaces and the route modules, which
@@ -33,7 +33,7 @@ import {
   shortHash,
   toggleExpandedId,
   withExportProvenance,
-} from "./analyticsDecisionLogTypes.ts";
+} from "@/app/_lib/analytics-decision-types";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const APP_ROOT = path.resolve(HERE, "../../..");
@@ -359,7 +359,7 @@ test("a legacy null actor is not identified, never guessed", () => {
 });
 
 test("the log's By column and every CSV export names the person, not only the class", () => {
-  const types = source("./analyticsDecisionLogTypes.ts");
+  const types = source("../../../_lib/analytics-decision-types.ts");
   assert.match(types, /actor\?:\s*string\s*\|\s*null/, "Decision must carry the actor the route already returns");
   const log = source(LOG_TABLE);
   assert.equal(log.includes("actorDisplayName("), true, "the By column must parse the actor, not print the class alone");

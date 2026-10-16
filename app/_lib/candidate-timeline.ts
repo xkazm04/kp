@@ -14,7 +14,7 @@ import { consentStatus, consentWithholdsPii, redactTranscriptForConsent, type Co
 import { getInterviewPrep } from "./interview-prep";
 import { humanScorecardViews, readHumanScorecards, type HumanScorecardView } from "./human-scorecard-set";
 import { isScoreStale } from "@/app/features/shared/decisionsTypes";
-import { parseRematchDetail } from "@/app/features/shared/pipelineRematchLink";
+import { parseRematchDetail } from "@/app/_lib/pipeline-rematch-link";
 import { normalizeScorecardEntities, type Scorecard, type ScorecardEntities } from "./interview-scorecard";
 import { listDecisionRecords } from "./decision-record-store";
 import type { InterviewTelemetry } from "./interview-telemetry";

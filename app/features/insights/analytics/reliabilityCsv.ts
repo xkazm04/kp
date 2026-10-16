@@ -8,7 +8,7 @@
 // Same em-dash / provenance pattern as analyticsFunnelCsv.ts. Empty bins are
 // omitted: a row of zeros is not a measurement.
 import type { CalibrationResult } from "@/app/_lib/calibration";
-import { withExportProvenance } from "./analyticsDecisionLogTypes";
+import { withExportProvenance } from "@/app/_lib/analytics-decision-types";
 
 export type ReliabilityCsvLabels = {
   bin: string;

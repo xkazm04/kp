@@ -6,7 +6,7 @@
 // comm/ack/reminder sends, manual moves, intake kinds…) and every unmapped kind
 // rendered an UNKNOWN badge and fell out of any attribution math.
 //
-import { parseRematchDetail } from "@/app/features/shared/pipelineRematchLink";
+import { parseRematchDetail } from "@/app/_lib/pipeline-rematch-link";
 import {
   renderMatchReasons,
   type MatchReasons,

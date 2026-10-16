@@ -8,7 +8,7 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseRematchDetail, isRematchKind } from "@/app/features/shared/pipelineRematchLink";
+import { parseRematchDetail, isRematchKind } from "@/app/_lib/pipeline-rematch-link";
 
 test("rematched (source side) → the target entry it was redirected into", () => {
   // db/pipeline.ts: `${row.job_id ?? "?"} -> ${targetJobId} (${targetEntryId})`

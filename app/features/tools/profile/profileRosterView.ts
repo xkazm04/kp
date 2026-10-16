@@ -85,7 +85,7 @@ type StatusLabel = (status: RosterStatus) => string;
  * with "No profile matches these filters" and the count reads "0 of N", so the
  * candidate is simply invisible and the recruiter concludes they were never saved.
  * Same fold, and the same reasoning, as the analytics audit log's foldForSearch
- * (analyticsDecisionLogTypes.ts, UAT LUC-ANA-5) — kept local so this pure view model
+ * (app/_lib/analytics-decision-types.ts, UAT LUC-ANA-5) — kept local so this pure view model
  * doesn't reach into another feature module for three lines.
  */
 export function foldForSearch(value: string): string {

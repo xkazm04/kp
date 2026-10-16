@@ -21,7 +21,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { groupEvalCacheKey, selectionCacheKey } from "@/app/features/hiring/decisions/groupEval/cache-key";
+import { groupEvalCacheKey, selectionCacheKey } from "@/app/_lib/group-eval-cache-key";
 
 // Force the best-effort AI "compare all" spawn to fail fast (ENOENT → deterministic
 // fallback), so the test is hermetic. Set BEFORE python-runner is loaded.

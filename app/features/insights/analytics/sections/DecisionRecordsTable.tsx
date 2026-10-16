@@ -33,7 +33,7 @@ import {
   matchesSubject,
   resolveAuditTimeZone,
   shortHash,
-} from "../analyticsDecisionLogTypes";
+} from "@/app/_lib/analytics-decision-types";
 import { DecisionRecordDetail } from "./DecisionRecordDetail";
 import { META_LABEL, NOTICE } from "@/app/_components/ui/recipes";
 

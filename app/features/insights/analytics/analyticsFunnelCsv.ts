@@ -15,7 +15,7 @@
 // `0%` there would re-introduce the fabricated zero one layer down, in the artifact
 // that outlives the screen and gets pasted into a board deck.
 import type { ConversionGoals, FunnelRow } from "./analyticsFunnelEmptyState";
-import { withExportProvenance } from "./analyticsDecisionLogTypes";
+import { withExportProvenance } from "@/app/_lib/analytics-decision-types";
 
 /** Column headers, resolved by the caller so this module stays free of next-intl
  *  and can be driven directly by a test. */
