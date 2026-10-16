@@ -6864,6 +6864,93 @@
           "evidence": "app/features/hiring/decisions/groupEval/GroupEvalPerCandidateTabs.tsx:114 The per-candidate verdict is painted as ordinary ink text on the same surface as the reject and advance buttons, with no separate non-routable recommendation field and no withhold-until-the-reviewer-decides step."
         }
       ]
+    },
+    "ebfe3268-6c14-4997-a49c-091483d763b5/browser-credential-boundary": {
+      "context": "shared-api-utilities",
+      "subject": "browser-credential-boundary",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T01:30:13.340Z",
+      "techniques": [
+        {
+          "technique": "aggregate-view-not-base-table",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/cache.ts:13 This cache uses server-side store functions rather than a browser database role needing an aggregate grant."
+        },
+        {
+          "technique": "default-deny-plus-defaulted-owner",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/cache.ts:22 The utility writes through a server-side store function; it does not expose client-held database credentials or define database row policies."
+        },
+        {
+          "technique": "opaque-upstream-errors",
+          "verdict": "deviation",
+          "evidence": "app/_lib/api-response.ts:2177 The safe error helper returns a fixed vocabulary, but neither mints nor returns the locally generated correlation identifier required by the technique."
+        },
+        {
+          "technique": "outbound-fetch-destination-validation",
+          "verdict": "deviation",
+          "evidence": "app/_lib/og-fonts.ts:96 pickFontUrl extracts the URL from dependency-provided CSS; fetchWithTimeout calls ordinary fetch with automatic redirects and no destination validation or response-size limit."
+        }
+      ],
+      "withdrawn": {
+        "worker": "d74c13d0-8653-4ea2-b287-45cab054c90c",
+        "state": "deviation",
+        "at": "2026-10-16T01:30:33.420048+00:00",
+        "reason": "reviewer (sonnet): The og-fonts.ts fetch of a CSS-derived URL with no address or redirect validation is real, but it is an SSRF concern, not a browser-credential-boundary one. The cache.ts technique anchors say the technique does not apply, and the api-response.ts correlation-id claim is not a credential-boundary matt"
+      }
+    },
+    "86d3557f-3b4a-4636-bdcd-5a12fae61e94/browser-credential-boundary": {
+      "context": "table-components",
+      "subject": "browser-credential-boundary",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T01:30:13.340Z",
+      "worker": "d74c13d0-8653-4ea2-b287-45cab054c90c",
+      "techniques": [
+        {
+          "technique": "aggregate-view-not-base-table",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/table/TableStatus.tsx:47 The component announces a supplied count; it does not query identifying database rows."
+        },
+        {
+          "technique": "allowlisted-operator-stream",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/table/TableStatus.tsx:49 This is an accessibility status region, not a credential-bearing request stream."
+        },
+        {
+          "technique": "broker-proxy-attaches-secret",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/table/TablePager.tsx:21 Paging operates on existing client data without an upstream call."
+        },
+        {
+          "technique": "default-deny-plus-defaulted-owner",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/table/ColumnFilter.tsx:125 Filtering invokes a supplied UI callback rather than writing owner-scoped database rows."
+        },
+        {
+          "technique": "omit-the-column-not-the-value",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/table/FilterMenu.tsx:53 The menu filters supplied option labels; it defines no public database schema or secret column."
+        },
+        {
+          "technique": "opaque-upstream-errors",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/table/TablePager.tsx:63 Navigation invokes a page callback and does not report brokered upstream failures."
+        },
+        {
+          "technique": "outbound-fetch-destination-validation",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/table/pageWindow.ts:34 The operation slices an array without fetching a destination."
+        },
+        {
+          "technique": "public-vs-server-env-split",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/table/useTableSort.ts:118 Sorting consumes the active UI locale; directory searches found no credential or environment configuration readers."
+        }
+      ]
     }
   }
 }

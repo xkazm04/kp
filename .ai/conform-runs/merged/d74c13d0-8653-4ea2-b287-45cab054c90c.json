@@ -1,0 +1,127 @@
+{
+  "schema": "conform-run/1",
+  "worker": "d74c13d0-8653-4ea2-b287-45cab054c90c",
+  "subject": "browser-credential-boundary",
+  "evaluatedAt": "2026-10-16T01:30:13.340710+00:00",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "pairs": [
+    {
+      "context": "table-components",
+      "subject": "browser-credential-boundary",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/_components/table/TablePager.tsx:21 Searches found no NEXT_PUBLIC_, Authorization, createClient, or apiKey occurrences in the table directory, whose primitives manipulate supplied rows and UI state without implementing a credential boundary.",
+      "techniques": [
+        {
+          "technique": "aggregate-view-not-base-table",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/table/TableStatus.tsx:47 The component announces a supplied count; it does not query identifying database rows."
+        },
+        {
+          "technique": "allowlisted-operator-stream",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/table/TableStatus.tsx:49 This is an accessibility status region, not a credential-bearing request stream."
+        },
+        {
+          "technique": "broker-proxy-attaches-secret",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/table/TablePager.tsx:21 Paging operates on existing client data without an upstream call."
+        },
+        {
+          "technique": "default-deny-plus-defaulted-owner",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/table/ColumnFilter.tsx:125 Filtering invokes a supplied UI callback rather than writing owner-scoped database rows."
+        },
+        {
+          "technique": "omit-the-column-not-the-value",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/table/FilterMenu.tsx:53 The menu filters supplied option labels; it defines no public database schema or secret column."
+        },
+        {
+          "technique": "opaque-upstream-errors",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/table/TablePager.tsx:63 Navigation invokes a page callback and does not report brokered upstream failures."
+        },
+        {
+          "technique": "outbound-fetch-destination-validation",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/table/pageWindow.ts:34 The operation slices an array without fetching a destination."
+        },
+        {
+          "technique": "public-vs-server-env-split",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/table/useTableSort.ts:118 Sorting consumes the active UI locale; directory searches found no credential or environment configuration readers."
+        }
+      ],
+      "absenceTerms": [
+        "NEXT_PUBLIC_",
+        "Authorization",
+        "createClient",
+        "apiKey"
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "browser-credential-boundary",
+      "context": "jobs-table-core",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "browser-credential-boundary",
+      "context": "jd-public-detail-page",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "browser-credential-boundary",
+      "context": "candidate-status-api",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "browser-credential-boundary",
+      "context": "shared-api-utilities",
+      "reason": "withdrawn after review: reviewer (sonnet): The og-fonts.ts fetch of a CSS-derived URL with no address or redirect validation is real, but it is an SSRF concern, not a browser-credential-boundary one. The cache.ts technique anchors say the technique does not apply, and the api-response.ts correlation-id claim is not a credential-boundary matt"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-16T01:30:13.340710+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "browser-credential-boundary"
+      ],
+      "techniques": [
+        "aggregate-view-not-base-table",
+        "default-deny-plus-defaulted-owner",
+        "opaque-upstream-errors",
+        "outbound-fetch-destination-validation"
+      ],
+      "deviations": 1,
+      "context": "shared-api-utilities",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-16T01:30:13.340710+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "browser-credential-boundary"
+      ],
+      "techniques": [
+        "aggregate-view-not-base-table",
+        "allowlisted-operator-stream",
+        "broker-proxy-attaches-secret",
+        "default-deny-plus-defaulted-owner",
+        "omit-the-column-not-the-value",
+        "opaque-upstream-errors",
+        "outbound-fetch-destination-validation",
+        "public-vs-server-env-split"
+      ],
+      "deviations": 0,
+      "context": "table-components",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    }
+  ]
+}

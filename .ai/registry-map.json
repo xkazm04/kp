@@ -30155,7 +30155,11 @@
           "revision": 3,
           "changedAt": "2026-09-03",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_components/table/TablePager.tsx:21 Searches found no NEXT_PUBLIC_, Authorization, createClient, or apiKey occurrences in the table directory, whose primitives manipulate supplied rows and UI state without implementing a credential boundary.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:d3eef10e9ed8459f",
+          "evaluatedRevision": 3
         },
         {
           "subject": "accessibility",
