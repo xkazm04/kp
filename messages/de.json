@@ -16475,7 +16475,11 @@
       "hired": "eingestellt",
       "hiredOf": "von {target, number}",
       "open": "offene Stellen, noch ohne Kandidat/innen",
-      "drafts": "+ {count, plural, one {# Entwurf} other {# Entwürfe}}"
+      "drafts": "+ {count, plural, one {# Entwurf} other {# Entwürfe}}",
+      "automated": "automatisierte Aktionen diese Woche",
+      "autoScreens": "{count, plural, one {# Screening durchgeführt} other {# Screenings durchgeführt}}",
+      "autoOutreach": "{count, plural, one {# Nachricht gesendet} other {# Nachrichten gesendet}}",
+      "autoInvites": "{count, plural, one {# Einladung gesendet} other {# Einladungen gesendet}}"
     },
     "lit": {
       "aria": "Im Orbit hervorgehoben",

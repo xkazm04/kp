@@ -16475,7 +16475,11 @@
       "hired": "hired",
       "hiredOf": "of {target, number}",
       "open": "roles open, nobody on them yet",
-      "drafts": "+ {count, plural, one {# draft} other {# drafts}}"
+      "drafts": "+ {count, plural, one {# draft} other {# drafts}}",
+      "automated": "automated actions this week",
+      "autoScreens": "{count, plural, one {# screen run} other {# screens run}}",
+      "autoOutreach": "{count, plural, one {# message sent} other {# messages sent}}",
+      "autoInvites": "{count, plural, one {# invite sent} other {# invites sent}}"
     },
     "lit": {
       "aria": "Lit on the orbit",
