@@ -22897,7 +22897,11 @@
           "revision": 21,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/settings/models/ModelsRoutingPanel.tsx:14 The operator table pins a named provider and model string for each feature use case, which is the routing decision, and it does not map a closed call class to a tier and an effort.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:5484901d8df95b15",
+          "evaluatedRevision": 21
         },
         {
           "subject": "eval-harness",
@@ -32448,7 +32452,11 @@
           "revision": 21,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/voice/openai.ts:15 The OpenAI voice adapter chooses the realtime model from an environment variable inside the provider, so every session changes with no call-site parameter, no consumer, and no expiry.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:5484901d8df95b15",
+          "evaluatedRevision": 21
         },
         {
           "subject": "prompt-assembly",
