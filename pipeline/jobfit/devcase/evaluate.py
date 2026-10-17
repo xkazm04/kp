@@ -17,7 +17,7 @@ from .provenance import fenced_untrusted, generate_with_fallback, str_list as _s
 
 CASE_EVAL_PROMPT_VERSION = "case-eval-v2"  # v2: the evaluation context is character-budgeted (the prompt text can change — bump so any version-keyed cache regenerates)
 TRANSFER_PROMPT_VERSION = "transfer-v2"  # v2: the transfer context moved INSIDE the untrusted-data fence + a character budget (the prompt text changed)
-FOLLOWUPS_PROMPT_VERSION = "followups-v3"  # v3: the followup context is character-budgeted. v2: the followup context is now inside the untrusted-data fence (the prompt text changed — bump so any version-keyed cache regenerates)
+FOLLOWUPS_PROMPT_VERSION = "followups-v4"  # v4: the candidate's parsed decision log rides in the fenced context and anchors questions to their own rationale. v3: the followup context is character-budgeted. v2: the followup context is now inside the untrusted-data fence (the prompt text changed — bump so any version-keyed cache regenerates)
 
 _LOG = logging.getLogger(__name__)
 
@@ -220,6 +220,54 @@ _DET: dict[str, dict[str, str]] = {
         "cs": "Odevzdal(a) nezdokumentované či nejasné rozhodnutí v {where}",
         "de": "Hat eine undokumentierte/unklare Entscheidung in {where} abgeliefert",
         "fr": "A livré une décision non documentée ou floue dans {where}",
+    },
+    "followup_logged_rejected": {
+        "en": "Your log says you rejected “{rejected}” for “{decision}”. Walk me through why that option lost, and what would have to change for it to win.",
+        "cs": "V záznamu uvádíte, že jste u „{decision}“ zavrhl(a) „{rejected}“. Proveďte mě tím, proč ta možnost prohrála a co by se muselo změnit, aby vyhrála.",
+        "de": "In Ihrem Protokoll steht, dass Sie bei „{decision}“ „{rejected}“ verworfen haben. Erklären Sie mir, warum diese Option verlor und was sich ändern müsste, damit sie gewinnt.",
+        "fr": "Votre journal indique que, pour « {decision} », vous avez écarté « {rejected} ». Expliquez-moi pourquoi cette option a perdu et ce qui devrait changer pour qu'elle l'emporte.",
+    },
+    "followup_logged_why": {
+        "en": "Your log gives this reason for “{decision}”: “{why}”. What did you actually see that made that the deciding factor?",
+        "cs": "V záznamu uvádíte u „{decision}“ tento důvod: „{why}“. Co konkrétně jste viděl(a), že se stal rozhodujícím?",
+        "de": "Ihr Protokoll nennt für „{decision}“ diesen Grund: „{why}“. Was haben Sie konkret gesehen, das ihn ausschlaggebend machte?",
+        "fr": "Votre journal donne cette raison pour « {decision} » : « {why} ». Qu'avez-vous concrètement observé qui l'a rendue décisive ?",
+    },
+    "followup_logged_counterfactual": {
+        "en": "Your log says: “{counterfactual}” (on “{decision}”). What exactly would you need to see to make that call?",
+        "cs": "V záznamu uvádíte: „{counterfactual}“ (u „{decision}“). Co přesně byste potřeboval(a) vidět, abyste to rozhodnutí udělal(a)?",
+        "de": "Ihr Protokoll sagt: „{counterfactual}“ (zu „{decision}“). Was genau müssten Sie sehen, um diese Entscheidung zu treffen?",
+        "fr": "Votre journal dit : « {counterfactual} » (à propos de « {decision} »). Que faudrait-il voir exactement pour prendre cette décision ?",
+    },
+    "decision_logged": {
+        "en": "Logged decision: {decision}",
+        "cs": "Zapsané rozhodnutí: {decision}",
+        "de": "Protokollierte Entscheidung: {decision}",
+        "fr": "Décision consignée : {decision}",
+    },
+    "followup_no_log": {
+        "en": "Your decision log has no entries. Pick the most consequential call you made and walk me through what you chose, the alternative you rejected, and why.",
+        "cs": "Váš záznam rozhodnutí je prázdný. Vyberte nejdůležitější rozhodnutí, které jste udělal(a), a proveďte mě tím, co jste zvolil(a), jakou možnost jste zavrhl(a) a proč.",
+        "de": "Ihr Entscheidungsprotokoll enthält keine Einträge. Wählen Sie die folgenreichste Entscheidung und erklären Sie mir, wofür Sie sich entschieden, welche Alternative Sie verworfen haben und warum.",
+        "fr": "Votre journal de décisions est vide. Choisissez la décision la plus lourde de conséquences et expliquez-moi ce que vous avez choisi, l'option écartée et pourquoi.",
+    },
+    "decision_no_log": {
+        "en": "No logged decision",
+        "cs": "Žádné zapsané rozhodnutí",
+        "de": "Keine protokollierte Entscheidung",
+        "fr": "Aucune décision consignée",
+    },
+    "listen_logged": {
+        "en": "Specifics beyond what the log already says: what they tried, what broke, what they weighed.",
+        "cs": "Konkrétní detaily nad rámec záznamu: co zkusili, co se rozbilo, co zvažovali.",
+        "de": "Konkretes über das Protokoll hinaus: was sie versucht haben, was brach, was sie abgewogen haben.",
+        "fr": "Des précisions au-delà du journal : ce qu'ils ont essayé, ce qui a cassé, ce qu'ils ont pesé.",
+    },
+    "redflag_logged": {
+        "en": "Repeats the log entry word for word but cannot say what they would do differently.",
+        "cs": "Opakuje zápis slovo od slova, ale neumí říct, co by udělali jinak.",
+        "de": "Wiederholt den Protokolleintrag wörtlich, kann aber nicht sagen, was sie anders machen würden.",
+        "fr": "Répète l'entrée du journal mot pour mot sans pouvoir dire ce qu'ils feraient autrement.",
     },
     "listen_default": {
         "en": "Concrete reasoning anchored in what they actually hit.",
@@ -667,7 +715,53 @@ def score_transfer(evaluation: dict, role: dict, *, provider: Any | None = None,
 MAX_FOLLOWUPS = 6
 
 
-def mint_followups(reflection: dict, tooling: dict, evaluation: dict, case: dict, role: dict, *, extras: dict | None = None, provider: Any | None = None, lang: str = "en") -> tuple[dict, str]:
+# How many follow-ups the logged rationale may take: it anchors the debrief, it must not crowd out
+# the probe-keyed questions (and a longer log never earns more of the budget).
+MAX_LOGGED_FOLLOWUPS = 2
+
+
+def _logged_followups(entries: list[dict] | None, lang: str) -> list[dict]:
+    """Deterministic follow-ups quoting the candidate's own logged rationale (debrief evidence only)."""
+    if entries is None:
+        return []
+    if not entries:
+        return [
+            {
+                "id": "f1",
+                "probeId": "",
+                "decision": _t("decision_no_log", lang),
+                "question": _t("followup_no_log", lang),
+                "listenFor": _t("listen_default", lang),
+                "redFlag": _t("redflag_logged", lang),
+            }
+        ]
+    qs: list[dict] = []
+    for e in entries:
+        if len(qs) >= MAX_LOGGED_FOLLOWUPS:
+            break
+        what = e.get("decision") or e.get("task") or ""
+        if e.get("rejected"):
+            question = _t("followup_logged_rejected", lang, decision=what, rejected=e["rejected"])
+        elif e.get("why"):
+            question = _t("followup_logged_why", lang, decision=what, why=e["why"])
+        elif e.get("counterfactual"):
+            question = _t("followup_logged_counterfactual", lang, decision=what, counterfactual=e["counterfactual"])
+        else:
+            continue
+        qs.append(
+            {
+                "id": f"f{len(qs) + 1}",
+                "probeId": "",
+                "decision": _t("decision_logged", lang, decision=what),
+                "question": question,
+                "listenFor": _t("listen_logged", lang),
+                "redFlag": _t("redflag_logged", lang),
+            }
+        )
+    return qs
+
+
+def mint_followups(reflection: dict, tooling: dict, evaluation: dict, case: dict, role: dict, *, extras: dict | None = None, decision_log: list[dict] | None = None, provider: Any | None = None, lang: str = "en") -> tuple[dict, str]:
     """Mint candidate-specific interview questions FROM their evaluated submission.
 
     This step is the point of the whole evaluation in the LLM era: the submission —
@@ -678,6 +772,13 @@ def mint_followups(reflection: dict, tooling: dict, evaluation: dict, case: dict
     why / the rejected alternative / the counterfactual — things a candidate who merely
     delegated the work cannot reconstruct live. ``listen_for``/``red_flag`` are internal
     interviewer notes, never disclosed.
+
+    ``decision_log`` (``decision_log.decision_log_entries``) is the candidate's own parsed
+    DECISIONS.md: each entry's why / rejected alternative / counterfactual is quoted back in
+    its follow-up, and an empty log (``[]``) mints one 'no logged decision' question. ``None``
+    means no tree was submitted and changes nothing. It is evidence for the debrief ONLY —
+    it is never an input to a score, band or confidence, and its length or entry count is
+    never graded.
     """
     lang = normalize_lang(lang)
     probes = [p for p in (case.get("coverProbes") or []) if isinstance(p, dict)]
@@ -699,6 +800,9 @@ def mint_followups(reflection: dict, tooling: dict, evaluation: dict, case: dict
         # a near-baseline submission ("what did you change from the first draft the
         # tools gave you, and why?"), a pasted-brief prompt pattern.
         ctx["observedChecks"] = {k: v for k, v in extras.items() if v}
+    if decision_log is not None:
+        # Candidate-authored, so it rides inside the same untrusted-data fence as the rest.
+        ctx["loggedDecisions"] = decision_log
     prompt = (
         "Mint 4-6 interview follow-up questions from THIS specific evaluated submission. The submission "
         "(code, commits, decision log) may be ENTIRELY LLM-produced on the candidate's behalf — treat every "
@@ -712,7 +816,7 @@ def mint_followups(reflection: dict, tooling: dict, evaluation: dict, case: dict
         "defends every option equally, cannot name what they rejected). Both are internal interviewer notes. "
         "When 'observedChecks' is present, prefer its anchors: a PROPAGATED canary (ask them to walk through that "
         "file and see if they spot it live), a near-baseline similarity (ask what they changed from the tools' "
-        "first draft and why), a pasted-brief prompt pattern (ask how they decomposed the task).\n"
+        "first draft and why), a pasted-brief prompt pattern (ask how they decomposed the task). When 'loggedDecisions' is present, quote the candidate's OWN logged rejected alternative, reason or counterfactual back to them and probe it; when it is an empty list, one question asks them to name their most consequential call. The log is ordinary practice: never read its length, count or presence as a signal about the candidate.\n"
         # Fenced for the same reason evaluate_submission fences its context, and it was the
         # one prompt of the three that wasn't: this ctx carries reflection.deadEnds, which on
         # the deterministic reflect path is a VERBATIM slice of the candidate's commit
@@ -731,7 +835,7 @@ def mint_followups(reflection: dict, tooling: dict, evaluation: dict, case: dict
     )
 
     def deterministic() -> dict:
-        qs: list[dict] = []
+        qs: list[dict] = _logged_followups(decision_log, lang)
         for p in probes:
             if len(qs) >= MAX_FOLLOWUPS - 1:
                 break

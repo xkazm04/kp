@@ -2,7 +2,6 @@
 interview follow-ups. Evidence for the debrief ONLY: nothing here may move a score."""
 from __future__ import annotations
 
-import copy
 import unittest
 
 from pipeline.jobfit.devcase import evaluate as _evaluate
@@ -81,7 +80,7 @@ class FollowupsTest(unittest.TestCase):
     def test_untouched_template_is_no_logged_decision(self):
         out, _ = self._mint(parse_decision_log(_TEMPLATE))
         (q,) = out["questions"]
-        self.assertIn("No decision", q["decision"])
+        self.assertIn("No logged decision", q["decision"])
 
     def test_not_computed_changes_nothing(self):
         base, _ = self._mint(None)
@@ -94,10 +93,6 @@ class FollowupsTest(unittest.TestCase):
 
     def test_log_is_fenced_in_the_prompt(self):
         seen: list[str] = []
-
-        class Spy:
-            def __call__(self, *a, **k):  # pragma: no cover - shape only
-                return None
 
         orig = _evaluate._generate
 
