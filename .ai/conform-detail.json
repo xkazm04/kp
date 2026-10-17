@@ -8618,6 +8618,89 @@
         "at": "2026-10-17T01:44:45.588458+00:00",
         "reason": "reviewer (sonnet): The evidence anchor is pipeline/jobfit/automation.py:2893, and the technique anchors are in app/api/sim, app/_lib/automation-run.ts and app/api/automation. None of these is in the llm-api context (app/api/llm/*). The line only shows compensation written into letter prose; I found nothing showing tha"
       }
+    },
+    "92d1ca34-143b-4d61-8cd6-b9becd08d145/recruiter-anchored-model-evaluation": {
+      "context": "models-keys-and-routing",
+      "subject": "recruiter-anchored-model-evaluation",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T02:05:45.927Z",
+      "worker": "eb5721fe-9d84-4035-873b-0198024c3cad",
+      "techniques": [
+        {
+          "technique": "decision-anchored-score-bands",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/llm/bench/judge.py:81 The rubric assigns one action to two integer scores without defining their distinction; the standard requires anchoring every number or shrinking the scale."
+        },
+        {
+          "technique": "evidence-grounded-correctness",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/llm/bench/judge.py:143 The complete return schema requests scalar dimensions, a verdict and issues rather than extracted claims with support labels and quoted contradictions."
+        },
+        {
+          "technique": "never-judge-a-fallback-as-the-models-work",
+          "verdict": "deviation",
+          "evidence": "app/features/settings/models/ModelsQualityOverview.tsx:167 The bake excludes fallback rows and retains a judges count, but the per-operation quality cell displays its composite without the surviving sample required beside every quality cell."
+        },
+        {
+          "technique": "separate-quality-from-reliability",
+          "verdict": "deviation",
+          "evidence": "app/_lib/llm-quality.ts:194 Structural invalidity reduces the quality composite through INVALID_FACTOR instead of remaining a separate reliability gate."
+        },
+        {
+          "technique": "unverifiable-is-not-fabricated",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/llm/bench/judge.py:144 The prompt explicitly distinguishes unverifiable claims, but its result schema and parser do not preserve claim labels or an unverifiable count."
+        }
+      ]
+    },
+    "ec7480d1-b046-46b8-ad78-ba60c3612b85/recruiter-anchored-model-evaluation": {
+      "context": "devcase-core",
+      "subject": "recruiter-anchored-model-evaluation",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T02:05:45.927Z",
+      "worker": "eb5721fe-9d84-4035-873b-0198024c3cad",
+      "techniques": [
+        {
+          "technique": "decision-anchored-score-bands",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/devcase/lifecycle_audits.py:38 The complete prompt supplies no practitioner-action definition for any score."
+        },
+        {
+          "technique": "evidence-grounded-correctness",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/devcase/lifecycle_audits.py:39 The grounding judgment receives a scenario label and truncated generated output without the original need or snapshot evidence."
+        },
+        {
+          "technique": "never-judge-a-fallback-as-the-models-work",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/devcase/lifecycle_audits.py:31 Only error rows are excluded, so deterministic and partially degraded rows enter the same quality judging and summary path as real generations."
+        },
+        {
+          "technique": "separate-quality-from-reliability",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/devcase/lifecycle_audits.py:69 The quality summary omits surviving-artifact counts and pools judgments admitted without a real-generation filter, despite separate reliability reporting elsewhere in this context."
+        }
+      ]
+    },
+    "b1c5ba42-9188-4765-a9e0-3ad6eefc951f/recruiter-anchored-model-evaluation": {
+      "context": "tests-devcase",
+      "subject": "recruiter-anchored-model-evaluation",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T02:05:45.927Z",
+      "worker": "eb5721fe-9d84-4035-873b-0198024c3cad",
+      "techniques": [
+        {
+          "technique": "decision-anchored-score-bands",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_devcase_judge_independence.py:110 The preceding setup assigns claude-haiku-4-5 to both seats through anthropic and openrouter; changing the transport does not provide an independent judge family."
+        }
+      ]
     }
   }
 }

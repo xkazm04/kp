@@ -11933,7 +11933,11 @@
           "revision": 4,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/devcase/lifecycle_audits.py:38 The lifecycle artifact judge requests an unanchored 1–5 quality score, leaving its relationship to a recruiter's action unspecified.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:13ad9e158b079e32",
+          "evaluatedRevision": 4
         },
         {
           "subject": "agent-memory",
@@ -22757,7 +22761,11 @@
           "revision": 4,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/llm-quality.ts:194 The Models panel's scoring dependency multiplies quality by a structural-validity penalty, blending reliability into the quality statistic.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:13ad9e158b079e32",
+          "evaluatedRevision": 4
         },
         {
           "subject": "usage-pricing-models",
@@ -30805,7 +30813,11 @@
           "revision": 4,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_devcase_judge_independence.py:107 The test certifies the identical Claude model as independent when accessed through different providers, allowing self-judging that the standard's independence countermeasure forbids.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:13ad9e158b079e32",
+          "evaluatedRevision": 4
         },
         {
           "subject": "fleet-orchestration",
