@@ -37,6 +37,7 @@ to be true for it to change?*
 - write a read -> compute -> write transaction, or call a DEFERRED transaction a bug → [0025](0025-read-modify-write-locks-at-begin-or-rechecks.md)
 - add an API route, or put a gate / rate limit / meter on one → [0026](0026-route-chain-refusal-order.md)
 - change how a candidate's AI collaboration is scored, or add AI-keyword or tool-noun weight to a match → [0027](0027-candidates-are-scored-on-proof-of-how-they-work-with-ai.md)
+- add an outbound connector or channel, change how a receipt is matched to a send, or let a message reach a candidate without a named approver → [0028](0028-one-message-identity-and-one-egress-seal-for-every-channel.md)
 
 ## Index
 
@@ -69,6 +70,7 @@ to be true for it to change?*
 | [0025](0025-read-modify-write-locks-at-begin-or-rechecks.md) | A read-modify-write takes the write lock at BEGIN or re-checks its precondition in the UPDATE | accepted | 2026-10-16 |
 | [0026](0026-route-chain-refusal-order.md) | Every workspace-scoped route enters through route(...); the session is the first refusal, guards come next, the handler's own gates last | accepted | 2026-10-16 |
 | [0027](0027-candidates-are-scored-on-proof-of-how-they-work-with-ai.md) | Candidates are scored on proof of how they work with AI, through one channel-neutral evidence ladder, with a human at every gate | accepted | 2026-10-17 |
+| [0028](0028-one-message-identity-and-one-egress-seal-for-every-channel.md) | Every channel shares one message identity and one egress seal, and a person releases what reaches a candidate | accepted | 2026-10-17 |
 
 ## Writing a new one
 
