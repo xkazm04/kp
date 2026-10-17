@@ -8201,7 +8201,11 @@
           "revision": 7,
           "changedAt": "2026-09-06",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/i18n-check.mjs:164 The catalog checker accepts copied source-language values and mojibake values, allowing these defects through its structural checks.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:13f1a2698a82c874",
+          "evaluatedRevision": 7
         },
         {
           "subject": "supply-chain",
@@ -8358,7 +8362,11 @@
           "revision": 7,
           "changedAt": "2026-09-06",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/catalog-translator.ts:54 Candidate communications receive a translator without source-catalog merging, so a missing translation can expose a catalog address instead of readable English.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:13f1a2698a82c874",
+          "evaluatedRevision": 7
         },
         {
           "subject": "translation-pipeline-topology",
@@ -15843,7 +15851,11 @@
           "revision": 7,
           "changedAt": "2026-09-06",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "i18n/request.ts:13 Request configuration loads the entire active locale as one unit, bypassing the standard's independently loadable sections.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:13f1a2698a82c874",
+          "evaluatedRevision": 7
         },
         {
           "subject": "quality-gates",
@@ -21869,7 +21881,11 @@
           "revision": 7,
           "changedAt": "2026-09-06",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/shared/MatchReasoningPanel.tsx:91 The reasoning badge appends a separately translated suffix to its translated source label, fixing message composition outside the translator's control.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:13f1a2698a82c874",
+          "evaluatedRevision": 7
         },
         {
           "subject": "adaptive-fidelity-tiers",
@@ -21994,7 +22010,11 @@
           "revision": 7,
           "changedAt": "2026-09-06",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/shared/matchLabels.ts:72 Unknown match-label codes degrade to English or raw identifiers without reporting the mapping miss, hiding production vocabulary drift.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:13f1a2698a82c874",
+          "evaluatedRevision": 7
         },
         {
           "subject": "translation-pipeline-topology",

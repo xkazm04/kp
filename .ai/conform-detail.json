@@ -8272,6 +8272,96 @@
           "evidence": "app/_lib/db/skill-profiles.ts:106 These are application-owned attestation signing keys, not a vault service sealing caller ciphertext under a version window."
         }
       ]
+    },
+    "6f32f7eb-be6a-48aa-a546-d7f77ddf7546/i18n": {
+      "context": "i18n-locale-resolution",
+      "subject": "i18n",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T01:07:19.950Z",
+      "worker": "160732fb-f062-4c40-874f-012ebce9b337",
+      "techniques": [
+        {
+          "technique": "catalog-architecture",
+          "verdict": "deviation",
+          "evidence": "i18n/request.ts:13 The loading boundary is a whole locale JSON file rather than a locale-section pair."
+        }
+      ]
+    },
+    "65792460-c7df-4a0e-ad4b-224ea3acd82b/i18n": {
+      "context": "ci-doc-gates",
+      "subject": "i18n",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T01:07:19.950Z",
+      "worker": "160732fb-f062-4c40-874f-012ebce9b337",
+      "techniques": [
+        {
+          "technique": "completeness-gates",
+          "verdict": "deviation",
+          "evidence": "scripts/i18n-check.mjs:164 An in-memory source and German catalog both containing 'Hello {name}' produced no problems; key parity is enforced, but untranslated-value identity is not."
+        },
+        {
+          "technique": "encoding-corruption-ratchet",
+          "verdict": "deviation",
+          "evidence": "scripts/i18n/catalog-check.mjs:232 Content validation checks control characters, syntax and dashes without the required mojibake signature; a target containing U+00C3 followed by U+00A9 produced no problems."
+        },
+        {
+          "technique": "string-extraction-enforcement",
+          "verdict": "deviation",
+          "evidence": "scripts/i18n-check.mjs:235 The shared-primitive attribute scan targets aria-label; broader attribute checks are limited to selected marketing directories, leaving the required extraction boundary incomplete."
+        }
+      ]
+    },
+    "f7ce7c17-f1a7-4257-9247-9a05f098efd7/i18n": {
+      "context": "match-score-shared-types",
+      "subject": "i18n",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T01:07:19.950Z",
+      "worker": "160732fb-f062-4c40-874f-012ebce9b337",
+      "techniques": [
+        {
+          "technique": "token-label-separation",
+          "verdict": "deviation",
+          "evidence": "app/features/shared/matchLabels.ts:72 The explicit missing-code branch returns fallback text or the token without the production miss telemetry required by the standard."
+        }
+      ]
+    },
+    "a52e7c0d-e73d-49ee-b465-526da5899c6f/i18n": {
+      "context": "comms-locale-optout",
+      "subject": "i18n",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T01:07:19.950Z",
+      "worker": "160732fb-f062-4c40-874f-012ebce9b337",
+      "techniques": [
+        {
+          "technique": "catalog-architecture",
+          "verdict": "deviation",
+          "evidence": "app/_lib/catalog-translator.ts:54 commsTranslator delegates to this loader, which supplies only the target catalog; removing comms.team from an in-memory German catalog made this construction return 'comms.team' despite an English source value."
+        }
+      ]
+    },
+    "c849e8b8-1cd8-4644-ad0f-178331441cca/i18n": {
+      "context": "match-presentation-components",
+      "subject": "i18n",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T01:07:19.950Z",
+      "worker": "160732fb-f062-4c40-874f-012ebce9b337",
+      "techniques": [
+        {
+          "technique": "interpolation-and-plurals",
+          "verdict": "deviation",
+          "evidence": "app/features/shared/MatchReasoningPanel.tsx:91 This suffix follows the independently translated sourceLlm/sourceRuleBased expression, matching the standard's named fragment-plus-suffix failure."
+        }
+      ]
     }
   }
 }
