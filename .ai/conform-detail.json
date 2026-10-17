@@ -9328,6 +9328,53 @@
           "evidence": "app/_lib/brand.ts:83 The documented role-keyed theme map exposes a color-named role rather than an intent such as accent."
         }
       ]
+    },
+    "181b8632-82ec-4203-a308-42e58eca6c49/job-coordination": {
+      "context": "jobs-posting-campaign",
+      "subject": "job-coordination",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T03:49:53.198Z",
+      "worker": "3058a952-3e79-463a-a885-245c2430391c",
+      "techniques": [
+        {
+          "technique": "job-observability",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/JobsLifecycleStrip.tsx:77 The strip summarizes one role's hiring funnel, not all live execution jobs."
+        },
+        {
+          "technique": "job-state-machines",
+          "verdict": "deviation",
+          "evidence": "app/features/library/jobs/jobsPublishResult.ts:90 receiptNote's default branch accepts any unrecognized state and reports tone ok with wentLive, hiding an invalid stored vocabulary."
+        },
+        {
+          "technique": "terminal-state-recovery",
+          "verdict": "deviation",
+          "evidence": "app/features/library/jobs/jobsPublishResult.ts:91 Every sourcing receipt is nonresumable here regardless of startedAt, so an orphan old enough for server-side reclaim receives no Finish sourcing action."
+        }
+      ]
+    },
+    "072ae351-6062-4edf-ae14-acf4260e4c19/job-coordination": {
+      "context": "ops-observability",
+      "subject": "job-coordination",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T03:49:53.198Z",
+      "worker": "3058a952-3e79-463a-a885-245c2430391c",
+      "techniques": [
+        {
+          "technique": "job-observability",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/ops-telemetry.ts:122 This telemetry reports sampled aggregates rather than an operator view of every live job."
+        },
+        {
+          "technique": "lease-renewal",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/webhook-claims.ts:78 Expired claims can be acquired again, but settlement and release have no holder or attempt condition, allowing an old claimant to modify its successor's lease."
+        }
+      ]
     }
   }
 }

@@ -19188,7 +19188,11 @@
           "revision": 17,
           "changedAt": "2026-10-06",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/library/jobs/jobsPublishResult.ts:90 Unknown durable receipt states fall through to an affirmative success-toned message instead of surfacing vocabulary drift.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:68f09609d1498e88",
+          "evaluatedRevision": 17
         },
         {
           "subject": "release-pipeline",
@@ -23050,7 +23054,11 @@
           "revision": 17,
           "changedAt": "2026-10-06",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/webhook-idempotency.ts:85 Release carries only the delivery key, so an expired claimant can delete a successor's newly acquired claim.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:68f09609d1498e88",
+          "evaluatedRevision": 17
         },
         {
           "subject": "webhook-ingestion",
