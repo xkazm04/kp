@@ -1534,6 +1534,15 @@ export const REFUSAL_ERRORS = {
   /** GET /api/me/capability-holders named no capability, or one the role model does
    *  not know (400). The shell only ever asks for a TAB_CAPABILITY value. */
   CAPABILITY_UNKNOWN: "That permission does not exist.",
+  /** POST /api/interview-prep/scorecard?debrief= (400): an adverse debrief finding (revised /
+   *  not evidenced) must carry the candidate's own words. */
+  DEBRIEF_FINDING_QUOTE_REQUIRED: "A finding that goes against the candidate needs a quote of what they said.",
+  /** The same door (400): an unknown follow-up or finding kind. */
+  DEBRIEF_FINDING_INVALID: "That debrief finding does not match any follow-up on this submission.",
+  /** The same door (409): no findings were recorded for this evaluation, or fewer than four in five were supported. */
+  DEBRIEF_CLEARANCE_REFUSED: "Authorship cannot be cleared yet: record a finding for each follow-up first, and at least four in five must be supported.",
+  /** The same door (409): the submission is not under an authorship hold (or the clearance already stands). */
+  DEBRIEF_NOT_HELD: "This submission is not being held for an authorship check.",
   /** POST /api/interview-prep/scorecard (409): the candidate's prep already holds
    *  MAX_HUMAN_SCORECARDS records, one per (interviewer, round), and this save would
    *  open a new one. Refused rather than made room for — evicting an older record is

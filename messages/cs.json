@@ -1854,6 +1854,10 @@
     "ENGINE_FAILED": "Analytický engine se zastavil dříve, než tento běh dokončil. Zkuste to prosím znovu, a pokud se to opakuje, obraťte se na správce.",
     "TASK_TIME_LIMIT": "Tento běh překročil svůj časový limit a byl zastaven. Zkuste to prosím znovu.",
     "CAPABILITY_UNKNOWN": "Toto oprávnění neexistuje.",
+    "DEBRIEF_FINDING_QUOTE_REQUIRED": "Zjištění v neprospěch kandidáta vyžaduje citaci toho, co řekl.",
+    "DEBRIEF_FINDING_INVALID": "Toto zjištění neodpovídá žádné doplňující otázce tohoto odevzdání.",
+    "DEBRIEF_CLEARANCE_REFUSED": "Autorství zatím nelze potvrdit: nejprve zaznamenejte zjištění ke každé doplňující otázce a alespoň čtyři z pěti musí být potvrzeny.",
+    "DEBRIEF_NOT_HELD": "Toto odevzdání není podrženo k ověření autorství.",
     "INTERVIEW_PREP_SCORECARDS_FULL": "Tento kandidát už má uložený nejvyšší možný počet hodnoticích karet z pohovoru. Vaše hodnoticí karta nebyla uložena.",
     "VOICE_READINESS_FAILED": "Připravenost hlasových služeb se nepodařilo načíst. Zkuste to prosím znovu.",
     "VOICE_READINESS_OFFLINE": "Tento server běží offline, proto nelze poskytovatele hlasu zkontrolovat.",
@@ -8237,7 +8241,9 @@
         "interview_no_show": "Nedostavil se k pohovoru",
         "interview_proposal_declined": "Navržený termín odmítnut",
         "screening_threshold_adjusted": "Upraven práh screeningu",
-        "match_verdict": "Verdikt shody"
+        "match_verdict": "Verdikt shody",
+        "debrief_findings": "Zjištění z debriefu",
+        "authorship_verified": "Autorství ověřeno"
       },
       "traceTitle": "Sledovatelnost AI (čl. 12)",
       "tracePrompt": "Prompt pro odůvodnění",
@@ -10422,6 +10428,27 @@
       "copy": "Kopírovat",
       "export": "Exportovat",
       "intro": "Každá otázka ověřuje, že kandidát skutečně stojí za konkrétním rozhodnutím ve svém řešení. Poznámky „čeho si všímat“ a varovné signály jsou určené jen pro tazatele.",
+      "debrief": {
+        "title": "Zjištění z debriefu",
+        "intro": "Zaznamenejte jedno zjištění ke každé doplňující otázce. Otázka, kterou jste nepoložili, se čte jako nepoložená, nikdy jako střední hodnocení.",
+        "held": "Podrženo k ověření autorství. Pásmo a skóre zůstávají beze změny; podržení uvolní jen ověřený debrief.",
+        "cleared": "Autorství ověřil(a) {who}. Pásmo a skóre se nezměnily.",
+        "progress": "{supported} z {total} potvrzeno",
+        "kind": {
+          "supported": "Potvrzeno",
+          "revised": "Upraveno",
+          "not_evidenced": "Nedoloženo",
+          "not_asked": "Nepoloženo"
+        },
+        "quoteLabel": "Co řekl(a)",
+        "quotePlaceholder": "Jeho či její vlastní slova, co nejblíže",
+        "quoteNeeded": "Pro uložení tohoto zjištění doplňte, co řekl(a).",
+        "save": "Uložit zjištění",
+        "saving": "Ukládám…",
+        "clear": "Ověřit autorství",
+        "failed": "Uložení se nepodařilo. Zkuste to prosím znovu.",
+        "pickAria": "Zjištění k doplňující otázce {n}"
+      },
       "doc": {
         "heading": "Podklady k pohovoru: {case}",
         "caseFallback": "Zadání",

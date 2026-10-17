@@ -1854,6 +1854,10 @@
     "ENGINE_FAILED": "Die Analyse-Engine wurde beendet, bevor dieser Lauf abgeschlossen war. Bitte versuchen Sie es erneut und wenden Sie sich an Ihre Administration, wenn es wiederholt auftritt.",
     "TASK_TIME_LIMIT": "Dieser Lauf hat sein Zeitlimit überschritten und wurde abgebrochen. Bitte versuchen Sie es erneut.",
     "CAPABILITY_UNKNOWN": "Diese Berechtigung gibt es nicht.",
+    "DEBRIEF_FINDING_QUOTE_REQUIRED": "Ein Befund gegen den Kandidaten braucht ein Zitat dessen, was gesagt wurde.",
+    "DEBRIEF_FINDING_INVALID": "Dieser Befund passt zu keiner Nachfrage dieser Einreichung.",
+    "DEBRIEF_CLEARANCE_REFUSED": "Die Autorschaft kann noch nicht bestätigt werden: Halten Sie zuerst zu jeder Nachfrage einen Befund fest; mindestens vier von fünf müssen bestätigt sein.",
+    "DEBRIEF_NOT_HELD": "Diese Einreichung wird nicht zur Autorschaftsprüfung zurückgehalten.",
     "INTERVIEW_PREP_SCORECARDS_FULL": "Für diese Kandidatin bzw. diesen Kandidaten sind bereits so viele Interview-Scorecards gespeichert wie möglich. Ihre Scorecard wurde nicht gespeichert.",
     "VOICE_READINESS_FAILED": "Die Bereitschaft der Sprachdienste konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
     "VOICE_READINESS_OFFLINE": "Dieser Server läuft offline, daher können Sprachanbieter nicht geprüft werden.",
@@ -8237,7 +8241,9 @@
         "interview_no_show": "Interview nicht wahrgenommen",
         "interview_proposal_declined": "Vorgeschlagener Termin abgelehnt",
         "screening_threshold_adjusted": "Screening-Schwelle angepasst",
-        "match_verdict": "Match-Urteil"
+        "match_verdict": "Match-Urteil",
+        "debrief_findings": "Debrief-Befunde",
+        "authorship_verified": "Autorschaft bestätigt"
       },
       "traceTitle": "KI-Nachvollziehbarkeit (Art. 12)",
       "tracePrompt": "Begründungs-Prompt",
@@ -10422,6 +10428,27 @@
       "copy": "Kopieren",
       "export": "Exportieren",
       "intro": "Jede Frage prüft, ob der Kandidat eine echte Entscheidung aus seiner Einreichung wirklich verantwortet. Die Hinweise „worauf achten“ und die Warnsignale sind nur für die interviewende Person bestimmt.",
+      "debrief": {
+        "title": "Debrief-Befunde",
+        "intro": "Halten Sie pro Nachfrage einen Befund fest. Eine nicht gestellte Nachfrage gilt als nicht gestellt, nie als mittlere Bewertung.",
+        "held": "Zur Autorschaftsprüfung zurückgehalten. Band und Score bleiben unverändert; nur ein bestätigtes Debrief hebt die Sperre auf.",
+        "cleared": "Autorschaft bestätigt von {who}. Band und Score sind unverändert.",
+        "progress": "{supported} von {total} bestätigt",
+        "kind": {
+          "supported": "Bestätigt",
+          "revised": "Korrigiert",
+          "not_evidenced": "Nicht belegt",
+          "not_asked": "Nicht gefragt"
+        },
+        "quoteLabel": "Was gesagt wurde",
+        "quotePlaceholder": "Die eigenen Worte, so genau wie möglich",
+        "quoteNeeded": "Ergänzen Sie, was gesagt wurde, um diesen Befund zu speichern.",
+        "save": "Befunde speichern",
+        "saving": "Wird gespeichert…",
+        "clear": "Autorschaft bestätigen",
+        "failed": "Speichern fehlgeschlagen. Bitte erneut versuchen.",
+        "pickAria": "Befund zu Nachfrage {n}"
+      },
       "doc": {
         "heading": "Interview-Kit: {case}",
         "caseFallback": "Aufgabe",

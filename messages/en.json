@@ -1854,6 +1854,10 @@
     "ENGINE_FAILED": "The analysis engine stopped before this run finished. Try again, and tell your administrator if it keeps happening.",
     "TASK_TIME_LIMIT": "This run went past its time limit and was stopped. Try again.",
     "CAPABILITY_UNKNOWN": "That permission does not exist.",
+    "DEBRIEF_FINDING_QUOTE_REQUIRED": "A finding that goes against the candidate needs a quote of what they said.",
+    "DEBRIEF_FINDING_INVALID": "That debrief finding does not match any follow-up on this submission.",
+    "DEBRIEF_CLEARANCE_REFUSED": "Authorship cannot be cleared yet: record a finding for each follow-up first, and at least four in five must be supported.",
+    "DEBRIEF_NOT_HELD": "This submission is not being held for an authorship check.",
     "INTERVIEW_PREP_SCORECARDS_FULL": "This candidate already holds as many interview scorecards as can be stored. Your scorecard was not saved.",
     "VOICE_READINESS_FAILED": "Could not load voice readiness. Please try again.",
     "VOICE_READINESS_OFFLINE": "This server runs offline, so voice providers cannot be checked.",
@@ -8237,7 +8241,9 @@
         "interview_no_show": "Interview no-show",
         "interview_proposal_declined": "Proposed slot declined",
         "screening_threshold_adjusted": "Screening threshold adjusted",
-        "match_verdict": "Match verdict"
+        "match_verdict": "Match verdict",
+        "debrief_findings": "Debrief findings",
+        "authorship_verified": "Authorship verified"
       },
       "traceTitle": "AI traceability (Art. 12)",
       "tracePrompt": "Reasoning prompt",
@@ -10422,6 +10428,27 @@
       "copy": "Copy",
       "export": "Export",
       "intro": "Each question verifies the candidate owns a real decision from their submission. Listen-for / red-flag notes are interviewer-internal.",
+      "debrief": {
+        "title": "Debrief findings",
+        "intro": "Record one finding per follow-up. A follow-up you did not ask reads as not asked, never as a middle score.",
+        "held": "Held for an authorship check. The band and score stay as they are; only a verified debrief releases the hold.",
+        "cleared": "Authorship verified by {who}. Band and score are unchanged.",
+        "progress": "{supported} of {total} supported",
+        "kind": {
+          "supported": "Supported",
+          "revised": "Revised",
+          "not_evidenced": "Not evidenced",
+          "not_asked": "Not asked"
+        },
+        "quoteLabel": "What they said",
+        "quotePlaceholder": "Their own words, as close as you can",
+        "quoteNeeded": "Add what they said to save this finding.",
+        "save": "Save findings",
+        "saving": "Saving…",
+        "clear": "Verify authorship",
+        "failed": "Could not save. Please try again.",
+        "pickAria": "Finding for follow-up {n}"
+      },
       "doc": {
         "heading": "Interview kit: {case}",
         "caseFallback": "Assignment",

@@ -2303,6 +2303,27 @@ the scoring half is `ObservedIsArchetypeIndependentTest` in
   minutes of late work is below its resolution; and the postings-list promote preview
   (`promoteVerdict`) does not yet carry the unwitnessed hold, so a preview may say advance
   where promote holds.
+- **A hold has one exit: recorded debrief findings, then a human clearance (`clearedBy`).**
+  A `suspect` band or an `unwitnessed` trace used to hold until someone re-promoted by
+  hand. Now the interviewer records ONE finding per minted follow-up — `supported`,
+  `revised`, `not_evidenced` or `not_asked` — and an adverse one (`revised`,
+  `not_evidenced`) is refused without a quote of what the candidate said. A follow-up with
+  no finding reads **not asked**, never a midpoint. A human then seals an
+  `authorship_verified` decision (the existing decision chain, keyed on the submission id;
+  no new table) that is bound to a **digest of the submission** (`submissionDigest`: the
+  stored evaluation + score). It is refused without findings recorded against this
+  evaluation, or when fewer than 4 in 5 follow-ups are `supported`
+  (`CLEARANCE_SUPPORTED_SHARE`). `clearedBy` is the only thing `heldForAuthorship` accepts:
+  `mintObservedFromSubmission` and `promoteSubmission` then proceed, while the authenticity
+  band and the score stay in the bundle unchanged as history. Re-evaluating writes a new
+  bundle (`evaluatedAt`), so the digest moves and the clearance — and the findings made
+  against the old evaluation — stop counting. Deterministic and keyless: no LLM anywhere in
+  it. Door: `GET|POST /api/interview-prep/scorecard?debrief=<submissionId>` (POST
+  `{findings}` and/or `{clear: true}`, `pipeline:write`); UI: the *Debrief findings* block
+  of `DevInterviewKit.tsx`. Code: `app/_lib/devcase-debrief-findings.ts`, fixtures
+  `devcase-debrief-findings.test.ts`. Gaps: the findings are not yet folded into the AI
+  scorecard's grounding (`automation.py`), and the postings-list promote preview does not
+  show a cleared state.
 - The seed's `note` is only rendered to candidates on the **LLM** path. The deterministic
   (keyless) seed's note is a fixed English provenance marker aimed at us, so the apply page
   suppresses it on `seed.source === "deterministic"` rather than showing build jargon,

@@ -1,15 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Check, Copy, Download, MicVocal } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Select } from "@/app/_components/Select";
 import { downloadFile } from "@/app/_lib/export-utils";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import {
   buildInterviewKitStrings,
   interviewKitMarkdown,
   orderInterviewKitInputs,
 } from "@/app/_lib/devcase-interview-kit";
+import { BTN_SECONDARY } from "@/app/_components/ui/recipes";
 import { FollowupQuestionItem } from "./DevShared";
 import { pickKitSubmission } from "./DevInterviewKit.select";
 import type { Submission } from "./DevTypes";
@@ -116,6 +118,145 @@ export function InterviewKit({ caseTitle, candidates }: { caseTitle: string; can
             </li>
           ))}
       </ol>
+      <DebriefFindings key={selected.id} submissionId={selected.id} count={questions.filter((q) => (q.question ?? "").trim()).length} />
     </section>
+  );
+}
+
+type FindingKind = "supported" | "revised" | "not_evidenced" | "not_asked";
+const KINDS: FindingKind[] = ["supported", "revised", "not_evidenced", "not_asked"];
+type DraftFinding = { kind: FindingKind; quote: string };
+type DebriefState = {
+  findings: { followupIndex: number; kind: FindingKind; quote?: string }[];
+  recorded: boolean;
+  held: boolean;
+  clearedBy: string | null;
+  supported: number;
+  total: number;
+};
+
+// C4 — one finding per follow-up, and the human act that releases an authorship hold.
+// An uncovered follow-up is "not asked" (the server reads absence the same way); an
+// adverse finding cannot be saved without the words heard.
+function DebriefFindings({ submissionId, count }: { submissionId: string; count: number }) {
+  const t = useTranslations("devcase.interviewKit.debrief");
+  const errMsg = useErrorMessage();
+  const [state, setState] = useState<DebriefState | null>(null);
+  const [draft, setDraft] = useState<DraftFinding[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const apply = useCallback(
+    (next: DebriefState) => {
+      setState(next);
+      setDraft(Array.from({ length: count }, (_, i) => {
+        const f = next.findings.find((x) => x.followupIndex === i + 1);
+        return { kind: f?.kind ?? "not_asked", quote: f?.quote ?? "" };
+      }));
+    },
+    [count],
+  );
+
+  useEffect(() => {
+    let live = true;
+    fetch(`/api/interview-prep/scorecard?debrief=${encodeURIComponent(submissionId)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: DebriefState | null) => {
+        if (live && j) apply(j);
+      })
+      .catch(() => {
+        /* best-effort: without the state the section simply stays hidden */
+      });
+    return () => {
+      live = false;
+    };
+  }, [submissionId, apply]);
+
+  if (!state) return null;
+  const adverse = (d: DraftFinding) => d.kind === "revised" || d.kind === "not_evidenced";
+  const needsQuote = draft.some((d) => adverse(d) && !d.quote.trim());
+
+  const send = async (body: Record<string, unknown>) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/interview-prep/scorecard?debrief=${encodeURIComponent(submissionId)}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) setError(errMsg(json, t("failed")));
+      else apply(json as DebriefState);
+    } catch {
+      setError(t("failed"));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const save = () =>
+    send({
+      findings: draft.map((d, i) => ({ followupIndex: i + 1, kind: d.kind, ...(d.quote.trim() ? { quote: d.quote.trim() } : {}) })),
+    });
+
+  return (
+    <div className="mt-3 rounded-md border border-stone-200 bg-white p-2.5 text-micro">
+      <div className="flex flex-wrap items-center gap-2">
+        <h4 className="font-semibold text-ink">{t("title")}</h4>
+        <span className="text-steel">{t("progress", { supported: state.supported, total: state.total })}</span>
+      </div>
+      <p className="mt-1 text-steel">{t("intro")}</p>
+      {state.clearedBy ? (
+        <p className="mt-1.5 font-semibold text-moss">{t("cleared", { who: state.clearedBy.replace(/^human:/, "") })}</p>
+      ) : state.held ? (
+        <p className="mt-1.5 font-semibold text-coral-ink">{t("held")}</p>
+      ) : null}
+      <ol className="mt-2 space-y-1.5">
+        {draft.map((d, i) => (
+          <li key={i} className="flex flex-wrap items-center gap-1.5">
+            <span className="w-5 text-steel">{i + 1}.</span>
+            <Select
+              sizeVariant="sm"
+              ariaLabel={t("pickAria", { n: i + 1 })}
+              value={d.kind}
+              onChange={(v) => setDraft((cur) => cur.map((x, j) => (j === i ? { ...x, kind: v as FindingKind } : x)))}
+              options={KINDS.map((k) => ({ value: k, label: t(`kind.${k}`) }))}
+            />
+            {adverse(d) ? (
+              <input
+                value={d.quote}
+                onChange={(e) => setDraft((cur) => cur.map((x, j) => (j === i ? { ...x, quote: e.target.value } : x)))}
+                aria-label={t("quoteLabel")}
+                placeholder={t("quotePlaceholder")}
+                maxLength={1000}
+                className="focus-ring h-8 min-w-0 flex-1 rounded-md border border-stone-200 bg-white px-2 text-micro text-ink"
+              />
+            ) : null}
+          </li>
+        ))}
+      </ol>
+      {needsQuote ? <p className="mt-1.5 text-steel">{t("quoteNeeded")}</p> : null}
+      {error ? <p role="alert" className="mt-1.5 text-coral-ink">{error}</p> : null}
+      <div className="mt-2 flex gap-1.5">
+        <button
+          type="button"
+          onClick={save}
+          disabled={busy || needsQuote}
+          className={`${BTN_SECONDARY} h-8 bg-white px-2.5 text-micro font-semibold`}
+        >
+          {busy ? t("saving") : t("save")}
+        </button>
+        {state.held && state.recorded ? (
+          <button
+            type="button"
+            onClick={() => send({ clear: true })}
+            disabled={busy}
+            className={`${BTN_SECONDARY} h-8 bg-moss/10 px-2.5 text-micro font-semibold text-moss`}
+          >
+            {t("clear")}
+          </button>
+        ) : null}
+      </div>
+    </div>
   );
 }

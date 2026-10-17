@@ -1854,6 +1854,10 @@
     "ENGINE_FAILED": "Le moteur d’analyse s’est arrêté avant la fin de cette exécution. Veuillez réessayer et prévenir votre administrateur si le problème persiste.",
     "TASK_TIME_LIMIT": "Cette exécution a dépassé sa limite de temps et a été arrêtée. Veuillez réessayer.",
     "CAPABILITY_UNKNOWN": "Cette autorisation n’existe pas.",
+    "DEBRIEF_FINDING_QUOTE_REQUIRED": "Un constat défavorable au candidat exige une citation de ses propos.",
+    "DEBRIEF_FINDING_INVALID": "Ce constat ne correspond à aucune question de suivi de ce rendu.",
+    "DEBRIEF_CLEARANCE_REFUSED": "La paternité ne peut pas encore être validée : consignez d'abord un constat par question de suivi ; au moins quatre sur cinq doivent être confirmés.",
+    "DEBRIEF_NOT_HELD": "Ce rendu n'est pas retenu pour une vérification de la paternité.",
     "INTERVIEW_PREP_SCORECARDS_FULL": "Ce candidat a déjà le nombre maximal de scorecards d’entretien pouvant être enregistrées. Votre scorecard n’a pas été enregistrée.",
     "VOICE_READINESS_FAILED": "Impossible de charger l’état des services vocaux. Veuillez réessayer.",
     "VOICE_READINESS_OFFLINE": "Ce serveur fonctionne hors ligne, les fournisseurs vocaux ne peuvent donc pas être vérifiés.",
@@ -8237,7 +8241,9 @@
         "interview_no_show": "Absence à l'entretien",
         "interview_proposal_declined": "Créneau proposé refusé",
         "screening_threshold_adjusted": "Seuil de présélection ajusté",
-        "match_verdict": "Verdict de correspondance"
+        "match_verdict": "Verdict de correspondance",
+        "debrief_findings": "Constats du débrief",
+        "authorship_verified": "Paternité vérifiée"
       },
       "traceTitle": "Traçabilité de l'IA (art. 12)",
       "tracePrompt": "Prompt de justification",
@@ -10422,6 +10428,27 @@
       "copy": "Copier",
       "export": "Exporter",
       "intro": "Chaque question vérifie que le candidat assume réellement une décision de son rendu. Les notes « à écouter » et les signaux d’alerte sont réservés à l’intervieweur.",
+      "debrief": {
+        "title": "Constats du débrief",
+        "intro": "Consignez un constat par question de suivi. Une question non posée se lit comme non posée, jamais comme une note moyenne.",
+        "held": "Retenu pour vérification de la paternité. La bande et le score restent inchangés ; seul un débrief vérifié lève la retenue.",
+        "cleared": "Paternité vérifiée par {who}. La bande et le score sont inchangés.",
+        "progress": "{supported} sur {total} confirmés",
+        "kind": {
+          "supported": "Confirmé",
+          "revised": "Révisé",
+          "not_evidenced": "Non étayé",
+          "not_asked": "Non posée"
+        },
+        "quoteLabel": "Ce qui a été dit",
+        "quotePlaceholder": "Ses propres mots, au plus près",
+        "quoteNeeded": "Ajoutez ce qui a été dit pour enregistrer ce constat.",
+        "save": "Enregistrer les constats",
+        "saving": "Enregistrement…",
+        "clear": "Vérifier la paternité",
+        "failed": "Échec de l'enregistrement. Veuillez réessayer.",
+        "pickAria": "Constat pour la question de suivi {n}"
+      },
       "doc": {
         "heading": "Kit d’entretien : {case}",
         "caseFallback": "Épreuve",

@@ -243,6 +243,9 @@ export const RECORD_ONLY_KINDS = [
   // The verdict a Match add seals (ADR 0018) — operator-facing only; /status/[token]
   // does not list it until the owner rules on candidate visibility.
   "match_verdict",
+  // C4 — the debrief that releases an authorship hold (devcase-debrief-findings.ts).
+  "debrief_findings",
+  "authorship_verified",
 ] as const;
 
 export type RecordOnlyKind = (typeof RECORD_ONLY_KINDS)[number];

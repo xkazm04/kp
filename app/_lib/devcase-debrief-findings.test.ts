@@ -36,7 +36,7 @@ function bundle(band: string, witness = "witnessed", nonce = "a") {
 let n = 0;
 function submissionWith(b: unknown) {
   n += 1;
-  const posting = createPosting({ caseId: `case-${n}`, channel: "link", roleTitle: "Dev", caseTitle: "Case" } as never);
+  const posting = createPosting({ caseId: `case-${n}`, channel: "link", token: `tok-${n}`, roleTitle: "Dev", caseTitle: "Case" } as never);
   const { submission } = createSubmission({ postingId: posting.id, candidateRef: `cand-${n}`, repoRef: `session:s${n}` });
   saveSubmissionEvaluation(submission.id, b, 88);
   return getSubmission(submission.id)!;
