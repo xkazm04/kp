@@ -9056,6 +9056,180 @@
           "evidence": "app/_components/Tooltip.tsx:98 aria-describedby belongs on the described control; its relationship is not inherited from this wrapper."
         }
       ]
+    },
+    "48803d2b-7f17-4d34-90ca-c420b7074ef2/chat-transcript": {
+      "context": "chat-markdown-icons",
+      "subject": "chat-transcript",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T03:20:21.226Z",
+      "worker": "d7a5a349-5e3e-4607-94d4-84b19863f39e",
+      "techniques": [
+        {
+          "technique": "composer-turn-queue",
+          "verdict": "deviation",
+          "evidence": "app/_components/chat/ChatComposer.tsx:59 Busy submissions are refused instead of accepted as queued prompts or interjections."
+        },
+        {
+          "technique": "immutable-model-cached-layout",
+          "verdict": "deviation",
+          "evidence": "app/_components/chat/ChatTranscript.tsx:128 Historical bubbles are rebuilt inline on each transcript render without a memoized settled-row boundary."
+        },
+        {
+          "technique": "inline-structured-rows",
+          "verdict": "deviation",
+          "evidence": "app/_components/chat/ChatBlocks.tsx:32 Structured blocks use positional keys instead of their own durable row identities."
+        },
+        {
+          "technique": "markdown-and-code-rendering",
+          "verdict": "deviation",
+          "evidence": "app/_components/Markdown.tsx:127 The inspected fenced-code branch renders escaped code in a scrolling pre element but provides no required copy affordance."
+        },
+        {
+          "technique": "transcript-scroll",
+          "verdict": "deviation",
+          "evidence": "app/_components/chat/ChatTranscript.tsx:108 Turn-count and busy changes scroll unconditionally, without respecting a reader who has scrolled away."
+        },
+        {
+          "technique": "turn-model",
+          "verdict": "deviation",
+          "evidence": "app/_components/chat/ChatTranscript.tsx:25 The model has no turn phase or outcome, and pending work is rendered separately as the thinking bubble."
+        }
+      ]
+    },
+    "e2f41475-e943-47a4-bf2d-7e3ee529366d/chat-transcript": {
+      "context": "voice-interview-components",
+      "subject": "chat-transcript",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T03:20:21.226Z",
+      "worker": "d7a5a349-5e3e-4607-94d4-84b19863f39e",
+      "techniques": [
+        {
+          "technique": "composer-turn-queue",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/voice/VoiceLiveControls.tsx:40 This spoken-input surface exposes microphone controls, without a text composer accepting prompt submissions."
+        },
+        {
+          "technique": "immutable-model-cached-layout",
+          "verdict": "deviation",
+          "evidence": "app/_components/voice/VoiceTranscript.tsx:145 Settled rows are unmemoized components and rerender when the parent receives partial-caption updates, despite the bounded history window."
+        },
+        {
+          "technique": "markdown-and-code-rendering",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/voice/VoiceTranscript.tsx:167 Spoken captions render as escaped React text; this surface does not interpret Markdown or code fences."
+        },
+        {
+          "technique": "transcript-scroll",
+          "verdict": "deviation",
+          "evidence": "app/_components/voice/VoiceTranscript.tsx:49 Following respects reader pin state, but opening has no layout-stability ready gate and the complete component offers no counted jump-to-latest."
+        },
+        {
+          "technique": "turn-metadata",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/voice/VoiceLiveControls.tsx:35 The displayed timing describes the live call, without per-turn usage or provenance accounting."
+        },
+        {
+          "technique": "turn-model",
+          "verdict": "deviation",
+          "evidence": "app/_components/voice/transcript-follow.ts:63 Index-and-timestamp keys violate creation-time identity; the provisional caption also disappears when a separate finalized row arrives."
+        },
+        {
+          "technique": "virtual-filtered-channel",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/voice/transcript-follow.ts:54 The transcript takes a recent-history window; it does not expose filtered or merged conversational panes."
+        }
+      ]
+    },
+    "c0265e6e-9274-43db-9929-822cb417b96d/chat-transcript": {
+      "context": "companion-ai",
+      "subject": "chat-transcript",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T03:20:21.226Z",
+      "worker": "d7a5a349-5e3e-4607-94d4-84b19863f39e",
+      "techniques": [
+        {
+          "technique": "inline-structured-rows",
+          "verdict": "deviation",
+          "evidence": "app/_lib/companion-blocks.ts:134 Unrecognized blocks become a discarded-item count instead of identifiable generic transcript rows preserving their safe summaries."
+        },
+        {
+          "technique": "turn-metadata",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/companion/CompanionDockBody.tsx:418 Recall insights are passive chips; the available source path is only a React key, with no source link or expandable evidence."
+        },
+        {
+          "technique": "turn-model",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/companion/useCompanionThread.ts:122 Locally minted optimistic IDs are not submitted; successful responses replace those rows with independently minted stored IDs."
+        }
+      ]
+    },
+    "388f1010-aa7c-4197-b516-3eef907a4d5d/chat-transcript": {
+      "context": "candidate-channels-ui",
+      "subject": "chat-transcript",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T03:20:21.226Z",
+      "techniques": [
+        {
+          "technique": "composer-turn-queue",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/channels/ChannelsCommsBouncedResend.tsx:30 The input corrects a delivery address; it does not submit conversational prompts."
+        },
+        {
+          "technique": "immutable-model-cached-layout",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/channels/useChannelsData.ts:84 These are integration-configuration snapshots, without transcript-message layouts."
+        },
+        {
+          "technique": "inline-structured-rows",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/channels/channelsCommsHelpers.ts:73 Rows classify delivery outcomes, without conversational tools or approval events."
+        },
+        {
+          "technique": "markdown-and-code-rendering",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/channels/channelsCommsHelpers.ts:109 The helper selects ledger subject labels, without rendering a machine-authored transcript."
+        },
+        {
+          "technique": "progress-narration",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/channels/ChannelsCommsBouncedResend.tsx:62 This reports a resend operation, without narrating a machine turn."
+        },
+        {
+          "technique": "transcript-scroll",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/channels/channelsCommsPaging.ts:71 Pagination combines delivery-ledger pages, without a growing conversational document."
+        },
+        {
+          "technique": "turn-metadata",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/channels/channelsCommsHelpers.ts:143 The timestamp records a ledger entry, without machine-turn accounting."
+        },
+        {
+          "technique": "turn-model",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/channels/useChannelsData.ts:110 The entities are hiring jobs and intake records, without conversational turn lifecycles."
+        },
+        {
+          "technique": "virtual-filtered-channel",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/channels/useChannelsReceivers.ts:53 The filter selects configured webhook receivers from a snapshot, without deriving a conversational stream."
+        }
+      ],
+      "withdrawn": {
+        "worker": "d7a5a349-5e3e-4607-94d4-84b19863f39e",
+        "state": "not-applicable",
+        "at": "2026-10-17T03:20:43.713897+00:00",
+        "reason": "reviewer (sonnet): The anchor useChannelsData.ts:78 is a webhook loader that doesn't show that no transcript, composer or streaming exists; the not-applicable rests only on a keyword search, and the context does render message ledger rows and a resend input."
+      }
     }
   }
 }

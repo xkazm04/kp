@@ -7939,7 +7939,11 @@
           "revision": 5,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_components/chat/ChatComposer.tsx:87 The composer disables sending during an active turn, preventing the required acceptance of follow-up submissions.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:5b4e7d399a4d924e",
+          "evaluatedRevision": 5
         },
         {
           "subject": "prompt-assembly",
@@ -8566,7 +8570,11 @@
           "revision": 5,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/companion-blocks.test.ts:99 Unknown structured blocks are deliberately discarded, so a drop count replaces the required generic row retaining their kind and safe payload summary.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:5b4e7d399a4d924e",
+          "evaluatedRevision": 5
         }
       ],
       "governance": "governed"
@@ -32134,7 +32142,11 @@
           "revision": 5,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_components/voice/transcript-follow.ts:63 Voice turns derive identity from transcript position and timestamp instead of an identifier minted at creation.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:5b4e7d399a4d924e",
+          "evaluatedRevision": 5
         },
         {
           "subject": "mcp-tools",
