@@ -17814,7 +17814,11 @@
           "revision": 2,
           "changedAt": "2026-09-07",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/library/jds/jdsLedgerArtifacts.ts:8 Searches found no vault terminology in the JD directory, and ledger Markdown is the database record's body rather than an independently editable file corpus.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:7a10f98b2d9488ac",
+          "evaluatedRevision": 2
         },
         {
           "subject": "async-ui-states",
@@ -17911,7 +17915,11 @@
           "revision": 2,
           "changedAt": "2026-09-07",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/library/jds/jdsHooks.ts:43 Searches found no vault terminology in the JD directory, and the library loads database-backed JD records through HTTP APIs.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:7a10f98b2d9488ac",
+          "evaluatedRevision": 2
         },
         {
           "subject": "mcp-tools",
@@ -19986,7 +19994,11 @@
           "revision": 2,
           "changedAt": "2026-09-07",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/db/jobseeker-profiles.ts:260 Searches found no vault terminology in the jobseeker directory, and polished Markdown is persisted in SQL while filesystem writes serve temporary CLI inputs.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:7a10f98b2d9488ac",
+          "evaluatedRevision": 2
         },
         {
           "subject": "agent-memory",
@@ -24412,7 +24424,11 @@
           "revision": 2,
           "changedAt": "2026-09-07",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/hiring/pipeline/candidate/state/useCandidateNote.ts:59 Searches found no vault terminology in the pipeline directory, and candidate notes are database-backed JSON updates rather than shared Markdown files.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:7a10f98b2d9488ac",
+          "evaluatedRevision": 2
         },
         {
           "subject": "mcp-tools",
@@ -25655,7 +25671,11 @@
           "revision": 2,
           "changedAt": "2026-09-07",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/tools/profile/useProfileEditorSubmit.ts:88 Searches found no vault terminology in the profile directory, whose editor submits structured profile records through JSON APIs.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:7a10f98b2d9488ac",
+          "evaluatedRevision": 2
         },
         {
           "subject": "candidate-identity-and-staleness",
