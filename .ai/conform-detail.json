@@ -8855,6 +8855,89 @@
       "evaluatedTs": "2026-10-17T02:46:58.749Z",
       "worker": "db0d94a0-5053-4627-bac7-25ab40a1e671",
       "techniques": []
+    },
+    "07674871-c817-4ade-8ddf-22cc01b8493d/structured-interview-scorecards": {
+      "context": "interview-planning-rubric",
+      "subject": "structured-interview-scorecards",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T03:00:36.327Z",
+      "worker": "b7863ec2-f238-4aa7-95ab-6bcfa13d68eb",
+      "techniques": [
+        {
+          "technique": "behaviourally-anchored-level-writing",
+          "verdict": "deviation",
+          "evidence": "app/_lib/interview-rubric.test.ts:185 The test requires experienced competencies to lack per-level behavioral anchors."
+        },
+        {
+          "technique": "role-family-axis-extension",
+          "verdict": "deviation",
+          "evidence": "app/_lib/interview-rubric.test.ts:234 Family axes extend the core, but the test explicitly excludes the behavioral anchors required for those scored dimensions."
+        },
+        {
+          "technique": "rubric-versioning-at-write-time",
+          "verdict": "deviation",
+          "evidence": "app/_lib/interview-rubric.ts:222 The hash includes competency-specific anchors but omits the shared RATING_ANCHORS fallback, so changing that live scale text leaves experienced-rubric identity unchanged."
+        }
+      ]
+    },
+    "2b8247b0-eb5c-4139-ba1e-9c4c185cd4dc/structured-interview-scorecards": {
+      "context": "schedule-interview-prep",
+      "subject": "structured-interview-scorecards",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T03:00:36.327Z",
+      "worker": "b7863ec2-f238-4aa7-95ab-6bcfa13d68eb",
+      "techniques": [
+        {
+          "technique": "behaviourally-anchored-level-writing",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/schedule/ScheduleHumanScorecardForm.tsx:57 Experienced and family competencies lack per-level anchors, so their scoring controls display generic labels such as 'Meets the bar' instead of observable behaviors."
+        },
+        {
+          "technique": "evidence-quote-requirement",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/schedule/ScheduleHumanScorecardPanel.tsx:192 Selecting a rating is sufficient for submission; neither evidence nor an explicit unevidenced state is required."
+        },
+        {
+          "technique": "rubric-versioning-at-write-time",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/schedule/ScheduleHumanScorecardPanel.tsx:137 The editor seeds historical ratings but rebuilds their displayed rubric from current properties, ignoring the saved rubric identity and historical anchor text."
+        },
+        {
+          "technique": "unassessed-competency-handling",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewScorecardRow.tsx:42 The imported guard recognizes only score 3 with placeholder evidence; a rejected quote retaining score 4 or 5 still displays a numeric rating and meter."
+        }
+      ]
+    },
+    "29da5120-0f66-4432-8a78-4e81724005bf/structured-interview-scorecards": {
+      "context": "interview-tools-api",
+      "subject": "structured-interview-scorecards",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T03:00:36.327Z",
+      "worker": "b7863ec2-f238-4aa7-95ab-6bcfa13d68eb",
+      "techniques": [
+        {
+          "technique": "evidence-quote-requirement",
+          "verdict": "deviation",
+          "evidence": "app/api/interview-prep/scorecard/route.ts:128 Blank evidence is accepted without an artifact reference, named modality, or unevidenced flag."
+        },
+        {
+          "technique": "separate-rubric-per-population",
+          "verdict": "deviation",
+          "evidence": "app/api/interview-prep/scorecard/route.ts:145 The complete writer adds rubric hash, keys, coverage, summary and recommendation, but never records the selected scoringModel on the human scorecard."
+        },
+        {
+          "technique": "unassessed-competency-handling",
+          "verdict": "deviation",
+          "evidence": "app/api/interview-prep/scorecard/route.ts:124 Explicit null or empty-string ratings convert to zero and are then clamped to 1, turning an absent rating into the lowest observed score."
+        }
+      ]
     }
   }
 }

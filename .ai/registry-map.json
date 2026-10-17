@@ -16311,7 +16311,11 @@
           "revision": 2,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/interview-rubric.test.ts:185 The experienced rubric deliberately excludes behavioral level anchors, leaving its ratings grounded in generic evaluative labels.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:0fb73cd4c34a33e5",
+          "evaluatedRevision": 2
         },
         {
           "subject": "interview-story-portfolio",
@@ -16881,7 +16885,11 @@
           "revision": 2,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/interview-prep/scorecard/route.ts:128 The scorecard API persists ratings without evidence or an explicit unevidenced state.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:0fb73cd4c34a33e5",
+          "evaluatedRevision": 2
         },
         {
           "subject": "mcp-tools",
@@ -27103,7 +27111,11 @@
           "revision": 2,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/hiring/schedule/ScheduleHumanScorecardPanel.tsx:192 The human form submits ratings with empty evidence without explicitly recording them as unevidenced.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:0fb73cd4c34a33e5",
+          "evaluatedRevision": 2
         },
         {
           "subject": "interview-calendar-integrity",
