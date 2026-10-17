@@ -524,7 +524,7 @@ def _report_md(rows: list[Row], sig: dict, qual: dict | None, independence: dict
         f"- AI use not penalised (ai-verifiers within {AI_PENALTY_TOLERANCE:g} pts of NON-AI verifiers): "
         f"{_verdict_str(f['ai_not_penalised'])} · gap {f['margins']['ai_gap']}",
         f"- AI use not rewarded (ai-verifiers at most {AI_REWARD_TOLERANCE:g} pts above NON-AI verifiers): "
-        f"{_verdict_str(f['ai_not_rewarded'])} · gap {f['margins']['ai_gap']}",
+        f"{_verdict_str(f.get('ai_not_rewarded'))} · gap {f['margins']['ai_gap']}",
         f"- judgment means: {f['judgment_mean']} · samples {f['sample']}",
     ]
     if f.get("cohort_warnings"):

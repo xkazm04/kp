@@ -180,6 +180,12 @@ def reflect_commits(commits: list[dict], repo: dict | None = None, *, provider: 
             verif.append("Tests present in the tree/history")
         if blob.count("fix") >= 2:
             verif.append("Iterates on fixes")
+        # A revert is a check that came back negative: the candidate tested an approach,
+        # found it wrong and backed it out. Without this the history channel had no way
+        # to show verification except tests and fixes, so an exploring verifier read as
+        # a non-verifier (judgment 0) while the same check put to a test scored.
+        if reverts:
+            verif.append("Caught and reverted a wrong approach")
         # read-before-write: a small first step + steady rhythm reads as exploring before dumping
         read = 0.55 if (not big_dump and not bursty) else 0.35
         if any(k in blob for k in ("explore", "read", "understand", "scaffold", "investigate")):

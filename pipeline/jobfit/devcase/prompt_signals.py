@@ -27,9 +27,9 @@ import re
 # posting's language (`devcase_cli --lang`, `chat.chat_reply`, `seed_materializer`), so a
 # cs/de/fr candidate writes their prompts in that language. While the pattern was
 # English-only, an identical session scored differently by language: "ověř prosím, jestli
-# ten výpočet sedí" produced verificationAsks=0, which costs 0.2 of the observed
+# ten výpočet sedí" produced verificationAsks=0, which cost 0.2 of the observed
 # verification term in `evaluate.evaluate_submission`'s deterministic path (judgment 80
-# instead of 100) and drops the "asked the model to verify" evidence line from the LLM
+# instead of 100; since tiger C1 a missed ask costs one verification act) and drops the "asked the model to verify" evidence line from the LLM
 # prompt. Same defect class as the Czech masculine-only stems in the CV pipeline.
 #
 # English keeps full word boundaries; cs/de/fr are matched as STEMS (leading \b only)
@@ -96,6 +96,11 @@ def derive_prompt_signals(chat: list[dict], case: dict | None = None) -> dict:
 
     brief = str((case or {}).get("brief") or "")
     verification_asks = sum(1 for p in a_user if _VERIFY_RE.search(p))
+    # The same check put to the stakeholder ("can you confirm rounding stays as is?",
+    # "retries = 0 looks wrong") is the same verification act on another channel. It is
+    # counted separately so the "asked the model" evidence line stays true, and the
+    # evaluator sums the two (evaluate.verification_acts) so neither channel pays more.
+    stakeholder_verification_asks = sum(1 for q in s_user if _VERIFY_RE.search(q))
     clarifying = sum(1 for q in s_user if _QUESTION_RE.search(q))
 
     # Iteration depth: the longest run of consecutive assistant-channel user turns —
@@ -116,6 +121,7 @@ def derive_prompt_signals(chat: list[dict], case: dict | None = None) -> dict:
         "stakeholderQuestions": len(s_user),
         "clarifyingQuestions": clarifying,
         "verificationAsks": verification_asks,
+        "stakeholderVerificationAsks": stakeholder_verification_asks,
         "meanPromptChars": int(sum(len(p) for p in a_user) / len(a_user)) if a_user else 0,
         "iterationDepth": depth,
         "briefPasteRatio": _brief_paste_ratio(a_user, brief),
@@ -134,6 +140,8 @@ def prompt_evidence(signals: dict) -> list[str]:
     ]
     if signals.get("verificationAsks"):
         out.append(f"Asked the model to verify/check its output {signals['verificationAsks']} time(s).")
+    if signals.get("stakeholderVerificationAsks"):
+        out.append(f"Raised a check or a suspected defect with the stakeholder {signals['stakeholderVerificationAsks']} time(s).")
     ratio = signals.get("briefPasteRatio") or 0.0
     if ratio >= 0.6:
         out.append(f"A prompt contained ~{int(ratio * 100)}% of the brief verbatim — one-shot delegation shape (aim the interview here; not a score penalty).")

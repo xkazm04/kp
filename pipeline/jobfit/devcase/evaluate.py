@@ -48,6 +48,39 @@ _CANARY_GRADED = frozenset({"addressed", "flagged", "propagated"})
 _CANARY_CAUGHT = frozenset({"addressed", "flagged"})
 CANARY_VERIFY_WEIGHT = 0.5
 
+# Observed verification, channel-neutral (tiger C1, 2026-10-17). One verification act earns
+# the same credit whichever channel carried it; OBSERVED_VERIFY_ACTS_FOR_FULL acts earn the
+# whole term. Until then the term was 0.5 editedTest + 0.2 assistant verify ask, so the
+# assistant channel was the only one a check could arrive on for credit: a candidate who
+# flagged a defect in DECISIONS.md or to the stakeholder earned nothing for it, and the
+# observed fairness landscape read AI verifiers +20 judgment over behaviour-matched peers.
+OBSERVED_VERIFY_ACTS_FOR_FULL = 2
+OBSERVED_VERIFY_ACT_WEIGHT = 0.7   # the share of the observed term that verification acts carry
+OBSERVED_LOG_WARM_WEIGHT = 0.3     # unchanged: a decision log kept with >= 2 entries
+
+
+def verification_acts(signals: dict | None, prompt_signals: dict | None, canary_outcomes: list | None) -> int:
+    """Count observed verification acts across every channel a candidate can verify through.
+
+      * a test written or edited                         (process events)
+      * a verify/check ask to the assistant              (promptSignals.verificationAsks)
+      * a verify/check ask or defect raised to the stakeholder
+                                                         (promptSignals.stakeholderVerificationAsks)
+      * a planted defect caught: fixed in the code, or flagged in the decision log or
+        dialogue                                         (canaryOutcomes addressed/flagged)
+
+    Planted defects count as ONE act however many were caught: canaries are not durable
+    against a model swept for traps (case-sim round 3), so they may lift like one watched
+    habit and never carry the term alone. No channel is weighted above another."""
+    sig = signals or {}
+    psig = prompt_signals or {}
+    acts = 1 if sig.get("editedTest") else 0
+    acts += int(_num(psig.get("verificationAsks"), 0))
+    acts += int(_num(psig.get("stakeholderVerificationAsks"), 0))
+    if any(isinstance(c, dict) and c.get("status") in _CANARY_CAUGHT for c in (canary_outcomes or [])):
+        acts += 1
+    return acts
+
 
 def _generate(provider: Any | None, prompt: str, deterministic, coerce, expected_keys=None) -> tuple[dict, str]:
     # Shared LLM-or-deterministic runner: on an LLM failure it logs the cause at WARNING
@@ -419,15 +452,16 @@ def evaluate_submission(reflection: dict, tooling: dict, case: dict, role: dict,
         # habits are COMMIT-derived, so a live session (no git by design) scored
         # judgment 0 for every candidate — no discrimination at all. When the tooling
         # signal carries observed process signals, derive verification from what was
-        # actually WATCHED: edited a test, kept the decision log warm, asked the model
-        # to verify its output. MAX with the commit-derived value, never instead of it.
+        # actually WATCHED: the verification acts on ANY channel (verification_acts —
+        # a test, an assistant ask, a stakeholder flag, a caught planted defect all
+        # weigh the same), plus a decision log kept warm. MAX with the commit-derived
+        # value, never instead of it.
         sig = tooling.get("signals") if isinstance(tooling.get("signals"), dict) else None
         if sig:
-            asked_verify = bool((((extras or {}).get("promptSignals")) or {}).get("verificationAsks"))
+            acts = verification_acts(sig, (extras or {}).get("promptSignals"), (extras or {}).get("canaryOutcomes"))
             obs_verif = (
-                (0.5 if sig.get("editedTest") else 0.0)
-                + (0.3 if (sig.get("decisionLogEntries") or 0) >= 2 else 0.0)
-                + (0.2 if asked_verify else 0.0)
+                OBSERVED_VERIFY_ACT_WEIGHT * min(1.0, acts / OBSERVED_VERIFY_ACTS_FOR_FULL)
+                + (OBSERVED_LOG_WARM_WEIGHT if (sig.get("decisionLogEntries") or 0) >= 2 else 0.0)
             )
             # For observed sessions the observed read-before-write is also the honest
             # framing input (the reflection's commit-derived rbw is a default here).
