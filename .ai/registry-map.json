@@ -15532,7 +15532,11 @@
           "revision": 3,
           "changedAt": "2026-09-29",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/offers-store.ts:357 Re-extending an elapsed but unswept offer rewrites its existing deadline instead of recording expiry and issuing a new offer.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:2dd5f1019a2a6048",
+          "evaluatedRevision": 3
         },
         {
           "subject": "test-harness",

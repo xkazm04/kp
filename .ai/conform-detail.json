@@ -8546,6 +8546,78 @@
           "evidence": "app/features/hiring/schedule/ScheduleHumanScorecardPanel.tsx:202 Saves the human interviewer's assessment without claiming candidate practice-score calibration."
         }
       ]
+    },
+    "1f6c2946-3e45-464e-9113-c7b7a39187dd/offer-lifecycle-and-deadlines": {
+      "context": "hiring-decisions-offers",
+      "subject": "offer-lifecycle-and-deadlines",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T01:44:26.478Z",
+      "worker": "b874d7a1-a006-424c-a34c-487c41434a51",
+      "techniques": [
+        {
+          "technique": "expired-is-a-different-answer-from-invalid",
+          "verdict": "deviation",
+          "evidence": "app/_lib/offer-finalize.ts:222 offerView projects compensation even after its lapse evaluation returns an expired offer, contrary to the expired-answer disclosure limit."
+        },
+        {
+          "technique": "idempotent-terminal-response-under-a-race",
+          "verdict": "deviation",
+          "evidence": "app/_lib/offer-finalize.ts:42 The already-terminal branch returns success without comparing the recorded outcome with the requested action; conflicting repeats require a conflict response."
+        },
+        {
+          "technique": "role-appropriate-deadline-bounds",
+          "verdict": "deviation",
+          "evidence": "app/_lib/offers-store.ts:347 An elapsed deadline triggers an in-place refresh of the existing offer and token; the technique requires a new issuance after lapse."
+        },
+        {
+          "technique": "server-authoritative-countdown",
+          "verdict": "deviation",
+          "evidence": "app/_lib/offer-policy.ts:85 An evaluation exactly at the published deadline expires the offer; the standard explicitly requires accepting the boundary instant."
+        },
+        {
+          "technique": "single-pre-expiry-nudge",
+          "verdict": "deviation",
+          "evidence": "app/_lib/offer-policy.ts:54 Reminder lead time is a deployment-wide constant, defaulting to 48 hours, rather than a proportional per-offer time calculated and stored at dispatch."
+        },
+        {
+          "technique": "terms-injected-at-dispatch-not-at-draft",
+          "verdict": "deviation",
+          "evidence": "app/_lib/comms-dispatch.ts:679 Dispatch preserves the drafted prose and appends deadline/start-date lines; compensation embedded in that prose is not resolved from the current offer record."
+        }
+      ]
+    },
+    "110a08ce-19c1-41ae-9566-bc45b3f90d47/offer-lifecycle-and-deadlines": {
+      "context": "llm-api",
+      "subject": "offer-lifecycle-and-deadlines",
+      "bundle": "recruiting",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T01:44:26.478Z",
+      "techniques": [
+        {
+          "technique": "expired-is-a-different-answer-from-invalid",
+          "verdict": "not-applicable",
+          "evidence": "app/api/sim/offer-link/route.ts:39 This is an authorized simulation token lookup, not the candidate-facing failed-offer-link answer."
+        },
+        {
+          "technique": "idempotent-terminal-response-under-a-race",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/automation-run.ts:690 The offer task creates an approval and can extend an offer; it does not perform the candidate's terminal accept or decline."
+        },
+        {
+          "technique": "server-authoritative-countdown",
+          "verdict": "not-applicable",
+          "evidence": "app/api/automation/[task]/route.ts:50 These routes return configuration or task results and do not render a candidate deadline countdown."
+        }
+      ],
+      "withdrawn": {
+        "worker": "b874d7a1-a006-424c-a34c-487c41434a51",
+        "state": "deviation",
+        "at": "2026-10-17T01:44:45.588458+00:00",
+        "reason": "reviewer (sonnet): The evidence anchor is pipeline/jobfit/automation.py:2893, and the technique anchors are in app/api/sim, app/_lib/automation-run.ts and app/api/automation. None of these is in the llm-api context (app/api/llm/*). The line only shows compensation written into letter prose; I found nothing showing tha"
+      }
     }
   }
 }
