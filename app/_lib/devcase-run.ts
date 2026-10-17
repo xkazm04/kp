@@ -1,6 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { getDevCase, getDevCaseBaseline, getDevSession, getDevSessionChat, getDevSessionEvents, getDevSessionIntegrity, getPosting, getSubmission, lifecycleByPosting, saveSubmissionEvaluation, type DevCaseRecord, type DevSubmission, type SessionIntegrity } from "./db/devcase";
+import { getDevCase, getDevCaseBaseline, getDevSession, getDevSessionChat, getDevSessionEvents, getDevSessionIntegrity, bundleTraceUnwitnessed, UNWITNESSED_CONFIDENCE_CAP, getPosting, getSubmission, lifecycleByPosting, saveSubmissionEvaluation, type DevCaseRecord, type DevSubmission, type SessionIntegrity } from "./db/devcase";
 import { candidateIdByContact, createPipelineEntry, getPipelineEntry, recordAutomationEvent, setApproval } from "./db/pipeline";
 import { getJob } from "./db/jobs";
 import { ensureDb } from "./db/core";
@@ -471,6 +471,11 @@ export async function mintObservedFromSubmission(
   // and its propagated confidence. Held, not lost — re-promoting mints normally
   // once a human has verified authorship and cleared the band.
   if (bundle.authenticity?.band === "suspect") return { credited: [], applied: false };
+  // C2 — the same hold for a trace nobody witnessed. It costs the candidate no score,
+  // but observed provenance is permanent and global, so it is minted only from a
+  // timeline that was seen as it happened. Held, not lost: a human who verifies the
+  // work live re-promotes and it mints normally.
+  if (bundleTraceUnwitnessed(bundle)) return { credited: [], applied: false };
   const posting = sub.postingId ? getPosting(sub.postingId) : null;
   const devCase = posting?.caseId ? getDevCase(posting.caseId) : null;
   if (!devCase?.case || !devCase.role) return { credited: [], applied: false };
@@ -748,6 +753,13 @@ export async function runEvaluateSubmission(submissionId: string, signal?: Abort
   const integrityCompromised =
     integrity != null &&
     (integrity.chain.valid === false || integrity.backdatedEvents > 0 || integrity.watermark.foreign.length > 0);
+  // C2 — an unwitnessed trace CAPS process confidence (never a score or a band: it is
+  // absent from scoreAuthenticity's input on purpose). Mirrors process_events.py's
+  // UNWITNESSED_CONFIDENCE_CAP, which the CLI cannot receive without a new flag.
+  if (integrity?.witness.verdict === "unwitnessed") {
+    const tooling = payload.result.tooling as { confidence?: unknown } | null | undefined;
+    if (tooling && typeof tooling.confidence === "number") tooling.confidence = Math.min(tooling.confidence, UNWITNESSED_CONFIDENCE_CAP);
+  }
   const authenticity = scoreAuthenticity({
     commitCount: processTrace.commitCount,
     bursty: processTrace.cadence?.bursty ?? null,
@@ -1104,6 +1116,9 @@ export function promoteSubmission(submissionId: string, floor: number, actor?: s
   const suspectAuth = verdictInput.authenticityBand === "suspect";
   const evalConfidence = verdictInput.confidence ?? null;
   const lowConfidence = verdict.reasons.some((r) => r.code === "low_confidence");
+  // C2 — an unwitnessed timeline holds auto-promote; it never changes the score. The
+  // reasons line is written here, beside the verdict's own, so a hold always says why.
+  const unwitnessed = bundleTraceUnwitnessed(sub.evaluation);
 
   // TENANT: the SUBMISSION's own team owns everything this function writes — the
   // pipeline entry, the screening card and the audit event. There is no session
@@ -1197,9 +1212,13 @@ export function promoteSubmission(submissionId: string, floor: number, actor?: s
     sourceChannel: "devcase",
     workspaceId,
   });
-  const recommendation: PromoteResult["recommendation"] = verdict.recommendation;
+  const recommendation: PromoteResult["recommendation"] = unwitnessed ? "hold" : verdict.recommendation;
   const reasons = promoteAuditReasons(verdict, floor);
   const redFlags = [...((evaluation.concerns as string[]) ?? [])];
+  if (unwitnessed) {
+    reasons.push("trace unwitnessed: the work timeline arrived in bulk, not as it happened (score unchanged)");
+    redFlags.unshift("Trace unwitnessed — the work timeline arrived in bulk rather than as it happened. The score is unchanged; verify the work live before advancing.");
+  }
   if (suspectAuth) {
     const authScore = verdictInput.authenticityScore;
     redFlags.unshift(

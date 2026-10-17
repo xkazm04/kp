@@ -1122,10 +1122,12 @@ export function verifyDevSessionChain(id: string): ChainVerdict {
  *  the per-session seq can't collide under concurrent flushes — and so each row's
  *  chain hash links the true predecessor. Returns the new high-water seq. No-op
  *  once submitted. */
-export function appendDevSessionEvents(id: string, events: DevSessionEvent[]): number {
+export function appendDevSessionEvents(id: string, events: DevSessionEvent[], receivedAt: string = new Date().toISOString()): number {
   const db = ensureDb();
   if (!events?.length) return 0;
-  const now = new Date().toISOString();
+  // `receivedAt` is the SERVER clock for this flush; the parameter is a seam for tests
+  // that replay a timeline, never something a route passes from the client.
+  const now = receivedAt;
   const tx = db.transaction((): number => {
     // Read status + tenant together (by-id): events inherit their session's workspace.
     const active = db.prepare(`SELECT status, workspace_id FROM dev_sessions WHERE id = ?`).get(id) as
@@ -1183,7 +1185,76 @@ export type SessionIntegrity = {
   // a shared/relayed solution. A merely-missing own marker is a mild note (the
   // candidate may have deleted the line), never decisive alone.
   watermark: { expected: string; present: boolean; foreign: string[] };
+  // C2 — was the timeline WITNESSED as it happened? The chain protects the log, not
+  // the time the log claims; this reads how the claimed time arrived. Never a penalty.
+  witness: WitnessVerdict;
 };
+
+// ---- Witnessed timeline (C2) -------------------------------------------------
+// An honest editor flushes every ~8s, so an event reaches the server within seconds of
+// the time it claims. A scripted client can mint a session, wait, and POST a synthetic
+// hour in one go: chain valid, nothing backdated, every event claimed in-window — but
+// every event ARRIVES an hour after it supposedly happened. Lag (receive - claimed) is
+// the tell the chain cannot see.
+//
+//   witnessed   nothing material arrived late
+//   neutral     a stretch arrived late but the session was mostly live around it — the
+//               offline-then-reconnect shape. Reads as connectivity, never as suspicion.
+//   unwitnessed most of the claimed work arrived in bulk
+//   unknown     no timestamped events: nothing to witness
+//
+// An unwitnessed trace costs the candidate NO points and moves no band. It only holds
+// auto-promote, caps process confidence and blocks permanent observed-provenance minting.
+export const WITNESS_MAX_LAG_MS = 2 * 60 * 1000; // arrived later than this = not witnessed
+export const WITNESS_MIN_LATE_SPAN_MS = 5 * 60 * 1000; // less late-claimed work than this is noise
+export const WITNESS_LATE_SHARE_UNWITNESSED = 0.5; // more than this share of events late
+
+// Process confidence is capped here when unwitnessed (process_events.py mirrors it).
+export const UNWITNESSED_CONFIDENCE_CAP = 0.5;
+
+export const WITNESS_VERDICTS = ["witnessed", "neutral", "unwitnessed", "unknown"] as const;
+export type WitnessVerdictKind = (typeof WITNESS_VERDICTS)[number];
+export type WitnessVerdict = {
+  verdict: WitnessVerdictKind;
+  /** Distinct server receive instants — one per flush. An honest 8s session has hundreds. */
+  arrivalBatches: number;
+  /** Span the events CLAIM (first to last client timestamp). */
+  claimedSpanMs: number;
+  /** Span the events actually ARRIVED over (first to last receive). */
+  arrivalSpanMs: number;
+  lateEvents: number;
+  totalEvents: number;
+};
+
+/** Pure: the verdict from (claimed, received) pairs in epoch ms. */
+export function witnessVerdictOf(pairs: ReadonlyArray<{ t: number; received: number }>): WitnessVerdict {
+  const total = pairs.length;
+  if (total === 0) return { verdict: "unknown", arrivalBatches: 0, claimedSpanMs: 0, arrivalSpanMs: 0, lateEvents: 0, totalEvents: 0 };
+  const ts = pairs.map((p) => p.t);
+  const rx = pairs.map((p) => p.received);
+  const late = pairs.filter((p) => p.received - p.t > WITNESS_MAX_LAG_MS);
+  const lateTs = late.map((p) => p.t);
+  const lateSpan = late.length > 0 ? Math.max(...lateTs) - Math.min(...lateTs) : 0;
+  let verdict: WitnessVerdictKind = "witnessed";
+  if (lateSpan >= WITNESS_MIN_LATE_SPAN_MS) {
+    verdict = late.length / total > WITNESS_LATE_SHARE_UNWITNESSED ? "unwitnessed" : "neutral";
+  }
+  return {
+    verdict,
+    arrivalBatches: new Set(rx).size,
+    claimedSpanMs: Math.max(...ts) - Math.min(...ts),
+    arrivalSpanMs: Math.max(...rx) - Math.min(...rx),
+    lateEvents: late.length,
+    totalEvents: total,
+  };
+}
+
+/** Does this persisted evaluation bundle carry an UNWITNESSED verdict? Absent (legacy
+ *  bundle, repo submission) is not unwitnessed — no signal, no hold. */
+export function bundleTraceUnwitnessed(bundle: unknown): boolean {
+  const witness = (bundle as { integrity?: { witness?: { verdict?: unknown } } } | null | undefined)?.integrity?.witness;
+  return witness?.verdict === "unwitnessed";
+}
 
 // LLM-era controls #4 — the per-session seed watermark. Deterministically derived
 // from the session id (never stored), injected into the served DECISIONS log as an
@@ -1209,9 +1280,11 @@ export function getDevSessionIntegrity(id: string): SessionIntegrity {
     .all(id) as Array<{ t: number; created_at: string }>;
   let backdated = 0;
   let maxDrift = 0;
+  const pairs: Array<{ t: number; received: number }> = [];
   for (const r of rows) {
     const received = Date.parse(r.created_at);
     if (!Number.isFinite(received)) continue;
+    pairs.push({ t: r.t, received });
     const future = r.t - received - INTEGRITY_CLOCK_SKEW_MS; // claimed after it was received
     const preSession = Number.isFinite(startMs) ? startMs - INTEGRITY_CLOCK_SKEW_MS - r.t : -1; // claimed before the session existed
     if (future > 0 || preSession > 0) {
@@ -1229,6 +1302,7 @@ export function getDevSessionIntegrity(id: string): SessionIntegrity {
     backdatedEvents: backdated,
     maxClockDriftMs: maxDrift,
     watermark: { expected, present: found.has(expected), foreign },
+    witness: witnessVerdictOf(pairs),
   };
 }
 

@@ -2277,20 +2277,32 @@ the scoring half is `ObservedIsArchetypeIndependentTest` in
   its result could not be loaded" instead of spinning "Pulling the codebase + reflecting…"
   forever. The design watch only drops its spinner — it has no dedicated message yet, it
   falls back to re-offering **Design role & assignment**.
-- **The hash chain protects the log, not the timeline it records.** Links are computed
-  server-side at INSERT over the server receive time, so a candidate cannot edit, reorder
-  or re-time a *persisted* event (`verifyDevSessionChain`). But each event's `t` is
-  client-authored, and `getDevSessionIntegrity` only window-checks it against
-  `[session start − skew, receive + skew]`. A scripted client can mint a session, wait out
-  the timebox, then POST one flush carrying a fully synthetic hour of `open → edit →
-  decision_log` events (plus a ghostwritten tree, watermarked with the marker the mint
-  response hands back) and the verdict reads `chain: valid, backdatedEvents: 0` — a clean
-  bill of health on a fabricated process trace, which is exactly the evidence the
-  `suspect` gate at `devcase-run.ts:639` trusts. The tell is stored but unread: every
-  event in such a session shares ONE `created_at`, whereas a real 8s-flush session spreads
-  across hundreds of arrival batches. Closing it means surfacing arrival-batch cardinality
-  (or claimed-span vs. arrival-span) in `SessionIntegrity` and rendering it in
-  `DevEvalPanelIntegrity.tsx` with the honest-darkness framing the other verdicts use.
+- **The hash chain protects the log, not the timeline it records — the witnessed
+  timeline closes the gap, without a penalty.** Links are computed server-side at INSERT
+  over the server receive time, so a candidate cannot edit, reorder or re-time a
+  *persisted* event (`verifyDevSessionChain`). But each event's `t` is client-authored, so
+  a scripted client could mint a session, wait out the timebox, then POST one flush
+  carrying a synthetic hour of `open → edit → decision_log` events and read `chain: valid,
+  backdatedEvents: 0`. `getDevSessionIntegrity` now also returns `witness`
+  (`witnessVerdictOf`, `app/_lib/db/devcase.ts`): per event, how long after its claimed
+  time it ARRIVED (an honest 8s-flush session lags seconds; the synthetic hour lags up to
+  an hour), plus `arrivalBatches`, `claimedSpanMs` and `arrivalSpanMs`. Verdicts:
+  `witnessed` (nothing material late), `neutral` (a ≥5 min stretch arrived late but at most
+  half the events did — the offline-then-reconnect shape, never suspect), `unwitnessed`
+  (most events arrived >2 min after the time they claim) and `unknown` (no timestamped
+  events). **An unwitnessed trace costs 0 points and moves no band** — it is absent from
+  `scoreAuthenticity`. It does three things: `promoteSubmission` HOLDS with a reasons line
+  ("trace unwitnessed … score unchanged") on the card and in the audit trail;
+  `mintObservedFromSubmission` refuses to write permanent observed provenance; and process
+  confidence is capped at 0.5 (`UNWITNESSED_CONFIDENCE_CAP`, mirrored in
+  `process_events.py`). `DevEvalPanelIntegrity.tsx` renders the verdict in the neutral tone
+  (`devcase.integrity.witnessed|witnessNeutral|unwitnessed`). Fixtures:
+  `app/_lib/devcase-witnessed.test.ts` (attack, honest replay, offline reconnect).
+  Residual: the verdict is a lag heuristic, not proof — a forger who drips synthetic events
+  live at real time defeats it (that is the paste / watermark controls' ground); under 5
+  minutes of late work is below its resolution; and the postings-list promote preview
+  (`promoteVerdict`) does not yet carry the unwitnessed hold, so a preview may say advance
+  where promote holds.
 - The seed's `note` is only rendered to candidates on the **LLM** path. The deterministic
   (keyless) seed's note is a fixed English provenance marker aimed at us, so the apply page
   suppresses it on `seed.source === "deterministic"` rather than showing build jargon,

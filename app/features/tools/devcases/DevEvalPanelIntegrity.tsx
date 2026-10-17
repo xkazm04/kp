@@ -22,10 +22,22 @@
 //      reviewer is told. The independent case renders NOTHING — the runtime
 //      evaluation is not itself judged, so a green "judge independent" chip would
 //      claim a check this bundle never had. See app/_lib/devcase-judge-independence.ts.
-import { Link2, Link2Off, ShieldCheck, ShieldAlert, ShieldQuestion, Clock, Gavel, type LucideIcon } from "lucide-react";
+import { Link2, Link2Off, ShieldCheck, ShieldAlert, ShieldQuestion, Clock, Gavel, Radio, WifiOff, type LucideIcon } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { judgeSeatState } from "@/app/_lib/devcase-judge-independence";
 import type { Integrity } from "./DevTypes";
+
+// C2 — the witnessed-timeline verdict (db/devcase.ts `WitnessVerdict`), mirrored here for
+// the same reason as `Integrity`. Absent on a bundle saved before the field existed.
+// Never a penalty: "unwitnessed" is a hold reason, and is drawn as honest darkness
+// (neutral grey), not as an accusation. Offline-reconnect is neutral by design.
+type Witness = {
+  verdict: "witnessed" | "neutral" | "unwitnessed" | "unknown";
+  arrivalBatches: number;
+  claimedSpanMs: number;
+  lateEvents: number;
+  totalEvents: number;
+};
 
 type Tone = "ok" | "alert" | "unknown";
 
@@ -59,6 +71,10 @@ export function DevEvalPanelIntegrity({
   const chain = integrity?.chain ?? null;
   const backdatedEvents = integrity?.backdatedEvents ?? 0;
   const watermark = integrity?.watermark ?? null;
+  const witness = (integrity as (Integrity & { witness?: Witness }) | null)?.witness ?? null;
+  const spanLabel = new Intl.NumberFormat(locale, { style: "unit", unit: "minute", unitDisplay: "narrow", maximumFractionDigits: 0 }).format(
+    Math.round((witness?.claimedSpanMs ?? 0) / 60_000)
+  );
   // Seconds, one decimal — the raw ms figure is precise noise to a recruiter.
   const driftSeconds = Math.round((integrity?.maxClockDriftMs ?? 0) / 100) / 10;
   // Locale-formatted unit (grouping, decimal separator and "s" abbreviation all
@@ -113,6 +129,21 @@ export function DevEvalPanelIntegrity({
         ) : chain.events > 0 ? (
           <Fact tone="ok" Icon={Clock} label={t("clockConsistent")} title={t("clockConsistentTitle")} />
         ) : null}
+
+        {/* Was the timeline watched as it happened? "unknown"/absent says nothing. An
+            unwitnessed trace costs no points: it is drawn neutral, never coral. */}
+        {witness == null || witness.verdict === "unknown" ? null : witness.verdict === "witnessed" ? (
+          <Fact tone="ok" Icon={Radio} label={t("witnessed")} title={t("witnessedTitle", { batches: witness.arrivalBatches })} />
+        ) : witness.verdict === "neutral" ? (
+          <Fact tone="unknown" Icon={WifiOff} label={t("witnessNeutral")} title={t("witnessNeutralTitle")} />
+        ) : (
+          <Fact
+            tone="unknown"
+            Icon={ShieldQuestion}
+            label={t("unwitnessed")}
+            title={t("unwitnessedTitle", { late: witness.lateEvents, total: witness.totalEvents, batches: witness.arrivalBatches, span: spanLabel })}
+          />
+        )}
 
         {/* Watermark VERDICT only — never the marker. A foreign marker is the
             circulation tell; a merely-absent own marker is a note, not a finding
