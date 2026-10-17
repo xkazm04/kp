@@ -6317,7 +6317,11 @@
           "revision": 6,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/schedule-store.ts:973 A reminder send that completes after rescheduling can mark the new booking's reminder as sent because completion checks only the reused invite id.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:cd982b42588a2de5",
+          "evaluatedRevision": 6
         }
       ],
       "governance": "governed"
@@ -25133,7 +25137,11 @@
           "revision": 6,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/hiring/pipeline/schedulerRunState.ts:90 The control panel renders every non-error non-run as nothing due, discarding the server's disabled reason and conflating a declined manual run with work that was never due.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:cd982b42588a2de5",
+          "evaluatedRevision": 6
         },
         {
           "subject": "prompt-assembly",
@@ -26991,7 +26999,11 @@
           "revision": 6,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/hiring/schedule/useScheduleTab.ts:496 Focus and visibility events can dispatch another status refresh while a previous request remains pending, allowing overlapping reads and stale responses to overwrite newer data.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:cd982b42588a2de5",
+          "evaluatedRevision": 6
         },
         {
           "subject": "table",
@@ -27260,7 +27272,11 @@
           "revision": 6,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/hiring/schedule/useScheduleInterviewPrep.ts:125 Every edit cancels the pending 600 ms progress save without a maximum-wait deadline, so continuous editing can postpone persistence indefinitely while the modal remains mounted.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:cd982b42588a2de5",
+          "evaluatedRevision": 6
         },
         {
           "subject": "eval-harness",

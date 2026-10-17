@@ -10077,6 +10077,80 @@
         }
       ],
       "registryProposal": "The technique per-tenant-stage-mapping-never-a-shared-assumption notes in rule 5a that falling back to a shipped default axis when a connection is not yet keyed to the organization is a known limitation to record and close, not a design; clarifying this boundary in the technique specification helps avoid ambiguity."
+    },
+    "c780fee6-52c0-484e-b383-875b9aa63a1e/scheduling": {
+      "context": "schedule-calendar-invites",
+      "subject": "scheduling",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T22:19:15.013Z",
+      "worker": "a516ceda-139f-44f0-bfa8-d90347c24340",
+      "techniques": [
+        {
+          "technique": "overlap-and-reentrancy",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/schedule/useScheduleTab.ts:496 The focus/visibility handler calls refresh without an in-flight guard; refresh checks only the effect's alive flag, and clearing timers does not cancel pending fetches."
+        }
+      ]
+    },
+    "2b8247b0-eb5c-4139-ba1e-9c4c185cd4dc/scheduling": {
+      "context": "schedule-interview-prep",
+      "subject": "scheduling",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T22:19:15.013Z",
+      "worker": "a516ceda-139f-44f0-bfa8-d90347c24340",
+      "techniques": [
+        {
+          "technique": "cooldown-and-debounce",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/schedule/useScheduleInterviewPrep.ts:125 The effect restarts on checked, notes, interviewer and prep changes, with no maximum wait; the unmount flush does not bound postponement while mounted."
+        },
+        {
+          "technique": "schedule-observability",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/schedule/useScheduleInterviewPrep.ts:108 The debounced save discards HTTP responses and catches network failures without recording or displaying an outcome, leaving failed saves silent."
+        }
+      ]
+    },
+    "709a141d-f0e3-40a9-9afa-120c1b2f726c/scheduling": {
+      "context": "calendar-scheduling",
+      "subject": "scheduling",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T22:19:15.013Z",
+      "worker": "a516ceda-139f-44f0-bfa8-d90347c24340",
+      "techniques": [
+        {
+          "technique": "overlap-and-reentrancy",
+          "verdict": "deviation",
+          "evidence": "app/_lib/schedule-store.ts:973 Rescheduling resets reminder state, but sendDueInterviewReminders completes an earlier asynchronous dispatch through this update without checking its claimed slot or booking generation."
+        },
+        {
+          "technique": "schedule-observability",
+          "verdict": "deviation",
+          "evidence": "app/_lib/schedule-store.ts:932 The backoff branch returns false without recording the suppressed occurrence, its reason or a suppression count; the dispatcher receives only surviving reminders."
+        }
+      ]
+    },
+    "77829982-8043-4752-ae30-4475929d182e/scheduling": {
+      "context": "pipeline-scheduler-sla",
+      "subject": "scheduling",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T22:19:15.013Z",
+      "worker": "a516ceda-139f-44f0-bfa8-d90347c24340",
+      "techniques": [
+        {
+          "technique": "schedule-observability",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/pipeline/schedulerRunState.ts:90 tickScheduler returns reason: disabled for a refused forced run, but describeTick ignores that reason, violating the requirement that non-fire reasons survive the display boundary."
+        }
+      ]
     }
   }
 }
