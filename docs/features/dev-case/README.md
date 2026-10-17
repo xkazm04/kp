@@ -406,6 +406,15 @@ unfenced. It is the step the module leans on hardest when the artifact itself pr
 nothing ("the scores above are HYPOTHESES"), so steering it blunts the very interview that
 verifies them. Pinned by `TestFollowupContextIsFenced` in `test_devcase_evaluate.py`.
 
+**The decision log aims the debrief (`followups-v4`).** `artifact_checks.submission_excerpts` keeps
+`DECISIONS.md` in the order it was written, and `decision_log.py` parses it by the seeded template's
+structure (`##` sections, bullet position, first colon; a 4th bullet is the counterfactual), so a Czech
+log parses like an English one. `mint_followups(decision_log=...)` quotes each entry's own rejected
+alternative / why / counterfactual (at most 2), and an untouched or empty log mints one "no logged
+decision" question. The entries ride inside the `fenced_untrusted` context. They are debrief evidence
+only: no score, band or confidence reads the log's length, count or presence.
+
+
 **A step that spent tokens and kept none of them reports `deterministic`.**
 `provenance.generate_with_fallback` is the LLM-or-deterministic runner behind every devcase
 step (and agentfit, intake, repo_scan), and each step's `coerce` degrades field by field to
