@@ -32,7 +32,7 @@ test("canSubmitDevApply requires name, email-shaped contact, http(s) repo, and i
 test("the repo-link form placeholder is a catalog key, not a raw English GitHub URL", () => {
   const src = readFileSync(path.join(ROOT, "app", "devcase", "apply", "[token]", "DevApplyForm.tsx"), "utf8");
   assert.match(src, /placeholder=\{t\("fieldRepoPlaceholder"\)\}/);
-  assert.doesNotMatch(src, /github\.com\/you\/solution/);
+  assert.ok(!src.includes("github.com/you/solution"), "no raw English GitHub URL placeholder");
   assert.match(src, /canSubmitDevApply\(/);
 });
 

@@ -32,7 +32,7 @@
  *  12. outcome     POST /api/gigs/<id>/outcome accepted, note "e2e live run"
  *  13. retire      POST /api/gigs/sync, then the gig persona's hire must read `retired`
  * Then a table (step, status, duration, cost) and a JSON report under the OS temp dir
- * (<tmp>/kp-e2e-gigs-live/<runId>.json; the repo has no gitignored scratch folder).
+ * (<tmp>/kp-e2e-gigs-live-XXXXXX/<runId>.json; the repo has no gitignored scratch folder).
  *
  * NEVER TOUCHES A GIG IT DID NOT CREATE. Every gig-specific call (research, plans, accept,
  * dispatch, review, outcome) names the gig this run created, and nothing is withdrawn. ONE
@@ -56,7 +56,7 @@
  * Node builtins only.
  */
 
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -326,8 +326,8 @@ export async function main(argv, { env = process.env, log = console.log, err = c
     log(renderTable(steps));
     if (gigId) log(`\ngig: ${gigId}${workdir ? `\nfolder: ${workdir}` : ""}`);
     try {
-      const dir = path.join(os.tmpdir(), "kp-e2e-gigs-live");
-      mkdirSync(dir, { recursive: true });
+      // mkdtemp: an unguessable, owner-only directory, not a fixed name another local user could pre-create.
+      const dir = mkdtempSync(path.join(os.tmpdir(), "kp-e2e-gigs-live-"));
       const file = path.join(dir, `${runId}.json`);
       writeFileSync(file, JSON.stringify(report, null, 2), "utf8");
       log(`report: ${file}`);

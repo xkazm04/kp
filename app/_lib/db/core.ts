@@ -1,4 +1,5 @@
 import path from "node:path";
+import { randomInt } from "node:crypto";
 import { readFileSync, existsSync } from "node:fs";
 import Database from "better-sqlite3";
 import type { ApprovalKind } from "../approval-kinds";
@@ -3111,7 +3112,7 @@ const ALPHABET = "abcdefghijkmnpqrstuvwxyz23456789";
 function generateSlug(): string {
   let out = "";
   for (let i = 0; i < 8; i++) {
-    out += ALPHABET[Math.floor(Math.random() * ALPHABET.length)];
+    out += ALPHABET[randomInt(ALPHABET.length)];
   }
   return out;
 }

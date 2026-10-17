@@ -12,7 +12,7 @@
 // webServer) and KP_STYLE_TARGETS (a JSON file of resolved surfaces). Exit code is
 // the command's. `npm run perf:vitals` is this wrapped around e2e/perf-vitals.spec.ts.
 import { spawn } from 'node:child_process';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { REPO, loadTargets, snapshotDb, startServer, throwawayFrom, removeDbFiles } from './lib/server.mjs';
@@ -25,8 +25,7 @@ async function main(argv) {
   const cmd = argv.slice(sep + 1);
   const at = (k) => { const i = own.indexOf(k); return i >= 0 ? own[i + 1] : undefined; };
   const extraEnv = Object.fromEntries(own.flatMap((a, i) => (a === '--env' ? [own[i + 1].split(/=(.*)/s).slice(0, 2)] : [])));
-  const work = path.join(os.tmpdir(), `kp-style-serve-${process.pid}`);
-  mkdirSync(work, { recursive: true });
+  const work = mkdtempSync(path.join(os.tmpdir(), "kp-style-serve-"));
   const snapshot = path.join(work, 'kp-snapshot.sqlite');
   await snapshotDb(path.resolve(at('--db') ?? path.join(REPO, 'data', 'kp.sqlite')), snapshot);
   const dbFile = throwawayFrom(snapshot, work);

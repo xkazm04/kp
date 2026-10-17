@@ -35,7 +35,7 @@
 // Exit code: 1 when the DEFAULT template fails any check on any reference CV.
 
 import { registerHooks } from "node:module";
-import { readFileSync, readdirSync, mkdirSync, writeFileSync } from "node:fs";
+import { readFileSync, readdirSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import os from "node:os";
@@ -68,7 +68,7 @@ const opt = (name) => {
   const i = args.indexOf(`--${name}`);
   return i >= 0 ? args[i + 1] : undefined;
 };
-const outDir = path.resolve(opt("out") ?? path.join(os.tmpdir(), "kp-cv-roundtrip"));
+const outDir = path.resolve(opt("out") ?? mkdtempSync(path.join(os.tmpdir(), "kp-cv-roundtrip-")));
 mkdirSync(outDir, { recursive: true });
 
 const imp = (p) => import(pathToFileURL(p).href);
