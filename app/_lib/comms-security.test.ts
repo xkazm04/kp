@@ -58,3 +58,30 @@ test("resend refuses a bounced receipt row: no send, no new outbox row", async (
   assert.equal(calls.length, 0, `no relay call for a receipt row, saw: ${calls.join(", ")}`);
   assert.equal(listOutboxFiltered({ ref: e.id }, e.workspaceId).length, before, "no outbox row written");
 });
+
+// S-2 — the relay probe vetted the URL by NAME only, while delivery resolves it: a name
+// answering a private address took a signed POST and its HTTP status was reported back.
+test("relay probe refuses a relay whose name resolves into private space: 0 fetches", async () => {
+  process.env.COMMS_WEBHOOK_URL = "https://rebind.example.test/hook";
+  setRelayHostLookupForTests(async () => [{ address: "169.254.169.254" }]);
+  const calls = countFetches();
+  const { NextRequest } = await import("next/server");
+  const { POST } = await import("../api/comms/relay/test/route.ts");
+  const res = await POST(new NextRequest("http://localhost/api/comms/relay/test", { method: "POST" }));
+  assert.equal(res.status, 400);
+  assert.equal(calls.length, 0, `no probe to a private address, saw: ${calls.join(", ")}`);
+  const body = (await res.json()) as { ok: boolean; reason?: string };
+  assert.equal(body.ok, false);
+  assert.match(body.reason ?? "", /non-public address/);
+});
+
+test("relay probe still pings a relay whose name resolves publicly", async () => {
+  process.env.COMMS_WEBHOOK_URL = "https://relay.example.test/hook";
+  setRelayHostLookupForTests(async () => [{ address: "93.184.216.34" }]);
+  const calls = countFetches();
+  const { NextRequest } = await import("next/server");
+  const { POST } = await import("../api/comms/relay/test/route.ts");
+  const res = await POST(new NextRequest("http://localhost/api/comms/relay/test", { method: "POST" }));
+  assert.equal(res.status, 200);
+  assert.deepEqual(calls, ["https://relay.example.test/hook"]);
+});

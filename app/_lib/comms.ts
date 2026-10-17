@@ -135,6 +135,14 @@ export function setRelayHostLookupForTests(fn: HostLookup | undefined): void {
   relayHostLookup = fn;
 }
 
+/** The delivery-time vet of a relay URL — https, public NAME, and every address it
+ *  resolves to public. Shared with the relay probe (POST /api/comms/relay/test) so the
+ *  probe cannot reach a host the delivery would refuse: a rebinding name used to pass
+ *  the probe's string-only check and earn a signed POST plus its HTTP status back. */
+export async function assertRelayEndpointResolved(url: string): Promise<string> {
+  return assertPublicHttpsEndpointResolved(url, "relay url", relayHostLookup);
+}
+
 // E8 — the wire payload is the versioned kp.comm.v1 envelope (comms-envelope.ts,
 // documented in docs/features/comms/outbound-export.md): the flat legacy fields verbatim, plus
 // candidate/job/stage context enriched from the pipeline entry the message
@@ -267,7 +275,7 @@ class WebhookChannel implements CommsChannel {
     // A refusal here is a dead letter, not a silent drop — `send` escalates every
     // `failed` through alertDeadLetter, and the reason rides the outbox row.
     try {
-      await assertPublicHttpsEndpointResolved(this.url, "relay url", relayHostLookup);
+      await assertRelayEndpointResolved(this.url);
     } catch (err) {
       return {
         status: "failed",
