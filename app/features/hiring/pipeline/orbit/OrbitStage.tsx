@@ -3,6 +3,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { labelWidths } from "@/app/_components/kit/scene";
 import { useTheme } from "@/app/_components/ui/useTheme";
+import type { InterviewPlanRule } from "@/app/_lib/decision-config-schema";
 import type { StageDef } from "@/app/features/shared/pipelineTypes";
 import { type LensId, type OrbitGroup } from "./orbitModel";
 import { anchorOf, CALLOUT_W, layoutOrbit, placeCallouts, sectorAt, type Dot, type OrbitGeo } from "./orbitLayout";
@@ -45,6 +46,7 @@ type Props = {
   reduced: boolean;
   closedEmpty: number;
   jobsMissing: boolean;
+  plan?: InterviewPlanRule | null;
 };
 
 const EASE = "cubic-bezier(.2,.8,.2,1)";
@@ -58,7 +60,7 @@ const EASE = "cubic-bezier(.2,.8,.2,1)";
  * callout out from its sector's edge; coming back up from a group flies the beads home.
  */
 export const OrbitStage = forwardRef<OrbitStageHandle, Props>(function OrbitStage(
-  { groups, lens, axis, words, ring, onRing, focus, onOpen, arrival, beforeGrow, fly, reduced, closedEmpty, jobsMissing },
+  { groups, lens, axis, words, ring, onRing, focus, onOpen, arrival, beforeGrow, fly, reduced, closedEmpty, jobsMissing, plan },
   ref
 ) {
   const { t } = words;
@@ -247,7 +249,7 @@ export const OrbitStage = forwardRef<OrbitStageHandle, Props>(function OrbitStag
           : null}
       </div>
       {geo && !geo.side ? <div className="ob-colist">{groups.map((g) => callout(g, undefined, "list"))}</div> : null}
-      <OrbitLegend axis={axis} words={words} ring={ring} onRing={onRing} counts={counts} ringLabels={ringLabels} people={groups.reduce((sum, g) => sum + g.act, 0)} closedEmpty={closedEmpty} jobsMissing={jobsMissing} />
+      <OrbitLegend axis={axis} words={words} ring={ring} onRing={onRing} counts={counts} ringLabels={ringLabels} people={groups.reduce((sum, g) => sum + g.act, 0)} closedEmpty={closedEmpty} jobsMissing={jobsMissing} plan={plan} />
     </section>
   );
 });

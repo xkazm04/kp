@@ -16495,7 +16495,13 @@
     },
     "ringKey": {
       "lead": "Rings, outside in",
-      "item": "{stage} · {count, number}"
+      "item": "{stage} · {count, number}",
+      "plan": {
+        "ai": "AI rounds",
+        "human": "Human rounds",
+        "mixed": "AI and human rounds",
+        "humanGate": "Human gate"
+      }
     }
   },
   "channelsNight": {

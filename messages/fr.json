@@ -16495,7 +16495,13 @@
     },
     "ringKey": {
       "lead": "Anneaux, de l’extérieur vers l’intérieur",
-      "item": "{stage} · {count, number}"
+      "item": "{stage} · {count, number}",
+      "plan": {
+        "ai": "Tours IA",
+        "human": "Tours humains",
+        "mixed": "Tours IA et humains",
+        "humanGate": "Validation humaine"
+      }
     }
   },
   "channelsNight": {

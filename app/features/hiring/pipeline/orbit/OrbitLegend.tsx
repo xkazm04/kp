@@ -2,8 +2,11 @@
 
 import { useTranslations } from "next-intl";
 import { ChipButton } from "@/app/_components/kit";
+import type { InterviewPlanRule } from "@/app/_lib/decision-config-schema";
 import type { StageDef } from "@/app/features/shared/pipelineTypes";
+import { planMarkText } from "../pipelinePlanMarks";
 import { LegendBead, OrbitMark } from "./OrbitMarks";
+import { OrbitPlanMark } from "./OrbitPlanMark";
 import type { OrbitWords } from "./orbitWords";
 
 type Props = {
@@ -18,6 +21,8 @@ type Props = {
   people: number;
   closedEmpty: number;
   jobsMissing: boolean;
+  /** The hiring plan (board.plan); null before the first load, and the key then draws no plan marks. */
+  plan?: InterviewPlanRule | null;
 };
 
 /**
@@ -25,16 +30,18 @@ type Props = {
  * that ring, pressed again or Esc shows every stage) and the legend of marks, with what is not drawn
  * and why.
  */
-export function OrbitLegend({ axis, words, ring, onRing, counts, ringLabels, people, closedEmpty, jobsMissing }: Props) {
+export function OrbitLegend({ axis, words, ring, onRing, counts, ringLabels, people, closedEmpty, jobsMissing, plan = null }: Props) {
   const { t, n } = words;
   const tr = useTranslations("overviewLit.ringKey");
   return (
     <>
       <div className="ob-ringkey" role="group" aria-label={tr("lead")}>
         <span aria-hidden>{tr("lead")}</span>
-        {axis.map((st, i) => (
-          <ChipButton key={st.id} chip={{ id: st.id, label: tr("item", { stage: ringLabels[i], count: counts[i] ?? 0 }), pressed: ring === i, onPress: () => onRing(ring === i ? null : i) }} />
-        ))}
+        {axis.map((st, i) => {
+          const pm = planMarkText(plan, st.id, (k) => tr(`plan.${k}`));
+          const mark = pm ? <OrbitPlanMark executor={pm.executor} gate={pm.gate} /> : undefined;
+          return <ChipButton key={st.id} chip={{ id: st.id, label: tr("item", { stage: ringLabels[i], count: counts[i] ?? 0 }), mark, pressed: ring === i, onPress: () => onRing(ring === i ? null : i) }} />;
+        })}
       </div>
       <div className="ob-legend">
         <span><LegendBead kind="w" />{t("legendWaiting")}</span>

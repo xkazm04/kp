@@ -43,6 +43,9 @@
 /* ---------------------------------------------------------------- marks and beads */
 .ob-mk { display: inline-flex; width: 16px; height: 16px; flex: none; vertical-align: -3px; }
 .ob-mk svg { width: 16px; height: 16px; }
+.ob-plan { display: inline-flex; align-items: center; gap: 6px; margin-right: 6px; font-size: var(--text-micro); }
+.ob-plan__x { color: var(--k-quiet); }
+.ob-plan__gate { display: inline-flex; align-items: center; gap: 2px; color: var(--color-coral-ink); font-weight: 600; }
 .ob-mk--needs { color: var(--color-coral-ink); }
 .ob-mk--late { color: var(--ob-late); }
 .ob-mk--moving { color: var(--color-moss); }

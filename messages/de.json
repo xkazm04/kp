@@ -16495,7 +16495,13 @@
     },
     "ringKey": {
       "lead": "Ringe, von außen nach innen",
-      "item": "{stage} · {count, number}"
+      "item": "{stage} · {count, number}",
+      "plan": {
+        "ai": "KI-Runden",
+        "human": "Runden mit Menschen",
+        "mixed": "KI- und Menschenrunden",
+        "humanGate": "Freigabe durch Menschen"
+      }
     }
   },
   "channelsNight": {

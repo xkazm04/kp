@@ -442,6 +442,7 @@ export function PipelineOrbitView() {
                   reduced={reduced}
                   closedEmpty={model.closedEmpty}
                   jobsMissing={!jobs.jobs}
+                  plan={s.plan}
                 />
               ) : (
                 <div className="ob-l1">

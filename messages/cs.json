@@ -16495,7 +16495,13 @@
     },
     "ringKey": {
       "lead": "Kruhy zvenku dovnitř",
-      "item": "{stage} · {count, number}"
+      "item": "{stage} · {count, number}",
+      "plan": {
+        "ai": "Kola s AI",
+        "human": "Kola s lidmi",
+        "mixed": "Kola s AI i lidmi",
+        "humanGate": "Schvaluje člověk"
+      }
     }
   },
   "channelsNight": {
