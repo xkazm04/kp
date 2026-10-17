@@ -86,8 +86,13 @@ async function seedRole(tag, n) {
   const repoint = db.prepare(
     `UPDATE pipeline_entries SET job_id = ?, job_title = ?, match_score = ?, stage = ?, status = 'active' WHERE id = ?`
   );
+  // The corpus also ships completed demo interviews on some seeded entries (seed-interview-scorecards.ts,
+  // a8fdce41d). Those belong to the reasons-coverage meter, not to this role: clear them so the entry
+  // starts with no interview, as a fixture for the simulator's own sessions must.
+  const clearSeedInterviews = db.prepare(`DELETE FROM interview_sessions WHERE entry_id = ?`);
   const entries = [];
   for (const seed of takeSeedRecords(n)) {
+    clearSeedInterviews.run(seed.id);
     const changed = repoint.run(jobId, "Backend Engineer", 90, screenedLandingStage(), seed.id).changes;
     assert.equal(changed, 1, `the seeded entry ${seed.id} is not on this database — did the fixture seed not run?`);
     const plan = buildRunOfShow(PREP_QUESTIONS, ["event-driven systems"], seed.candidateLabel, "Backend Engineer", strings);

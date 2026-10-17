@@ -19,8 +19,10 @@ import Database from "better-sqlite3";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const NODE = ["--import", "./scripts/test-alias-loader.mjs", "--experimental-transform-types", "--disable-warning=ExperimentalWarning"];
 
+// KP_EMPTY=1: the schema only. The demo corpus now seeds its own completed interviews
+// (seed-interview-scorecards.ts), which would add to the counts these fixtures assert on.
 function run(args, dbPath) {
-  const r = spawnSync(process.execPath, [...NODE, ...args], { cwd: ROOT, env: { ...process.env, KP_DB_PATH: dbPath }, encoding: "utf8" });
+  const r = spawnSync(process.execPath, [...NODE, ...args], { cwd: ROOT, env: { ...process.env, KP_DB_PATH: dbPath, KP_EMPTY: "1" }, encoding: "utf8" });
   assert.equal(r.status, 0, r.stderr);
   return r.stdout;
 }
