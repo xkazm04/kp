@@ -142,7 +142,7 @@ test("calendar: a sealed or offline refusal names the endpoint, never the token 
   const { calendarFetch, CalendarOfflineError } = await import("./calendar/edge-fetch.ts");
   const calls = countFetches();
   const url = "https://oauth2.googleapis.com/revoke?token=1%2F%2Frefresh-token-secret";
-  for (const env of [{ KP_NO_COMMS_EGRESS: "1" }, { KP_OFFLINE: "1" }]) {
+  for (const env of [{ ...process.env, KP_NO_COMMS_EGRESS: "1" }, { ...process.env, KP_OFFLINE: "1" }]) {
     await assert.rejects(calendarFetch(url, { method: "POST" }, { env }), (err: unknown) => {
       assert.ok(err instanceof CalendarOfflineError);
       assert.doesNotMatch(err.message, /refresh-token-secret|token=/);
