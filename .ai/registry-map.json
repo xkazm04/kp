@@ -9743,7 +9743,11 @@
           "revision": 15,
           "changedAt": "2026-09-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/profile_draft_cli.py:115 The CV extraction pipeline coerces invalid or unparsed model fields into arbitrary defaults rather than using constrained decoding or a bounded model-assisted repair loop.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:d51aec71411ccb2b",
+          "evaluatedRevision": 15
         },
         {
           "subject": "agent-memory",
@@ -30801,7 +30805,11 @@
           "revision": 15,
           "changedAt": "2026-09-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_profile_draft.py:57 The test suite asserts that invalid model-produced enum strings are sanitized by coercive fallback rather than rejected at a validation door or repaired via a model loop.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:d51aec71411ccb2b",
+          "evaluatedRevision": 15
         },
         {
           "subject": "quality-gates",
