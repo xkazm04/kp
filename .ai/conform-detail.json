@@ -9375,6 +9375,94 @@
           "evidence": "app/_lib/db/webhook-claims.ts:78 Expired claims can be acquired again, but settlement and release have no holder or attempt condition, allowing an old claimant to modify its successor's lease."
         }
       ]
+    },
+    "ec7480d1-b046-46b8-ad78-ba60c3612b85/llm-era-work-sample-design": {
+      "context": "devcase-core",
+      "subject": "llm-era-work-sample-design",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T04:03:59.685Z",
+      "worker": "b777f525-d03e-4471-8720-2c460348bf8f",
+      "techniques": [
+        {
+          "technique": "anchor-the-task-to-the-role-not-the-material",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/devcase/design.py:203 The fallback fills the requirement list from the analyzed substrate stack rather than limiting additions to stated role requirements."
+        },
+        {
+          "technique": "authorship-verifying-debrief-questions",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/devcase/evaluate.py:674 The surrounding prompt anchors questions to observed submission decisions, requests the three reasoning forms, treats prior inferences as hypotheses, and keeps interviewer guidance internal."
+        },
+        {
+          "technique": "covert-probe-with-a-decision-space",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/devcase/design.py:410 The fallback supplies a generic location instead of identifying the concrete requirement and seam where the candidate must choose."
+        },
+        {
+          "technique": "forced-decision-log-as-normal-practice",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/devcase/seed_materializer.py:83 The shipped template replaces the required 'what would you have asked the team' field with 'Why', despite the design prompt requesting the former."
+        },
+        {
+          "technique": "mid-flight-requirement-change",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/devcase/design.py:465 The fallback never identifies which constraint changed or its new value, so it cannot concretely invalidate an earlier decision."
+        },
+        {
+          "technique": "probe-discrimination-audit-before-shipping",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/devcase/lifecycle_eval.py:97 The structural validator accepts any nonempty location, allowing fallback placeholders such as 'the brief' to satisfy the concrete-seam criterion."
+        }
+      ]
+    },
+    "b1c5ba42-9188-4765-a9e0-3ad6eefc951f/llm-era-work-sample-design": {
+      "context": "tests-devcase",
+      "subject": "llm-era-work-sample-design",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T04:03:59.685Z",
+      "worker": "b777f525-d03e-4471-8720-2c460348bf8f",
+      "techniques": [
+        {
+          "technique": "anchor-the-task-to-the-role-not-the-material",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_devcase_design.py:41 The fixture's need specifies Python; this assertion demands Go and PostgreSQL from the supplied code instead."
+        },
+        {
+          "technique": "authorship-verifying-debrief-questions",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_devcase_evaluate.py:190 The tests require a decision-specific counterfactual and separately check the rejected alternative, concrete probe location, and internal option guidance."
+        },
+        {
+          "technique": "covert-probe-with-a-decision-space",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_devcase_design.py:141 The test explicitly preserves an item as a covert probe with no decision space instead of removing it or converting it into a stated task."
+        },
+        {
+          "technique": "probe-discrimination-audit-before-shipping",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/tests/test_devcase_probe_constant_sync.py:115 The tests ensure duplicate and blank options cannot manufacture a load-bearing probe and verify the validator uses the shared option threshold."
+        }
+      ]
+    },
+    "003cd283-f6d8-41bb-a936-5e2c3d23a76e/llm-era-work-sample-design": {
+      "context": "devcase-evaluation",
+      "subject": "llm-era-work-sample-design",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T04:03:59.685Z",
+      "worker": "b777f525-d03e-4471-8720-2c460348bf8f",
+      "techniques": [
+        {
+          "technique": "probe-discrimination-audit-before-shipping",
+          "verdict": "deviation",
+          "evidence": "app/_lib/devcase-probe-audit.ts:89 The >= comparison accepts exactly half as a majority; four probes with only two load-bearing therefore receive an unsupported strong verdict."
+        }
+      ]
     }
   }
 }

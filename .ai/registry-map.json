@@ -11889,7 +11889,11 @@
           "revision": 1,
           "changedAt": "2026-08-21",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/devcase/design.py:203 The deterministic designer adds substrate technologies to stated must-haves, introducing requirements without explicit agreement from the hiring need.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:dadbb132f58c50f5",
+          "evaluatedRevision": 1
         },
         {
           "subject": "quality-gates",
@@ -12647,7 +12651,11 @@
           "revision": 1,
           "changedAt": "2026-08-21",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/devcase-probe-audit.ts:89 The audit labels two load-bearing probes out of four as strong even though the standard requires a majority.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:dadbb132f58c50f5",
+          "evaluatedRevision": 1
         },
         {
           "subject": "voice-io",
@@ -30933,7 +30941,11 @@
           "revision": 1,
           "changedAt": "2026-08-21",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_devcase_design.py:41 The test requires substrate technologies to become must-haves even though its hiring need specifies Python, codifying tool smuggling.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:dadbb132f58c50f5",
+          "evaluatedRevision": 1
         }
       ],
       "governance": "governed"
