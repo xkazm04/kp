@@ -192,6 +192,14 @@ within the send (`WebhookChannel.deliver`):
   lets a caller re-sending an already-recorded message reuse its identity;
   otherwise the channel mints one per send. Wire contract:
   [`outbound-export.md`](./outbound-export.md).
+- **One message identity, stored.** The minted id is persisted on every outbox
+  write (`dev_outbox.message_id`, indexed; local `queued` rows and refusal rows
+  included). A resend passes the original row's id back, so the envelope
+  `messageId` and the `Idempotency-Key` match the first attempt's. A relay that
+  echoes `messageId` in its callback is matched to that exact row
+  (`bounceTargetFor`, `comms-view.ts`); a receipt without an id, and rows
+  written before the column, keep the newest-send-before-the-bounce heuristic.
+  Locked by `comms-identity.test.ts`.
 - **Permanent** failures (other `4xx`) dead-letter immediately — retrying a
   caller/config error changes nothing.
 - Exhausted retries or a permanent failure record the message `failed` and
@@ -1434,5 +1442,7 @@ already returns alongside the entries. Both rules are pinned by
   always-on host rather than pairing several laptops to one edge.
 - No durable retry queue — retries are inline/bounded within the request;
   `comms.log` is not yet shipped to an external alerting sink.
-- Positive/soft bounce-callback outcomes (delivered/opened/deferred) are
-  accepted but not yet surfaced as an engagement feed.
+- A `delivered` callback outcome stamps `dev_outbox.last_delivered_at` on the
+  send it names (`lastDeliveredAt` on the `/api/comms` read); opened/deferred
+  are accepted but not yet surfaced as an engagement feed. The edge drain does
+  not yet forward `messageId` on a receipt, so it matches by the heuristic.

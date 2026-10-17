@@ -101,6 +101,9 @@ class OutboxChannel implements CommsChannel {
       status: "queued",
       ref: msg.ref,
       workspaceId: msg.workspaceId,
+      // Minted here too: the keyless local outbox is the same message identity, so a row
+      // that is later relayed (or re-sent) is one thing, not two.
+      messageId: msg.messageId?.trim() || randomId("msg"),
     });
   }
 }
@@ -192,6 +195,12 @@ class WebhookChannel implements CommsChannel {
   }
 
   async send(msg: OutboundMessage): Promise<OutboxEntry> {
+    // Minted ONCE per logical message, before ANY outcome — a refusal row carries it too,
+    // so every outbox write names the message it concerns — and persisted on the row
+    // (dev_outbox.message_id) so a relay receipt can echo it back. Every attempt of the
+    // ladder below carries the same identity. A caller re-sending an already recorded
+    // message passes its id in and the receiver sees the repeat.
+    const messageId = msg.messageId?.trim() || randomId("msg");
     // The ORG boundary, checked before the envelope is BUILT (it enriches with the
     // candidate's own data) and long before any fetch. A refusal is a DEAD LETTER, not a
     // silent return: the alert fires and the reason rides the row, because "why did org
@@ -209,6 +218,7 @@ class WebhookChannel implements CommsChannel {
         ref: msg.ref,
         failureDetail: crossOrg,
         workspaceId: msg.workspaceId,
+        messageId,
       });
     }
     // `ref` is the pipeline entry id for every pipeline dispatcher; dev-case and
@@ -220,10 +230,6 @@ class WebhookChannel implements CommsChannel {
     // for every ordinary candidate comm, so on any other workspace the lookup missed
     // and EVERY relayed message shipped an envelope with no candidate, role or stage —
     // leaving the receiving ATS unable to map it back to a person.
-    // Minted ONCE per logical message, before the first attempt, so every attempt of
-    // the ladder below carries the same identity. A caller re-sending an already
-    // recorded message passes its id in and the receiver sees the repeat.
-    const messageId = msg.messageId?.trim() || randomId("msg");
     const envelope = buildCommEnvelope(
       msg,
       msg.ref ? getPipelineEntry(msg.ref, getEntryWorkspace(msg.ref)) : null,
@@ -247,6 +253,7 @@ class WebhookChannel implements CommsChannel {
       ref: msg.ref,
       failureDetail: detail,
       workspaceId: msg.workspaceId,
+      messageId,
     });
   }
 

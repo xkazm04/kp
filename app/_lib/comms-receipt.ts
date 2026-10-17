@@ -10,13 +10,19 @@
 // it is an orphan — because a second copy of that is how the Comms Center starts
 // disagreeing with itself.
 
-import { getSubmission, hasOutboxSendFor, recordOutbox } from "./db/devcase";
+import { getSubmission, hasOutboxSendFor, recordOutbox, stampOutboxDelivered } from "./db/devcase";
 import { getEntryWorkspace, getPipelineEntry } from "./db/pipeline";
 import { orgIdForWorkspace } from "./db/org-benchmarks";
 import { DEFAULT_ORG_ID } from "./db/organizations";
 import { isBounceOutcome } from "./comms-status";
 import { logForeignReceipt } from "./logger";
 import { RECEIPT_RECIPIENT_CODE, RECEIPT_SUBJECT_CODE } from "./comms-view";
+
+/** A relay's positive receipt: the message reached the recipient. Stamped on the send as
+ *  `lastDeliveredAt`; "opened"/"deferred" are still accepted and not surfaced. */
+function isDeliveredOutcome(outcome: string): boolean {
+  return outcome.trim().toLowerCase() === "delivered";
+}
 
 export type DeliveryReceipt = {
   /** The message's ref (a pipeline entry id) and kind — together the ONLY key a
@@ -26,6 +32,9 @@ export type DeliveryReceipt = {
   outcome: string;
   detail?: string | null;
   recipient?: string | null;
+  /** The `messageId` the relay received in the envelope, echoed back. When present it
+   *  names the exact send the receipt concerns; absent, the (ref, kind) heuristic applies. */
+  messageId?: string | null;
 };
 
 export type DeliveryReceiptResult =
@@ -120,7 +129,14 @@ export function receiptOrgId(ref: string): string | null {
  */
 export function recordDeliveryReceipt(receipt: DeliveryReceipt): DeliveryReceiptResult {
   const { ref, kind, outcome } = receipt;
-  if (!isBounceOutcome(outcome)) return { recorded: false, outcome, reason: "not_a_bounce" };
+  const messageId = receipt.messageId?.trim() || null;
+  if (!isBounceOutcome(outcome)) {
+    // A delivery is stamped on the send it concerns (last_delivered_at) instead of being
+    // dropped; nothing is appended and the answer is unchanged. An unplaceable ref
+    // stamps nothing — the same refusal the bounce path makes.
+    if (isDeliveredOutcome(outcome) && receiptWorkspace(ref)) stampOutboxDelivered(ref, kind, messageId);
+    return { recorded: false, outcome, reason: "not_a_bounce" };
+  }
   const detail = receipt.detail && receipt.detail.trim() ? receipt.detail.trim() : outcome;
   // A receipt with no tenant is a fault belonging to nobody — refused, not filed into
   // whichever team happens to be the default (see receiptWorkspace).
@@ -146,6 +162,7 @@ export function recordDeliveryReceipt(receipt: DeliveryReceipt): DeliveryReceipt
     status: "bounced",
     ref,
     workspaceId,
+    messageId,
   });
   if (!matched) return { recorded: false, outcome, reason: "no_matching_send", stored: true };
   return { recorded: true, outcome };

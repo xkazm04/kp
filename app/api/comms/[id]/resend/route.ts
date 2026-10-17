@@ -137,6 +137,11 @@ export const POST = withWorkspace(async (ws: string, request: Request, context: 
       // an entry-less comm (a KO decline) would otherwise resend into the default
       // team's Comms Center and vanish from the one that triggered it.
       workspaceId: ws,
+      // ONE identity per logical message: the original's id is both the envelope
+      // `messageId` and the Idempotency-Key, so a receiver that already accepted the
+      // first attempt drops this one, and a receipt echoing the id still names this
+      // message. A legacy row has none — sendComm mints a fresh one for it.
+      messageId: original.messageId ?? undefined,
     });
     if (original.ref && getPipelineEntry(original.ref, ws)) {
       recordAutomationEvent(original.ref, "comm_resent", `${original.kind}: ${resent.status}`, ws);

@@ -528,6 +528,11 @@ export type OutboxEntry = {
    *  non-failed row AND on legacy failures written before the column existed — the
    *  UI must render its absence as "no reason recorded", never invent one. */
   failureDetail: string | null;
+  /** The delivery identity sendComm minted for this message (also the envelope's
+   *  `messageId` and the Idempotency-Key). NULL on rows written before the column. */
+  messageId?: string | null;
+  /** When a relay last reported this row "delivered". NULL until it does. */
+  lastDeliveredAt?: string | null;
 };
 
 // Tenant (P1): derive the outbox tenant from the referenced pipeline entry (ref =
@@ -581,6 +586,9 @@ export function recordOutbox(input: {
   ref?: string | null;
   /** The dead-letter reason for a `failed` row (comms.ts computes it per attempt). */
   failureDetail?: string | null;
+  /** The delivery identity (see OutboxEntry.messageId). A bounce receipt stores the id
+   *  the relay echoed, which is how the view attributes it to exactly one send. */
+  messageId?: string | null;
   /** The dispatch's own tenant — used ONLY when `ref` names no pipeline entry (an
    *  entry-less comm such as a KO decline). A ref'd comm always files into its
    *  entry's team, whatever this says. */
@@ -596,11 +604,12 @@ export function recordOutbox(input: {
   // A reason belongs to a FAILURE. Storing one on a sent/queued row would put a stale
   // "http 503" (the last retry before the one that worked) next to a green badge.
   const failureDetail = input.status === "failed" ? input.failureDetail?.trim() || null : null;
+  const messageId = input.messageId?.trim() || null;
   db.prepare(
-    `INSERT INTO dev_outbox (id, recipient, subject, body, kind, channel, status, ref, created_at, workspace_id, failure_detail)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(id, input.recipient, input.subject, input.body, input.kind, input.channel, input.status, input.ref ?? null, now, workspaceId, failureDetail);
-  return { id, ...message, ref: input.ref ?? null, createdAt: now, failureDetail };
+    `INSERT INTO dev_outbox (id, recipient, subject, body, kind, channel, status, ref, created_at, workspace_id, failure_detail, message_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(id, input.recipient, input.subject, input.body, input.kind, input.channel, input.status, input.ref ?? null, now, workspaceId, failureDetail, messageId);
+  return { id, ...message, ref: input.ref ?? null, createdAt: now, failureDetail, messageId, lastDeliveredAt: null };
 }
 
 function rowToOutboxEntry(r: Record<string, unknown>): OutboxEntry {
@@ -617,7 +626,36 @@ function rowToOutboxEntry(r: Record<string, unknown>): OutboxEntry {
     ref: (r.ref as string) ?? null,
     createdAt: r.created_at as string,
     failureDetail: (r.failure_detail as string) ?? null,
+    messageId: (r.message_id as string) ?? null,
+    lastDeliveredAt: (r.last_delivered_at as string) ?? null,
   };
+}
+
+/** Stamp "a relay reported this delivered" on the send a receipt concerns.
+ *
+ *  Exact when the receipt echoes a `messageId`; otherwise the newest non-bounced send of
+ *  that (ref, kind) — the same fallback the bounce view uses for id-less rows. A stamp on
+ *  an existing row, not an appended one: "delivered" is a fact about the send, and a
+ *  ledger row per delivery would only be folded back onto it. Returns whether a row took it. */
+export function stampOutboxDelivered(ref: string, kind: string, messageId?: string | null): boolean {
+  const db = ensureDb();
+  const ws = outboxWorkspaceForRef(ref);
+  const now = new Date().toISOString();
+  const id = messageId?.trim();
+  if (id) {
+    const r = db
+      .prepare(`UPDATE dev_outbox SET last_delivered_at = ? WHERE workspace_id = ? AND ref = ? AND kind = ? AND message_id = ? AND status <> 'bounced'`)
+      .run(now, ws, ref, kind, id);
+    if (r.changes > 0) return true;
+  }
+  const r = db
+    .prepare(
+      `UPDATE dev_outbox SET last_delivered_at = ? WHERE id = (
+         SELECT id FROM dev_outbox WHERE workspace_id = ? AND ref = ? AND kind = ? AND status = 'sent'${id ? " AND message_id IS NULL" : ""}
+         ORDER BY created_at DESC, id DESC LIMIT 1)`
+    )
+    .run(now, ws, ref, kind);
+  return r.changes > 0;
 }
 
 export function listOutbox(limit = 50, workspaceId: string = DEFAULT_WORKSPACE_ID): OutboxEntry[] {

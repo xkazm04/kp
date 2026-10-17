@@ -2255,6 +2255,14 @@ export function ensureDb(): Database.Database {
     // only recourse was server logs. Additive + nullable: legacy `failed` rows keep
     // reading as "no reason recorded", never as a fabricated one.
     "ALTER TABLE dev_outbox ADD COLUMN failure_detail TEXT",
+    // One message identity (channels C1): the `messageId` sendComm mints per logical
+    // message and ships in the envelope + Idempotency-Key, now kept on the row so a relay
+    // receipt can name the exact send it concerns. Nullable: rows written before this
+    // column have none and keep matching receipts by the (ref, kind) heuristic.
+    "ALTER TABLE dev_outbox ADD COLUMN message_id TEXT",
+    // The newest "delivered" receipt for this row — a stamp, not a ledger row.
+    "ALTER TABLE dev_outbox ADD COLUMN last_delivered_at TEXT",
+
     // JD archive (W8-4/JDL1): archived JDs drop out of listJds and the pickers,
     // but loadJd keeps serving them so existing analysis links never 404.
     "ALTER TABLE jds ADD COLUMN archived_at TEXT",
@@ -2773,6 +2781,7 @@ export function ensureDb(): Database.Database {
     `CREATE INDEX IF NOT EXISTS idx_consent_events_workspace ON consent_events (workspace_id)`,
     `CREATE INDEX IF NOT EXISTS idx_channel_webhooks_workspace ON channel_webhooks (workspace_id)`,
     `CREATE INDEX IF NOT EXISTS idx_dev_outbox_workspace ON dev_outbox (workspace_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_dev_outbox_message_id ON dev_outbox (message_id)`,
     `CREATE INDEX IF NOT EXISTS idx_interview_sessions_workspace ON interview_sessions (workspace_id)`,
     `CREATE INDEX IF NOT EXISTS idx_campaign_packs_workspace ON campaign_packs (workspace_id)`,
     `CREATE INDEX IF NOT EXISTS idx_tasks_workspace ON tasks (workspace_id)`,

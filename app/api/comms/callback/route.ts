@@ -80,10 +80,16 @@ export async function POST(request: NextRequest) {
       return jsonError(null, "ref, kind and outcome are required.", 400);
     }
 
-    // Positive/soft outcomes (delivered/opened/deferred) are accepted so the relay
-    // stops retrying, but not yet surfaced — only the hard, reputation-critical
+    // The delivery identity the relay is echoing (the envelope's `messageId`). Optional:
+    // a relay that does not echo it is matched by (ref, kind) as before.
+    const messageId = typeof body.messageId === "string" && body.messageId.trim() ? body.messageId.trim().slice(0, 200) : null;
+
+    // Positive/soft outcomes are accepted so the relay stops retrying. "delivered" is
+    // stamped on the send it names (last_delivered_at — idempotent, so it needs no
+    // replay guard); opened/deferred are not surfaced. Only the hard, reputation-critical
     // ones record a bounce receipt that flips the sent badge.
     if (!isBounceOutcome(outcome)) {
+      recordDeliveryReceipt({ ref, kind, outcome, messageId });
       return jsonOk({ recorded: false, outcome });
     }
 
@@ -98,6 +104,7 @@ export async function POST(request: NextRequest) {
       kind,
       outcome,
       detail,
+      messageId,
       explicitNonce: request.headers.get("x-comms-nonce"),
     });
     if (replayGuard.isReplay(nonce, nowMs)) {
@@ -114,7 +121,7 @@ export async function POST(request: NextRequest) {
     // integration failure: the relay reads 200 {recorded:true} while nothing lands.
     // Now the mismatch is answered on the FIRST call, in the shared recording core
     // (comms-receipt.ts) that the edge drain applies receipts through too.
-    const applied = recordDeliveryReceipt({ ref, kind, outcome, detail, recipient });
+    const applied = recordDeliveryReceipt({ ref, kind, outcome, detail, recipient, messageId });
     if (!applied.recorded) return jsonOk({ recorded: false, reason: applied.reason, stored: applied.stored, outcome });
     return jsonOk({ recorded: true, outcome });
   } catch (error) {
