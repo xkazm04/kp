@@ -644,7 +644,7 @@ export function stampOutboxDelivered(ref: string, kind: string, messageId?: stri
   const id = messageId?.trim();
   if (id) {
     const r = db
-      .prepare(`UPDATE dev_outbox SET last_delivered_at = ? WHERE workspace_id = ? AND ref = ? AND kind = ? AND message_id = ? AND status <> 'bounced'`)
+      .prepare(`UPDATE dev_outbox SET last_delivered_at = ? WHERE workspace_id = ? AND ref = ? AND kind = ? AND message_id = ? AND status IN ('sent','failed')`)
       .run(now, ws, ref, kind, id);
     if (r.changes > 0) return true;
   }
