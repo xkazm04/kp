@@ -85,3 +85,53 @@ test("relay probe still pings a relay whose name resolves publicly", async () =>
   assert.equal(res.status, 200);
   assert.deepEqual(calls, ["https://relay.example.test/hook"]);
 });
+
+// S-3 — the live callback had no org boundary (the edge drain has had one since F-3): a
+// relay org A saved could bounce, or stamp delivered, org B's messages by naming B's ref.
+test("callback: a stored relay's receipt for ANOTHER org's ref is filed nowhere, answered as unknown_ref", async () => {
+  const { createOrganization } = await import("./db/organizations.ts");
+  const { createWorkspace } = await import("./db/workspaces.ts");
+  const { setRelayConfig } = await import("./comms-relay-store.ts");
+  const { NextRequest } = await import("next/server");
+  const { POST } = await import("../api/comms/callback/route.ts");
+  const orgA = createOrganization("Callback Org A");
+  const orgB = createOrganization("Callback Org B");
+  const teamA = createWorkspace("Callback Team A", orgA.id);
+  const teamB = createWorkspace("Callback Team B", orgB.id);
+  setRelayConfig({ url: "https://relay.example.test/hook", ownerOrgId: orgA.id });
+  process.env.COMMS_CALLBACK_SECRET = "s3cret-callback";
+  const mk = (label: string, workspaceId: string) =>
+    createPipelineEntry({ candidateId: `cand-${label}`, candidateLabel: label, jobId: `job-${label}`, jobTitle: "Engineer", workspaceId }).entry;
+  const own = mk("cb-own", teamA.id);
+  const foreign = mk("cb-foreign", teamB.id);
+  for (const e of [own, foreign]) {
+    recordOutbox({ recipient: "jana@example.cz", subject: "Offer", body: "…", kind: "offer", channel: "webhook", status: "sent", ref: e.id, messageId: `msg-${e.id}` });
+  }
+  const call = async (ref: string, outcome: string) => {
+    const res = await POST(
+      new NextRequest("http://localhost/api/comms/callback", {
+        method: "POST",
+        headers: { "x-comms-secret": "s3cret-callback", "x-comms-timestamp": String(Date.now()), "content-type": "application/json" },
+        body: JSON.stringify({ ref, kind: "offer", outcome, messageId: `msg-${ref}` }),
+      })
+    );
+    return { status: res.status, body: (await res.json()) as Record<string, unknown> };
+  };
+  try {
+    const refused = await call(foreign.id, "bounce");
+    assert.equal(refused.status, 200);
+    assert.equal(refused.body.recorded, false);
+    assert.equal(refused.body.reason, "unknown_ref", "indistinguishable from a ref the install does not know");
+    assert.equal(listOutboxFiltered({ ref: foreign.id, status: "bounced" }, teamB.id).length, 0, "no receipt filed in org B");
+    await call(foreign.id, "delivered");
+    assert.equal(listOutboxFiltered({ ref: foreign.id }, teamB.id)[0].lastDeliveredAt, null, "org B's send not stamped");
+
+    // Control: the SAME relay's receipt for its own org's ref still lands.
+    const accepted = await call(own.id, "bounce");
+    assert.equal(accepted.body.recorded, true);
+    assert.equal(listOutboxFiltered({ ref: own.id, status: "bounced" }, teamA.id).length, 1);
+  } finally {
+    delete process.env.COMMS_CALLBACK_SECRET;
+    setRelayConfig({ url: null, ownerOrgId: orgA.id });
+  }
+});

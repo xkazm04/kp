@@ -17,6 +17,7 @@ import { DEFAULT_ORG_ID } from "./db/organizations";
 import { isBounceOutcome } from "./comms-status";
 import { logForeignReceipt } from "./logger";
 import { RECEIPT_RECIPIENT_CODE, RECEIPT_SUBJECT_CODE } from "./comms-view";
+import { getRelayConfig } from "./comms-relay-store";
 
 /** A relay's positive receipt: the message reached the recipient. Stamped on the send as
  *  `lastDeliveredAt`; "opened"/"deferred" are still accepted and not surfaced. */
@@ -115,6 +116,35 @@ export function receiptOrgId(ref: string): string | null {
   const workspaceId = receiptWorkspace(ref);
   if (!workspaceId) return null;
   return orgIdForWorkspace(workspaceId) ?? DEFAULT_ORG_ID;
+}
+
+/**
+ * Does the LIVE callback's receipt belong to an organization other than the one that
+ * owns the relay sending it? (The edge drain's F-3 check, on the other door.)
+ *
+ * The callback authenticates with COMMS_CALLBACK_SECRET, which proves "the relay", and
+ * the relay is the one a single organization saved (comms_relay_config.owner_org_id —
+ * WebhookChannel.crossOrgRefusal already refuses to send it anyone else's letters). So a
+ * receipt it reports for another organization's ref concerns nothing it was handed, and
+ * filing it would let one org's relay vendor bounce, or stamp delivered, another org's
+ * messages. Precedence mirrors resolveRelay: an ENV relay (COMMS_WEBHOOK_URL) is
+ * host-level and serves every org, so it is not checked; nor is an install with no
+ * stored relay. A ref placeable nowhere is left to recordDeliveryReceipt's own
+ * `unknown_ref` refusal. Fails OPEN on an unreadable config row, as the single-tenant
+ * default every shipped install runs is unaffected either way.
+ */
+export function receiptOutsideRelayOrg(ref: string, env: Readonly<Partial<NodeJS.ProcessEnv>> = process.env): boolean {
+  if (env.COMMS_WEBHOOK_URL) return false;
+  let owner: string;
+  try {
+    const stored = getRelayConfig();
+    if (!stored.url) return false;
+    owner = stored.ownerOrgId ?? DEFAULT_ORG_ID;
+  } catch {
+    return false; // unreadable config: the send path reports it (comms-relay.ts); no org to compare
+  }
+  const receiptOrg = receiptOrgId(ref);
+  return receiptOrg !== null && receiptOrg !== owner;
 }
 
 /**
