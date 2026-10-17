@@ -152,3 +152,21 @@ test("calendar: a sealed or offline refusal names the endpoint, never the token 
   }
   assert.equal(calls.length, 0);
 });
+
+// S-5 — two files on this trust boundary carried a RAW NUL byte as a key separator, so
+// git treats them as binary and every diff of them reads "Bin" in review: the
+// one-message-identity change to the callback's nonce shipped with no visible diff. The
+// separator is now an escape — the same character, so the keys and nonces are unchanged.
+test("the callback nonce and the view's key are reviewable text with an unchanged separator", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { createHash } = await import("node:crypto");
+  for (const rel of ["./comms-view.ts", "../api/comms/callback/callback-auth.ts", "./comms-receipt.ts", "./egress-seal.ts"]) {
+    const text = readFileSync(new URL(rel, import.meta.url), "utf8");
+    const control = [...text].filter((c) => c.charCodeAt(0) < 32 && c !== "\n" && c !== "\r" && c !== "\t");
+    assert.equal(control.length, 0, `${rel} carries raw control bytes`);
+  }
+  const { callbackNonce } = await import("../api/comms/callback/callback-auth.ts");
+  const parts = { timestamp: "1", ref: "r", kind: "k", outcome: "bounce", detail: "d", messageId: "m" };
+  const expected = createHash("sha256").update(["1", "r", "k", "bounce", "d", "m"].join(String.fromCharCode(0))).digest("hex");
+  assert.equal(callbackNonce(parts), expected);
+});
