@@ -3277,7 +3277,11 @@
           "revision": 5,
           "changedAt": "2026-09-28",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/analytics-bottleneck.ts:38 Bottleneck selection ranks median occupant age without throughput weighting and permits a single qualifying stage, contrary to the standard's comparison requirements.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:07690a121a807ac3",
+          "evaluatedRevision": 5
         },
         {
           "subject": "small-sample-honesty-in-hiring-analytics",
@@ -9884,7 +9888,11 @@
           "revision": 5,
           "changedAt": "2026-09-28",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/db/analytics.ts:364 Windowed duration samples come from recently created entries, excluding older candidates hired during the window and making time-to-hire appear faster by construction.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:07690a121a807ac3",
+          "evaluatedRevision": 5
         },
         {
           "subject": "usage-analytics",

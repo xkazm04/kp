@@ -8701,6 +8701,73 @@
           "evidence": "pipeline/jobfit/tests/test_devcase_judge_independence.py:110 The preceding setup assigns claude-haiku-4-5 to both seats through anthropic and openrouter; changing the transport does not provide an independent judge family."
         }
       ]
+    },
+    "ed438bd0-e9e2-48fe-aeda-1a2cd06924dc/recruiting-funnel-metrics": {
+      "context": "analytics-computation",
+      "subject": "recruiting-funnel-metrics",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T02:24:47.606Z",
+      "worker": "dd75a0d1-5d55-41a2-8f66-2922e25ee403",
+      "techniques": [
+        {
+          "technique": "creation-cohort-versus-terminal-transition-basis",
+          "verdict": "deviation",
+          "evidence": "app/_lib/analytics-deltas.ts:129 The actual route supplies recent creation cohorts; this comparison gates sample counts but has no maturity horizon or maturing state."
+        },
+        {
+          "technique": "forecast-signal-floor",
+          "verdict": "deviation",
+          "evidence": "app/_lib/analytics-forecast.ts:158 The signal gate checks hires and active inflow weeks, but lacks floors for observed transitions per leg and the in-flight population."
+        },
+        {
+          "technique": "non-overlapping-event-to-series-mapping",
+          "verdict": "deviation",
+          "evidence": "app/_lib/analytics-momentum.ts:79 The first-match chain ends without a residual series; moved transitions are omitted, explicitly demonstrated in analytics-momentum.test.ts."
+        },
+        {
+          "technique": "offer-acceptance-rate-denominator",
+          "verdict": "deviation",
+          "evidence": "app/_lib/analytics-offer.ts:56 The caller supplies independently transition-dated event counts, so this subtraction is a floored net flow rather than outstanding offers."
+        },
+        {
+          "technique": "stage-pass-through-and-dwell-time",
+          "verdict": "deviation",
+          "evidence": "app/_lib/analytics-bottleneck.ts:38 Ranks median age without throughput weighting or a two-stage comparison floor; the tests explicitly accept one qualifying stage."
+        },
+        {
+          "technique": "time-to-hire-basis-and-median-not-mean",
+          "verdict": "deviation",
+          "evidence": "app/_lib/analytics-deltas.ts:130 The speed trend subtracts means, which the technique explicitly rejects for typical-duration improvement comparisons."
+        }
+      ]
+    },
+    "822b34e7-a55d-4dbf-a113-7097faf18f66/recruiting-funnel-metrics": {
+      "context": "db-analytics-billing-llm",
+      "subject": "recruiting-funnel-metrics",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T02:24:47.606Z",
+      "worker": "dd75a0d1-5d55-41a2-8f66-2922e25ee403",
+      "techniques": [
+        {
+          "technique": "non-overlapping-event-to-series-mapping",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/analytics.ts:549 A 30-day view receives five complete seven-day buckets, so the chart spans 35 days while the headline cohort spans 30."
+        },
+        {
+          "technique": "offer-acceptance-rate-denominator",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/analytics.ts:576 Each offer event is dated independently, then passed to offerConversion's maximum denominator; this mixes offer populations rather than selecting an offer-cohort or resolved-period rate."
+        },
+        {
+          "technique": "time-to-hire-basis-and-median-not-mean",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/analytics.ts:442 The median is calculated correctly from this sample, but the sample comes from the creation-filtered cohort rather than hires completed in the observation window."
+        }
+      ]
     }
   }
 }
