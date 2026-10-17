@@ -79,7 +79,12 @@ export const POST = withWorkspace(async (ws: string, request: Request, context: 
         : null;
 
     const original = getOutboxEntry(id, ws);
-    if (!original) return NextResponse.json({ error: "Message not found." }, { status: 404 });
+    // A `bounced` row is a delivery RECEIPT the relay wrote (comms-receipt.ts), not a
+    // message: its body is the relay's own detail text and its messageId is whatever the
+    // relay echoed. Re-sending it mailed relay-authored text to the candidate (or to a
+    // corrected address) under an identity kp never minted. A bounced SEND is resent by
+    // its own `sent` row, which this does not touch.
+    if (!original || original.status === "bounced") return NextResponse.json({ error: "Message not found." }, { status: 404 });
     if (!original.recipient || !original.subject || !original.body || !original.kind) {
       return NextResponse.json({ error: "Message is missing fields and can't be resent." }, { status: 422 });
     }
