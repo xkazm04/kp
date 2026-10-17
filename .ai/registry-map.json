@@ -5228,7 +5228,11 @@
           "revision": 4,
           "changedAt": "2026-09-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/ats/connections-store.ts:160 The ATS credential reader hands plaintext tokens to callers and accepts legacy plaintext values, extending custody beyond a brokered outbound boundary.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:1c57e44b947c96ef",
+          "evaluatedRevision": 4
         },
         {
           "subject": "webhook-ingestion",
@@ -10824,7 +10828,11 @@
           "revision": 4,
           "changedAt": "2026-09-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/db/skill-profiles.ts:316 Searches found locally minted share tokens and HMAC attestations, with no client_secret or lease_id in the DB directory, placing this context under the standard's application-owned credential exclusion.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:1c57e44b947c96ef",
+          "evaluatedRevision": 4
         },
         {
           "subject": "seal-and-key-hierarchy",
@@ -23084,7 +23092,11 @@
           "revision": 4,
           "changedAt": "2026-09-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/polar-setup.mjs:64 Polar setup persists the provider-issued webhook secret as plaintext in the environment file, leaving retained foreign credentials unsealed.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:1c57e44b947c96ef",
+          "evaluatedRevision": 4
         }
       ],
       "governance": "governed"
@@ -27829,7 +27841,11 @@
           "revision": 4,
           "changedAt": "2026-09-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/onboard-ui/engine.mjs:1007 The studio's installer backend retains submitted provider secrets as plaintext environment assignments, so restrictive file permissions substitute for the required sealing.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:1c57e44b947c96ef",
+          "evaluatedRevision": 4
         }
       ],
       "governance": "governed"

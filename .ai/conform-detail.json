@@ -8087,6 +8087,191 @@
           "evidence": "app/_lib/billing/entitlements.ts:316 The debit returns void rather than an identity-bound undo handle; /api/devcase/lifecycle calls it before locale resolution, lifecycle creation and task start, and its catch returns an error without reversing the debit."
         }
       ]
+    },
+    "0eeb3d35-3c43-4ac7-bcd9-3ae9ffffddcf/credential-vault": {
+      "context": "llm-config-provider",
+      "subject": "credential-vault",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T00:11:19.733Z",
+      "techniques": [
+        {
+          "technique": "acquisition",
+          "verdict": "deviation",
+          "evidence": "app/_lib/llm-config.ts:230 The save path validates endpoint configuration but admits the credential without a live identity-and-scope validation."
+        },
+        {
+          "technique": "brokered-egress",
+          "verdict": "deviation",
+          "evidence": "app/_lib/provider-key-precedence.ts:59 The resolver returns plaintext credentials to callers instead of accepting authenticated operation intents."
+        },
+        {
+          "technique": "encryption-at-rest",
+          "verdict": "deviation",
+          "evidence": "app/_lib/llm-secret.ts:77 Fresh-IV authenticated encryption exists, but sealing lacks wrapped per-secret keys, record AAD, and master-generation identification."
+        },
+        {
+          "technique": "health-probing",
+          "verdict": "deviation",
+          "evidence": "app/api/llm/test/verdict.ts:59 The stored-key probe uses this classifier to reconstruct failure kinds from error prose rather than preserving typed provider verdicts."
+        },
+        {
+          "technique": "rotation-and-remediation",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/llm.ts:171 Replacement overwrites the incumbent ciphertext without requiring live successor validation or successful successor traffic."
+        }
+      ],
+      "withdrawn": {
+        "worker": "873150f6-a1c2-41bb-a2a3-31c9cb883c51",
+        "state": "deviation",
+        "at": "2026-10-17T00:12:41.294970+00:00",
+        "reason": "reviewer (sonnet): The technique anchor app/api/llm/test/verdict.ts:59 is not in the llm-config-provider file list in context-map.json, and I found no caller showing a stored-key probe uses classifyProviderError, so that claim rests on code from outside this context."
+      }
+    },
+    "5aebe92f-cd9c-4168-ad0d-f9c9d06bbe65/credential-vault": {
+      "context": "ats-sync-egress",
+      "subject": "credential-vault",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T00:11:19.733Z",
+      "worker": "873150f6-a1c2-41bb-a2a3-31c9cb883c51",
+      "techniques": [
+        {
+          "technique": "acquisition",
+          "verdict": "deviation",
+          "evidence": "app/_lib/ats/connections-store.ts:244 A supplied string is encrypted and stored without a live admission probe establishing identity and scopes."
+        },
+        {
+          "technique": "brokered-egress",
+          "verdict": "deviation",
+          "evidence": "app/_lib/ats/connections-store.ts:160 The internal API returns the parent credential itself rather than an authenticated operation outcome."
+        },
+        {
+          "technique": "encryption-at-rest",
+          "verdict": "deviation",
+          "evidence": "app/_lib/ats-secret.ts:72 Sealing uses the shared master-derived key directly, with neither per-secret wrapped keys nor record-bound AAD."
+        },
+        {
+          "technique": "rotation-and-remediation",
+          "verdict": "deviation",
+          "evidence": "app/_lib/ats/connections-store.ts:282 A replacement immediately supersedes the incumbent without a validated successor and successful-traffic overlap."
+        }
+      ]
+    },
+    "d464d124-249b-43ef-8fd5-c259c5036424/credential-vault": {
+      "context": "ops-setup-scripts",
+      "subject": "credential-vault",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T00:11:19.733Z",
+      "worker": "873150f6-a1c2-41bb-a2a3-31c9cb883c51",
+      "techniques": [
+        {
+          "technique": "acquisition",
+          "verdict": "deviation",
+          "evidence": "scripts/onboard-ui/server.mjs:364 The installer admission handler checks nonemptiness and then saves the secret without live provider validation."
+        },
+        {
+          "technique": "brokered-egress",
+          "verdict": "deviation",
+          "evidence": "scripts/polar-setup.mjs:93 The outbound helper prints unsanitized provider response bodies, allowing echoed credential material to cross into logs."
+        },
+        {
+          "technique": "encryption-at-rest",
+          "verdict": "deviation",
+          "evidence": "scripts/polar-setup.mjs:64 writeEnvKey receives created.secret and writes its plaintext KEY=value representation to .env."
+        }
+      ]
+    },
+    "3f292c0f-e802-49de-8c2e-46bf992416d7/credential-vault": {
+      "context": "setup-studio",
+      "subject": "credential-vault",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T00:11:19.733Z",
+      "worker": "873150f6-a1c2-41bb-a2a3-31c9cb883c51",
+      "techniques": [
+        {
+          "technique": "acquisition",
+          "verdict": "deviation",
+          "evidence": "scripts/onboard-ui/server.mjs:369 The secret submission is persisted before any live validation establishes provider acceptance, identity, or scopes."
+        },
+        {
+          "technique": "brokered-egress",
+          "verdict": "deviation",
+          "evidence": "scripts/onboard-ui/engine.mjs:236 sanitizeEnv retains non-Anthropic provider secrets from the parent environment and passes that environment to the Claude child."
+        },
+        {
+          "technique": "encryption-at-rest",
+          "verdict": "deviation",
+          "evidence": "scripts/onboard-ui/engine.mjs:1007 serialized is a plaintext name=value assignment; mode 0600 does not encrypt retained secrets."
+        },
+        {
+          "technique": "rotation-and-remediation",
+          "verdict": "deviation",
+          "evidence": "scripts/onboard-ui/engine.mjs:1017 Replacing a configured secret overwrites the incumbent value without validating and exercising its successor first."
+        }
+      ]
+    },
+    "e4c8726b-397c-49bb-8adc-895fb59a788c/credential-vault": {
+      "context": "db-profiles-analyses-store",
+      "subject": "credential-vault",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T00:11:19.733Z",
+      "worker": "873150f6-a1c2-41bb-a2a3-31c9cb883c51",
+      "techniques": [
+        {
+          "technique": "acquisition",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/skill-profiles.ts:316 The application mints the token rather than acquiring a foreign credential."
+        },
+        {
+          "technique": "brokered-egress",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/skill-profiles.ts:343 This issues an application-owned share capability to its holder rather than brokering foreign authority."
+        },
+        {
+          "technique": "encryption-at-rest",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/skill-profiles.ts:338 The persisted credential artifact is the locally issued attestation and access token, not a retained foreign secret."
+        },
+        {
+          "technique": "health-probing",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/skill-profiles.ts:376 Verification checks the application's own signature rather than an external issuer's credential acceptance."
+        },
+        {
+          "technique": "renew-at-two-thirds-with-grace",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/skill-profiles.ts:384 Validity is local signature verification and revocation, not an issuer-extended secret lease."
+        },
+        {
+          "technique": "revocation-interception-cache",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/skill-profiles.ts:268 The lookup reuses locally issued attestations rather than caching secrets leased by an external issuer."
+        },
+        {
+          "technique": "rotation-and-remediation",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/skill-profiles.ts:335 The application can revoke its own issued credential directly; foreign-credential replacement custody does not apply."
+        },
+        {
+          "technique": "token-refresh-lifecycle",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/skill-profiles.ts:306 Issuance signs a new local artifact rather than exchanging an external refresh grant for an access proof."
+        },
+        {
+          "technique": "versioned-key-window",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/skill-profiles.ts:106 These are application-owned attestation signing keys, not a vault service sealing caller ciphertext under a version window."
+        }
+      ]
     }
   }
 }
