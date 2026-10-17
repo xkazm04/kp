@@ -251,3 +251,27 @@ class TestObservedCli(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestDecisionLogAimsTheDebrief(unittest.TestCase):
+    """Scoring C3 — byte-identical code, different logged rejected alternative: different
+    follow-ups, each quoting its own log, and not one score moves."""
+
+    def _run(self, rejected: str):
+        fx = _fixture()
+        log = (
+            "# DECISIONS\n\n## Task 1: rate\n\n- Decision: rate is a parameter\n"
+            f"- Rejected alternative: {rejected}\n- Why: callers differ\n"
+        )
+        fx["files"] = [f if f["path"] != "DECISIONS.md" else {"path": "DECISIONS.md", "contents": log} for f in fx["files"]]
+        return run_evaluation(_inputs(fx), provider=None).result
+
+    def test_each_followup_quotes_its_own_log_and_scores_are_unmoved(self):
+        a, b = self._run("a global constant"), self._run("an env variable")
+        qa = " ".join(q["question"] for q in a["followups"]["questions"])
+        qb = " ".join(q["question"] for q in b["followups"]["questions"])
+        self.assertIn("a global constant", qa)
+        self.assertIn("an env variable", qb)
+        self.assertNotIn("an env variable", qa)
+        for k in ("evaluation", "transfer", "reflection", "tooling", "observedChecks"):
+            self.assertEqual(a[k], b[k], k)
