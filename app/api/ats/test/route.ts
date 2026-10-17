@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deliver, getAtsRecordResult } from "@/app/_lib/ats-egress";
+import { egressSealed, SEALED } from "@/app/_lib/egress-seal";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { jsonRefusal } from "@/app/_lib/api-response";
@@ -37,6 +38,8 @@ export const POST = withWorkspace(async (workspaceId: string, request: NextReque
   if (!rateLimit(`ats-test:${clientIpFrom(request.headers)}`, TEST_PING_RATE_LIMIT)) {
     return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
+  // Sealed: say so before reading the body or building a record, and dial nothing.
+  if (egressSealed()) return NextResponse.json({ ok: false, sealed: true, reason: SEALED }, { status: 409 });
   const body = await readJsonWithLimit<{ entryId?: unknown }>(request, MAX_TEST_BODY_BYTES, {});
   if (body === BODY_TOO_LARGE) {
     return jsonRefusal("PAYLOAD_TOO_LARGE", 413, { maxBytes: MAX_TEST_BODY_BYTES });

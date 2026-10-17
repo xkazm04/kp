@@ -5,7 +5,9 @@ import { getOpenOfferForEntry, listOffersForEntry } from "./offers-store";
 import { AtsRecordRefusedError, buildAtsRecord, type AtsCandidateRecord, type AtsRefusalReason } from "./ats-record.ts";
 import { getAtsConfig, getAtsSecret } from "./ats-config-store.ts";
 import { assertDeliverableWebhookUrl } from "./ats-egress-guard.ts";
+import { egressSealed } from "./egress-seal.ts";
 import {
+  deferSealedAtsDelivery,
   finalizeAtsDelivery,
   leaseAtsDelivery,
   listDueAtsDeliveries,
@@ -108,7 +110,7 @@ export function getAtsRecordResult(
 
 export type DeliveryResult =
   | { delivered: true; status: number }
-  | { delivered: false; reason: string; status?: number; terminal?: boolean };
+  | { delivered: false; reason: string; status?: number; terminal?: boolean; sealed?: boolean };
 
 // ---- Admission control on the outbound NETWORK phase (F-6) -------------------------
 //
@@ -243,6 +245,10 @@ export async function deliver(
 ): Promise<DeliveryResult> {
   const cfg = getAtsConfig();
   if (!cfg.webhookUrl) return { delivered: false, reason: "No webhook URL configured." };
+  // THE EGRESS SEAL (egress-seal.ts), before the SSRF re-vet's DNS lookup and long before
+  // the fetch: a sealed process contacts no third party. `sealed` lets the ledger park the
+  // row without spending an attempt.
+  if (egressSealed()) return { delivered: false, reason: "sealed", sealed: true };
   // Re-vet AND resolve the host immediately before the fetch (not just at write
   // time): https-only, no IP literals / internal names, and reject if the host
   // resolves to a loopback/link-local/RFC-1918/metadata address (DNS-rebind guard).
@@ -530,6 +536,10 @@ export async function dispatchAtsEvent(event: AtsEventType, entryId: string, wor
       { id: deliveryId, createdAt: openedAt.toISOString() },
       deliveryStillJustified(event, record, entryId, tenant, openedAt.toISOString())
     );
+    if (!result.delivered && result.sealed) {
+      deferSealedAtsDelivery(deliveryId, lease);
+      return;
+    }
     if (!finalizeAtsDelivery(deliveryId, toOutcome(result), lease)) {
       console.error(`[ats] ${event} #${deliveryId}: outcome dropped, lease reclaimed`);
       return;
@@ -569,6 +579,8 @@ export async function retryDueAtsDeliveries(
   now: Date = new Date()
 ): Promise<{ due: number; delivered: number; failed: number; skipped: number; reclaimed: number }> {
   const reclaimed = reclaimExpiredAtsLeases(now);
+  // Sealed: the queue waits, untouched — no lease, no record rebuild, no attempt spent.
+  if (egressSealed()) return { due: 0, delivered: 0, failed: 0, skipped: 0, reclaimed };
   const due = listDueAtsDeliveries(now.toISOString());
   let delivered = 0;
   let failed = 0;
@@ -622,6 +634,10 @@ export async function retryDueAtsDeliveries(
         { id: row.id, createdAt: row.createdAt },
         deliveryStillJustified(row.event, record, row.entryId, tenant, row.createdAt)
       );
+      if (!result.delivered && result.sealed) {
+        deferSealedAtsDelivery(row.id, lease, now);
+        continue;
+      }
       finalizeAtsDelivery(row.id, toOutcome(result), lease);
       if (result.delivered) delivered++;
       else failed++;

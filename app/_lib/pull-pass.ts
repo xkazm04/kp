@@ -30,6 +30,7 @@
 import { listPullSources, recordPullResult, type PullSource } from "./db/channels";
 import { ingestInboundLeadByToken, inboundHandled } from "./inbound-lead";
 import { publicBaseUrl } from "./public-base-url";
+import { egressSealed } from "./egress-seal.ts";
 import { assertPublicHttpsEndpointResolved, type HostLookup } from "./ats-egress-guard.ts";
 
 /** Hard bound on one pull's response body. A source that answers with more than
@@ -57,6 +58,9 @@ export type PullSourceOutcome = {
    *  as "arriving and being rejected", never as "quiet". */
   rejected: number;
   error: string | null;
+  /** Set when the egress seal skipped this source: nothing was asked, nothing recorded
+   *  on its row, and `error` stays null — a sealed source is not a failed one. */
+  sealed?: true;
 };
 
 export type PullPassSummary = {
@@ -95,6 +99,9 @@ export async function pullOneSource(
   lookupFn?: HostLookup
 ): Promise<PullSourceOutcome> {
   const outcome: PullSourceOutcome = { token: source.token, channel: source.channel, fetched: 0, applied: 0, rejected: 0, error: null };
+  // THE EGRESS SEAL (egress-seal.ts): before the DNS lookup, the fetch and any row write.
+  // The cursor holds, so the window is simply asked again once the seal lifts.
+  if (egressSealed()) return { ...outcome, sealed: true };
   let url: string;
   try {
     // Same SSRF posture as the outbound relay: https, public host. A pull is an

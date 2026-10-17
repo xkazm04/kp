@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveRelay } from "@/app/_lib/comms-relay";
+import { egressSealed, SEALED } from "@/app/_lib/egress-seal";
 import { buildCommEnvelope } from "@/app/_lib/comms-envelope";
 import { SIGNATURE_HEADER, signWebhookBody, TIMESTAMP_HEADER } from "@/app/_lib/ats-webhook";
 import { assertPublicHttpsEndpoint } from "@/app/_lib/safe-url";
@@ -37,6 +38,9 @@ export const POST = withSession(async (request: NextRequest) => {
   if (!rateLimit(`comms-relay-test:${clientIpFrom(request.headers)}`, PROBE_RATE_LIMIT)) {
     return jsonRefusal("TOO_MANY_REQUESTS", 429);
   }
+  // The egress seal answers BEFORE the relay is resolved: resolveRelay() reads "no relay"
+  // under the seal, and "sealed" must not be reported as "not configured".
+  if (egressSealed()) return NextResponse.json({ ok: false, sealed: true, reason: SEALED }, { status: 409 });
   const relay = resolveRelay();
   if (!relay) {
     return NextResponse.json({ ok: false, reason: "No relay configured." }, { status: 400 });

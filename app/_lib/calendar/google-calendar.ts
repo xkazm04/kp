@@ -131,7 +131,7 @@ export function calendarNeedsReconnect(workspaceId: string): boolean {
  *  no request, no error log, and nothing for an operator to go and fix. */
 function offlineIsUnknown(err: unknown): boolean {
   if (!(err instanceof CalendarOfflineError)) return false;
-  console.info("[calendar] KP_OFFLINE — the calendar was not consulted (no egress attempted).");
+  console.info(`[calendar] ${err.message.split(":")[0]} — the calendar was not consulted (no egress attempted).`);
   return true;
 }
 
