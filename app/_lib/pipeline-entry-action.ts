@@ -564,6 +564,12 @@ export async function runPipelineEntryAction(
     if (!live) return err(404, "PIPELINE_ENTRY_NOT_FOUND");
     if (live.stage !== current.stage) return staleResponse(live);
     if (isTerminalEntryStatus(live.status)) return staleResponse(live);
+    // A Hired entry is status 'active' on the terminal-role stage, so the check above
+    // misses it. Refused BEFORE the seal (operator decision, ask 68bb3639): no record, no
+    // letter, no ATS event. actOnPipelineEntry refuses it too, as the second door.
+    if (action === "reject" && stageHasRole(live.stage, "terminal", axis)) {
+      return err(409, "PIPELINE_ENTRY_HIRED", { entry: live });
+    }
 
     const trimmedDetail = detail?.trim() ?? "";
     // Read from the pre-write row, never from the write's result — the write clears

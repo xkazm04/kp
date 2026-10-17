@@ -1380,6 +1380,7 @@
     "PIPELINE_MOVE_CONFLICT": "Impossible de déplacer ce candidat : il vient d’être modifié, ou son dossier est clos. Actualisez et réessayez.",
     "PIPELINE_STAGE_CHANGED": "L’étape de ce candidat a changé depuis l’ouverture de la vue. Actualisez et décidez à nouveau.",
     "PIPELINE_DECISION_NOT_SEALED": "Cette décision n’a pas pu être enregistrée, elle n’a donc pas été appliquée. Rien n’a changé et rien n’a été envoyé. Réessayez dans un instant.",
+    "PIPELINE_ENTRY_HIRED": "Ce candidat est déjà embauché et ne peut donc pas être refusé. Rien n’a changé.",
     "PIPELINE_ACTION_UNKNOWN": "Ce tableau ne prend pas en charge cette action.",
     "PIPELINE_GITHUB_EVIDENCE_INVALID": "Ces éléments GitHub ne sont pas au format attendu.",
     "PIPELINE_ADD_REASONS_INVALID": "Les raisons jointes à cet ajout n'ont pas le format attendu.",

@@ -3571,6 +3571,17 @@ export function actOnPipelineEntry(
     console.warn(`[pipeline:act] skipped ${action} for terminal entry ${id} (status '${row.status}').`);
     return null;
   }
+  // A HIRED entry is the exception to "an active row is unaffected": it keeps status
+  // 'active' on the terminal-role stage, so the status guard above never sees it and a
+  // reject ran the full path (seal, rejection letter, ATS candidate.rejected). Refused
+  // here — operator decision on ask 68bb3639: "refuse reject on Hired (409 at both
+  // doors)". Rescinding a hire becomes its own explicit action later. Only `reject` is
+  // refused; a re-accept still reaches the no-op below. The terminal stage is resolved
+  // from this workspace's axis by role, never by the name "Hired".
+  if (action === "reject" && stageHasRole(row.stage, "terminal", axis)) {
+    console.warn(`[pipeline:act] refused reject for entry ${id}: it stands on the terminal stage '${row.stage}' (hired).`);
+    return null;
+  }
   const now = new Date().toISOString();
   fromStage = row.stage;
   const meta = {

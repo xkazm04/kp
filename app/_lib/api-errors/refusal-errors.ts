@@ -432,6 +432,10 @@ export const REFUSAL_ERRORS = {
    *  `entry`. A server condition, not a business rule — retrying once the decision
    *  chain is writable is the remedy. */
   PIPELINE_DECISION_NOT_SEALED: "This decision couldn't be recorded, so it was not applied. Nothing changed and nothing was sent. Try again shortly.",
+  /** A reject on a candidate who is already hired (409): the entry stands on the
+   *  terminal step, so rejecting would run the whole reject path on an accepted offer.
+   *  Nothing was sealed, sent or changed. Rescinding a hire is a separate action. */
+  PIPELINE_ENTRY_HIRED: "This candidate is already hired, so they can't be rejected. Nothing changed.",
   /** A body naming an action this board does not have (400). */
   PIPELINE_ACTION_UNKNOWN: "That is not an action this board supports.",
   /** A GitHub evidence payload that did not clamp to the shared coercer (400). */

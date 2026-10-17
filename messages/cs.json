@@ -1380,6 +1380,7 @@
     "PIPELINE_MOVE_CONFLICT": "Kandidáta se nepodařilo přesunout: právě se změnil, nebo je uzavřený. Obnovte stránku a zkuste to znovu.",
     "PIPELINE_STAGE_CHANGED": "Krok tohoto kandidáta se od otevření pohledu změnil. Obnovte stránku a rozhodněte znovu.",
     "PIPELINE_DECISION_NOT_SEALED": "Toto rozhodnutí se nepodařilo zaznamenat, a proto nebylo provedeno. Nic se nezměnilo a nic nebylo odesláno. Zkuste to za chvíli znovu.",
+    "PIPELINE_ENTRY_HIRED": "Tento kandidát už byl přijat, takže ho nelze zamítnout. Nic se nezměnilo.",
     "PIPELINE_ACTION_UNKNOWN": "Tuto akci tato nástěnka nepodporuje.",
     "PIPELINE_GITHUB_EVIDENCE_INVALID": "Tato data z GitHubu nemají očekávaný tvar.",
     "PIPELINE_ADD_REASONS_INVALID": "Důvody přiložené k tomuto přidání nemají očekávaný tvar.",
