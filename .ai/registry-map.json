@@ -19176,7 +19176,11 @@
           "revision": 11,
           "changedAt": "2026-09-20",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsPostingLifecycle.ts:10 This module tracks a job requisition's draft, published and closed status; a search of app/features/library/jobs for changelog, appVersion, semver and sbom found none.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:faf052699c35ced4",
+          "evaluatedRevision": 11
         },
         {
           "subject": "translation-pipeline-topology",
@@ -26103,7 +26107,11 @@
           "revision": 11,
           "changedAt": "2026-09-20",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/release/prepare.mjs:279 The operator is told to push the version tag first, and that tag is what starts the workflow, so the public version claim exists before the image build has succeeded.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:faf052699c35ced4",
+          "evaluatedRevision": 11
         },
         {
           "subject": "supply-chain",
@@ -30719,7 +30727,11 @@
           "revision": 11,
           "changedAt": "2026-09-20",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "pipeline/jobfit/tests/test_extractors.py:1 These files test CV text extraction and related pins; a search of pipeline/jobfit/tests for changelog, appVersion, semver and sbom found none.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:faf052699c35ced4",
+          "evaluatedRevision": 11
         },
         {
           "subject": "translation-quality-measurement",
@@ -31353,7 +31365,11 @@
           "revision": 11,
           "changedAt": "2026-09-20",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "pipeline/jobfit/tests/test_pipeline.py:1 These files test the CV analysis pipeline; a search of pipeline/jobfit/tests for changelog, appVersion, semver and sbom found none of that release vocabulary.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:faf052699c35ced4",
+          "evaluatedRevision": 11
         },
         {
           "subject": "agent-cli-transport",
