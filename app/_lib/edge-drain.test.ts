@@ -173,6 +173,7 @@ afterEach(() => {
   setEdgeHostLookupForTests(undefined);
   delete process.env.KP_EDGE_URL;
   delete process.env.KP_EDGE_SECRET;
+  delete process.env.KP_NO_COMMS_EGRESS;
 });
 
 function pairEnvEdge() {
@@ -246,4 +247,99 @@ test("an unreadable secret is a LEDGER error, not a throw and not a signed call"
     process.env.KP_SECRET = "edge-drain-master-key";
     setEdgeConfig({ url: "" });
   }
+});
+
+// --- the egress seal ---------------------------------------------------------------
+// KP_NO_COMMS_EGRESS=1 marks a process on a COPY of a real database. The edge drain
+// would GET /drain and POST /ack against the operator's real edge, and the acked events
+// would be lost to the real DB.
+
+function sealedSpies() {
+  const counts = { fetched: 0, lookups: 0 };
+  globalThis.fetch = (async () => {
+    counts.fetched += 1;
+    return new Response(JSON.stringify({ events: [], pending: 0 }), { status: 200 });
+  }) as typeof fetch;
+  setEdgeHostLookupForTests(async () => {
+    counts.lookups += 1;
+    return [{ address: "93.184.216.34" }];
+  });
+  return counts;
+}
+
+test("a sealed drain touches neither DNS nor the network and leaves the ledger alone", async () => {
+  pairEnvEdge();
+  const counts = sealedSpies();
+  const before = JSON.stringify(getEdgeConfig());
+  process.env.KP_NO_COMMS_EGRESS = "1";
+
+  const summary = await drainEdge();
+
+  assert.equal(counts.fetched, 0, "no GET /drain and no POST /ack");
+  assert.equal(counts.lookups, 0, "no host lookup");
+  assert.equal(summary.sealed, true);
+  assert.equal(summary.configured, true);
+  assert.equal(summary.error, null, "sealed is no-information, not a failure");
+  assert.equal(summary.errorKind, null);
+  assert.equal(summary.fetched, 0);
+  assert.equal(summary.pages, 0);
+  assert.equal(JSON.stringify(getEdgeConfig()), before, "cursor and drain ledger untouched");
+});
+
+test("a sealed drain does not write the ledger even when the secret is unreadable", async () => {
+  process.env.KP_SECRET = "edge-drain-master-key";
+  setEdgeConfig({ url: "https://edge.example.test", secret: "sealed-under-the-old-key" });
+  const counts = sealedSpies();
+  process.env.KP_SECRET = "edge-drain-master-key-AFTER-A-ROTATION";
+  process.env.KP_NO_COMMS_EGRESS = "1";
+  try {
+    const before = JSON.stringify(getEdgeConfig());
+    const summary = await drainEdge();
+    assert.equal(summary.sealed, true);
+    assert.equal(summary.errorKind, null);
+    assert.equal(JSON.stringify(getEdgeConfig()), before);
+    assert.equal(counts.fetched + counts.lookups, 0);
+  } finally {
+    process.env.KP_SECRET = "edge-drain-master-key";
+    setEdgeConfig({ url: "" });
+  }
+});
+
+test("a sealed pair answers 'sealed' and publishes nothing", async () => {
+  pairEnvEdge();
+  const counts = sealedSpies();
+  process.env.KP_NO_COMMS_EGRESS = "1";
+
+  const paired = await pairEdge();
+
+  assert.deepEqual(paired, { ok: false, error: "sealed" });
+  assert.equal(counts.fetched, 0);
+  assert.equal(counts.lookups, 0);
+});
+
+test("a sealed heartbeat answers false without a beat", async () => {
+  pairEnvEdge();
+  const counts = sealedSpies();
+  process.env.KP_NO_COMMS_EGRESS = "1";
+  const before = JSON.stringify(getEdgeConfig());
+
+  assert.equal(await sendEdgeHeartbeat(), false);
+
+  assert.equal(counts.fetched, 0);
+  assert.equal(counts.lookups, 0);
+  assert.equal(JSON.stringify(getEdgeConfig()), before, "no heartbeat recorded");
+});
+
+test("unsealed, the same configured edge still drains, pairs and beats", async () => {
+  pairEnvEdge();
+  const counts = sealedSpies();
+
+  await drainEdge();
+  const drainFetches = counts.fetched;
+  await pairEdge();
+  await sendEdgeHeartbeat();
+
+  assert.ok(drainFetches >= 1, "the drain fetched");
+  assert.ok(counts.fetched >= drainFetches + 2, "pair and heartbeat fetched too");
+  assert.ok(counts.lookups >= 3, "and each resolved its host first");
 });
