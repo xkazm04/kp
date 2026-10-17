@@ -5207,7 +5207,11 @@
           "revision": 2,
           "changedAt": "2026-08-24",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/ats/inbound.ts:141 When an external candidate's stage cannot be mapped to the local axis, toAtsEntryInput defaults the stage to 'Accepted' at the head of the funnel rather than preserving an explicit unmapped or null state.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:15cfa2c72d85e3e8",
+          "evaluatedRevision": 2
         },
         {
           "subject": "mcp-tools",

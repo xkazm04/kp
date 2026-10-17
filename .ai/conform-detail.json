@@ -10040,6 +10040,43 @@
           "evidence": "app/_lib/candidate-population.ts:133 The shared population producer unconditionally retains names alongside scores and supplies both roster and matrix without a population-floor or withheld-state contract."
         }
       ]
+    },
+    "5aebe92f-cd9c-4168-ad0d-f9c9d06bbe65/portable-hiring-records": {
+      "context": "ats-sync-egress",
+      "subject": "portable-hiring-records",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T21:30:11.580Z",
+      "worker": "f38c4669-8d03-4a0a-be78-c4a18b8cef23",
+      "techniques": [
+        {
+          "technique": "external-identifier-as-the-sync-identity",
+          "verdict": "conformant",
+          "evidence": "app/_lib/ats/field-map.ts:162 fieldMap.paths.externalId is required before storing a field map to ensure the inbound sync identity cannot be omitted."
+        },
+        {
+          "technique": "human-versus-automated-decision-attribution-on-export",
+          "verdict": "conformant",
+          "evidence": "app/_lib/ats-record.ts:165 isAutomatedActor derives the automated boolean from the actor namespace prefix rather than a stored flag, degrading ambiguous actors to automated."
+        },
+        {
+          "technique": "per-tenant-stage-mapping-never-a-shared-assumption",
+          "verdict": "deviation",
+          "evidence": "app/_lib/ats/connections-store.ts:83 ats_connections table is keyed by provider as primary key without workspace_id or org_id, making stage mapping installation-wide rather than per-tenant."
+        },
+        {
+          "technique": "unmapped-stage-stays-null-never-guessed",
+          "verdict": "deviation",
+          "evidence": "app/_lib/ats/inbound.test.ts:74 toAtsEntryInput defaults an unmapped inbound stage to opts.stageFallback ?? 'Accepted' (head of funnel) rather than preserving an explicit null/unmapped state."
+        },
+        {
+          "technique": "versioned-record-envelope",
+          "verdict": "conformant",
+          "evidence": "app/_lib/ats-webhook.ts:98 buildEnvelope stamps each outbound ATS event payload with the explicit ATS_SCHEMA_VERSION ('kp.ats.v1') and metadata headers."
+        }
+      ],
+      "registryProposal": "The technique per-tenant-stage-mapping-never-a-shared-assumption notes in rule 5a that falling back to a shipped default axis when a connection is not yet keyed to the organization is a known limitation to record and close, not a design; clarifying this boundary in the technique specification helps avoid ambiguity."
     }
   }
 }
