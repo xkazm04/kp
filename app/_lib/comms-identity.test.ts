@@ -19,7 +19,7 @@ import { IDEMPOTENCY_HEADER } from "./comms-envelope.ts";
 import { sendComm, setRelayHostLookupForTests } from "./comms.ts";
 import { recordDeliveryReceipt } from "./comms-receipt.ts";
 import { deriveCommsView, type OutboxRow } from "./comms-view.ts";
-import { listOutboxFiltered, recordOutbox } from "./db/devcase.ts";
+import { listOutboxFiltered, recordOutbox, stampOutboxDelivered } from "./db/devcase.ts";
 import { createPipelineEntry } from "./db/pipeline.ts";
 import { ensureDb } from "./db/core.ts";
 
@@ -126,6 +126,27 @@ test("a delivered receipt stamps lastDeliveredAt on the exact row; the read retu
   assert.equal(byId[first.id].bounced, false);
   // The delivered receipt is a stamp, not a ledger row.
   assert.equal(listOutboxFiltered({ ref: e.id }).length, 2);
+});
+
+test("a delivered stamp by exact id lands only on a sent or failed row (R-2)", () => {
+  const e = entry("stamp-status");
+  const row = (status: "queued" | "sent" | "failed" | "bounced", messageId: string) =>
+    recordOutbox({ recipient: "jana@example.cz", subject: "s", body: "b", kind: "offer", channel: "webhook", status, ref: e.id, messageId });
+  const queued = row("queued", "m-queued");
+  const sent = row("sent", "m-sent");
+  const failed = row("failed", "m-failed");
+  const bounced = row("bounced", "m-bounced");
+
+  assert.equal(stampOutboxDelivered(e.id, "offer", "m-queued"), false, "a never-sent row takes no stamp");
+  assert.equal(stampOutboxDelivered(e.id, "offer", "m-bounced"), false, "a bounced row takes no stamp");
+  assert.equal(stampOutboxDelivered(e.id, "offer", "m-sent"), true);
+  assert.equal(stampOutboxDelivered(e.id, "offer", "m-failed"), true, "a relay may deliver after kp gave up");
+
+  const byId = Object.fromEntries(listOutboxFiltered({ ref: e.id }).map((m) => [m.id, m]));
+  assert.ok(!byId[queued.id].lastDeliveredAt);
+  assert.ok(!byId[bounced.id].lastDeliveredAt);
+  assert.ok(byId[sent.id].lastDeliveredAt);
+  assert.ok(byId[failed.id].lastDeliveredAt);
 });
 
 test("the migration is idempotent: message_id and last_delivered_at exist, re-running ensureDb is safe", () => {
