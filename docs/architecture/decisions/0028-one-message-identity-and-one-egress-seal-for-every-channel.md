@@ -66,11 +66,14 @@ No paid APIs and no service beyond Slack, Teams, Greenhouse and Lever. Each chan
 `not configured` and falls back to `dev_outbox`, so the two-minute local start stays
 keyless. Credentials stay server-side under AES-GCM and the API returns `hasSecret` only.
 Chat payloads never carry candidate names, contacts, letter bodies or capability tokens,
-and chat holds no approval authority.
+and chat holds no approval authority. These rules bind any chat channel that is ever
+approved; none is approved today.
 
 ### 5. Build order
 
-C1, C3 -> C4 -> C5; C1 -> C2 -> C6 -> L1; C3 + C4 -> S1, S2 -> S3.
+C1, C3 -> C4 -> C5; C1 -> C2 -> C6 -> L1; C3 + C4 -> S2 -> S3; C1 + C5 -> L2.
+
+S1 (a Slack and Teams desk for the hiring team) was excluded by the operator on 2026-10-17: Slack and Teams remain permitted services, but no chat channel is built.
 
 ## Alternatives that lost
 
