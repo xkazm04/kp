@@ -14465,7 +14465,11 @@
           "revision": 5,
           "changedAt": "2026-09-20",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_components/Badge.tsx:215 The badge primitive degrades unrecognized scorecard recommendation verdicts to a neutral tone and displays raw unvouched tokens instead of degrading toward the least approved member.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:bea7b30fd48d528d",
+          "evaluatedRevision": 5
         },
         {
           "subject": "app-shell",
@@ -22620,7 +22624,11 @@
           "revision": 5,
           "changedAt": "2026-09-20",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/shared/memberUi.ts:72 Role presentation splits color from labels into an independent function that uses raw color utilities and a default branch instead of a unified table keyed by the union.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:bea7b30fd48d528d",
+          "evaluatedRevision": 5
         },
         {
           "subject": "invariant-placement",
@@ -23324,7 +23332,11 @@
           "revision": 5,
           "changedAt": "2026-09-20",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/repo-scan/route.ts:32 The repo-scan route serializes status-shaped fields as bare strings across the network seam, breaking the typed vocabulary chain contract.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:bea7b30fd48d528d",
+          "evaluatedRevision": 5
         },
         {
           "subject": "data-access",
@@ -33296,7 +33308,11 @@
           "revision": 5,
           "changedAt": "2026-09-20",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/settings/workspace/WorkspaceMembersTable.tsx:142 The workspace members table hand-picks raw color utility classes for the custom permissions state rather than resolving color through semantic roles and the shared badge system.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:bea7b30fd48d528d",
+          "evaluatedRevision": 5
         },
         {
           "subject": "test-harness",

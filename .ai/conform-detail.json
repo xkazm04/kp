@@ -10151,6 +10151,115 @@
           "evidence": "app/features/hiring/pipeline/schedulerRunState.ts:90 tickScheduler returns reason: disabled for a refused forced run, but describeTick ignores that reason, violating the requirement that non-fire reasons survive the display boundary."
         }
       ]
+    },
+    "4d77902f-0200-452b-b884-3c53c8f90bfb/status-vocabulary": {
+      "context": "member-ui-helpers",
+      "subject": "status-vocabulary",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T22:55:19.183Z",
+      "worker": "ef9df648-9743-4436-8352-aa20cc2295c4",
+      "techniques": [
+        {
+          "technique": "status-color-mapping",
+          "verdict": "deviation",
+          "evidence": "app/features/shared/memberUi.ts:72 roleTone maps MemberRole to raw Tailwind color utilities with a switch default fallback rather than semantic roles in a unified presentation table."
+        },
+        {
+          "technique": "vocabulary-chain-integrity",
+          "verdict": "conformant",
+          "evidence": "app/features/shared/memberUi.ts:48 Compile-time conditional type check proves that the display list covers the full Locale vocabulary union at the keystroke."
+        },
+        {
+          "technique": "vocabulary-evolution-checklist",
+          "verdict": "conformant",
+          "evidence": "app/features/shared/memberUi.ts:35 Unifies AppLanguage directly with the Locale authority so expanding supported locales automatically extends the display vocabulary without drift."
+        }
+      ]
+    },
+    "05973fce-bf4d-4d6f-8788-05e2ce7534a6/status-vocabulary": {
+      "context": "org-management-api",
+      "subject": "status-vocabulary",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T22:55:19.183Z",
+      "worker": "ef9df648-9743-4436-8352-aa20cc2295c4",
+      "techniques": [
+        {
+          "technique": "vocabulary-chain-integrity",
+          "verdict": "deviation",
+          "evidence": "app/api/repo-scan/route.ts:32 Status is serialized across the wire typed as a bare unconstrained string rather than a generated closed type derived from the status authority."
+        }
+      ]
+    },
+    "e32280aa-3e4a-470c-90a2-300bfab66f42/status-vocabulary": {
+      "context": "workspace-member-admin",
+      "subject": "status-vocabulary",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T22:55:19.183Z",
+      "worker": "ef9df648-9743-4436-8352-aa20cc2295c4",
+      "techniques": [
+        {
+          "technique": "status-color-mapping",
+          "verdict": "deviation",
+          "evidence": "app/features/settings/workspace/WorkspaceMembersTable.tsx:142 Call site hand-rolls custom status presentation with hardcoded color utilities rather than mapping through semantic roles or the Badge primitive."
+        },
+        {
+          "technique": "number-formatting",
+          "verdict": "deviation",
+          "evidence": "app/features/settings/workspace/WorkspaceRail.tsx:82 Member count quantities are interpolated directly into UI text without routing through the locale-bound numeric display primitive."
+        },
+        {
+          "technique": "timestamp-display",
+          "verdict": "conformant",
+          "evidence": "app/features/settings/workspace/WorkspaceDetailPanel.tsx:271 Formats invite expiration timestamp using the application's centralized locale-aware fixed-moment formatter (useDateFormat)."
+        },
+        {
+          "technique": "untrusted-label-rendering",
+          "verdict": "conformant",
+          "evidence": "app/features/settings/workspace/WorkspaceMembersTable.tsx:97 Untrusted member display names are rendered as escaped text nodes with truncation to protect layout geometry."
+        }
+      ]
+    },
+    "f30881e0-b39e-4c58-b717-7a325dd7f906/status-vocabulary": {
+      "context": "feedback-status-primitives",
+      "subject": "status-vocabulary",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T22:55:19.183Z",
+      "worker": "ef9df648-9743-4436-8352-aa20cc2295c4",
+      "techniques": [
+        {
+          "technique": "status-color-mapping",
+          "verdict": "deviation",
+          "evidence": "app/_components/Badge.tsx:215 Unknown interview recommendation values degrade to a neutral tone and display raw unvouched tokens instead of degrading toward the least approved member."
+        },
+        {
+          "technique": "number-formatting",
+          "verdict": "deviation",
+          "evidence": "app/_components/Badge.tsx:337 ConfidenceRange interpolates numeric bounds directly with a raw dash without locale-aware numeric formatting."
+        },
+        {
+          "technique": "timestamp-display",
+          "verdict": "deviation",
+          "evidence": "app/_components/LoadStatus.tsx:39 Elapsed time is calculated against an ambient Date instant at render time without subscribing to a shared live-updating ticker or clamping future skew."
+        },
+        {
+          "technique": "vocabulary-chain-integrity",
+          "verdict": "deviation",
+          "evidence": "app/_components/Badge.tsx:143 Badge token mappers accept unconstrained bare strings instead of closed union types and fall back to hardcoded English labels."
+        },
+        {
+          "technique": "untrusted-label-rendering",
+          "verdict": "conformant",
+          "evidence": "app/_components/Tooltip.tsx:109 Tooltip primitive enforces plain text rendering and escapes labels by default in a dedicated portal text node."
+        }
+      ]
     }
   }
 }
