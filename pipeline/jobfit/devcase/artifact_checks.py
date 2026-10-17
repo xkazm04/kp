@@ -153,6 +153,19 @@ def _added_lines(seed_body: str, body: str) -> set[str]:
     return {ln for ln in body.splitlines() if ln.strip() and ln not in seed_lines}
 
 
+def _added_lines_in_order(seed_body: str, body: str) -> list[str]:
+    """:func:`_added_lines` in the order the author WROTE them (first occurrence wins) —
+    a decision log is a sequence, and a sorted set reads it alphabetised."""
+    seed_lines = set(seed_body.splitlines())
+    seen: set[str] = set()
+    out: list[str] = []
+    for ln in body.splitlines():
+        if ln.strip() and ln not in seed_lines and ln not in seen:
+            seen.add(ln)
+            out.append(ln)
+    return out
+
+
 def baseline_similarity(baseline: dict | None, seed: dict | None, files: list[dict] | None) -> dict:
     """Similarity (0..1) of the submission's delta to each frozen one-shot baseline's
     delta. {available: False} when either side is missing.
@@ -264,7 +277,7 @@ def submission_excerpts(
     changed = _delta_paths(submitted, seeded)
 
     ranked = sorted(
-        ((p, sorted(_added_lines(seeded.get(p, ""), body))) for p, body in changed.items()),
+        ((p, _added_lines_in_order(seeded.get(p, ""), body)) for p, body in changed.items()),
         key=lambda item: (-len(item[1]), item[0]),
     )
 
