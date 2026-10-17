@@ -483,3 +483,60 @@ test("closed reject (ii): a reject on a 'declined' entry is a 409 and the candid
   assert.deepEqual(s.ats, []);
   assert.ok(!decisionKinds(entry.id).includes("rejected"));
 });
+
+// ---- reject on a HIRED entry: refused at the commit door (operator decision, ask 68bb3639) ----
+// Hired is status 'active' on the terminal-role stage, so the terminal-status check never
+// caught it. The refusal must come BEFORE the seal: no record, no letter, no ATS event.
+const WS_HIRED = "team-reject-hired";
+setDecisionConfig(
+  "pipelineStages",
+  {
+    stages: [
+      { id: "Applied", label: "Applied", role: "entry" },
+      { id: "Screened", label: "Screened", role: "screening" },
+      { id: "Signed", label: "Signed", role: "terminal" },
+    ],
+    retired: [],
+  },
+  WS_HIRED
+);
+
+test("reject on a Hired entry answers 409 PIPELINE_ENTRY_HIRED before the seal, the letter or the ATS event", async () => {
+  const entry = entryFixture(WS_HIRED, "Signed");
+  let sealCalls = 0;
+  const s = spied(() => {
+    sealCalls += 1;
+    return null;
+  });
+  const res = await runPipelineEntryAction(
+    { id: entry.id, action: "reject", expectedStage: "Signed", origin: ORIGIN, workspaceId: WS_HIRED },
+    s.deps
+  );
+  assert.equal(res.status, 409);
+  assert.equal(res.body.code, "PIPELINE_ENTRY_HIRED");
+  assert.equal(sealCalls, 0, "seal never called");
+  assert.deepEqual(s.sent, [], "no letter");
+  assert.deepEqual(s.ats, [], "no ATS event");
+  const fresh = getPipelineEntry(entry.id, WS_HIRED)!;
+  assert.equal(fresh.status, "active");
+  assert.equal(fresh.stage, "Signed");
+});
+
+test("a re-accept of a Hired entry is not refused as a hired reject", async () => {
+  const entry = entryFixture(WS_HIRED, "Signed");
+  const res = await runPipelineEntryAction(
+    { id: entry.id, action: "accept", expectedStage: "Signed", origin: ORIGIN, workspaceId: WS_HIRED },
+    spied().deps
+  );
+  assert.notEqual(res.body.code, "PIPELINE_ENTRY_HIRED");
+});
+
+test("reject on a non-terminal stage still seals and applies", async () => {
+  const entry = entryFixture(WS_HIRED, "Screened");
+  const res = await runPipelineEntryAction(
+    { id: entry.id, action: "reject", expectedStage: "Screened", origin: ORIGIN, workspaceId: WS_HIRED },
+    spied().deps
+  );
+  assert.equal(res.status, 200);
+  assert.equal(getPipelineEntry(entry.id, WS_HIRED)!.status, "rejected");
+});

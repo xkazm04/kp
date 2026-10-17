@@ -143,3 +143,41 @@ test("reject on an ACTIVE entry still ratifies a queued rejection_review", () =>
   assert.equal(r?.approvalKind, null);
   assert.equal(events(id, WS_DEFAULT).filter((e) => e.kind === "rejected").length, 1);
 });
+
+// ---- reject on a HIRED entry (operator decision, ask 68bb3639) -----------------------
+// A Hired entry keeps status 'active' on the terminal-role stage, so the status guard
+// above never saw it and a reject ran the whole reject path. Refused in the store now;
+// rescinding a hire is its own explicit action later.
+function hiredEntry(ws: string, stage: string) {
+  const id = entryAt(ws === WS_BARE ? "Review" : "Screened", ws);
+  ensureDb().prepare(`UPDATE pipeline_entries SET stage=? WHERE id=?`).run(stage, id);
+  return id;
+}
+
+for (const [label, ws, stage] of [
+  ["shipped axis", WS_DEFAULT, "Hired"],
+  ["composed axis (renamed terminal)", WS_BARE, "Signed"],
+] as const) {
+  test(`reject on an active entry at the terminal stage (${label}) returns null: nothing written`, () => {
+    const id = hiredEntry(ws, stage);
+    const before = events(id, ws).length;
+    assert.equal(actOnPipelineEntry(id, "reject", undefined, undefined, ws), null);
+    assert.equal(actOnPipelineEntry(id, "reject", "again", { actor: "system" }, ws), null);
+    const row = getPipelineEntry(id, ws)!;
+    assert.equal(row.stage, stage);
+    assert.equal(row.status, "active");
+    assert.equal(events(id, ws).length, before, "no pipeline_events row");
+  });
+}
+
+test("a re-accept of a Hired entry still reaches the no-op", () => {
+  const id = hiredEntry(WS_DEFAULT, "Hired");
+  const r = actOnPipelineEntry(id, "accept", undefined, { actor: "system" }, WS_DEFAULT);
+  assert.equal(r?.stage, "Hired");
+  assert.equal(r?.status, "active");
+});
+
+test("reject on a non-terminal stage is unchanged", () => {
+  const id = entryAt("Offer", WS_DEFAULT);
+  assert.equal(actOnPipelineEntry(id, "reject", undefined, undefined, WS_DEFAULT)?.status, "rejected");
+});
