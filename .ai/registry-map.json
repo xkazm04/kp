@@ -2978,7 +2978,11 @@
           "revision": 4,
           "changedAt": "2026-09-26",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/api/analytics/route.ts:53 Context and repository searches found the product event registry elsewhere and none of the searched identifiers in these routes, which serve recruiting metrics and business operations.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:83367bcb68dbb99a",
+          "evaluatedRevision": 4
         },
         {
           "subject": "pipeline-aging-and-attention-triage",
@@ -3137,7 +3141,11 @@
           "revision": 4,
           "changedAt": "2026-09-26",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/insights/analytics/AnalyticsThresholdSuggestion.tsx:96 Calibration measures a successful save but transmits an individual event for every apply instead of accumulating session summaries.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:83367bcb68dbb99a",
+          "evaluatedRevision": 4
         },
         {
           "subject": "analytics-time-windows",
@@ -3353,7 +3361,11 @@
           "revision": 4,
           "changedAt": "2026-09-26",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/analytics/track.ts:73 The telemetry boundary immediately forwards individual events and their original payloads to a vendor function, bypassing session aggregation and runtime field admission.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:83367bcb68dbb99a",
+          "evaluatedRevision": 4
         },
         {
           "subject": "honest-measurement-presentation",
@@ -3460,7 +3472,11 @@
           "revision": 4,
           "changedAt": "2026-09-26",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/insights/analytics/AnalyticsExportButton.tsx:38 Export telemetry records the click before invoking the export callback, so unsuccessful exports can be counted alongside completed ones.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:83367bcb68dbb99a",
+          "evaluatedRevision": 4
         },
         {
           "subject": "delivery-analytics",
@@ -9939,7 +9955,11 @@
           "revision": 4,
           "changedAt": "2026-09-26",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/db/analytics.ts:368 Context and repository searches found no searched product telemetry identifiers in these files, whose records concern candidate cohorts, billing, and metered model costs.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:83367bcb68dbb99a",
+          "evaluatedRevision": 4
         },
         {
           "subject": "usage-event-ingestion",

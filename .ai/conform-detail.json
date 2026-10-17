@@ -10403,6 +10403,171 @@
           "evidence": "pipeline/jobfit/tests/test_analyze_honesty_fields.py:84 Tests exercise semantic adjacency mapping between candidate skills and job requirements rather than graded verbatim span grounding."
         }
       ]
+    },
+    "6b065d33-5aa4-46b4-ad68-97ce316d0388/usage-analytics": {
+      "context": "analytics-dashboard",
+      "subject": "usage-analytics",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T23:44:41.169Z",
+      "worker": "095db0bc-d50e-44a9-99f6-f4a9116ac0ad",
+      "techniques": [
+        {
+          "technique": "activation-and-funnel-honesty",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/AnalyticsExportButton.tsx:38 Tracking precedes onClick() on line 39 and does not establish export completion."
+        },
+        {
+          "technique": "batching-and-quota",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/AnalyticsTab.tsx:92 Each section selection invokes the immediate event sender rather than accumulating a session counter."
+        },
+        {
+          "technique": "coverage-from-registries",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/AnalyticsTab.tsx:89 Cold-load and URL-adopted sections bypass the tracked setSection wrapper; the shared inbox hook updates state without emitting a visit."
+        },
+        {
+          "technique": "event-taxonomy",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/AnalyticsExportButton.tsx:32 The emitted artifact dimension accepts arbitrary strings rather than identifiers from a closed vocabulary."
+        }
+      ]
+    },
+    "777cb8a1-955a-471f-8ce9-35c55ce69066/usage-analytics": {
+      "context": "analytics-calibration",
+      "subject": "usage-analytics",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T23:44:41.169Z",
+      "worker": "095db0bc-d50e-44a9-99f6-f4a9116ac0ad",
+      "techniques": [
+        {
+          "technique": "activation-and-funnel-honesty",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/AnalyticsThresholdSuggestion.tsx:95 The successful POST reaches this state and then emits calibration_apply; non-success responses return before either operation."
+        },
+        {
+          "technique": "batching-and-quota",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/AnalyticsThresholdSuggestion.tsx:96 Every successful apply calls the immediate event sender; there is no local session accumulation on this path."
+        }
+      ]
+    },
+    "80b0c56c-d9e3-4842-bdb4-f46cbaa565ca/usage-analytics": {
+      "context": "analytics-api",
+      "subject": "usage-analytics",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T23:44:41.169Z",
+      "worker": "095db0bc-d50e-44a9-99f6-f4a9116ac0ad",
+      "techniques": [
+        {
+          "technique": "activation-and-funnel-honesty",
+          "verdict": "not-applicable",
+          "evidence": "app/api/analytics/metric-pack/route.ts:95 This report measures hiring outcomes, not activation of product surfaces."
+        },
+        {
+          "technique": "batching-and-quota",
+          "verdict": "not-applicable",
+          "evidence": "app/api/analytics/spend/route.ts:46 This request persists a business setting rather than transmitting behavioral telemetry."
+        },
+        {
+          "technique": "coverage-from-registries",
+          "verdict": "not-applicable",
+          "evidence": "app/api/analytics/targets/route.ts:47 The registry here describes recruitment stages, not measured product surfaces."
+        },
+        {
+          "technique": "event-taxonomy",
+          "verdict": "not-applicable",
+          "evidence": "app/api/analytics/calibration/route.ts:83 Calibration consumes candidate score/outcome pairs rather than product usage events."
+        },
+        {
+          "technique": "privacy-scrubbing",
+          "verdict": "not-applicable",
+          "evidence": "app/api/benchmarks/route.ts:30 This is an authenticated business benchmark response, not a device behavior measurement payload."
+        },
+        {
+          "technique": "sink-abstraction",
+          "verdict": "not-applicable",
+          "evidence": "app/api/analytics/route.ts:64 The destination is the requesting dashboard; these routes do not implement a product telemetry collector or sink."
+        }
+      ]
+    },
+    "ed438bd0-e9e2-48fe-aeda-1a2cd06924dc/usage-analytics": {
+      "context": "analytics-computation",
+      "subject": "usage-analytics",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T23:44:41.169Z",
+      "worker": "095db0bc-d50e-44a9-99f6-f4a9116ac0ad",
+      "techniques": [
+        {
+          "technique": "batching-and-quota",
+          "verdict": "deviation",
+          "evidence": "app/_lib/analytics/track.ts:73 Every accepted call forwards an individual event immediately; this helper has no session accumulator or cumulative hidden-page flush."
+        },
+        {
+          "technique": "event-taxonomy",
+          "verdict": "deviation",
+          "evidence": "app/_lib/analytics/track.ts:21 The section dimension admits arbitrary strings instead of deriving its allowed values from the product section registry."
+        },
+        {
+          "technique": "privacy-scrubbing",
+          "verdict": "deviation",
+          "evidence": "app/_lib/analytics/track.ts:15 Payload fields admit free-form strings, and the opened emit function forwards the original props object without runtime allowlist copying."
+        },
+        {
+          "technique": "sink-abstraction",
+          "verdict": "deviation",
+          "evidence": "app/_lib/analytics/track.ts:70 Measurement directly selects the vendor function per call instead of using a startup-composed summary sink; its catch also provides no operator failure signal."
+        }
+      ]
+    },
+    "822b34e7-a55d-4dbf-a113-7097faf18f66/usage-analytics": {
+      "context": "db-analytics-billing-llm",
+      "subject": "usage-analytics",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T23:44:41.169Z",
+      "worker": "095db0bc-d50e-44a9-99f6-f4a9116ac0ad",
+      "techniques": [
+        {
+          "technique": "activation-and-funnel-honesty",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/analytics.ts:368 The measured population consists of recruitment pipeline entries, not product users or sessions."
+        },
+        {
+          "technique": "batching-and-quota",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/llm.ts:245 Per-call token and monetary accounting is a cost ledger, outside the standard's session-summary usage pipeline."
+        },
+        {
+          "technique": "coverage-from-registries",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/analytics.ts:410 This authority enumerates hiring stages rather than navigable product surfaces."
+        },
+        {
+          "technique": "event-taxonomy",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/llm.ts:346 These fields describe metered provider calls, not a vocabulary of product behavior events."
+        },
+        {
+          "technique": "privacy-scrubbing",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/billing.ts:54 Retrieving organization billing state is business data access, not behavioral telemetry egress."
+        },
+        {
+          "technique": "sink-abstraction",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/billing.ts:434 This durable financial journal is not an optional product analytics destination."
+        }
+      ]
     }
   }
 }
