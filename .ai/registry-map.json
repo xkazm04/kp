@@ -6140,7 +6140,11 @@
           "revision": 7,
           "changedAt": "2026-09-24",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/brand-store.ts:60 Brand persistence retains the accent seed but no derivation algorithm version, so the derivation used for a saved brand cannot be identified after an algorithm change.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:165125b7a54d0de3",
+          "evaluatedRevision": 7
         },
         {
           "subject": "agent-memory",
@@ -14972,7 +14976,11 @@
           "revision": 7,
           "changedAt": "2026-09-24",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_components/glyph/MotionizedGlyph.tsx:106 The renderer defines a numeric reveal spread outside the preset authority, allowing choreography timing to bypass a closed motion vocabulary.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:165125b7a54d0de3",
+          "evaluatedRevision": 7
         },
         {
           "subject": "narrative-scroll-surface",
@@ -31678,7 +31686,11 @@
           "revision": 7,
           "changedAt": "2026-09-24",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_components/ui/SectionTitle.tsx:20 SectionTitle conditionally exposes decorative markup by theme identity, making the theme change structure instead of only role bindings.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:165125b7a54d0de3",
+          "evaluatedRevision": 7
         },
         {
           "subject": "client-fetch-cache",
