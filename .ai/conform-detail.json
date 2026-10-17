@@ -9972,6 +9972,74 @@
         "at": "2026-10-17T04:32:00.164931+00:00",
         "reason": "reviewer (sonnet): The not-applicable rests on ProfileRoster.tsx:25, which is only an import or comment line and shows no absence of an LLM call. The absence search was also narrow: the roster renders ProfileRosterRefreshBar and an onRebuild flow, and I could not confirm that neither of them starts a model call."
       }
+    },
+    "777cb8a1-955a-471f-8ce9-35c55ce69066/people-analytics-ethics": {
+      "context": "analytics-calibration",
+      "subject": "people-analytics-ethics",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T04:40:22.214Z",
+      "worker": "dd8daa17-ece1-4700-bc7a-4f5acc634f42",
+      "techniques": [
+        {
+          "technique": "naming-population-floor",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/AnalyticsScoreBands.tsx:106 The expanded band renders every returned candidate; tracing the band producer confirmed no population floor."
+        },
+        {
+          "technique": "producer-enforced-suppression",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/AnalyticsScoreBands.tsx:16 The consumed band contract carries identified candidates without a typed withheld state, and its traced producer does not suppress small cohorts."
+        },
+        {
+          "technique": "risk-framing-anonymization",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsScoreBands.tsx:127 These labels describe recorded recruitment outcomes, rather than labelling people as risks or liabilities."
+        }
+      ]
+    },
+    "80b0c56c-d9e3-4842-bdb4-f46cbaa565ca/people-analytics-ethics": {
+      "context": "analytics-api",
+      "subject": "people-analytics-ethics",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T04:40:22.214Z",
+      "worker": "dd8daa17-ece1-4700-bc7a-4f5acc634f42",
+      "techniques": [
+        {
+          "technique": "naming-population-floor",
+          "verdict": "deviation",
+          "evidence": "app/api/analytics/calibration/band/route.ts:47 The analysis branch also publishes all named band members; its database producer filters scores and family but never applies a distinct-person floor."
+        },
+        {
+          "technique": "producer-enforced-suppression",
+          "verdict": "deviation",
+          "evidence": "app/api/analytics/calibration/band/route.ts:57 The producer returns the identifying list directly, with neither below-floor suppression nor an explicit withheld state."
+        }
+      ]
+    },
+    "e6b85437-3bfd-4a78-828e-ce67fb2e6114/people-analytics-ethics": {
+      "context": "profile-roster-matrix",
+      "subject": "people-analytics-ethics",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T04:40:22.214Z",
+      "worker": "dd8daa17-ece1-4700-bc7a-4f5acc634f42",
+      "techniques": [
+        {
+          "technique": "naming-population-floor",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/profile/CandidateMatrixBoard.tsx:59 Every member of every nonempty group receives a chip showing name and score, including members of singleton groups."
+        },
+        {
+          "technique": "producer-enforced-suppression",
+          "verdict": "deviation",
+          "evidence": "app/_lib/candidate-population.ts:133 The shared population producer unconditionally retains names alongside scores and supplies both roster and matrix without a population-floor or withheld-state contract."
+        }
+      ]
     }
   }
 }

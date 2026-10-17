@@ -2941,7 +2941,11 @@
           "revision": 3,
           "changedAt": "2026-09-30",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/analytics/calibration/band/route.ts:56 The band endpoint serializes candidate identities and scores without checking the surviving cohort's distinct-person count.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:cb03bdda55f3119d",
+          "evaluatedRevision": 3
         },
         {
           "subject": "agent-memory",
@@ -3165,7 +3169,11 @@
           "revision": 3,
           "changedAt": "2026-09-30",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/insights/analytics/AnalyticsScoreBands.tsx:67 Every populated score band can expose identified candidates, including singleton bands, without a distinct-person naming floor.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:cb03bdda55f3119d",
+          "evaluatedRevision": 3
         },
         {
           "subject": "delivery-analytics",
@@ -25866,7 +25874,11 @@
           "revision": 3,
           "changedAt": "2026-09-30",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/tools/profile/candidateMatrixView.ts:98 The comparative matrix retains every nonempty cohort and displays its named score ordering without a naming-population floor.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:cb03bdda55f3119d",
+          "evaluatedRevision": 3
         },
         {
           "subject": "quality-gates",
