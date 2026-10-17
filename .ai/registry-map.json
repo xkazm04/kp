@@ -14360,7 +14360,11 @@
           "revision": 7,
           "changedAt": "2026-09-20",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_components/Tooltip.tsx:98 Tooltip places the description relationship on a wrapper span, so its text does not become the focused child control's accessible description.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:5e30485ee0c7c123",
+          "evaluatedRevision": 7
         },
         {
           "subject": "test-harness",
@@ -28656,7 +28660,11 @@
           "revision": 7,
           "changedAt": "2026-09-20",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/shell/nav/NavSectionRail.tsx:212 The rail declares a vertical tablist while leaving every tab independently tabbable and providing no arrow-key navigation.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:5e30485ee0c7c123",
+          "evaluatedRevision": 7
         }
       ],
       "governance": "governed"
@@ -30335,11 +30343,14 @@
           "bundle": "software-engineering",
           "source": "conform",
           "confidence": "strong",
-          "state": "unknown",
-          "evidence": "added by /conform: the matcher scored this at zero, but ColumnHead.tsx:52 owns aria-sort on the th, TableStatus.tsx:49 is the kit sr-only live region, ColumnFilter.tsx:66 returns focus to its trigger on dismiss, and filter-a11y.test.ts exists to pin it.",
+          "state": "deviation",
+          "evidence": "app/_components/table/FilterMenu.tsx:59 The active option follows an array position, so refreshing or reordering options while the popup remains open can silently change the keyboard selection.",
           "digest": "sha256-b2:5e30485ee0c7c123",
           "revision": 7,
-          "changedAt": "2026-09-20"
+          "changedAt": "2026-09-20",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:5e30485ee0c7c123",
+          "evaluatedRevision": 7
         }
       ],
       "governance": "governed"

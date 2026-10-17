@@ -8938,6 +8938,124 @@
           "evidence": "app/api/interview-prep/scorecard/route.ts:124 Explicit null or empty-string ratings convert to zero and are then clamped to 1, turning an absent rating into the lowest observed score."
         }
       ]
+    },
+    "86d3557f-3b4a-4636-bdcd-5a12fae61e94/accessibility": {
+      "context": "table-components",
+      "subject": "accessibility",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T03:08:36.182Z",
+      "worker": "5f1e1c62-5aa3-412e-ad58-197dffdcce5f",
+      "techniques": [
+        {
+          "technique": "a11y-verification",
+          "verdict": "deviation",
+          "evidence": "app/_components/table/filter-a11y.test.ts:43 The keyboard test checks source case labels rather than driving keys and observing focus or active-option changes."
+        },
+        {
+          "technique": "hidden-but-mounted-inertness",
+          "verdict": "conformant",
+          "evidence": "app/_components/table/ColumnFilter.tsx:117 The filter popup is conditionally mounted; closing removes its controls instead of merely concealing them."
+        },
+        {
+          "technique": "keyboard-navigation-models",
+          "verdict": "deviation",
+          "evidence": "app/_components/table/FilterMenu.tsx:59 Active identity is positional; option changes can retarget it without a deliberate handoff, and option buttons also remain individual Tab stops."
+        },
+        {
+          "technique": "live-region-architecture",
+          "verdict": "deviation",
+          "evidence": "app/_components/table/TableStatus.tsx:50 Successive filters producing the same count and sort state render identical text without an event-keyed mutation, losing repeated outcome announcements."
+        },
+        {
+          "technique": "name-and-description-wiring",
+          "verdict": "conformant",
+          "evidence": "app/_components/table/ColumnHead.tsx:62 The icon-only sort control receives a translated name that identifies its column."
+        },
+        {
+          "technique": "primitive-level-a11y",
+          "verdict": "deviation",
+          "evidence": "app/_components/table/ColumnFilter.tsx:96 The shared icon trigger exposes applied-filter state only through a hidden colored dot; aria-expanded conveys popup visibility instead."
+        }
+      ]
+    },
+    "1ccaf35e-353e-439f-8a7a-dece524eb98c/accessibility": {
+      "context": "shell-nav",
+      "subject": "accessibility",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T03:08:36.182Z",
+      "worker": "5f1e1c62-5aa3-412e-ad58-197dffdcce5f",
+      "techniques": [
+        {
+          "technique": "a11y-verification",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/nav/navDrawerA11y.test.ts:20 The hidden-drawer test checks a predicate rather than verifying zero hidden Tab stops or the computed accessibility tree."
+        },
+        {
+          "technique": "hidden-but-mounted-inertness",
+          "verdict": "conformant",
+          "evidence": "app/features/shell/WorkspaceNavDrawer.tsx:125 The mounted drawer closes the focus and accessibility channels at its root when collapsed on mobile, alongside the visual translation."
+        },
+        {
+          "technique": "keyboard-navigation-models",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/nav/NavSectionRail.tsx:212 The declared tablist has neither roving tabindex nor arrow/Home/End handling."
+        },
+        {
+          "technique": "live-region-architecture",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/nav/FeedbackDialog.tsx:70 This populated success region mounts only after sent becomes true, instead of mutating a region already present before the result."
+        },
+        {
+          "technique": "name-and-description-wiring",
+          "verdict": "conformant",
+          "evidence": "app/features/shell/nav/NavRailBrandMark.tsx:25 The icon-only home link has an explicit translated accessible name."
+        },
+        {
+          "technique": "primitive-level-a11y",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/nav/NavRailPreferences.tsx:124 RailMenu shares menu semantics across theme and language controls but supplies no focus-on-open, arrow navigation or popup Tab-exit handoff."
+        }
+      ]
+    },
+    "f30881e0-b39e-4c58-b717-7a325dd7f906/accessibility": {
+      "context": "feedback-status-primitives",
+      "subject": "accessibility",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T03:08:36.182Z",
+      "worker": "5f1e1c62-5aa3-412e-ad58-197dffdcce5f",
+      "techniques": [
+        {
+          "technique": "a11y-verification",
+          "verdict": "deviation",
+          "evidence": "app/_components/toast-store.test.ts:61 The repeated-message test verifies a timer nonce without observing distinct announcement writes; the renderer does not use that nonce to replace announcement content."
+        },
+        {
+          "technique": "hidden-but-mounted-inertness",
+          "verdict": "deviation",
+          "evidence": "app/_components/Toast.tsx:72 AnimatePresence retains exiting cards for this visual transition, while their controls receive no corresponding inertness boundary."
+        },
+        {
+          "technique": "keyboard-navigation-models",
+          "verdict": "deviation",
+          "evidence": "app/_components/Toast.tsx:95 Keyboard dismissal removes the focused toast control without transferring focus to a meaningful survivor."
+        },
+        {
+          "technique": "live-region-architecture",
+          "verdict": "deviation",
+          "evidence": "app/_components/Toast.tsx:135 Each toast mounts its own populated region; duplicate events retain the same card key and message, and the visual stack supplies no serial announcement drain."
+        },
+        {
+          "technique": "name-and-description-wiring",
+          "verdict": "deviation",
+          "evidence": "app/_components/Tooltip.tsx:98 aria-describedby belongs on the described control; its relationship is not inherited from this wrapper."
+        }
+      ]
     }
   }
 }
