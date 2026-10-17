@@ -135,3 +135,20 @@ test("callback: a stored relay's receipt for ANOTHER org's ref is filed nowhere,
     setRelayConfig({ url: null, ownerOrgId: orgA.id });
   }
 });
+
+// S-4 — a sealed/offline calendar call's error quoted the WHOLE URL, and the revoke
+// call carries the OAuth token in its query: any log of that message leaked it.
+test("calendar: a sealed or offline refusal names the endpoint, never the token in its query", async () => {
+  const { calendarFetch, CalendarOfflineError } = await import("./calendar/edge-fetch.ts");
+  const calls = countFetches();
+  const url = "https://oauth2.googleapis.com/revoke?token=1%2F%2Frefresh-token-secret";
+  for (const env of [{ KP_NO_COMMS_EGRESS: "1" }, { KP_OFFLINE: "1" }]) {
+    await assert.rejects(calendarFetch(url, { method: "POST" }, { env }), (err: unknown) => {
+      assert.ok(err instanceof CalendarOfflineError);
+      assert.doesNotMatch(err.message, /refresh-token-secret|token=/);
+      assert.match(err.message, /oauth2\.googleapis\.com\/revoke/);
+      return true;
+    });
+  }
+  assert.equal(calls.length, 0);
+});

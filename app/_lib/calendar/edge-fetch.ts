@@ -26,11 +26,23 @@ import { CALENDAR_TIMEOUT_MS } from "./constants";
 // names one, CAPPED — an honest "unavailable" beats a booking page that hangs because
 // Google asked for 300 seconds.
 
+/** The URL as an error message may name it: origin + path, never the query. The revoke
+ *  call carries the OAuth token IN its query (google-oauth.ts revokeToken), so a message
+ *  that quoted the whole URL put a live credential into whatever logged it. */
+export function redactedUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    return `${u.origin}${u.pathname}`;
+  } catch {
+    return "(unparseable url)";
+  }
+}
+
 /** Thrown INSTEAD of touching the network when KP_OFFLINE is on. Callers map it onto the
  *  same "no information" value they already return for an outage — never onto an error. */
 export class CalendarOfflineError extends Error {
   constructor(url: string) {
-    super(`KP_OFFLINE: the calendar edge did not call ${url}`);
+    super(`KP_OFFLINE: the calendar edge did not call ${redactedUrl(url)}`);
     this.name = "CalendarOfflineError";
   }
 }
@@ -41,7 +53,7 @@ export class CalendarOfflineError extends Error {
 export class CalendarSealedError extends CalendarOfflineError {
   constructor(url: string) {
     super(url);
-    this.message = `KP_NO_COMMS_EGRESS: the calendar edge did not call ${url}`;
+    this.message = `KP_NO_COMMS_EGRESS: the calendar edge did not call ${redactedUrl(url)}`;
     this.name = "CalendarSealedError";
   }
 }
