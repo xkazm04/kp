@@ -8362,6 +8362,190 @@
           "evidence": "app/features/shared/MatchReasoningPanel.tsx:91 This suffix follows the independently translated sourceLlm/sourceRuleBased expression, matching the standard's named fragment-plus-suffix failure."
         }
       ]
+    },
+    "07674871-c817-4ade-8ddf-22cc01b8493d/interview-story-portfolio": {
+      "context": "interview-planning-rubric",
+      "subject": "interview-story-portfolio",
+      "bundle": "recruiting",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T01:27:06.786Z",
+      "techniques": [
+        {
+          "technique": "earned-secret-needs-proof",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/interview-prep-run.ts:46 Consumes interviewer questions rather than extracting distinctive insights for candidate answers."
+        },
+        {
+          "technique": "fit-tiers-with-a-secondary-skill-cap",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/interview-rubric.ts:152 Selects an assessment rubric by candidate archetype; it does not grade experience-to-question fit."
+        },
+        {
+          "technique": "freshness-and-overuse-across-a-search",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/interview-prep.ts:325 Freshness concerns a changed job description, not repeated candidate stories."
+        },
+        {
+          "technique": "gap-response-chosen-by-story-strength",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/student-interview.ts:198 Directs the employer's interviewer rather than coaching the candidate's response to an experience gap."
+        },
+        {
+          "technique": "one-treatment-per-root-cause",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/run-of-show.ts:144 Builds interviewer coverage checks, not diagnoses or treatments across candidate practice sessions."
+        },
+        {
+          "technique": "portfolio-assignment-before-per-question-pick",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/run-of-show.ts:114 Allocates interview time to questions rather than allocating candidate experiences."
+        },
+        {
+          "technique": "practice-score-needs-outcomes-before-it-is-trusted",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/interview-rubric.ts:139 Exports an employer assessment rubric without claiming that candidate practice scores predict outcomes."
+        }
+      ],
+      "withdrawn": {
+        "worker": "d1a03e4a-d6c3-4a96-827d-81a3a462c9d9",
+        "state": "not-applicable",
+        "at": "2026-10-17T01:27:42.839786+00:00",
+        "reason": "reviewer (sonnet): The evidence anchor app/_lib/student-interview.ts:198 is not among the context's listed files, and the line is only an interviewer persona string; it doesn't show candidate story coaching is absent from the context's own files (interview-prep.ts, interview-plan.ts, interview-prep-strings.ts)."
+      }
+    },
+    "70882e8e-b0ba-4ae9-88a5-ac07259aecc0/interview-story-portfolio": {
+      "context": "matrix-focus",
+      "subject": "interview-story-portfolio",
+      "bundle": "recruiting",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T01:27:06.786Z",
+      "worker": "d1a03e4a-d6c3-4a96-827d-81a3a462c9d9",
+      "techniques": [
+        {
+          "technique": "earned-secret-needs-proof",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/matrix/focus/useMatchCardReasoning.ts:28 Requests a job-fit explanation, not an earned insight for a candidate answer."
+        },
+        {
+          "technique": "fit-tiers-with-a-secondary-skill-cap",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/matrix/focus/MatchCard.tsx:105 These tiers describe candidate-to-job fit, not story-to-question fit."
+        },
+        {
+          "technique": "freshness-and-overuse-across-a-search",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/matrix/focus/MatchResultsHeader.tsx:77 Reports a newer CV analysis rather than an experience's use before previous audiences."
+        },
+        {
+          "technique": "gap-response-chosen-by-story-strength",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/matrix/focus/MatchCardSkillChips.tsx:115 Displays missing skills without advising how the candidate should answer interview questions."
+        },
+        {
+          "technique": "one-treatment-per-root-cause",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/matrix/focus/MatchWeightsPanel.tsx:106 Adjusts recruiter matching weights rather than prescribing candidate practice drills."
+        },
+        {
+          "technique": "portfolio-assignment-before-per-question-pick",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/matrix/focus/MatchResults.tsx:175 The compared items are jobs identified by jobId, not experiences assigned to predicted questions."
+        },
+        {
+          "technique": "practice-score-needs-outcomes-before-it-is-trusted",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/matrix/focus/MatchCard.tsx:168 Shows the matching engine's score breakdown rather than a candidate practice score."
+        }
+      ]
+    },
+    "3e2ec5d8-185d-40bc-99f9-c132975277b4/interview-story-portfolio": {
+      "context": "results-detail-tabs",
+      "subject": "interview-story-portfolio",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T01:27:06.786Z",
+      "worker": "d1a03e4a-d6c3-4a96-827d-81a3a462c9d9",
+      "techniques": [
+        {
+          "technique": "earned-secret-needs-proof",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/interview.py:242 Generates a technical judgment question; it does not propose or certify distinctive earned insights."
+        },
+        {
+          "technique": "fit-tiers-with-a-secondary-skill-cap",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/results/interview/InterviewTab.tsx:217 Labels the question's evidence gap without grading any selected experience against that question."
+        },
+        {
+          "technique": "freshness-and-overuse-across-a-search",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/interview.py:104 Produces a single analysis kit; the inspected generator does not manage a multi-round story-use record."
+        },
+        {
+          "technique": "one-treatment-per-root-cause",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/results/interview/SoftSignalsSection.tsx:125 Shows assessment probes for CV hypotheses rather than treatments for recurring practice weaknesses."
+        },
+        {
+          "technique": "portfolio-assignment-before-per-question-pick",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/interview.py:87 Generates question prompts without selecting or assigning a supplied inventory of actual experiences."
+        },
+        {
+          "technique": "practice-score-needs-outcomes-before-it-is-trusted",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/results/job-fit/JobFitTab.tsx:43 Displays a role-fit score, not a practice-rubric forecast of interview outcomes."
+        }
+      ]
+    },
+    "2b8247b0-eb5c-4139-ba1e-9c4c185cd4dc/interview-story-portfolio": {
+      "context": "schedule-interview-prep",
+      "subject": "interview-story-portfolio",
+      "bundle": "recruiting",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T01:27:06.786Z",
+      "worker": "d1a03e4a-d6c3-4a96-827d-81a3a462c9d9",
+      "techniques": [
+        {
+          "technique": "earned-secret-needs-proof",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewAiScorecardSection.tsx:95 Displays assessment evidence linked to transcript turns rather than proposing candidate insights."
+        },
+        {
+          "technique": "fit-tiers-with-a-secondary-skill-cap",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/ScheduleHumanScorecardForm.tsx:67 Records interviewer competency ratings, not experience-to-question fit tiers."
+        },
+        {
+          "technique": "freshness-and-overuse-across-a-search",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/useScheduleInterviewPrep.ts:84 Detects a job-description edit after guide generation, not repeated story use."
+        },
+        {
+          "technique": "gap-response-chosen-by-story-strength",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewPrepQuestions.tsx:102 Places interviewer questions into agenda blocks without coaching candidate gap responses."
+        },
+        {
+          "technique": "one-treatment-per-root-cause",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewTelemetryStrip.tsx:49 Reports descriptive interview telemetry rather than diagnosing recurring practice habits or prescribing drills."
+        },
+        {
+          "technique": "portfolio-assignment-before-per-question-pick",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/ScheduleInterviewPrepRunOfShow.tsx:38 Renders timed agenda blocks rather than an assignment of candidate experiences."
+        },
+        {
+          "technique": "practice-score-needs-outcomes-before-it-is-trusted",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/ScheduleHumanScorecardPanel.tsx:202 Saves the human interviewer's assessment without claiming candidate practice-score calibration."
+        }
+      ]
     }
   }
 }

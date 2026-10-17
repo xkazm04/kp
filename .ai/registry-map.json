@@ -22213,7 +22213,11 @@
           "revision": 2,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/insights/matrix/focus/MatchResults.tsx:175 Context and repository searches found no storyPortfolio, storyStrength, earnedInsight or practiceScore matches; this surface compares candidate-to-job matches rather than preparing candidate interview stories.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:afe5da6c1cf11dd9",
+          "evaluatedRevision": 2
         },
         {
           "subject": "table",
@@ -26370,7 +26374,11 @@
           "revision": 2,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_components/results/interview/InterviewTab.tsx:220 The report renders a missing-skill scaffold that always asks the candidate to name a closest project, without selecting a no-experience response when no such project exists.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:afe5da6c1cf11dd9",
+          "evaluatedRevision": 2
         },
         {
           "subject": "test-harness",
@@ -27184,7 +27192,11 @@
           "revision": 2,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/hiring/schedule/ScheduleHumanScorecardPanel.tsx:17 Context and repository searches found no storyPortfolio, storyStrength, earnedInsight or practiceScore matches; these surfaces support employer interview preparation and recorded assessment rather than candidate story coaching.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:afe5da6c1cf11dd9",
+          "evaluatedRevision": 2
         }
       ],
       "governance": "governed"
