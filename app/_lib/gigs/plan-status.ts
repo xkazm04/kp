@@ -1,4 +1,4 @@
-import { lstatSync, readFileSync } from "node:fs";
+import { closeSync, constants as fsConstants, fstatSync, lstatSync, openSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { getAcceptedGigPlan, setGigPlanProgress } from "../db/gigs-plans";
 import { GIG_PLAN_STATUS_CONTRACT, GIG_PLAN_STATUS_FILE } from "./contract";
@@ -142,9 +142,17 @@ export function parsePlanStatus(text: string, keys: ReadonlySet<string>): Map<st
 export function readPlanStatusFile(workdir: string): string | null {
   const file = path.join(workdir, GIG_PLAN_STATUS_FILE);
   try {
-    const st = lstatSync(file);
-    if (!st.isFile() || st.size > GIG_PLAN_STATUS_MAX_BYTES) return null;
-    return readFileSync(file, "utf8");
+    if (!lstatSync(file).isFile()) return null;
+    // Judge the size on the OPEN descriptor, then read that same descriptor: a path-level
+    // stat followed by a path-level read can see two different files (js/file-system-race).
+    const fd = openSync(file, fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0));
+    try {
+      const st = fstatSync(fd);
+      if (!st.isFile() || st.size > GIG_PLAN_STATUS_MAX_BYTES) return null;
+      return readFileSync(fd, "utf8");
+    } finally {
+      closeSync(fd);
+    }
   } catch {
     // absent (the agent has not written it yet) or unreadable: no update this pass
     return null;

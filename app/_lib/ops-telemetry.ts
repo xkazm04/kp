@@ -1,4 +1,4 @@
-import { appendFileSync, closeSync, mkdirSync, openSync, readSync, statSync } from "node:fs";
+import { appendFileSync, closeSync, mkdirSync, openSync, readSync, fstatSync } from "node:fs";
 import path from "node:path";
 import { logDir } from "./logger";
 import type { LlmUsageAggregateRow } from "./db/llm";
@@ -35,11 +35,12 @@ export function tailJsonl(filename: string, maxLines = SAMPLE_LINES): Record<str
   const file = path.join(logDir(), filename);
   let fd: number | null = null;
   try {
-    const size = statSync(file).size;
+    fd = openSync(file, "r");
+    // Size from the open descriptor, not a path-level stat that can race the open (js/file-system-race).
+    const size = fstatSync(fd).size;
     const start = Math.max(0, size - TAIL_BYTES);
     const length = size - start;
     if (length <= 0) return [];
-    fd = openSync(file, "r");
     const buf = Buffer.alloc(length);
     readSync(fd, buf, 0, length, start);
     const lines = buf.toString("utf-8").split("\n");
