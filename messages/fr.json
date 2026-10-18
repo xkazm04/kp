@@ -10940,6 +10940,17 @@
       "service_orientation_reliability": {
         "label": "Orientation service et fiabilité",
         "description": "Posture orientée client, sang-froid sous pression, assiduité fiable et suivi jusqu’au bout."
+      },
+      "working_with_ai_tools": {
+        "label": "Travail avec les outils d'IA",
+        "description": "Comment la personne juge et dirige l'aide de l'IA sur l'exercice pratique : ce que l'outil a mal fait, comment elle l'a repéré et ce qu'elle a choisi de faire elle-même. On évalue le comportement, jamais l'outil cité.",
+        "anchor": {
+          "1": "Ne sait pas dire en quoi l'outil s'est trompé ; accepte sa sortie telle quelle ou ne peut pas décrire son usage.",
+          "2": "Admet que l'outil peut se tromper en général, mais ne cite aucune erreur précise de son propre travail.",
+          "3": "Vérifie la sortie de l'outil, mais ne sait pas dire où elle a choisi de ne pas déléguer.",
+          "4": "Cite une erreur précise de l'outil et le contrôle qui l'a détectée, mais reste vague sur ce qu'elle a gardé pour elle.",
+          "5": "Cite l'erreur, le contrôle qui l'a détectée et l'endroit où elle a choisi de ne pas déléguer, avec la raison."
+        }
       }
     }
   },

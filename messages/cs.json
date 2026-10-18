@@ -10940,6 +10940,17 @@
       "service_orientation_reliability": {
         "label": "Orientace na službu a spolehlivost",
         "description": "Přístup orientovaný na zákazníka, klid pod tlakem, spolehlivá docházka a dotahování věcí do konce."
+      },
+      "working_with_ai_tools": {
+        "label": "Práce s AI nástroji",
+        "description": "Jak posuzuje a řídí pomoc AI při pracovní ukázce: v čem se nástroj spletl, jak to odhalil a co se rozhodl udělat sám. Hodnotí se chování, nikdy ne to, jaký nástroj jmenuje.",
+        "anchor": {
+          "1": "Neumí říct, v čem se nástroj spletl; výstup přijímá, jak je, nebo neumí popsat, jak nástroj použil.",
+          "2": "Připouští, že se nástroj obecně může mýlit, ale z vlastní práce nejmenuje žádnou konkrétní chybu.",
+          "3": "Výstup nástroje kontroluje, ale neumí říct, kde se rozhodl nedelegovat.",
+          "4": "Jmenuje konkrétní chybu nástroje a kontrolu, která ji odhalila, ale co si nechal pro sebe, popíše jen vágně.",
+          "5": "Jmenuje chybu, kontrolu, která ji odhalila, i místo, kde se rozhodl nedelegovat, a proč."
+        }
       }
     }
   },

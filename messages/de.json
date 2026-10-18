@@ -10940,6 +10940,17 @@
       "service_orientation_reliability": {
         "label": "Serviceorientierung & Verlässlichkeit",
         "description": "Kundenorientierte Haltung, Gelassenheit unter Druck sowie verlässliche Anwesenheit und konsequentes Nachfassen."
+      },
+      "working_with_ai_tools": {
+        "label": "Arbeit mit KI-Werkzeugen",
+        "description": "Wie sie die KI-Unterstützung bei der Arbeitsprobe beurteilen und steuern: was das Werkzeug falsch gemacht hat, wie sie es bemerkt haben und was sie bewusst selbst erledigt haben. Bewertet wird das Verhalten, nie, welches Werkzeug genannt wird.",
+        "anchor": {
+          "1": "Kann nicht sagen, was das Werkzeug falsch gemacht hat; übernimmt die Ausgabe unverändert oder kann den Einsatz nicht beschreiben.",
+          "2": "Räumt ein, dass das Werkzeug generell irren kann, nennt aber keinen konkreten Fehler aus der eigenen Arbeit.",
+          "3": "Prüft die Ausgabe des Werkzeugs, kann aber nicht sagen, wo sie bewusst nicht delegiert haben.",
+          "4": "Nennt einen konkreten Fehler des Werkzeugs und die Prüfung, die ihn aufgedeckt hat, beschreibt aber nur vage, was sie selbst behalten haben.",
+          "5": "Nennt den Fehler, die Prüfung, die ihn aufgedeckt hat, und die Stelle, an der sie bewusst nicht delegiert haben, samt Begründung."
+        }
       }
     }
   },

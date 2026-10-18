@@ -40,6 +40,13 @@ export const INTERVIEW_RUBRICS = rubricData.rubrics as unknown as Record<string,
  *  backward-compatible. Mirrors automation.INDUSTRY_AXES (same JSON). */
 export const INDUSTRY_AXES = (rubricData as { industryAxes?: Record<string, RubricCompetency[]> }).industryAxes ?? {};
 
+/** S1 — OPTIONAL axes, appended only when a condition holds (`dev_case`: the entry
+ *  has a work sample attached). Never inside the experienced / early_career base
+ *  lists. An axis the interviewer did not rate is simply absent from the scorecard
+ *  ("not assessed") — never a midpoint, never in an average. Mirrors
+ *  automation.OPTIONAL_AXES (same JSON). */
+export const OPTIONAL_AXES = (rubricData as { optionalAxes?: Record<string, RubricCompetency[]> }).optionalAxes ?? {};
+
 /** The extra industry axes for a role-family (empty for an unknown/blank family). */
 export function industryAxesFor(roleFamily: string | null | undefined): RubricCompetency[] {
   return INDUSTRY_AXES[(roleFamily ?? "").trim()] ?? [];
@@ -144,13 +151,16 @@ export const INTERVIEW_RUBRIC: RubricCompetency[] = INTERVIEW_RUBRICS.experience
  *  automation.rubric_for_candidate; both resolve the early-career split from the
  *  shared archetypes.json and the industry axes from the shared rubric JSON, so
  *  selection can never desync from scoring. `roleFamily` is optional: omit it and
- *  the result is exactly the pre-P2-3 base rubric. */
+ *  the result is exactly the pre-P2-3 base rubric. `devCase` (S1) appends the
+ *  optional dev-case axes; omit it and the result is exactly the pre-S1 rubric,
+ *  version hash included. */
 export function rubricForArchetype(
   archetype: string | null | undefined,
-  roleFamily?: string | null
+  roleFamily?: string | null,
+  devCase = false
 ): RubricCompetency[] {
   const base = isEarlyCareer(archetype) ? INTERVIEW_RUBRICS.early_career : INTERVIEW_RUBRICS.experienced;
-  return [...base, ...industryAxesFor(roleFamily)];
+  return [...base, ...industryAxesFor(roleFamily), ...(devCase ? (OPTIONAL_AXES.dev_case ?? []) : [])];
 }
 
 /** Case-insensitive set of the competency KEYS a rubric covers — the same match

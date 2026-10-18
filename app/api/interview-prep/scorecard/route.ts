@@ -75,6 +75,13 @@ async function postDebrief(ws: string, request: NextRequest, submissionId: strin
   return NextResponse.json({ ok: true, ...debriefState(sub) });
 }
 
+// S1 — the optional "Working with AI tools" axis rides only an entry that already
+// carries a work sample (the assignment or the submission it came out of); no new data
+// source, and an entry with neither resolves exactly the pre-S1 rubric.
+function hasDevCase(entry: { devCaseId?: string | null; devSubmissionId?: string | null }): boolean {
+  return Boolean(entry.devCaseId || entry.devSubmissionId);
+}
+
 /** The key a caller's scorecard is filed under (r09 schedule-interview-prep/A): WHO
  *  scored — the signed-in user id, null in open mode or on an operator-password
  *  session, which have no identity and so keep today's one slot per round — and WHICH
@@ -190,7 +197,7 @@ export const POST = withWorkspace(async (ws: string, request: NextRequest) => {
     // Resolve the entry's CURRENT rubric ONCE: it both flags off-rubric ratings at
     // write time AND is the snapshot we stamp so this record can be re-evaluated
     // against the exact scale later, after the rubric revises (Direction 2).
-    const rubric = pipelineEntry ? rubricForArchetype(pipelineEntry.archetype, pipelineEntry.roleFamily) : null;
+    const rubric = pipelineEntry ? rubricForArchetype(pipelineEntry.archetype, pipelineEntry.roleFamily, hasDevCase(pipelineEntry)) : null;
     const coverage = pipelineEntry ? rubricCoverage(pipelineEntry.roleFamily) : null;
     const ratings: ScorecardRating[] = rubric ? flagOffRubricRatings(parsed, rubric) : parsed;
 

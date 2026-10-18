@@ -426,6 +426,82 @@ class RecommendationContractTest(unittest.TestCase):
         self.assertEqual(result["recommendation"], "hold")
 
 
+class WorkingWithAiToolsScorecardTest(unittest.TestCase):
+    """S1 — the optional dev-case axis on the AI scorecard."""
+
+    AXIS = "Working with AI tools"
+    QUOTE = "I caught it returning a stale cache, so I diffed the output and wrote that part by hand"
+
+    def _payload(self, *, with_axis, evidence=QUOTE):
+        ratings = [
+            {"competency": c["competency"], "rating": 4, "evidence": ""}
+            for c in automation.rubric_for_candidate("bau", "software_engineering")
+        ]
+        if with_axis:
+            ratings.append({"competency": self.AXIS, "rating": 5, "evidence": evidence})
+        return {"ratings": ratings, "summary": "s", "recommendation": "hold"}
+
+    def test_no_dev_case_is_unchanged(self):
+        cap = _CaptureProvider(self._payload(with_axis=False))
+        result, _ = automation.interview_scorecard(BAU, mkjob(), "notes", provider=cap)
+        self.assertNotIn(self.AXIS, cap.prompt)
+        self.assertNotIn("notAssessed", result)
+        self.assertNotIn(self.AXIS, result["rubricKeys"])
+        self.assertEqual(
+            result["rubricVersion"],
+            automation.rubric_version_hash(automation.rubric_for_candidate("bau", "software_engineering")),
+        )
+
+    def test_dev_case_adds_the_axis_and_stamps_a_new_version(self):
+        cap = _CaptureProvider(self._payload(with_axis=True))
+        result, _ = automation.interview_scorecard(BAU, mkjob(), (self.QUOTE + ". ") * 3, provider=cap, dev_case=True)
+        self.assertIn(self.AXIS, cap.prompt)
+        plain = automation.rubric_for_candidate("bau", "software_engineering")
+        full = automation.rubric_for_candidate("bau", "software_engineering", True)
+        self.assertEqual(result["rubricVersion"], automation.rubric_version_hash(full))
+        self.assertNotEqual(result["rubricVersion"], automation.rubric_version_hash(plain))
+        self.assertEqual(result["rubricKeys"][-1], self.AXIS)
+        rated = {r["competency"]: r["rating"] for r in result["ratings"]}
+        self.assertEqual(rated[self.AXIS], 5)
+        self.assertEqual(result["notAssessed"], [])
+
+    def test_uncovered_axis_is_not_assessed_not_a_number(self):
+        # Model returns null / an unquoted midpoint / no row at all: all read "not assessed".
+        for axis_row in (
+            {"competency": self.AXIS, "rating": None, "evidence": ""},
+            {"competency": self.AXIS, "rating": 3, "evidence": ""},
+            None,
+        ):
+            payload = self._payload(with_axis=False)
+            if axis_row:
+                payload["ratings"].append(axis_row)
+            result, _ = automation.interview_scorecard(
+                BAU, mkjob(), "notes", provider=_CaptureProvider(payload), dev_case=True
+            )
+            self.assertNotIn(self.AXIS, [r["competency"] for r in result["ratings"]], repr(axis_row))
+            self.assertEqual(result["notAssessed"], [self.AXIS])
+
+    def test_keyless_fallback_gives_the_axis_no_number(self):
+        result, source = automation.interview_scorecard(BAU, mkjob(), "notes", provider=None, dev_case=True)
+        self.assertEqual(source, "deterministic")
+        self.assertEqual(result["notAssessed"], [self.AXIS])
+        self.assertNotIn(self.AXIS, [r["competency"] for r in result["ratings"]])
+        self.assertIn(self.AXIS, result["rubricKeys"])
+
+    def test_an_ungrounded_quote_does_not_earn_a_number(self):
+        payload = self._payload(with_axis=True, evidence="a sentence the candidate never said")
+        result, _ = automation.interview_scorecard(
+            BAU, mkjob(), "notes about something else", provider=_CaptureProvider(payload), dev_case=True
+        )
+        self.assertEqual(result["notAssessed"], [self.AXIS])
+
+    def test_the_axis_never_counts_toward_confidence(self):
+        notes = "word " * 500
+        base = automation.interview_scorecard(BAU, mkjob(), notes, provider=None)[0]["confidence"]
+        with_case = automation.interview_scorecard(BAU, mkjob(), notes, provider=None, dev_case=True)[0]["confidence"]
+        self.assertEqual(base, with_case)
+
+
 class MarketPersonaTest(unittest.TestCase):
     """The HR-automation system persona is MarketConfig-driven (mirrors campaign.py
     round 9 / group_compare.py round 10), not a hardcoded "Czech tech market"

@@ -1951,6 +1951,8 @@ def _rubric_competency_names() -> list[str]:
         names.extend(str(c["competency"]) for c in rubric)
     for axes in INDUSTRY_AXES.values():
         names.extend(str(c["competency"]) for c in axes)
+    for axes in OPTIONAL_AXES.values():
+        names.extend(str(c["competency"]) for c in axes)
     return list(dict.fromkeys(names))
 
 
@@ -2199,6 +2201,11 @@ INTERVIEW_RUBRIC = INTERVIEW_RUBRICS["experienced"]
 # rubric so a nurse is scored on clinical judgment, a tradesperson on safety, etc.
 # Mirrors the TS INDUSTRY_AXES (same JSON). Additive: an unmapped family adds none.
 INDUSTRY_AXES: dict[str, list[dict]] = _RUBRIC_DATA.get("industryAxes", {})
+# S1 — OPTIONAL axes, appended only when a condition holds ("dev_case": the candidate
+# has a work sample attached). Never part of a base list, and never a rating the
+# interviewer did not give: an uncovered optional axis is "not assessed", not a 3.
+# Mirrors the TS OPTIONAL_AXES (same JSON).
+OPTIONAL_AXES: dict[str, list[dict]] = _RUBRIC_DATA.get("optionalAxes", {})
 
 
 def scoring_model_for_archetype(archetype: str | None) -> str:
@@ -2222,11 +2229,14 @@ def industry_axes_for(role_family: str | None) -> list[dict]:
     return INDUSTRY_AXES.get((role_family or "").strip(), [])
 
 
-def rubric_for_candidate(archetype: str | None, role_family: str | None) -> list[dict]:
+def rubric_for_candidate(archetype: str | None, role_family: str | None, dev_case: bool = False) -> list[dict]:
     """The full rubric scored for a candidate: the base (scoringModel) rubric PLUS
-    any industry axes for their role-family (P2-3), appended. Mirrors the TS
-    `rubricForArchetype(archetype, roleFamily)`."""
-    return [*rubric_for_archetype(archetype), *industry_axes_for(role_family)]
+    any industry axes for their role-family (P2-3), appended, PLUS the optional
+    dev-case axes (S1) when `dev_case` is true. Without a dev case the result is
+    exactly the pre-S1 rubric. Mirrors the TS `rubricForArchetype(archetype,
+    roleFamily, devCase)`."""
+    optional = OPTIONAL_AXES.get("dev_case", []) if dev_case else []
+    return [*rubric_for_archetype(archetype), *industry_axes_for(role_family), *optional]
 
 
 def rubric_version_hash(rubric: list[dict]) -> str:
@@ -2429,7 +2439,7 @@ def sample_scorecard_notes(notes: str | None, limit: int = MAX_SCORECARD_NOTES_C
     return f"{text[:head]}{marker}{text[len(text) - tail:]}"
 
 
-def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, lang: str = "en", provider: Any | None = None, github: Any | None = None):
+def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, lang: str = "en", provider: Any | None = None, github: Any | None = None, dev_case: bool = False):
     from .i18n import language_directive
 
     # `model` is the base scoring model (experienced / early_career) — still the
@@ -2439,7 +2449,11 @@ def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, lang
     # a tradesperson on safety. Additive — an unmapped family leaves the prompt
     # exactly as it was pre-P2-3.
     model = scoring_model_for_archetype(candidate.archetype)
-    rubric = rubric_for_candidate(candidate.archetype, candidate.role_family)
+    rubric = rubric_for_candidate(candidate.archetype, candidate.role_family, dev_case)
+    # S1 — optional axes are scored only on evidence; the rest of the rubric keeps its
+    # "rate it 3 (not assessed)" convention. `required` is what totals/averages see.
+    optional_names = {c["competency"] for c in OPTIONAL_AXES.get("dev_case", [])} if dev_case else set()
+    required = [c for c in rubric if c["competency"] not in optional_names]
     anchors = ", ".join(f"{k}={v}" for k, v in RATING_ANCHORS.items())
 
     def _rubric_line(competency: dict) -> str:
@@ -2494,12 +2508,19 @@ def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, lang
         "Ground every rating in the transcript: the evidence MUST be a short, near-verbatim quote of the "
         "candidate's own words that justifies the score — do not paraphrase or invent. If the transcript "
         "does not cover a competency, set its evidence to an empty string and rate it 3 (not assessed).\n"
+        + (
+            "Exception: " + ", ".join(sorted(optional_names)) + " is scored on behaviour only, never on which "
+            "tool is named. If the transcript does not cover it, set its rating to null and its evidence to an "
+            "empty string — never 3.\n"
+            if optional_names
+            else ""
+        )
         # scorecard-v7 — the SAME fairness clause the interviewer brief carries
         # (NON_NEGOTIABLES in app/_lib/student-interview.ts). The brief told the agent not to
         # penalise nerves; nothing told the SCORER, which is the half that produces
         # the number a hiring decision is made on. Delivery is not a competency here
         # unless a rubric axis names one.
-        "Rate substance, not delivery: never lower a rating for nerves, hesitation, filler words, "
+        + "Rate substance, not delivery: never lower a rating for nerves, hesitation, filler words, "
         "silences, a slow start, or imperfect grammar/accent in a language that is not the candidate's "
         "first. An honest \"I don't know\" is not a negative signal. Score only what a competency's "
         "description and its level anchors actually ask for.\n"
@@ -2537,7 +2558,7 @@ def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, lang
         return {
             "ratings": [
                 {"competency": c["competency"], "rating": 3, "evidence": "Not assessed (auto-synthesis unavailable)."}
-                for c in rubric
+                for c in required
             ],
             "summary": "Auto-synthesis unavailable; review the transcript and rate against the rubric manually. " + snippet,
             "recommendation": "hold",
@@ -2561,12 +2582,19 @@ def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, lang
             try:
                 rating = max(1, min(5, int(r.get("rating"))))
             except (TypeError, ValueError):
+                if norm(r["competency"]) in {norm(n) for n in optional_names}:
+                    continue  # an optional axis with no usable number is not assessed
                 rating = 3
             by_comp[norm(r["competency"])] = {"rating": rating, "evidence": str(r.get("evidence") or "")}
         # Always emit every rubric competency, in rubric order, filling gaps.
         ratings = []
         for c in rubric:
             got = by_comp.get(norm(c["competency"]))
+            if c["competency"] in optional_names:
+                # No number unless the model gave one with a quote behind it.
+                if got and got["evidence"].strip():
+                    ratings.append({"competency": c["competency"], **got})
+                continue
             ratings.append(
                 {
                     "competency": c["competency"],
@@ -2607,7 +2635,20 @@ def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, lang
     # Self-describe which rubric this was scored on (the compare grid renders the
     # matching axes per cohort) and how far to trust it given the transcript.
     result["scoringModel"] = model
-    result["confidence"] = _scorecard_confidence(notes, result["ratings"], len(rubric), ungrounded)
+    if optional_names:
+        # An optional axis whose quote did not survive grounding is not assessed either:
+        # a number with no evidence behind it must not stand. It is dropped, never midpointed.
+        result["ratings"] = [
+            r
+            for r in result["ratings"]
+            if r["competency"] not in optional_names
+            or (str(r.get("evidence") or "").strip() and r.get("evidence") != UNGROUNDED_EVIDENCE)
+        ]
+        have = {r["competency"] for r in result["ratings"]}
+        result["notAssessed"] = [c["competency"] for c in rubric if c["competency"] in optional_names and c["competency"] not in have]
+    result["confidence"] = _scorecard_confidence(
+        notes, [r for r in result["ratings"] if r["competency"] not in optional_names], len(required), ungrounded
+    )
     # WHICH LANGUAGE the recruiter-facing prose is actually in. The summary and the
     # recommendation rationale follow `language_directive(lang)` on the LLM path, but
     # the deterministic template is English whatever was asked for — so a cs/de/fr

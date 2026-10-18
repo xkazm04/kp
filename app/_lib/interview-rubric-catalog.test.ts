@@ -30,6 +30,7 @@ type RawRubrics = {
   ratingAnchors: Record<string, string>;
   rubrics: Record<string, RawCompetency[]>;
   industryAxes?: Record<string, RawCompetency[]>;
+  optionalAxes?: Record<string, RawCompetency[]>;
 };
 
 // Read straight off disk, independent of the module under test.
@@ -37,6 +38,7 @@ const SOURCE: RawRubrics = JSON.parse(readFileSync(path.join(ROOT, "pipeline", "
 const ALL: RawCompetency[] = [
   ...Object.values(SOURCE.rubrics).flat(),
   ...Object.values(SOURCE.industryAxes ?? {}).flat(),
+  ...Object.values(SOURCE.optionalAxes ?? {}).flat(),
 ];
 
 function rubricCatalog(locale: string) {
