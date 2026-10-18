@@ -1756,7 +1756,9 @@ class UnprovenReachesScreeningTest(unittest.TestCase):
 
     def test_unproven_facts_carries_the_skill_its_strength_and_its_reason(self):
         facts = automation.unproven_facts(self.m)
-        self.assertEqual(facts, [{"skill": "Python", "strength": 0.4, "reason": "provenance"}])
+        # 0.02, not 0.4: b6bd61a4e (C6b leak a) credits a bare self_declared claim on a
+        # prerequisite at self_declared_requirement=0.05 of its 0.4 adjacency score.
+        self.assertEqual(facts, [{"skill": "Python", "strength": 0.02, "reason": "provenance"}])
 
     def test_the_screening_prompt_shows_the_bucket_and_what_it_must_do(self):
         cap = _CaptureProvider({})
