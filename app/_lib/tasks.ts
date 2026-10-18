@@ -169,17 +169,17 @@ function itemCode(err: unknown): FanoutCode {
 
 // Draft tailored OUTREACH for a board-selected cohort — one background job that
 // runs the SAME per-candidate `outreach` automation the drawer's "Draft outreach"
-// action runs (runAutomationTask → the LLM/deterministic letter → dispatchOutreach,
-// which QUEUES the draft to the Outbox by default and only relays it when a channel
-// is configured; nothing is auto-sent in the demo default). Reaching a filtered
+// action runs (runAutomationTask → the LLM/deterministic letter → a HELD
+// outreach_letters draft; nothing is sent until a person approves and releases each
+// letter, comms scope C2 / outreach-release.ts). Reaching a filtered
 // cohort of 8 was 8 drawer trips; this is one action. Per-candidate ISOLATION: one
 // entry's failure (not found, no profile, consent-suppressed, LLM error) never
 // aborts the others, and each id's outcome is reported back so the board can keep
 // the failures selected for retry while successes deselect — the same batch grammar
 // the synchronous move/decide endpoint uses. Drafting N letters is N LLM calls, so
 // it runs here (backgrounded) instead of blocking the recruiter. Outreach is the
-// ONLY drafting action batched from the board: its output lands in the Outbox as a
-// reviewable, releasable row, whereas a rejection draft is a drawer-only result.
+// ONLY drafting action batched from the board: its output is a reviewable,
+// releasable held letter, whereas a rejection draft is a drawer-only result.
 // Guard a runaway cohort (mirrors the sync batch endpoint's BATCH_CAP): the board
 // rarely selects this many, and each id is an LLM call, so the wall-clock watchdog
 // would otherwise reap a huge run mid-flight.

@@ -30,7 +30,9 @@ import { getPipelineAxis } from "./pipeline-axis-server";
 import { offeredStageActions } from "./stage-ai-actions";
 import type { StageAiAction } from "./pipeline-stages";
 import { screenedLandingStage, stageHasRole } from "./pipeline-stages";
-import { dispatchOutreach } from "./comms-dispatch";
+import { draftOutreachLetter } from "./outreach-release";
+import { candidateOutreachSuppression } from "./rediscovery-alert-store";
+import { outreachHaltFor } from "./outreach-state-store";
 import {
   coerceInterviewRecommendation,
   coerceScreenRoute,
@@ -146,20 +148,13 @@ const LETTER_TASKS = LETTER_LANG_TASKS;
 // Event kind for the generic "drafted" tasks — ONLY those that fall through to the
 // catch-all branch below (currently rejection + prep). screen/scorecard/offer/
 // rematch/outreach each have their own branch and record their own event, so they
-// must NOT be listed here (an outreach entry was dead: outreach records
-// "outreach_sent" via dispatchOutreach, never "outreach_drafted").
+// must NOT be listed here (an outreach entry was dead: outreach holds its draft on an
+// outreach_letters row, and "outreach_sent" is recorded only when a person releases it).
 const DRAFT_EVENT: Record<string, string> = {
   rejection: "rejection_drafted",
   prep: "interview_prep_generated",
 };
 const TTL_HOURS = 168;
-
-// Per-entry in-process single-flight for outreach (mirrors automation-pass's inFlightPass).
-// The durable `outreach_sent` marker is written only AFTER sendComm, so two concurrent
-// same-process /api/automation/outreach calls for one entry both passed the hasEvent gate
-// and double-sent. The manual surfaces run in the same Next server process as the heartbeat,
-// so an in-process guard suffices; on send failure the entry is released so a retry works.
-const outreachInFlight = new Set<string>();
 
 // The refusals THIS module decides, as machine tokens. A route answers each with
 // its own `jsonRefusal` code, in the reader's language; everything else that
@@ -800,34 +795,40 @@ export async function runAutomationTask(
       applied = "no_alternative";
     }
   } else if (task === "outreach") {
-    // Non-adverse and recruiter-initiated — deliver the generated draft through
-    // the comms channel (queued to the outbox by default; relayed if configured).
+    // Non-adverse and recruiter-initiated — but a FIRST CONTACT with a person, so it is
+    // never sent from here (comms scope C2, "approve before first outreach"). The draft is
+    // HELD as an outreach_letters row; a person approves that exact revision and releases
+    // it (app/_lib/outreach-release.ts, POST /api/outreach-letters/[id]/{approve,release}).
+    // This branch makes no relay call and writes no outbox row, for every door that runs
+    // it: the drawer's automation task, the board's batch outreach (tasks.ts
+    // batchOutreach) and the sourcing "Reach out" route.
     //
-    // The prompt cache makes the DRAFT idempotent, but dispatchOutreach is a real
-    // side effect: it queues an outbox row and, with a relay configured, POSTs the
-    // message to the candidate. A cache HIT within the 7-day TTL (double-click,
-    // refresh-retry, or the same entry re-screened then outreach'd again) would
-    // otherwise re-fire the send every time. Gate the dispatch on the durable
-    // per-entry "outreach_sent" marker that dispatchOutreach itself records, so an
-    // outreach is delivered at most once per entry — first-contact, not a resend.
-    if (hasEvent(entry.id, "outreach_sent", workspaceId) || outreachInFlight.has(entry.id)) {
+    // A first touch is sent once: the durable `outreach_sent` marker (written only by a
+    // delivered release) still short-circuits, so a cache HIT or a re-screen never drafts
+    // a second first-contact for someone already reached. Re-running on a still-drafted
+    // letter re-drafts it in place (a new revision, voiding an approval nobody gave yet);
+    // once approved, the late draft is dropped by the store.
+    if (hasEvent(entry.id, "outreach_sent", workspaceId)) {
       applied = "already_sent";
     } else {
-      outreachInFlight.add(entry.id);
-      try {
-        const outcome = await dispatchOutreach(entry, result);
-        // A consent-suppressed outreach records no outreach_sent marker, so the UI
-        // surfaces "cannot contact — consent expired/anonymized" and a re-consent can
-        // still be reached later.
-        applied = outcome.sent
-          ? "sent"
-          : outcome.reason === "anonymized"
-            ? "suppressed_anonymized"
-            : "suppressed_consent_expired";
-      } finally {
-        // Release on completion AND on failure: dispatchOutreach records the durable marker
-        // only on a successful send, so clearing the in-flight slot lets a failed send retry.
-        outreachInFlight.delete(entry.id);
+      // The consent gate and the halted-sequence gate, read BEFORE anything is held — the
+      // same two predicates, in the same order, that dispatchOutreach applies at release —
+      // so a letter is not written to someone who cannot be contacted, and the refusal is
+      // audited the way a refused send always was. The release re-checks both.
+      const suppress =
+        candidateOutreachSuppression(entry.candidateId, {
+          givenAt: entry.consentGivenAt,
+          expiresAt: entry.consentExpiresAt,
+          anonymizedAt: entry.anonymizedAt,
+        }) ?? outreachHaltFor(entry.id, workspaceId);
+      if (suppress) {
+        recordAutomationEvent(entry.id, "outreach_suppressed", suppress, workspaceId);
+        // A halted sequence keeps the token it always had: the client collapses every
+        // non-anonymized refusal into one "cannot be contacted" sentence.
+        applied = suppress === "anonymized" ? "suppressed_anonymized" : "suppressed_consent_expired";
+      } else {
+        await draftOutreachLetter(entry, result, workspaceId);
+        applied = "drafted";
       }
     }
   } else {
