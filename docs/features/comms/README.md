@@ -638,10 +638,49 @@ a bad locale is `STOP_LANGUAGE_INVALID` 400. Locked by `app/api/stop/stop-langua
   example `consent_expired`), `relay` (a relay is configured; reason
   `no_contact` when no address was captured and the relay must resolve the
   name), else `local` (keyless: recorded in the outbox, nobody receives it).
-  `comms-letter-preview.ts` is imported only by that route, so the send gate's
-  store reads stay off the letter-sending routes' import graphs. Pinned by
+  `comms-letter-preview.ts` is imported only by that route and by the held-outreach
+  read (`GET /api/outreach-letters/[id]`, §8a), never by a door that sends, so the send
+  gate's store reads stay off the letter-sending routes' import graphs. Pinned by
   `app/_lib/comms-letter-preview.test.ts` and
   `app/api/pipeline/[id]/offer-letter/route.test.ts`.
+
+## 8a. Approve before first outreach (comms scope C2)
+
+A first contact is never sent by the machine that wrote it. All three outreach doors —
+the drawer's `outreach` automation task, the board's batch outreach (`tasks.ts`
+`batchOutreach`) and the sourcing Reach-out (`POST /api/jobs/[id]/candidates/outreach`)
+— run the one `outreach` branch in `app/_lib/automation-run.ts`. That branch makes no
+relay call and writes no outbox row. It runs the consent gate
+(`candidateOutreachSuppression`) and the halted-sequence gate (`outreachHaltFor`) first;
+a refusal is audited as `outreach_suppressed` and nothing is held. Otherwise it writes
+a held `outreach_letters` draft (`app/_lib/db/outreach-letters.ts`) and answers
+`applied: "drafted"`. Reach-out also returns the letter's `outreachLetterId`. The
+durable `outreach_sent` marker still answers `already_sent`, so a person is
+first-contacted once.
+
+| Step | Door | What it does |
+| --- | --- | --- |
+| Draft | the outreach task (`draftOutreachLetter`, `app/_lib/outreach-release.ts`) | one row per application (unique on `workspace_id, entry_id`), revision 1, a `message_id` minted now; a re-draft of a still-drafted letter bumps the revision (identical text does not) |
+| Read | `GET /api/outreach-letters/[id]` | the draft, its `revision`, and the letter a release would send: body plus the legal footers with `PREVIEW_TOKEN` links, and a forecast (`refused` / `simulation` / `suppressed` / `relay` / `local`) |
+| Approve | `POST /api/outreach-letters/[id]/approve` `{ revision }` | a CAS on id + team + revision + `drafted`, naming `humanActor()`; a stale revision answers `409 PIPELINE_MOVE_CONFLICT` with the current `{ state, revision }` |
+| Release | `POST /api/outreach-letters/[id]/release` | `releaseOutreachLetter` → `dispatchOutreach` (consent, then halt, then `sendComm`) carrying the draft's `message_id` |
+
+**One message identity.** The release hands the draft's `message_id` to `sendComm`
+(§7, C1). The outbox row's `message_id`, the envelope's `messageId` and the
+`Idempotency-Key` all equal the id minted at draft time. A release that dead-lettered
+(`state: delivery_failed`, `delivery: "failed"`, never a consent refusal) keeps its
+approval, and a retry re-sends **the same** message. Keyless, the release is `queued`
+in the local outbox with no network call. A halted or consent-lapsed entry answers
+`409 COMMS_SUPPRESSED` with `{ suppressed: <reason> }`, and the letter reads
+`suppressed`. The `outreach_sent` event names the **approver** as its actor.
+
+**Tenancy and erasure.** Every statement binds `workspace_id`, with no by-id carve-out
+(`outreach-letters-tenancy.test.ts`). A letter id from another team answers 404 on every
+door. Erasure (`scrubEntryLinkedPii`) blanks `subject` and `body` and stamps
+`erased_at`. That closes the row to a late draft and to approval, and the release
+refuses a letter with no body. Pinned by `app/_lib/db/outreach-letters.test.ts`,
+`app/_lib/outreach-release.test.ts`, `app/api/outreach-letters/outreach-letters.test.ts`
+and the door tests in `app/_lib/automation-run.test.ts`.
 
 ## 9. The adverse comm: recorded reasons only, protected attributes dropped
 
@@ -1410,15 +1449,18 @@ already returns alongside the entries. Both rules are pinned by
   declares no length is buffered whole before `validateUploadServer` ever sees a
   size. Same shape as `/api/analyze` and the public `/api/extract-text`, so the fix
   is a shared streaming-multipart cap, not a per-route patch.
-- **`automation-run` still collapses every non-anonymized `sent: false` into
-  `suppressed_consent_expired`.** `dispatchOutreach` now keys `{ sent: true }` on the
-  outbox row (REC-10): terminal `queued` and relay `sent` record `outreach_sent`; a
-  dead-letter returns `{ sent: false, reason: "delivery_failed" }` with no marker, so
-  the next pass retries instead of mapping the drop to `already_sent`. Pinned by
-  `comms-dispatch-outreach.test.ts`. The consumer ternary still handles only
-  `anonymized` and treats `delivery_failed` / `replied` / `manual` / `candidate` as a
-  consent lapse — map every reason 1:1 there without expanding the dispatcher's
-  contract.
+- **The outreach task still collapses a halted sequence into
+  `suppressed_consent_expired`.** A relay dead letter no longer reaches that mapping:
+  the task only drafts (§8a), and the release reads `delivery_failed`. But the draft
+  door's pre-check answers `replied` / `manual` / `candidate` with the consent token,
+  because `task-fanout.ts` and `task-outcome-summary.ts` know only the two
+  `suppressed_*` values. Map each halt reason 1:1 once those vocabularies grow one.
+- **No UI reads a held outreach letter yet.** The release card and the bulk dry-run
+  sheet are comms scope C2b. Until then, the drawer and the Reach-out button read
+  `applied: "drafted"` as the "sent" note (`useReachOut.ts` `reachOutVerdict` defaults
+  to `sent`), and the approve / release doors answer with borrowed codes
+  (`PIPELINE_ENTRY_NOT_FOUND`, `PIPELINE_MOVE_CONFLICT`) rather than outreach-letter codes of
+  their own.
 - **Pull-config refusals distinguish input from storage.** `PATCH` validates the
   operator's pull URL before the store call, returning `400 CHANNEL_PULL_URL_INVALID`
   for malformed or unsafe URLs. A later encryption or SQLite write failure reaches
