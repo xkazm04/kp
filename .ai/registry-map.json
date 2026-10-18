@@ -20961,7 +20961,11 @@
           "revision": 9,
           "changedAt": "2026-09-21",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/perf/devbench.mjs:221 Recording a baseline emits a document without the _provenance field required by the committed-baseline fixture, so the emission door does not enforce its consumer's completeness contract.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:c6563834f502429c",
+          "evaluatedRevision": 9
         },
         {
           "subject": "metric-gates",
@@ -22719,7 +22723,11 @@
           "revision": 9,
           "changedAt": "2026-09-21",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/shared/memberUi.ts:48 Locale coverage is raised into a compile-time constraint without a located negative artifact protecting that constraint from silent deletion.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:c6563834f502429c",
+          "evaluatedRevision": 9
         },
         {
           "subject": "translation-pipeline-topology",
@@ -25407,7 +25415,11 @@
           "revision": 9,
           "changedAt": "2026-09-21",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/public-base-url.ts:171 The final fallback bypasses HTTP(S) validation, allowing NEXT_PUBLIC_SITE_URL=ftp://hire.example to produce a candidate-link base that violates the resolver's stated contract.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:c6563834f502429c",
+          "evaluatedRevision": 9
         },
         {
           "subject": "docs-sync",
@@ -33379,7 +33391,11 @@
           "revision": 9,
           "changedAt": "2026-09-21",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/settings/workspace/WorkspaceTab.tsx:145 User and workspace identifiers remain interchangeable positional strings at a membership mutation boundary, so their distinction is enforced by caller convention.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:c6563834f502429c",
+          "evaluatedRevision": 9
         },
         {
           "subject": "status-vocabulary",

@@ -1,0 +1,305 @@
+{
+ "schema": "conform-run/1",
+ "worker": "7e48ae1f-2648-4b84-ad73-85ff46d5c945",
+ "subject": "invariant-placement",
+ "evaluatedAt": "2026-10-18T01:42:57.586979+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "lint-quality-gates",
+   "subject": "invariant-placement",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "scripts/perf/devbench.mjs:221 Recording a baseline emits a document without the _provenance field required by the committed-baseline fixture, so the emission door does not enforce its consumer's completeness contract.",
+   "techniques": [
+    {
+     "technique": "completeness-at-emission",
+     "verdict": "deviation",
+     "evidence": "scripts/perf/devbench.mjs:221 withRecorded emits only _doc, tolerance and entries; the fixture at scripts/perf/__tests__/devbench.test.mjs:136 requires _provenance, and an in-memory probe confirmed its omission."
+    },
+    {
+     "technique": "constraint-deletion-is-silent",
+     "verdict": "conformant",
+     "evidence": "scripts/perf/__tests__/check-budget.test.mjs:101 Known-bad budget constructions have explicit refusal assertions, providing negative artifacts for the validation door."
+    },
+    {
+     "technique": "derived-properties-cannot-be-forged",
+     "verdict": "conformant",
+     "evidence": "scripts/lint/ts-ratchet.mjs:191 Suppression occurrence counts are recomputed from source files rather than accepted from debt annotations."
+    },
+    {
+     "technique": "occurrence-is-not-a-type",
+     "verdict": "conformant",
+     "evidence": "eslint.config.mjs:58 A syntax gate explicitly checks whether awaiting occurs inside a transaction, instead of assuming ordinary function types preserve transaction lifetime."
+    },
+    {
+     "technique": "placement-precedes-gate",
+     "verdict": "conformant",
+     "evidence": "scripts/perf/check-budget.mjs:364 The relation between a source graph and an external budget is checked by an artifact gate, an appropriate placement for a contextual relation."
+    },
+    {
+     "technique": "shape-with-a-not-applicable-member",
+     "verdict": "not-applicable",
+     "evidence": "scripts/perf/devbench.mjs:88 unbaselined has a real producer and a dedicated reporting branch; it is a reachable measurement state, not an impossible placeholder member."
+    }
+   ]
+  },
+  {
+   "context": "workspace-member-admin",
+   "subject": "invariant-placement",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/settings/workspace/WorkspaceTab.tsx:145 User and workspace identifiers remain interchangeable positional strings at a membership mutation boundary, so their distinction is enforced by caller convention.",
+   "techniques": [
+    {
+     "technique": "build-time-evaluation-of-cross-value-invariants",
+     "verdict": "not-applicable",
+     "evidence": "app/features/settings/workspace/useWorkspaceAdmin.ts:51 The membership facts being folded arrive at runtime, which the technique explicitly excludes from build-time placement."
+    },
+    {
+     "technique": "consumption-bounds-at-most-once",
+     "verdict": "not-applicable",
+     "evidence": "app/features/settings/workspace/WorkspaceTab.tsx:235 Invite revocation crosses an HTTP and durable-state boundary; an in-process nonduplicable value would not establish its consumption semantics."
+    },
+    {
+     "technique": "derived-properties-cannot-be-forged",
+     "verdict": "conformant",
+     "evidence": "app/features/settings/workspace/workspaceAdminHelpers.ts:96 Custom-permission status is recomputed by comparing current capabilities with role defaults, including membership comparison after the size check."
+    },
+    {
+     "technique": "indistinguishable-members-do-not-rise",
+     "verdict": "deviation",
+     "evidence": "app/features/settings/workspace/WorkspaceTab.tsx:145 An in-memory TypeScript probe using the extracted signature accepted swapped userId/workspaceId arguments without diagnostics; no existing swapped call is alleged."
+    },
+    {
+     "technique": "occurrence-is-not-a-type",
+     "verdict": "conformant",
+     "evidence": "app/features/settings/workspace/MemberConfirmModals.tsx:47 The preview's association with the currently selected user is checked explicitly at consumption rather than inferred from its structural type."
+    },
+    {
+     "technique": "paired-sites-localize-the-fault",
+     "verdict": "not-applicable",
+     "evidence": "app/features/settings/workspace/MemberPermissionsModal.tsx:58 The capability snapshot is sent across HTTP for server-side comparison, making this a cross-process contract rather than two local assertion sites."
+    },
+    {
+     "technique": "placement-precedes-gate",
+     "verdict": "conformant",
+     "evidence": "app/features/settings/workspace/workspaceAdminLoad.ts:98 The runtime rule that a missing roster makes the console unusable is centralized in the load-fold boundary."
+    },
+    {
+     "technique": "repairing-check-erases-its-evidence",
+     "verdict": "not-applicable",
+     "evidence": "app/features/settings/workspace/workspaceAdminLoad.ts:115 Keeping prior invites is documented partial-load behavior, accompanied by the partial flag, rather than a defensive clamp hiding an allegedly impossible value."
+    },
+    {
+     "technique": "shape-with-a-not-applicable-member",
+     "verdict": "conformant",
+     "evidence": "app/features/settings/workspace/workspaceAdminHelpers.ts:24 Failure to resolve a membership is represented outside MemberTeam with null, without inventing a none-of-these role."
+    }
+   ]
+  },
+  {
+   "context": "member-ui-helpers",
+   "subject": "invariant-placement",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/shared/memberUi.ts:48 Locale coverage is raised into a compile-time constraint without a located negative artifact protecting that constraint from silent deletion.",
+   "techniques": [
+    {
+     "technique": "completeness-at-emission",
+     "verdict": "conformant",
+     "evidence": "app/features/shared/memberUi.ts:124 The single metadata builder's explicit return shape requires every emitted row to contain its capability, label and description."
+    },
+    {
+     "technique": "constraint-deletion-is-silent",
+     "verdict": "deviation",
+     "evidence": "app/features/shared/memberUi.ts:48 Searches for APP_LANGUAGES, MissingEndonym and the coverage assertion found no negative construction fixture protecting this explicit compile-time guarantee."
+    },
+    {
+     "technique": "consumption-bounds-at-most-once",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shared/memberUi.ts:93 These presentational helpers inspect reusable data; the count operation has no single-use resource obligation."
+    },
+    {
+     "technique": "derived-properties-cannot-be-forged",
+     "verdict": "conformant",
+     "evidence": "app/features/shared/memberUi.ts:117 Permission rows are constructed from the authoritative overridable-capability list rather than a separately asserted list of supported capabilities."
+    },
+    {
+     "technique": "indistinguishable-members-do-not-rise",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shared/memberUi.ts:61 The helpers' paired role/status and translator parameters have distinguishable types; there is no positional pair of interchangeable primitive identifiers here."
+    },
+    {
+     "technique": "occurrence-is-not-a-type",
+     "verdict": "deviation",
+     "evidence": "app/features/shared/memberUi.ts:59 The stated owner exclusion is not carried by this mutable, widened annotation: an in-memory probe accepted ASSIGNABLE_ROLES.push('owner') without diagnostics."
+    },
+    {
+     "technique": "paired-sites-localize-the-fault",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shared/memberUi.ts:125 The module computes fresh presentation results and contains no separated storage write/read relationship requiring paired fault localization."
+    },
+    {
+     "technique": "placement-precedes-gate",
+     "verdict": "conformant",
+     "evidence": "app/features/shared/memberUi.ts:119 Missing capability copy keys are refused at the shared row-construction door before consumers receive incomplete metadata."
+    },
+    {
+     "technique": "repairing-check-erases-its-evidence",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shared/memberUi.ts:103 The specified fallback visibly preserves unknown status instead of repairing it into a known seat state."
+    },
+    {
+     "technique": "shape-with-a-not-applicable-member",
+     "verdict": "not-applicable",
+     "evidence": "app/features/shared/memberUi.ts:87 The closed status set contains only real seat states and has no resolver-convenience absence member."
+    }
+   ]
+  },
+  {
+   "context": "platform-admin-ops",
+   "subject": "invariant-placement",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/public-base-url.ts:171 The final fallback bypasses HTTP(S) validation, allowing NEXT_PUBLIC_SITE_URL=ftp://hire.example to produce a candidate-link base that violates the resolver's stated contract.",
+   "techniques": [
+    {
+     "technique": "build-time-evaluation-of-cross-value-invariants",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/public-base-url.ts:141 Deployment URL inputs arrive through environment configuration, which is excluded from fixed-value build-time placement."
+    },
+    {
+     "technique": "consumption-bounds-at-most-once",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/after-response.ts:32 The wrapper schedules reusable best-effort callbacks and does not expose a single-use authorization or consumable proof value."
+    },
+    {
+     "technique": "derived-properties-cannot-be-forged",
+     "verdict": "conformant",
+     "evidence": "app/_lib/sanity-checks.ts:72 The trusted display total is recomputed from score components after checking score blockers, rather than accepting an independent trusted-total annotation."
+    },
+    {
+     "technique": "initialization-proof-tokens",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/sanity-checks.ts:53 The sanity module processes per-analysis trust data; it does not establish mandatory subsystem startup readiness."
+    },
+    {
+     "technique": "occurrence-is-not-a-type",
+     "verdict": "conformant",
+     "evidence": "app/_lib/public-base-url.ts:97 Whether this process has already emitted the conflict warning is enforced with runtime state rather than attributed to a type."
+    },
+    {
+     "technique": "paired-sites-localize-the-fault",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/sanity-checks.ts:2 The finding producer and this reader cross a language/process boundary, which the technique treats as a contract rather than a local assertion pair."
+    },
+    {
+     "technique": "placement-precedes-gate",
+     "verdict": "deviation",
+     "evidence": "app/_lib/public-base-url.ts:171 The shared URL construction door validates earlier branches but not the final siteUrl fallback; a read-only probe returned ftp://hire.example."
+    },
+    {
+     "technique": "repairing-check-erases-its-evidence",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/public-base-url.ts:152 Ignoring malformed configuration is explicit resolver policy with a warning, rather than a defensive clamp against a supposedly unreachable derived value."
+    },
+    {
+     "technique": "shape-with-a-not-applicable-member",
+     "verdict": "conformant",
+     "evidence": "app/_lib/sanity-checks.ts:85 Absence of an authenticity assessment is represented with null outside the three meaningful band values."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-18T01:42:57.586979+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "invariant-placement"
+   ],
+   "techniques": [
+    "completeness-at-emission",
+    "constraint-deletion-is-silent",
+    "derived-properties-cannot-be-forged",
+    "occurrence-is-not-a-type",
+    "placement-precedes-gate",
+    "shape-with-a-not-applicable-member"
+   ],
+   "deviations": 1,
+   "context": "lint-quality-gates",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-18T01:42:57.586979+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "invariant-placement"
+   ],
+   "techniques": [
+    "build-time-evaluation-of-cross-value-invariants",
+    "consumption-bounds-at-most-once",
+    "derived-properties-cannot-be-forged",
+    "indistinguishable-members-do-not-rise",
+    "occurrence-is-not-a-type",
+    "paired-sites-localize-the-fault",
+    "placement-precedes-gate",
+    "repairing-check-erases-its-evidence",
+    "shape-with-a-not-applicable-member"
+   ],
+   "deviations": 1,
+   "context": "workspace-member-admin",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-18T01:42:57.586979+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "invariant-placement"
+   ],
+   "techniques": [
+    "completeness-at-emission",
+    "constraint-deletion-is-silent",
+    "consumption-bounds-at-most-once",
+    "derived-properties-cannot-be-forged",
+    "indistinguishable-members-do-not-rise",
+    "occurrence-is-not-a-type",
+    "paired-sites-localize-the-fault",
+    "placement-precedes-gate",
+    "repairing-check-erases-its-evidence",
+    "shape-with-a-not-applicable-member"
+   ],
+   "deviations": 1,
+   "context": "member-ui-helpers",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-18T01:42:57.586979+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "invariant-placement"
+   ],
+   "techniques": [
+    "build-time-evaluation-of-cross-value-invariants",
+    "consumption-bounds-at-most-once",
+    "derived-properties-cannot-be-forged",
+    "initialization-proof-tokens",
+    "occurrence-is-not-a-type",
+    "paired-sites-localize-the-fault",
+    "placement-precedes-gate",
+    "repairing-check-erases-its-evidence",
+    "shape-with-a-not-applicable-member"
+   ],
+   "deviations": 1,
+   "context": "platform-admin-ops",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}
