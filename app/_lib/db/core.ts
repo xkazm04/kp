@@ -1610,16 +1610,8 @@ export function ensureDb(): Database.Database {
     CREATE UNIQUE INDEX IF NOT EXISTS uq_interview_letters_entry ON interview_letters (workspace_id, entry_id);
     CREATE INDEX IF NOT EXISTS idx_interview_letters_open ON interview_letters (workspace_id, state, requested_at);
 
-    -- First-contact OUTREACH held for a human (comms scope C2, db/outreach-letters.ts).
-    -- Every outreach door used to send the moment the letter was drafted; it now writes a
-    -- row here and the letter leaves only when a person approves THIS revision and
-    -- releases it (outreach-release.ts). One row per application: a first touch is sent
-    -- once. message_id is minted at draft time and carried to the release, so the outbox
-    -- row, the relay envelope and its Idempotency-Key all name the same message (C1).
-    --
-    -- CANDIDATE PERSONAL DATA: subject and body are written to one named person, so the
-    -- entry-keyed erasure scrub (db/pipeline.ts scrubEntryLinkedPii) blanks both and stamps
-    -- erased_at. The row stays as the record that a letter was drafted and what became of it.
+    -- Held first-contact outreach (db/outreach-letters.ts, comms scope C2). PII: the
+    -- erasure scrub blanks subject + body and stamps erased_at.
     CREATE TABLE IF NOT EXISTS outreach_letters (
       id TEXT PRIMARY KEY,
       workspace_id TEXT NOT NULL DEFAULT 'workspace',
