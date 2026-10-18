@@ -10664,10 +10664,12 @@
         "failed": "Could not promote this submission.",
         "reasons": {
           "authenticity_suspect": "{known, select, yes {Process authenticity is suspect ({score}/100)} other {Process authenticity is suspect}}",
+          "debrief_cleared": "A recorded debrief cleared the authorship hold",
           "low_confidence": "The evaluation rests on thin evidence (confidence {confidence})",
           "not_scored": "No transfer score yet, so it cannot clear the floor",
           "score_below_floor": "Transfer score {score} is below the floor of {floor}",
-          "score_clears_floor": "Transfer score {score} clears the floor of {floor}"
+          "score_clears_floor": "Transfer score {score} clears the floor of {floor}",
+          "trace_unwitnessed": "The work timeline arrived in bulk, not as it happened (score unchanged)"
         }
       },
       "caseScore": "assignment score",

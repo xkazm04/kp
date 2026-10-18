@@ -28,10 +28,12 @@
  *  `devcase.evalPanel.promoteVerdict.reasons.*` are pinned to it by the tests. */
 export const PROMOTE_REASON_CODES = [
   "authenticity_suspect",
+  "debrief_cleared",
   "low_confidence",
   "not_scored",
   "score_below_floor",
   "score_clears_floor",
+  "trace_unwitnessed",
 ] as const;
 export type PromoteReasonCode = (typeof PROMOTE_REASON_CODES)[number];
 
@@ -40,10 +42,12 @@ export type PromoteRecommendation = (typeof PROMOTE_RECOMMENDATIONS)[number];
 
 export type PromoteReason =
   | { code: "authenticity_suspect"; params: { score?: number } }
+  | { code: "debrief_cleared" }
   | { code: "low_confidence"; params: { confidence: number } }
   | { code: "not_scored" }
   | { code: "score_below_floor"; params: { score: number; floor: number } }
-  | { code: "score_clears_floor"; params: { score: number; floor: number } };
+  | { code: "score_clears_floor"; params: { score: number; floor: number } }
+  | { code: "trace_unwitnessed" };
 
 export type PromoteVerdict = {
   recommendation: PromoteRecommendation;
@@ -60,6 +64,12 @@ export type PromoteVerdictInput = {
   authenticityScore?: number | null;
   /** The evaluation's PROPAGATED evidence-confidence (0..1); absent = no signal, no penalty. */
   confidence?: number | null;
+  /** C2 - the work timeline arrived in bulk (integrity.witness.verdict === "unwitnessed"). */
+  unwitnessedTrace?: boolean;
+  /** C4 - a sealed `authorship_verified` decision is bound to THIS evaluation. It lifts the
+   *  two authorship holds (suspect process, unwitnessed trace) and nothing else: never the
+   *  floor, the absent-score tier or low confidence. */
+  debriefCleared?: boolean;
 };
 
 // The evidence-confidence floor for auto-advance advice - mirrors the Python
@@ -71,13 +81,21 @@ const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFin
 
 export function promoteVerdict(input: PromoteVerdictInput): PromoteVerdict {
   const reasons: PromoteReason[] = [];
-  const suspect = input.authenticityBand === "suspect";
+  const cleared = input.debriefCleared === true;
+  const rawSuspect = input.authenticityBand === "suspect";
+  const rawUnwitnessed = input.unwitnessedTrace === true;
+  const suspect = rawSuspect && !cleared;
+  const unwitnessed = rawUnwitnessed && !cleared;
+  // The clearance is named when it actually lifted something, so the card says why a
+  // suspect/unwitnessed candidate is no longer held.
+  if (cleared && (rawSuspect || rawUnwitnessed)) reasons.push({ code: "debrief_cleared" });
   if (suspect) {
     reasons.push({
       code: "authenticity_suspect",
       params: isNum(input.authenticityScore) ? { score: input.authenticityScore } : {},
     });
   }
+  if (unwitnessed) reasons.push({ code: "trace_unwitnessed" });
   const lowConfidence = isNum(input.confidence) && input.confidence <= LOW_EVAL_CONFIDENCE;
   if (lowConfidence) reasons.push({ code: "low_confidence", params: { confidence: input.confidence as number } });
 
@@ -91,7 +109,7 @@ export function promoteVerdict(input: PromoteVerdictInput): PromoteVerdict {
   } else {
     reasons.push({ code: "score_below_floor", params: { score, floor: input.floor } });
   }
-  return { recommendation: clears && !suspect && !lowConfidence ? "advance" : "hold", reasons };
+  return { recommendation: clears && !suspect && !unwitnessed && !lowConfidence ? "advance" : "hold", reasons };
 }
 
 /** Read the verdict's inputs off a stored evaluation bundle. The persisted column score
@@ -99,24 +117,33 @@ export function promoteVerdict(input: PromoteVerdictInput): PromoteVerdict {
 export function promoteVerdictInputOf(
   evaluationBundle: unknown,
   columnTransferScore: number | null | undefined,
-  floor: number
+  floor: number,
+  /** Lazy: the clearance is a DB read (clearedByFor), asked only when a hold exists to lift. */
+  isCleared?: () => boolean
 ): PromoteVerdictInput {
   const bundle = (evaluationBundle && typeof evaluationBundle === "object" ? evaluationBundle : {}) as {
     evaluation?: { confidence?: unknown } | null;
     transfer?: { transferScore?: unknown } | null;
     authenticity?: { band?: unknown; score?: unknown } | null;
+    integrity?: { witness?: { verdict?: unknown } | null } | null;
   };
   const fromBundle = bundle.transfer?.transferScore;
   const transferScore = isNum(columnTransferScore) ? columnTransferScore : isNum(fromBundle) ? fromBundle : null;
   const band = bundle.authenticity?.band;
   const authScore = bundle.authenticity?.score;
   const confidence = bundle.evaluation?.confidence;
+  // Same predicate as bundleTraceUnwitnessed (db/devcase.ts), read here so the file stays
+  // import-free; the tests pin the two together.
+  const unwitnessedTrace = bundle.integrity?.witness?.verdict === "unwitnessed";
+  const hasHold = band === "suspect" || unwitnessedTrace;
   return {
     transferScore,
     floor,
     authenticityBand: typeof band === "string" ? band : null,
     authenticityScore: isNum(authScore) ? authScore : null,
     confidence: isNum(confidence) ? confidence : null,
+    unwitnessedTrace,
+    debriefCleared: hasHold && isCleared ? isCleared() : false,
   };
 }
 
@@ -136,6 +163,10 @@ export function promoteAuditReasons(verdict: PromoteVerdict, floor: number): str
           ? `process authenticity is suspect (${r.params.score}/100)`
           : "process authenticity is suspect"
       );
+    } else if (r.code === "trace_unwitnessed") {
+      out.push("trace unwitnessed: the work timeline arrived in bulk, not as it happened (score unchanged)");
+    } else if (r.code === "debrief_cleared") {
+      out.push("authorship hold lifted: a recorded debrief cleared this evaluation");
     } else {
       out.push(`evaluation evidence-confidence is low (${r.params.confidence})`);
     }
@@ -183,6 +214,8 @@ export function promoteReasonMessage(reason: PromoteReason): {
     case "low_confidence":
       return { key: reason.code, values: { confidence: reason.params.confidence } };
     case "not_scored":
+    case "trace_unwitnessed":
+    case "debrief_cleared":
       return { key: reason.code, values: {} };
     default:
       return { key: reason.code, values: { score: reason.params.score, floor: reason.params.floor } };

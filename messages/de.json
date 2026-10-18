@@ -10664,10 +10664,12 @@
         "failed": "Diese Einreichung konnte nicht weitergeleitet werden.",
         "reasons": {
           "authenticity_suspect": "{known, select, yes {Die Prozess-Authentizität ist verdächtig ({score}/100)} other {Die Prozess-Authentizität ist verdächtig}}",
+          "debrief_cleared": "Ein dokumentiertes Debriefing hat die Urheberschaftssperre aufgehoben",
           "low_confidence": "Die Bewertung beruht auf dünner Evidenz (Konfidenz {confidence})",
           "not_scored": "Noch kein Transfer-Score, daher kann die Schwelle nicht erreicht werden",
           "score_below_floor": "Transfer-Score {score} liegt unter der Schwelle von {floor}",
-          "score_clears_floor": "Transfer-Score {score} erreicht die Schwelle von {floor}"
+          "score_clears_floor": "Transfer-Score {score} erreicht die Schwelle von {floor}",
+          "trace_unwitnessed": "Die Arbeitschronik kam gebündelt an, nicht beim Entstehen (Punktzahl unverändert)"
         }
       },
       "caseScore": "Aufgabenwert",

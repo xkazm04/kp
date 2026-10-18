@@ -12,7 +12,7 @@
 // re-offered the record buttons and a re-click double-counted in calibrate().
 //
 // Every read takes the caller's workspace (D5).
-import { listSubmissions, type DevSubmission } from "@/app/_lib/db/devcase";
+import { clearedByFor, listSubmissions, type DevSubmission } from "@/app/_lib/db/devcase";
 import { inFlightAttemptsByPosting, NO_IN_FLIGHT, type InFlightAttempts } from "@/app/_lib/db/devcase-inflight";
 import { latestOutcomeByRefs, type OutcomeSummary } from "@/app/_lib/dev-outcomes";
 import { activePromoteFloor } from "@/app/_lib/devcase-orchestrator";
@@ -42,7 +42,7 @@ export function postingsView<P extends { id: string }>(postings: readonly P[], w
       const outcome = outcomes.get(s.id);
       const withOutcome = outcome ? { ...s, outcome } : s;
       return s.evaluation
-        ? { ...withOutcome, promotePreview: promoteVerdict(promoteVerdictInputOf(s.evaluation, s.transferScore, floor)) }
+        ? { ...withOutcome, promotePreview: promoteVerdict(promoteVerdictInputOf(s.evaluation, s.transferScore, floor, () => clearedByFor(s) !== null)) }
         : withOutcome;
     }),
   }));

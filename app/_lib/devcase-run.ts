@@ -1,6 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { clearedByFor, heldForAuthorship, getDevCase, getDevCaseBaseline, getDevSession, getDevSessionChat, getDevSessionEvents, getDevSessionIntegrity, bundleTraceUnwitnessed, UNWITNESSED_CONFIDENCE_CAP, getPosting, getSubmission, lifecycleByPosting, saveSubmissionEvaluation, type DevCaseRecord, type DevSubmission, type SessionIntegrity } from "./db/devcase";
+import { clearedByFor, heldForAuthorship, getDevCase, getDevCaseBaseline, getDevSession, getDevSessionChat, getDevSessionEvents, getDevSessionIntegrity, UNWITNESSED_CONFIDENCE_CAP, getPosting, getSubmission, lifecycleByPosting, saveSubmissionEvaluation, type DevCaseRecord, type DevSubmission, type SessionIntegrity } from "./db/devcase";
 import { candidateIdByContact, createPipelineEntry, getPipelineEntry, recordAutomationEvent, setApproval } from "./db/pipeline";
 import { getJob } from "./db/jobs";
 import { ensureDb } from "./db/core";
@@ -1117,17 +1117,18 @@ export function promoteSubmission(submissionId: string, floor: number, actor?: s
   // here — ABOVE the transaction — and shared with the postings preview.
   // C4 — a clearance (clearedBy) lifts the authorship holds below; the band and the
   // score stay in the bundle as history, only the BLOCKER is removed from the verdict.
-  const cleared = clearedByFor(sub) !== null;
-  const verdictInput = promoteVerdictInputOf(sub.evaluation, sub.transferScore, floor);
-  const verdict = promoteVerdict(cleared ? { ...verdictInput, authenticityBand: null } : verdictInput);
+  // The preview (devcase-postings-view.ts) builds its input the same way: the C2 unwitnessed
+  // hold and the C4 clearance are INPUTS of the one rule, not a second pass over its answer.
+  const verdictInput = promoteVerdictInputOf(sub.evaluation, sub.transferScore, floor, () => clearedByFor(sub) !== null);
+  const verdict = promoteVerdict(verdictInput);
   // null when nothing scored the submission — never the fabricated 0 it used to be.
   const score = verdictInput.transferScore;
-  const suspectAuth = verdictInput.authenticityBand === "suspect" && !cleared;
+  const suspectAuth = verdict.reasons.some((r) => r.code === "authenticity_suspect");
   const evalConfidence = verdictInput.confidence ?? null;
   const lowConfidence = verdict.reasons.some((r) => r.code === "low_confidence");
   // C2 — an unwitnessed timeline holds auto-promote; it never changes the score. The
   // reasons line is written here, beside the verdict's own, so a hold always says why.
-  const unwitnessed = !cleared && bundleTraceUnwitnessed(sub.evaluation);
+  const unwitnessed = verdict.reasons.some((r) => r.code === "trace_unwitnessed");
 
   // TENANT: the SUBMISSION's own team owns everything this function writes — the
   // pipeline entry, the screening card and the audit event. There is no session
@@ -1221,11 +1222,10 @@ export function promoteSubmission(submissionId: string, floor: number, actor?: s
     sourceChannel: "devcase",
     workspaceId,
   });
-  const recommendation: PromoteResult["recommendation"] = unwitnessed ? "hold" : verdict.recommendation;
+  const recommendation: PromoteResult["recommendation"] = verdict.recommendation;
   const reasons = promoteAuditReasons(verdict, floor);
   const redFlags = [...((evaluation.concerns as string[]) ?? [])];
   if (unwitnessed) {
-    reasons.push("trace unwitnessed: the work timeline arrived in bulk, not as it happened (score unchanged)");
     redFlags.unshift("Trace unwitnessed — the work timeline arrived in bulk rather than as it happened. The score is unchanged; verify the work live before advancing.");
   }
   if (suspectAuth) {

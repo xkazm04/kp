@@ -10664,10 +10664,12 @@
         "failed": "Impossible de promouvoir cette soumission.",
         "reasons": {
           "authenticity_suspect": "{known, select, yes {L'authenticité du processus est suspecte ({score}/100)} other {L'authenticité du processus est suspecte}}",
+          "debrief_cleared": "Un débriefing consigné a levé la retenue sur la paternité",
           "low_confidence": "L'évaluation repose sur des éléments minces (confiance {confidence})",
           "not_scored": "Pas encore de score de transfert, le seuil ne peut donc pas être atteint",
           "score_below_floor": "Score de transfert {score} sous le seuil de {floor}",
-          "score_clears_floor": "Score de transfert {score} atteint le seuil de {floor}"
+          "score_clears_floor": "Score de transfert {score} atteint le seuil de {floor}",
+          "trace_unwitnessed": "La chronologie du travail est arrivée d'un bloc, pas au fil de l'eau (score inchangé)"
         }
       },
       "caseScore": "score de l’exercice",

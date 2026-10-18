@@ -10664,10 +10664,12 @@
         "failed": "Řešení se nepodařilo posunout do pipeline.",
         "reasons": {
           "authenticity_suspect": "{known, select, yes {Autenticita postupu práce je podezřelá ({score}/100)} other {Autenticita postupu práce je podezřelá}}",
+          "debrief_cleared": "Zaznamenaný debrief zrušil pozastavení kvůli autorství",
           "low_confidence": "Hodnocení stojí na slabých podkladech (spolehlivost {confidence})",
           "not_scored": "Zatím chybí skóre přenosu, laťku proto nelze splnit",
           "score_below_floor": "Skóre přenosu {score} je pod laťkou {floor}",
-          "score_clears_floor": "Skóre přenosu {score} splňuje laťku {floor}"
+          "score_clears_floor": "Skóre přenosu {score} splňuje laťku {floor}",
+          "trace_unwitnessed": "Časová osa práce dorazila najednou, ne průběžně (skóre se nemění)"
         }
       },
       "caseScore": "skóre zadání",
