@@ -13,8 +13,10 @@ sources:
   - pipeline/jobfit/tests/test_devcase_eval.py
 ---
 
-**Status: accepted, partially implemented.** Only C1 below has landed; the rest is the
-approved build order, not the state of the code.
+**Status: accepted, partially implemented.** C1 to C6 below have landed (C6 as an opt-in
+preview). On 2026-10-18 the operator decided to adopt the C6 weights as the default
+scorer; that adoption is planned, not landed (see the dated decision below). S1 to S3
+and L1 are still the approved build order.
 
 ## Context
 
@@ -51,11 +53,11 @@ block and a human at the gate.
 | Step | What | State |
 | --- | --- | --- |
 | C1 | channel-neutral verification credit | **landed** (`24e67fd12`, `bafe7b65b`) |
-| C2 | witnessed timeline, zero-penalty | planned |
-| C3 | decision log aims the debrief | planned |
-| C4 | recorded debrief findings release holds | planned |
-| C5 | keyless twin-cast match harness | planned |
-| C6 | proof-paying match weights as a logged preview | planned |
+| C2 | witnessed timeline, zero-penalty | **landed** (`171348563`) |
+| C3 | decision log aims the debrief | **landed** (`62bbd7ccb`, `fd513167a`) |
+| C4 | recorded debrief findings release holds | **landed** (`e8c97df61`) |
+| C5 | keyless twin-cast match harness (`pipeline/jobfit/eval/matching_era_eval.py`) | **landed** (`2fdc4fe5`) |
+| C6 | proof-paying match weights as a logged preview | **landed as an opt-in preview** (`4145c47bb`, `ccc839eaa`, `5fd3430d0`, `d3f500f68`); adoption as default planned, see below |
 | S1 | a "Working with AI tools" BARS axis | planned |
 | S2 | a supplied AI-draft critique stimulus | planned |
 | S3 | the evidence-ladder recruiter UI | planned |
@@ -65,6 +67,37 @@ block and a human at the gate.
 
 A council of LLMs is **not** a product evaluator of candidates. The multi-model council
 is a dev-time tool only. Every step above ends in a person's decision.
+
+## Decision 2026-10-18: proof weights become the default scorer
+
+**Measured C6 result.** The opt-in preview (`PROOF_PREVIEW_WEIGHTS`) was run through the C5
+harness against six targets: free-claim gain <= 2.0, best-job crossings 0, proof premium
+not lower, name deltas 0, 0 student/career_switcher tier losses, and a reasons line on
+every changed score. Free-claim gain measured **+13.67** with **7 of 66** best-job
+crossings, so the targets were **not met**.
+
+**Decision.** The operator, as the named adopter, adopts `PROOF_PREVIEW_WEIGHTS` as kp's
+default scorer anyway. The adoption delivery is **planned, not landed**. It owes:
+
+- wiring into the product path;
+- the proof runner in `pipeline/jobfit/eval/neutrality.py` `SCORERS`;
+- `docs/features/matching/README.md`;
+- a scorer-version stamp on stored scores;
+- re-pinned C5 baselines and `test:eval:match`, with before/after recorded, and any
+  candidate whose tier changes carries its reasons line.
+
+**Approved follow-up C6b, "close the leaks" (planned after adoption, not landed).**
+Discount `self_declared` claims on prerequisite and nice-to-have requirements; proof-gate
+the BAU personal keyword overlap in `score_personal`; stop counting bare claims in
+`transform.compute_potential` velocity. C6b uses the same harness and the same targets, the
+frontier is reported honestly, a target is never loosened, and the `expectedFailure` tests
+flip when met.
+
+**Alternative that lost:** keep proof weights as an opt-in preview until every target is
+met.
+
+**Constraint that decided it:** the operator chose to move the product onto the proof path
+now and close the gap in C6b.
 
 ## Open watch item
 
@@ -89,5 +122,6 @@ went 70.8 -> 76.0, to be checked in S2.
 - Later steps must keep the judgment gap at zero on the observed path and report the
   gamer-cohort figure above when S2 lands.
 - This record is **accepted** for the decision and **partial** for the build; update the
-  table as each step ships.
+  table as each step ships. C1 to C6 have shipped; the default-scorer adoption and C6b
+  have not.
 - Reopen if: the gamer cohort keeps rising faster than strong-weak discrimination at S2.
