@@ -4715,7 +4715,11 @@
           "revision": 16,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_components/AiDisclosure.tsx:131 A compliance-fetch rejection produces a user-visible fallback but no operator event for client-side failures.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:d811928687fd4faf",
+          "evaluatedRevision": 17
         }
       ],
       "governance": "governed"
@@ -23176,7 +23180,11 @@
           "revision": 16,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/ops-telemetry.ts:67 Telemetry read faults become empty results without diagnostics, making unreadable telemetry indistinguishable from a fresh installation.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:d811928687fd4faf",
+          "evaluatedRevision": 17
         },
         {
           "subject": "telemetry-pii-redaction",
@@ -28575,7 +28583,11 @@
           "revision": 16,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/useLoader.ts:56 The loader replaces structured API failures with a generic exception and ultimately a boolean, preventing callers from distinguishing failure categories.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:d811928687fd4faf",
+          "evaluatedRevision": 17
         },
         {
           "subject": "mcp-tools",

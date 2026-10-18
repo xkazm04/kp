@@ -12904,6 +12904,109 @@
           "evidence": "app/features/shared/renderTemplate.ts:176 Inputs are document fields; this module does not analyze samples or derive dataset summaries."
         }
       ]
+    },
+    "90c107cb-5bdc-4cc3-929e-a56119d48acc/error-handling": {
+      "context": "app-shell-brand",
+      "subject": "error-handling",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T23:50:10.741Z",
+      "worker": "19aa6446-79d8-45df-85d1-487889e5ae22",
+      "techniques": [
+        {
+          "technique": "consumer-decides-error-shape",
+          "verdict": "conformant",
+          "evidence": "app/_components/ErrorBoundary.ts:61 The application-local reporting boundary retains the original Error aggregate instead of replacing it with display prose."
+        },
+        {
+          "technique": "error-doors",
+          "verdict": "deviation",
+          "evidence": "app/_components/AiDisclosure.tsx:131 The rejection handler sets the flag that renders an alert and retry, but client-side network failures receive no telemetry."
+        },
+        {
+          "technique": "structured-propagation",
+          "verdict": "deviation",
+          "evidence": "app/_components/AiDisclosure.tsx:70 The response status becomes prose in a generic Error; the structured response code and status are not propagated."
+        },
+        {
+          "technique": "swallowed-error-prevention",
+          "verdict": "deviation",
+          "evidence": "app/_lib/auth/session-nav.ts:66 SignOutButton delegates to this helper, whose logout rejection is swallowed without notification or reporting while the session may remain valid."
+        },
+        {
+          "technique": "user-facing-mapping",
+          "verdict": "deviation",
+          "evidence": "messages/en.json:1913 RouteError renders this unconditional reassurance without verifying whether interrupted user work was preserved."
+        }
+      ]
+    },
+    "072ae351-6062-4edf-ae14-acf4260e4c19/error-handling": {
+      "context": "ops-observability",
+      "subject": "error-handling",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T23:50:10.741Z",
+      "worker": "19aa6446-79d8-45df-85d1-487889e5ae22",
+      "techniques": [
+        {
+          "technique": "crash-capture",
+          "verdict": "deviation",
+          "evidence": "app/_lib/sentry-client.ts:74 Synchronous scrubbing runs outside a guard; a non-Error throw whose string coercion throws can escape this supposedly terminal reporter."
+        },
+        {
+          "technique": "error-doors",
+          "verdict": "deviation",
+          "evidence": "app/_lib/ops-telemetry.ts:67 The catch conflates missing logs with read faults and reports neither the fault nor degraded telemetry availability."
+        },
+        {
+          "technique": "structured-propagation",
+          "verdict": "deviation",
+          "evidence": "app/_lib/sentry-client.ts:51 The capture copy preserves name, stack and digest afterward, but drops the original cause chain and machine classification fields."
+        },
+        {
+          "technique": "swallowed-error-prevention",
+          "verdict": "deviation",
+          "evidence": "app/_lib/ops-telemetry.ts:62 Malformed records are intentionally absorbed without a diagnostic or absorption counter; the comment declares the drop but supplies no door."
+        }
+      ]
+    },
+    "74171ef0-a76e-499a-8dbc-5f0af5bebeb6/error-handling": {
+      "context": "shared-client-hooks",
+      "subject": "error-handling",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T23:50:10.741Z",
+      "worker": "19aa6446-79d8-45df-85d1-487889e5ae22",
+      "techniques": [
+        {
+          "technique": "cancellation-attribution",
+          "verdict": "deviation",
+          "evidence": "app/_lib/useJsonFetch.ts:91 An AbortError is silently treated as benign even when the local controller was never aborted, so an unattributed cancellation receives a benign classification."
+        },
+        {
+          "technique": "error-doors",
+          "verdict": "deviation",
+          "evidence": "app/_lib/useLoader.ts:65 Caught transport and selector exceptions become banner state without an operator event; caller rendering supplies only the user door."
+        },
+        {
+          "technique": "structured-propagation",
+          "verdict": "deviation",
+          "evidence": "app/_lib/useLoader.ts:56 The response's code and HTTP status are discarded before the catch reduces the failure to failed:true."
+        },
+        {
+          "technique": "swallowed-error-prevention",
+          "verdict": "deviation",
+          "evidence": "app/_lib/useAddToPipeline.ts:109 After JSON decoding is caught and replaced with null, a 2xx response still returns success, allowing a decode failure to become an added announcement."
+        },
+        {
+          "technique": "user-facing-mapping",
+          "verdict": "deviation",
+          "evidence": "app/_lib/useJsonFetch.ts:53 The generic fallback is hardcoded English; inspected QualityInstrument callers omit errorLabel, bypassing localized failure copy for uncoded failures."
+        }
+      ]
     }
   }
 }
