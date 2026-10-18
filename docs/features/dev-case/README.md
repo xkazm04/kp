@@ -299,10 +299,28 @@ Six controls, referenced in code comments as "LLM-era controls #1–#6":
 |---|---|---|---|
 | 1 | Tamper-evident hash chain | Every Live Work Surface event is chained server-side (SHA-256); a broken chain or backdated client timestamp marks the whole observed trace untrustworthy | `app/_lib/db/core.ts` (schema), `app/_lib/db/devcase.ts` (verify), `app/_lib/devcase-run.ts` |
 | 2 | Captured prompt channel | In-session chat (assistant/stakeholder replies) is server-recorded, not client-reported, so tooling-fluency signals can't be fabricated | `pipeline/jobfit/devcase/chat.py`, `prompt_signals.py` |
-| 3 | Canaries | The seed materializer plants known-ground-truth flaws; each is graded ADDRESSED / FLAGGED / PROPAGATED / UNVERIFIABLE against the submitted tree | `pipeline/jobfit/devcase/seed_materializer.py`, `artifact_checks.py` |
+| 3 | Canaries | The seed materializer plants known-ground-truth flaws; each is graded ADDRESSED / FLAGGED / PROPAGATED / UNVERIFIABLE against the submitted tree. Every case, keyless included, also carries one supplied AI draft (below) whose flaws are canaries | `pipeline/jobfit/devcase/seed_materializer.py`, `ai_drafts.py`, `artifact_checks.py` |
 | 4 | Per-session watermark | A deterministic, session-specific marker in the seed; a **foreign** watermark inside a submission is the tell that a solution circulated between candidates | `app/_lib/db/devcase.ts` |
 | 5 | Mid-flight perturbation | A requirement change revealed mid-session (server-timestamped), after which everything is the candidate's observed adaptation to a changed brief — defeats pure one-shot generation | `pipeline/jobfit/devcase/models.py`, `design.py` (case-design-v6), `process_events.py` |
 | 6 | Frozen naive baseline | At approval, a bare one-shot LLM solve is frozen per case; submissions are diffed against it (never as a penalty — it aims the authorship interview, since using an LLM is never itself penalized) | `pipeline/jobfit/devcase/baseline.py`, `artifact_checks.py` |
+
+**The supplied AI draft (ADR 0027 S2).** Every seed ships exactly one file under
+`drafts/` that opens with the truthful label *UNREVIEWED AI-GENERATED DRAFT … You may
+use it, fix it or discard it*, and the README names it the same way. The drafts are
+curated per role family in `pipeline/jobfit/devcase/ai_drafts.py` (one per
+`taxonomy.ROLE_FAMILIES` entry; the devcase scenario families such as `devops_sre` or
+`fpna` alias onto them, anything else gets the `general_professional` draft). Each
+carries two flaws whose ground truth holds in every case of its family (a backoff that
+grows linearly while its docstring says exponential, a 1:100 dilution labelled 1:10, a
+GDPR deadline of 7 days instead of 72 hours), recorded as canaries in the usual shape.
+Nothing in the draft hints at them beyond the "unreviewed" label. The keyless
+`deterministic_seed()` used to plant no canaries at all; the draft is now its only
+source of them, and on the LLM path the draft's canaries ride beside the model's own
+(the draft path is reserved, so a model file cannot shadow it). Grading is the existing
+channel-neutral rule: fixed or flagged counts as caught, left in place as propagated.
+Using the draft is neither rewarded nor penalised; only checking its claims counts.
+Pinned by `pipeline/jobfit/tests/test_devcase_ai_draft.py`. Gap: the draft text is
+English-only, like the rest of the deterministic seed.
 
 Fairness invariants (checked in code, not just prose): using an LLM is never
 penalized; over-reliance is inferred only from observed process artifacts
@@ -337,7 +355,8 @@ assembled only inside the CLI's argv branch, so the gate certified the
 commit-message path alone while in-product candidates were scored on the
 observed one. `--path commit` (default) runs repo-link submissions,
 `--path observed` Live Work Surface sessions — one fixed template per behaviour
-(events, chat, submitted tree, a seed with two canaries, a one-shot baseline),
+(events, chat, submitted tree, a seed with two canaries plus the software family's
+supplied AI draft and its two, a one-shot baseline),
 replicated to `--count` — and `--path both` the two landscapes together.
 `python -m pipeline.jobfit.devcase.submission_eval --path observed --count 48 --no-llm --strict`
 exits 0, and the gated Python suite holds both paths
@@ -558,10 +577,11 @@ Three presentation rules are enforced by those components rather than left to pr
 
 - **Honest darkness.** Every check is optional at the producer, and "did not run"
   never renders as a pass. `chain.valid === null` (no hashed events) is shown as
-  *unverifiable*, not clean. A case whose seed planted no canaries — which is what
-  the deterministic/keyless seed deliberately does, since
-  "a template flaw with no real ground truth would grade candidates against noise"
-  (`seed_materializer.py`) — says the check did not run. So does a case where the
+  *unverifiable*, not clean. A case whose seed planted no canaries says the check did
+  not run. Since S2 every newly materialized seed carries the supplied draft's canaries,
+  keyless included (`ai_drafts.py`; the keyless path still plants no *template* flaws,
+  since "a template flaw with no real ground truth would grade candidates against
+  noise"), so this state now means a seed frozen before `seed-materializer-v3`. So does a case where the
   LLM was unavailable at approval and no baseline was frozen
   (`devcase-orchestrator.ts` records a `baseline_unavailable` audit).
 - **Never a penalty.** Baseline overlap is rendered as a plain figure with an

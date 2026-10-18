@@ -9,14 +9,16 @@ tags: [scoring, devcase, matching, fairness, ai-era, human-in-the-loop]
 sources:
   - pipeline/jobfit/devcase/evaluate.py
   - pipeline/jobfit/devcase/submission_eval.py
+  - pipeline/jobfit/devcase/ai_drafts.py
+  - pipeline/jobfit/tests/test_devcase_ai_draft.py
   - pipeline/jobfit/tests/test_devcase_verification_acts.py
   - pipeline/jobfit/tests/test_devcase_eval.py
 ---
 
 **Status: accepted, partially implemented.** C1 to C6 below have landed. On 2026-10-18 the
 operator adopted the C6 weights as the default scorer (landed, see the dated decision
-below), and C6b "close the leaks" has landed on top of it. S1 to S3 and L1 are still the
-approved build order.
+below), and C6b "close the leaks" has landed on top of it. S1 and S2 landed on 2026-10-18;
+S3 and L1 are still the approved build order.
 
 ## Context
 
@@ -58,8 +60,8 @@ block and a human at the gate.
 | C4 | recorded debrief findings release holds | **landed** (`e8c97df61`) |
 | C5 | keyless twin-cast match harness (`pipeline/jobfit/eval/matching_era_eval.py`) | **landed** (`2fdc4fe5`) |
 | C6 | proof-paying match weights as a logged preview | **landed as an opt-in preview** (`4145c47bb`, `ccc839eaa`, `5fd3430d0`, `d3f500f68`); **adopted as the default scorer** (`9ec98ac06`), see below |
-| S1 | a "Working with AI tools" BARS axis | planned |
-| S2 | a supplied AI-draft critique stimulus | planned |
+| S1 | a "Working with AI tools" BARS axis | **landed** (`6fd0f72c8`, `74b0789ec`, `c38d34620`) |
+| S2 | a supplied AI-draft critique stimulus | **landed** (`9ba252257`, `796519494`, `a1813287e`), see the watch item |
 | S3 | the evidence-ladder recruiter UI | planned |
 | L1 | an offline-verifiable work-proof | planned |
 
@@ -141,6 +143,27 @@ now and close the gap in C6b.
 Recorded verbatim: the gamer cohort rose 76.8 -> 82.0 while strong-weak discrimination
 went 70.8 -> 76.0, to be checked in S2.
 
+**Checked at S2 (2026-10-18).** Both figures are margins over the strong cohort on the
+rubric-weighted case score: "gamer" is strong minus the AI-no-verify cohort, "discrimination"
+is strong minus weak. Measured with `submission_eval --count 48 --no-llm --path observed`,
+before S2 (`8dbe8ddfe`) and after it (`a1813287e`, the observed cast carrying the draft):
+
+| figure | before S2 | after S2 |
+|---|---|---|
+| strong / weak / gamer mean | 92.0 / 16.0 / 10.0 | 92.0 / 16.0 / 10.0 |
+| gamer margin (strong - AI-no-verify) | 82.0 | 82.0 |
+| strong-weak discrimination | 76.0 | 76.0 |
+| judgment gap `\|ai - non_ai\|` | 0.0 | 0.0 |
+| draft caught rate: careful_verifier / ai_then_verify / ai_no_verify | - | 100% / 100% / 0% |
+
+The gamer margin did not rise faster than discrimination: neither moved, so the reopen
+trigger below is not met. Read that honestly: on this synthetic cast the verification term
+is already at its ceiling (verifiers 100, non-verifiers 0 judgment), and a caught planted
+defect counts as one verification act however many are caught, so the draft adds no score.
+What S2 changes is that keyless cases now grade real canaries at all, and that the gamer's
+propagated draft flaws are named in its concerns. Keep watching on the next step that moves
+the observed score.
+
 ## Alternatives that lost
 
 - **Scoring `DECISIONS.md` into judgment.** Breaks the ordinary-practice framing: writing
@@ -159,6 +182,6 @@ went 70.8 -> 76.0, to be checked in S2.
 - Later steps must keep the judgment gap at zero on the observed path and report the
   gamer-cohort figure above when S2 lands.
 - This record is **accepted** for the decision and **partial** for the build; update the
-  table as each step ships. C1 to C6, the default-scorer adoption and C6b have shipped; the
+  table as each step ships. C1 to C6, the default-scorer adoption, C6b, S1 and S2 have shipped; the
   C6b best-job crossings target (at most 2 of 66, each a 1-point step) is met at 2/66.
 - Reopen if: the gamer cohort keeps rising faster than strong-weak discrimination at S2.
