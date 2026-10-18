@@ -17,6 +17,7 @@ import type { Entry } from "@/app/features/shared/pipelineTypes";
 import { useMapMoney } from "../map/useMapMoney";
 import { PipelineDegradedIntakeBanner } from "../PipelineDegradedIntakeBanner";
 import { PipelineHireOutcomeCard } from "../PipelineHireOutcomeCard";
+import { OutreachReleaseCard } from "./outreach/OutreachReleaseCard";
 import type { CandidateState } from "./state/useCandidateState";
 import type { CandidateDetailModel } from "./scorecard/candidateDetailModel";
 import { AnalysisNote, SkillGroups, StageRoute } from "./scorecard/DetailParts";
@@ -56,21 +57,22 @@ export function CandidateOverviewTab({
 
   return (
     <div className="flex flex-col">
-      {entry.intakeDegraded || hired ? (
-        <div className="space-y-4 px-4 pt-5 sm:px-6">
-          {entry.intakeDegraded ? (
-            <PipelineDegradedIntakeBanner
-              reason={entry.intakeDegradedReason}
-              resolving={st.resolvingIntake}
-              intakeErr={st.intakeErr}
-              onResolve={st.resolveIntake}
-              onOpenProfile={onOpenProfile}
-              candidateId={entry.candidateId}
-            />
-          ) : null}
-          {hired ? <PipelineHireOutcomeCard entryId={entry.id} /> : null}
-        </div>
-      ) : null}
+      <div className="space-y-4 px-4 pt-5 empty:hidden sm:px-6">
+        {/* A first-contact letter is held until a person approves and releases it. A fresh
+            outreach task result re-reads it (the task drafts a new revision). */}
+        <OutreachReleaseCard entryId={entry.id} refreshKey={st.result?.task === "outreach" ? st.result : null} />
+        {entry.intakeDegraded ? (
+          <PipelineDegradedIntakeBanner
+            reason={entry.intakeDegradedReason}
+            resolving={st.resolvingIntake}
+            intakeErr={st.intakeErr}
+            onResolve={st.resolveIntake}
+            onOpenProfile={onOpenProfile}
+            candidateId={entry.candidateId}
+          />
+        ) : null}
+        {hired ? <PipelineHireOutcomeCard entryId={entry.id} /> : null}
+      </div>
 
       <div className="mt-5 grid border-t border-stone-200 bg-white md:grid-cols-[17rem_minmax(0,1fr)]">
         <aside className="flex flex-col gap-5 border-b border-stone-200 p-6 md:border-b-0 md:border-r">

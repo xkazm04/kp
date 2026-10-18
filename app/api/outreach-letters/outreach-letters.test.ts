@@ -126,3 +126,37 @@ test("release sends once, keyless queued with 0 network calls, and the timeline 
   assert.equal(again.status, 409);
   assert.equal(listOutboxFiltered({ ref: entry.id, kind: "outreach" }).length, 1, "released once");
 });
+
+const { GET: BY_ENTRY } = await import("./by-entry/[entryId]/route.ts");
+const entryCtx = (entryId: string) => ({ params: Promise.resolve({ entryId }) });
+
+test("by-entry returns the letter held for an application, the same shape as GET by id", async () => {
+  const { entry, letter } = draftedLetter();
+  const res = await BY_ENTRY(req(`/api/outreach-letters/by-entry/${entry.id}`), entryCtx(entry.id));
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { letter: { id: string; revision: number }; preview: { forecast: string; body: string } };
+  assert.equal(body.letter.id, letter.id);
+  assert.equal(body.letter.revision, 1);
+  assert.equal(body.preview.forecast, "local");
+  assert.match(body.preview.body, /\/stop\/preview\?lang=en/);
+});
+
+test("by-entry answers nulls for an application with no letter, and 404 for a foreign or unknown entry", async () => {
+  const { entry } = createPipelineEntry({
+    candidateId: "olr-none",
+    candidateLabel: "No Letter",
+    jobId: "olr-job-none",
+    jobTitle: "Platform Engineer",
+    locale: "en",
+    contact: "none@example.cz",
+    stage: "Screened",
+    workspaceId: WS,
+  });
+  const none = await BY_ENTRY(req(`/api/outreach-letters/by-entry/${entry.id}`), entryCtx(entry.id));
+  assert.equal(none.status, 200);
+  assert.deepEqual(await none.json(), { letter: null, preview: null });
+
+  const foreign = draftedLetter("team-olr-gamma");
+  assert.equal((await BY_ENTRY(req(`/api/outreach-letters/by-entry/${foreign.entry.id}`), entryCtx(foreign.entry.id))).status, 404);
+  assert.equal((await BY_ENTRY(req(`/api/outreach-letters/by-entry/nope`), entryCtx("nope"))).status, 404);
+});
