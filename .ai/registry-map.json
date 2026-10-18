@@ -27560,7 +27560,11 @@
           "revision": 3,
           "changedAt": "2026-09-26",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_components/PotentialBadge.tsx:19 The potential badge accepts a total and optional signal strings without the four readiness sub-scores, weights or unmeasured states required for a reviewable breakdown.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:e46087a1de5e42cb",
+          "evaluatedRevision": 3
         },
         {
           "subject": "data-viz",
@@ -31770,7 +31774,11 @@
           "revision": 3,
           "changedAt": "2026-09-26",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_transform.py:43 The test requires a low numeric readiness score for an empty student profile, whereas fewer than two measured dimensions should produce an insufficient-evidence state.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:e46087a1de5e42cb",
+          "evaluatedRevision": 3
         },
         {
           "subject": "adverse-impact-and-proxy-neutrality",
