@@ -57,7 +57,7 @@ block and a human at the gate.
 | C3 | decision log aims the debrief | **landed** (`62bbd7ccb`, `fd513167a`) |
 | C4 | recorded debrief findings release holds | **landed** (`e8c97df61`) |
 | C5 | keyless twin-cast match harness (`pipeline/jobfit/eval/matching_era_eval.py`) | **landed** (`2fdc4fe5`) |
-| C6 | proof-paying match weights as a logged preview | **landed as an opt-in preview** (`4145c47bb`, `ccc839eaa`, `5fd3430d0`, `d3f500f68`); adoption as default planned, see below |
+| C6 | proof-paying match weights as a logged preview | **landed as an opt-in preview** (`4145c47bb`, `ccc839eaa`, `5fd3430d0`, `d3f500f68`); **adopted as the default scorer** (`9ec98ac06`), see below |
 | S1 | a "Working with AI tools" BARS axis | planned |
 | S2 | a supplied AI-draft critique stimulus | planned |
 | S3 | the evidence-ladder recruiter UI | planned |
@@ -77,7 +77,7 @@ every changed score. Free-claim gain measured **+13.67** with **7 of 66** best-j
 crossings, so the targets were **not met**.
 
 **Decision.** The operator, as the named adopter, adopts `PROOF_PREVIEW_WEIGHTS` as kp's
-default scorer anyway. The adoption delivery is **planned, not landed**. It owes:
+default scorer anyway. The adoption delivery **landed** in `16c80ed98` (the red test pins) and `9ec98ac06` (the change). It owed:
 
 - wiring into the product path;
 - the proof runner in `pipeline/jobfit/eval/neutrality.py` `SCORERS`;
@@ -85,6 +85,10 @@ default scorer anyway. The adoption delivery is **planned, not landed**. It owes
 - a scorer-version stamp on stored scores;
 - re-pinned C5 baselines and `test:eval:match`, with before/after recorded, and any
   candidate whose tier changes carries its reasons line.
+
+Before -> after: free-claim gain +18.3801 -> +13.6659, best-job crossings 9/66 -> 7/66, proof
+premium +24.703 -> +29.3913, name deltas 0 -> 0. Figures and method are in
+`docs/features/matching/README.md`.
 
 **Approved follow-up C6b, "close the leaks" (planned after adoption, not landed).**
 Discount `self_declared` claims on prerequisite and nice-to-have requirements; proof-gate
