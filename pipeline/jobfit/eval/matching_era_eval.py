@@ -298,6 +298,7 @@ def measure(
             "proof_premium": sum(1 for c in crossings if c["kind"] == "proof_premium"),
             "free_claim_at_best_job": len(best_cross),
             "best_job_pairs": len(best_pairs),
+            "best_job_listed": best_cross,
             "by_reason": dict(sorted(crossing_reasons.items())),
             "listed": crossings,
         },

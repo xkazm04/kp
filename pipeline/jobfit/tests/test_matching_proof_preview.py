@@ -11,9 +11,10 @@ C6 (2026-10-18) met neither the free-claim gain nor the best-job crossings: the
 stuffed twin's claims also moved prerequisites and nice-to-haves, the BAU personal
 keyword overlap, and the early-career potential velocity. C6b closed those three
 leaks (tests/test_matching_c6b_leaks.py): the free-claim gain target is now met
-(+13.6659 -> +1.2283). The best-job crossings stay expectedFailure at 2/66 (from
-7/66): the last lever, bare claims in potential velocity, trades those two crossings
-one-for-one against two protected students' strong tier, and the protected target wins.
+(+13.6659 -> +1.2283). The best-job crossings target was restated by the operator
+(2026-10-18, ADR 0027) as "at most 2 of 66, each a 1-point step" and is met at 2/66
+(from 7/66): dropping bare claims from velocity would reach 0/66 but costs two
+protected students their strong tier, so the cap stays. It is a passing ratchet.
 """
 
 from __future__ import annotations
@@ -77,9 +78,16 @@ class ProofPreviewHarnessTests(unittest.TestCase):
         self.assertEqual(self.pv["free_claim_gain"], 1.2283)
         self.assertLess(self.pv["free_claim_gain"], BASE_FREE_CLAIM_GAIN)
 
-    @unittest.expectedFailure
-    def test_target_no_free_claim_crossing_at_best_job(self) -> None:
-        self.assertEqual(self.pv["tier_crossings"]["free_claim_at_best_job"], 0)
+    def test_target_free_claim_crossings_at_best_job_at_most_2_of_66(self) -> None:
+        # Operator decision 2026-10-18 (ADR 0027): keep the velocity cap; at most 2 of 66,
+        # each a 1-point step over a tier line.
+        tc = self.pv["tier_crossings"]
+        self.assertEqual(tc["best_job_pairs"], 66)
+        self.assertLessEqual(tc["free_claim_at_best_job"], 2)
+        self.assertEqual(len(tc["best_job_listed"]), tc["free_claim_at_best_job"])
+        for c in tc["best_job_listed"]:
+            step = c["to_total"] - c["from_total"]
+            self.assertLessEqual(step, 1, f"{c['candidate']}@{c['job']} crosses by {step} points")
 
     def test_frontier_free_claim_crossings_at_best_job(self) -> None:
         # Reached: 9/66 (legacy) -> 7/66 (C6) -> 3/66 (C6b leak a) -> 3/66 (leak b) -> 2/66
