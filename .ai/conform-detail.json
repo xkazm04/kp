@@ -12056,6 +12056,89 @@
           "evidence": "app/_lib/jd-limits.ts:82 The gate validates JD authoring input, not authorization to provision a hire."
         }
       ]
+    },
+    "d2c749a4-1821-4c77-af16-2254725a3b3f/pre-publish-fillability-forecast": {
+      "context": "jobs-ai-coach-fit",
+      "subject": "pre-publish-fillability-forecast",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T02:20:39.505Z",
+      "worker": "9c28b2cb-1142-4eee-b678-5242cece9dbd",
+      "techniques": [
+        {
+          "technique": "counterfactual-gate-loosening",
+          "verdict": "deviation",
+          "evidence": "app/features/library/jobs/coach/rolePatterns.ts:66 Zero-delta gates are explicitly discarded; the ledger also never renders jointLoosen, although its wire type and Python producer support it."
+        },
+        {
+          "technique": "eligible-versus-qualified-distinction",
+          "verdict": "deviation",
+          "evidence": "app/features/library/jobs/coach/rolePatterns.ts:118 Gate eligibility deltas and skill-gap prevalence enter one ordered list; the rendered ledger does not separate considered and recommended populations into groups."
+        },
+        {
+          "technique": "must-have-demotion-delta",
+          "verdict": "deviation",
+          "evidence": "app/features/library/jobs/coach/CoachLedger.tsx:79 Skill rows display missing-skill prevalence through copy.measure, but never render copy.gain or jointDemote, so the computed recommendation-threshold gains and pair fallback do not reach the recruiter."
+        },
+        {
+          "technique": "pay-versus-market-verdict-with-a-currency-guard",
+          "verdict": "deviation",
+          "evidence": "app/features/library/jobs/coach/rolePatterns.ts:102 The backend preserves an unknown verdict, but this presentation drops it without explaining currency incomparability or assumed inputs; unknown and not-below-market both produce no salary row."
+        },
+        {
+          "technique": "reuse-the-production-scorer-not-a-model-of-it",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/winnability.py:75 Tracing the Coach endpoint reaches the same matching.score_job and ko_filter used by recruiter ranking; counterfactuals substitute copied jobs over one candidate list and reuse baseline scores."
+        },
+        {
+          "technique": "staged-suggestion-never-auto-applied",
+          "verdict": "deviation",
+          "evidence": "app/features/library/jds/JdsModalEditor.tsx:134 The linked editor correctly requires manual editing and saving, and salary is excluded from the handoff, but dismissing a suggestion only updates local state rather than recording the rejection as required."
+        }
+      ],
+      "registryProposal": "Clarify the pay technique's presentation rules: rule 1 requires an explicit cannot-say sentence, while rule 4 says to render nothing for an unknown verdict; distinguish suppressing the numeric verdict from retaining its explanation."
+    },
+    "83d5f3f8-b225-4d2b-ba73-bfbfa36efbec/pre-publish-fillability-forecast": {
+      "context": "spark-trust-market",
+      "subject": "pre-publish-fillability-forecast",
+      "bundle": "recruiting",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T02:20:39.505Z",
+      "worker": "9c28b2cb-1142-4eee-b678-5242cece9dbd",
+      "techniques": [
+        {
+          "technique": "counterfactual-gate-loosening",
+          "verdict": "not-applicable",
+          "evidence": "app/landing/spark/market/MarketPulseAtlas.tsx:91 The interaction changes the displayed market metric; it does not relax a requisition gate."
+        },
+        {
+          "technique": "eligible-versus-qualified-distinction",
+          "verdict": "not-applicable",
+          "evidence": "app/landing/spark/market/data.ts:317 The measured populations are regional vacancies and survey earnings, not eligible and qualified candidates."
+        },
+        {
+          "technique": "must-have-demotion-delta",
+          "verdict": "not-applicable",
+          "evidence": "app/landing/spark/market/parts.tsx:372 Reference-ad skills are displayed as chips without classification changes or counterfactual scoring."
+        },
+        {
+          "technique": "pay-versus-market-verdict-with-a-currency-guard",
+          "verdict": "not-applicable",
+          "evidence": "app/landing/spark/market/parts.tsx:184 This displays survey medians rather than issuing an employer-range versus market verdict."
+        },
+        {
+          "technique": "reuse-the-production-scorer-not-a-model-of-it",
+          "verdict": "not-applicable",
+          "evidence": "app/landing/spark/market/data.ts:7 The visualization consumes a committed market snapshot and makes no prediction about production matching results."
+        },
+        {
+          "technique": "staged-suggestion-never-auto-applied",
+          "verdict": "not-applicable",
+          "evidence": "app/landing/spark/market/MarketPulseAtlas.tsx:59 Selection changes persist map-view parameters in the URL, without proposing or editing hiring requirements."
+        }
+      ]
     }
   }
 }

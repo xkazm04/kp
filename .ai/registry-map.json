@@ -18766,7 +18766,11 @@
           "revision": 4,
           "changedAt": "2026-09-29",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/library/jobs/coach/rolePatterns.ts:66 The Coach suppresses zero-delta gates and omits joint counterfactual results, hiding the masked requirements the standard requires it to explain.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:e3bdce8ed0b51c4c",
+          "evaluatedRevision": 4
         },
         {
           "subject": "agent-memory",
@@ -30393,7 +30397,11 @@
           "revision": 4,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/landing/spark/market/MarketPulseAtlas.tsx:94 Searches for the listed forecast terms found no hits under app/landing/spark, while repository hits led to the separate Coach and pipeline, and these files render regional market snapshots rather than requisition fillability.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:e3bdce8ed0b51c4c",
+          "evaluatedRevision": 4
         },
         {
           "subject": "cv-presentation-and-parseability",
