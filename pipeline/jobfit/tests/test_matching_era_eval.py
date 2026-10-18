@@ -59,17 +59,17 @@ class MatchingEraEvalTests(unittest.TestCase):
     def test_pinned_baseline(self) -> None:
         r = self.first["results"]
         self.assertEqual((r["candidates"], r["jobs"], r["pairs"]), (66, 120, 7920))
-        self.assertEqual(r["free_claim_gain"], 2.0505)
-        self.assertEqual(r["proof_premium"], 41.0082)
+        self.assertEqual(r["free_claim_gain"], 1.2283)
+        self.assertEqual(r["proof_premium"], 41.8304)
         tc = r["tier_crossings"]
-        self.assertEqual((tc["free_claim"], tc["proof_premium"]), (389, 7695))
-        self.assertEqual((tc["free_claim_at_best_job"], tc["best_job_pairs"]), (3, 66))
+        self.assertEqual((tc["free_claim"], tc["proof_premium"]), (212, 7709))
+        self.assertEqual((tc["free_claim_at_best_job"], tc["best_job_pairs"]), (2, 66))
         for key in ("czech_gender_pair", "english_gender_pair", "czech_vs_english_male", "czech_vs_english_female"):
             self.assertEqual(r["neutrality"][key]["max_abs"], 0, key)
             self.assertEqual(r["neutrality"][key]["nonzero"], 0, key)
         self.assertEqual(
             {a: v["free_claim_gain"] for a, v in r["per_archetype"].items()},
-            {"bau": 0.9458, "career_switcher": 2.4629, "student": 3.3902},
+            {"bau": 0.9458, "career_switcher": 1.7667, "student": 1.3638},
         )
 
     def test_harness_measures_only(self) -> None:

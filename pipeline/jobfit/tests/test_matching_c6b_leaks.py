@@ -7,7 +7,8 @@ legacy arithmetic (``proof=None``) is the control that shows the twin really gai
 
   (a) a prerequisite must-have and a nice-to-have (score_skills)
   (b) the BAU personal keyword overlap against the ad (score_personal)
-  (c) the early-career potential score's learning velocity (transform.compute_potential)
+  (c) the early-career potential score's learning velocity (transform.compute_potential),
+      where bare claims are capped rather than dropped (see BARE_CLAIM_VELOCITY_CAP)
 """
 
 from __future__ import annotations
@@ -22,6 +23,8 @@ from pipeline.jobfit.matching import (
     score_job,
     score_personal,
 )
+from pipeline.jobfit.profile import CandidateProfileV2, Evidence, SkillClaim
+from pipeline.jobfit.transform import BARE_CLAIM_VELOCITY_CAP, build_match_candidate, compute_potential
 
 
 def _job() -> Job:
@@ -138,6 +141,66 @@ class LeakB_PersonalKeywordOverlap(unittest.TestCase):
         reasons: list[ProofReason] = []
         score_job(_bau(self.BASE), _ad(), proof_reasons=reasons)
         self.assertEqual([r for r in reasons if r.code == "self_declared_overlap"], [])
+
+
+def _student(*bare: str) -> CandidateProfileV2:
+    return CandidateProfileV2(
+        archetype="student",
+        role_family="data_ai",
+        education_level="bachelor",
+        languages=["English"],
+        skill_claims=[SkillClaim(skill="SQL", provenance="coursework"), *(SkillClaim(skill=s) for s in bare)],
+        evidence=[Evidence(kind="project", title="Course project", skills=["Python", "Pandas"])],
+    )
+
+
+STUFFING = ("Kafka", "Spark", "Airflow", "dbt", "Docker", "Kubernetes", "Terraform", "Scala")
+
+
+class LeakC_PotentialVelocity(unittest.TestCase):
+    """A list of bare skill claims no longer buys an early-career candidate learning velocity:
+    between them they add at most BARE_CLAIM_VELOCITY_CAP skills of breadth."""
+
+    def test_control_the_legacy_velocity_counts_the_bare_claims(self) -> None:
+        legacy = lambda p: compute_potential(p, count_bare_claims=True)[0]  # noqa: E731
+        self.assertGreater(legacy(_student(*STUFFING)), legacy(_student()))
+
+    def test_the_stuffed_twin_gains_no_more_than_the_cap(self) -> None:
+        self.assertEqual(BARE_CLAIM_VELOCITY_CAP, 1)
+        capped = compute_potential(_student(*STUFFING[:BARE_CLAIM_VELOCITY_CAP]))
+        self.assertEqual(compute_potential(_student(*STUFFING)), capped)
+        base, stuffed = build_match_candidate(_student()), build_match_candidate(_student(*STUFFING))
+        self.assertLessEqual(stuffed.potential_score - base.potential_score, 0.25 * BARE_CLAIM_VELOCITY_CAP / 8 + 1e-3)
+
+    def test_one_bare_claim_beside_evidence_still_counts(self) -> None:
+        # The seed students' shape (one bare claim each): dropping it cost two a tier.
+        self.assertGreater(compute_potential(_student("Kafka"))[0], compute_potential(_student())[0])
+
+    def test_a_claim_with_any_evidence_still_counts(self) -> None:
+        claimed = _student()
+        backed = claimed.model_copy(
+            update={"skill_claims": [*claimed.skill_claims, SkillClaim(skill="Kafka", provenance="personal_project")]}
+        )
+        self.assertGreater(compute_potential(backed)[0], compute_potential(claimed)[0])
+
+    def test_the_career_slot_reads_the_gated_potential_and_says_why(self) -> None:
+        cand, job = build_match_candidate(_student(*STUFFING)), _job()
+        reasons: list[ProofReason] = []
+        proof = score_job(cand, job, proof_reasons=reasons)
+        legacy = score_job(cand, job, proof=None)
+        self.assertEqual(proof.career_score, cand.potential_score)
+        self.assertGreater(legacy.career_score, proof.career_score)
+        velocity = [r for r in reasons if r.code == "self_declared_velocity"]
+        self.assertEqual(len(velocity), 1)
+        self.assertEqual((velocity[0].base_credit, velocity[0].preview_credit), (legacy.career_score, proof.career_score))
+        self.assertIn("learning velocity", velocity[0].text)
+
+    def test_within_the_cap_no_change_no_reasons_line(self) -> None:
+        cand, job = build_match_candidate(_student("Kafka")), _job()
+        reasons: list[ProofReason] = []
+        self.assertEqual(score_job(cand, job, proof_reasons=reasons).career_score, score_job(cand, job, proof=None).career_score)
+        self.assertEqual([r for r in reasons if r.code == "self_declared_velocity"], [])
+        self.assertIsNone(cand.bare_claim_potential_score)
 
 
 if __name__ == "__main__":

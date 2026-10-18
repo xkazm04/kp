@@ -1,22 +1,19 @@
-"""Scoring C6: the proof-weights PREVIEW, measured by the C5 twin-cast harness.
+"""Scoring C6 and C6b: the proof weights (kp's default scorer since ADR 0027), measured
+by the C5 twin-cast harness against the historical arithmetic (``proof=None``).
 
-The preview (``score_job(..., proof=PROOF_PREVIEW_WEIGHTS)``, ``--preview`` on the harness) weighs
-a learnable must-have at lambda < 1 and credits a bare self-declared claim on one
-at a fraction of today's credit. It is opt-in: the default scorer and the C5 pinned
-baseline must not move.
+Each C6 verify target is one test, written at the scope's own number. A target the
+levers do not reach stays at the scope's number as ``expectedFailure`` rather than
+being loosened, and the frontier actually reached is pinned beside it. Should a later
+change meet one, the unexpected success turns the suite red, and whoever did it moves
+the target test out of expectedFailure.
 
-Each C6 verify target is one test, written at the scope's own number. Two of them
-are NOT reached by the preview's levers, and they stay at the scope's number as
-``expectedFailure`` rather than being loosened; the frontier actually reached is
-pinned beside each. Should a later change meet one, the unexpected success turns
-the suite red, and whoever did it moves the target test out of expectedFailure.
-
-Why the two are out of reach (measured on this harness, 2026-10-18): the stuffed
-twin claims every missing requirement, prerequisites and nice-to-haves included,
-and the claims also move two dimensions C6 does not touch — the BAU personal
-keyword overlap against the ad, and the early-career potential score, which counts
-claimed skills (transform.compute_potential). Even crediting EVERY self-declared
-claim at zero left a +2.23 free-claim gain and 4/66 best-job crossings.
+C6 (2026-10-18) met neither the free-claim gain nor the best-job crossings: the
+stuffed twin's claims also moved prerequisites and nice-to-haves, the BAU personal
+keyword overlap, and the early-career potential velocity. C6b closed those three
+leaks (tests/test_matching_c6b_leaks.py): the free-claim gain target is now met
+(+13.6659 -> +1.2283). The best-job crossings stay expectedFailure at 2/66 (from
+7/66): the last lever, bare claims in potential velocity, trades those two crossings
+one-for-one against two protected students' strong tier, and the protected target wins.
 """
 
 from __future__ import annotations
@@ -68,15 +65,16 @@ class ProofPreviewHarnessTests(unittest.TestCase):
 
     # -- the six C6 targets -------------------------------------------------
 
-    @unittest.expectedFailure
     def test_target_free_claim_gain_at_most_2(self) -> None:
+        # Met by C6b (2026-10-18): out of expectedFailure.
         self.assertLessEqual(self.pv["free_claim_gain"], 2.0)
 
     def test_frontier_free_claim_gain(self) -> None:
         # Reached: +18.3801 (legacy) -> +13.6659 (C6) -> +3.0495 (C6b leak a: bare claims on
         # prerequisites and nice-to-haves discounted) -> +2.0505 (leak b: the personal keyword
-        # overlap gated). Re-pin deliberately if the scorer moves.
-        self.assertEqual(self.pv["free_claim_gain"], 2.0505)
+        # overlap gated) -> +1.2283 (leak c: bare claims capped in potential velocity).
+        # Re-pin deliberately if the scorer moves.
+        self.assertEqual(self.pv["free_claim_gain"], 1.2283)
         self.assertLess(self.pv["free_claim_gain"], BASE_FREE_CLAIM_GAIN)
 
     @unittest.expectedFailure
@@ -84,9 +82,13 @@ class ProofPreviewHarnessTests(unittest.TestCase):
         self.assertEqual(self.pv["tier_crossings"]["free_claim_at_best_job"], 0)
 
     def test_frontier_free_claim_crossings_at_best_job(self) -> None:
-        # Reached: 9/66 (legacy) -> 7/66 (C6) -> 3/66 (C6b leak a).
+        # Reached: 9/66 (legacy) -> 7/66 (C6) -> 3/66 (C6b leak a) -> 3/66 (leak b) -> 2/66
+        # (leak c). The two left are +1-point steps over a tier line (cand-031 @ job-018
+        # 69 -> 70, cand-061 @ job-114 54 -> 55), both students on career_shift. Dropping
+        # bare claims from velocity outright reaches 0/66 but costs two students their
+        # strong tier at their best job, which the protected-cohort target forbids.
         tc = self.pv["tier_crossings"]
-        self.assertEqual((tc["free_claim_at_best_job"], tc["best_job_pairs"]), (3, 66))
+        self.assertEqual((tc["free_claim_at_best_job"], tc["best_job_pairs"]), (2, 66))
 
     def test_target_proof_premium_not_below_today(self) -> None:
         self.assertGreaterEqual(self.pv["proof_premium"], BASE_PROOF_PREMIUM)

@@ -124,6 +124,11 @@ class MatchCandidate(_Base):
     skill_provenance: dict[str, str] = Field(default_factory=dict)
     # readiness model output (replaces years/seniority for early-career); set by the transform.
     potential_score: float | None = None
+    # The readiness the historical arithmetic gave when it counted bare self_declared
+    # claims as learning velocity (C6b, leak c); set by the transform only when it
+    # differs from potential_score. Read by ``score_job(..., proof=None)`` and by the
+    # proof path's reasons line, never by the product total.
+    bare_claim_potential_score: float | None = None
     learning_signals: list[str] = Field(default_factory=list)
     aspirations: list[str] = Field(default_factory=list)
     # career-switcher: meta-skills mapped from a prior domain, credited at professional level.
@@ -158,7 +163,7 @@ class MatchCandidate(_Base):
     experience_highlights: list[str] = Field(default_factory=list)
     work_links: list[str] = Field(default_factory=list)
 
-    @field_validator("potential_score")
+    @field_validator("potential_score", "bare_claim_potential_score")
     @classmethod
     def _clamp_potential_score(cls, v: float | None) -> float | None:
         """Enforce the 0-1 readiness contract at the trust boundary.
@@ -1349,6 +1354,23 @@ def _score_dimensions(
     if candidate.archetype in _EARLY_CAREER:
         # career slot carries POTENTIAL (readiness); personal carries motivation/domain fit.
         career = candidate.potential_score if candidate.potential_score is not None else score_career(candidate, job)
+        bare = candidate.bare_claim_potential_score
+        if bare is not None and candidate.potential_score is not None:
+            if proof is None:
+                career = bare  # the historical arithmetic counted bare claims as velocity
+            elif proof_reasons is not None and bare > career:
+                proof_reasons.append(
+                    ProofReason(
+                        "potential",
+                        "self_declared_velocity",
+                        1.0,
+                        0.0,
+                        round(bare, 4),
+                        round(career, 4),
+                        f"potential: skills claimed only as self-declared no longer count toward "
+                        f"learning velocity — readiness {career:g} instead of {bare:g}",
+                    )
+                )
         # potential_score is validated to [0,1] only at the Pydantic boundary; a candidate
         # built outside it (model_construct / direct field set) could overflow the career
         # bar (and a NaN would slip past the headline min/max). Clamp defensively here so
