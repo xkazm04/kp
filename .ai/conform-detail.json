@@ -10687,6 +10687,159 @@
           "evidence": "app/features/insights/analytics/AnalyticsTab.tsx:67 Local parsing treats an invalid explicit parameter identically to absence, with no rejection or fallback provenance."
         }
       ]
+    },
+    "145b5d07-e126-4749-8ada-b0fa84fcfa37/authorization": {
+      "context": "platform-auth-api",
+      "subject": "authorization",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T00:22:46.016Z",
+      "techniques": [
+        {
+          "technique": "authorization-audit",
+          "verdict": "deviation",
+          "evidence": "app/api/workspaces/[id]/members/[userId]/route.ts:58 The delegation check returns a silent 403 JSON response without recording an authorization denial audit event carrying caller identity, demanded role, or correlation context."
+        },
+        {
+          "technique": "ceiling-before-consent",
+          "verdict": "conformant",
+          "evidence": "app/api/workspaces/[id]/members/[userId]/route.ts:57 Member role assignment checks the target role's capability set against the caller's server-computed organization delegation ceiling before proceeding."
+        },
+        {
+          "technique": "declarative-requirements",
+          "verdict": "deviation",
+          "evidence": "app/api/route-capability-coverage.test.ts:24 Requirements are not declared as route metadata extracted for the dispatcher, but are instead imperative function calls inside handlers tracked by a regex source scanner and an allowlist of unjudged doors."
+        },
+        {
+          "technique": "dispatch-chokepoint-gating",
+          "verdict": "deviation",
+          "evidence": "app/api/workspaces/route.ts:25 Capability enforcement executes inside the route handler body after request dispatch rather than at the dispatch chokepoint before handler invocation."
+        },
+        {
+          "technique": "failure-direction",
+          "verdict": "conformant",
+          "evidence": "app/api/auth/switch-workspace/route.ts:48 Degraded and revoked session cookies fail closed by clearing the session and returning a 401 refusal identical to missing credentials."
+        },
+        {
+          "technique": "privilege-tiers",
+          "verdict": "conformant",
+          "evidence": "app/api/health/route.ts:70 Health probing partitions response data by trust tier, requiring operator and home-org credentials for internal host details while serving status publicly."
+        },
+        {
+          "technique": "read-write-predicate-symmetry",
+          "verdict": "conformant",
+          "evidence": "app/api/workspaces/[id]/members/[userId]/route.ts:39 Mutations targeting cross-org users borrow the read path's 404 refusal so write attempts do not act as an existence oracle."
+        },
+        {
+          "technique": "scope-design",
+          "verdict": "conformant",
+          "evidence": "app/api/workspaces/route.ts:69 Team creation explicitly checks the required capability team:manage against the registered capability vocabulary."
+        },
+        {
+          "technique": "unregistered-is-stronger-than-refused",
+          "verdict": "deviation",
+          "evidence": "app/api/workspaces/route.ts:73 The deployment-wide multi-workspace mode is evaluated per-request inside the handler with a 403 refusal rather than unbinding the route to return 404."
+        }
+      ],
+      "withdrawn": {
+        "worker": "a3fd470c-6319-4929-85b4-e02c3de938e6",
+        "state": "deviation",
+        "at": "2026-10-18T00:23:20.764355+00:00",
+        "reason": "reviewer (sonnet): The evidence anchor, route-capability-coverage.test.ts:57 (the GATE regex and ratchet), scans every app/api route in the repo, so the verdict is about the repo as a whole. The members/[userId] route it also leans on is not among the listed context files. The 'silent 403, no audit event' claim rests "
+      }
+    },
+    "903990c9-54d2-4ed6-af82-defd5db63d49/authorization": {
+      "context": "pipeline-api",
+      "subject": "authorization",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T00:22:46.016Z",
+      "worker": "a3fd470c-6319-4929-85b4-e02c3de938e6",
+      "techniques": [
+        {
+          "technique": "authorization-audit",
+          "verdict": "deviation",
+          "evidence": "app/api/pipeline/batch/route.ts:113 Refusals for missing pipeline:write capabilities return an unlogged JSON response without recording an audit event carrying caller identity or demanded capability."
+        },
+        {
+          "technique": "declarative-requirements",
+          "verdict": "conformant",
+          "evidence": "app/api/pipeline/[id]/entry-actions.ts:46 The single-entry door defines a static spec table declaring required capabilities for each action adjacent to the dispatcher."
+        },
+        {
+          "technique": "dispatch-chokepoint-gating",
+          "verdict": "deviation",
+          "evidence": "app/api/pipeline/batch/authz-parity.test.ts:49 Capability enforcement is not executed at the dispatch chokepoint, leaving GET /api/pipeline with no in-handler capability check."
+        },
+        {
+          "technique": "failure-direction",
+          "verdict": "conformant",
+          "evidence": "app/api/pipeline/[id]/route.ts:104 Actions not recognized by the entry actions table fail closed immediately before executing any mutation logic."
+        },
+        {
+          "technique": "privilege-tiers",
+          "verdict": "conformant",
+          "evidence": "app/api/pipeline/command/route.ts:62 The natural language command route separates operator session channel trust from the pipeline:write capability, with preview actions inheriting the same tier as execution."
+        },
+        {
+          "technique": "read-write-predicate-symmetry",
+          "verdict": "conformant",
+          "evidence": "app/api/pipeline/batch/route.ts:66 Batch mutations apply the same workspace tenancy lookup as single reads and return the identical PIPELINE_ENTRY_NOT_FOUND refusal."
+        },
+        {
+          "technique": "scope-design",
+          "verdict": "conformant",
+          "evidence": "app/api/pipeline/command/route.ts:69 Pipeline commands verify the exact capability string pipeline:write defined in the system role model."
+        }
+      ]
+    },
+    "81e52844-53c6-4e24-a255-6d199f016b0b/authorization": {
+      "context": "jobseeker-api",
+      "subject": "authorization",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T00:22:46.016Z",
+      "worker": "a3fd470c-6319-4929-85b4-e02c3de938e6",
+      "techniques": [
+        {
+          "technique": "authorization-audit",
+          "verdict": "deviation",
+          "evidence": "app/api/jobseeker/profile/route.ts:64 Capability refusals on jobseeker mutations return a jsonRefusal response that logs nothing, discarding denial audit context."
+        },
+        {
+          "technique": "declarative-requirements",
+          "verdict": "deviation",
+          "evidence": "app/api/jobseeker/postings/[id]/route.ts:71 Requirements are coded as imperative checks inside handler bodies rather than declared metadata extracted into a gate registry."
+        },
+        {
+          "technique": "dispatch-chokepoint-gating",
+          "verdict": "deviation",
+          "evidence": "app/api/jobseeker/postings/[id]/deepdive/route.ts:48 Capability gating happens inside the route handler after parameter resolution instead of at the dispatch chokepoint before dispatch."
+        },
+        {
+          "technique": "failure-direction",
+          "verdict": "conformant",
+          "evidence": "app/api/jobseeker/dialogs/route.ts:57 Requests specifying an unknown dialog kind outside the closed vocabulary fail closed immediately with a 404 refusal."
+        },
+        {
+          "technique": "privilege-tiers",
+          "verdict": "conformant",
+          "evidence": "app/api/jobseeker/sources/route.ts:43 Acquisition source creation enforces closed tiers and refuses Tier C sources lacking enable controls with a 403 status."
+        },
+        {
+          "technique": "read-write-predicate-symmetry",
+          "verdict": "conformant",
+          "evidence": "app/api/jobseeker/postings/[id]/route.ts:98 Posting updates borrow the read path's exact 404 POSTING_NOT_FOUND response so write attempts on missing or foreign-workspace postings avoid an existence oracle."
+        },
+        {
+          "technique": "scope-design",
+          "verdict": "conformant",
+          "evidence": "app/api/jobseeker/profile/route.ts:115 Profile erasure requires the exact capability string pipeline:write from the system's role capability vocabulary."
+        }
+      ]
     }
   }
 }

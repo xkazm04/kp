@@ -19817,7 +19817,11 @@
           "revision": 6,
           "changedAt": "2026-09-18",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/jobseeker/profile/route.ts:63 Capability authorization on jobseeker profile updates is written as an imperative function call inside the route handler rather than declared as metadata at the dispatch chokepoint.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:57d60a438fa36d05",
+          "evaluatedRevision": 6
         },
         {
           "subject": "codebase-scanning",
@@ -24220,7 +24224,11 @@
           "revision": 6,
           "changedAt": "2026-09-18",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/pipeline/batch/route.ts:112 When capability checks fail on pipeline operations, the endpoint returns an unrecorded JSON refusal without logging an audit trail of the unauthorized attempt.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:57d60a438fa36d05",
+          "evaluatedRevision": 6
         },
         {
           "subject": "test-harness",
