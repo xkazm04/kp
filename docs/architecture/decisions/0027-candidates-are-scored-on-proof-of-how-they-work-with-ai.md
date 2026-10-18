@@ -71,7 +71,8 @@ is a dev-time tool only. Every step above ends in a person's decision.
 ## Decision 2026-10-18: proof weights become the default scorer
 
 **Measured C6 result.** The opt-in preview (`PROOF_PREVIEW_WEIGHTS`) was run through the C5
-harness against six targets: free-claim gain <= 2.0, best-job crossings 0, proof premium
+harness against six targets: free-claim gain <= 2.0, best-job crossings 0 (restated below
+as at most 2 of 66, each a 1-point step), proof premium
 not lower, name deltas 0, 0 student/career_switcher tier losses, and a reasons line on
 every changed score. Free-claim gain measured **+13.67** with **7 of 66** best-job
 crossings, so the targets were **not met**.
@@ -107,7 +108,7 @@ nice-to-haves; (b) `e715216eb`, a bare skill claim counts 0.05 of a keyword hit 
 | target | legacy | C6 (adopted) | C6b | met |
 |---|---|---|---|---|
 | free-claim gain <= 2.0 | +18.3801 | +13.6659 | **+1.2283** | yes |
-| best-job crossings 0 | 9/66 | 7/66 | **2/66** | **no** |
+| best-job crossings at most 2 of 66, each a 1-point step (restated 2026-10-18; was 0) | 9/66 | 7/66 | **2/66** | **yes** |
 | proof premium not lower than C6 | +24.703 | +29.3913 | +41.8304 | yes |
 | name deltas 0 | 0 | 0 | 0 | yes |
 | 0 student/career_switcher best-job tier losses | – | 0 | 0 | yes |
@@ -117,9 +118,17 @@ nice-to-haves; (b) `e715216eb`, a bare skill claim counts 0.05 of a keyword hit 
 protected-cohort target. Dropping bare claims from velocity outright reaches 0/66, but two
 students who hold one bare claim beside real evidence lose their strong tier at their best job
 (cand-009 73 -> 69, cand-045 71 -> 69). The cap of 1 is the setting that keeps every met target
-met. The two crossings left are +1-point steps over a tier line. Whether to take the drop, and so
-trade the protected target for the crossings target, is an operator decision; until it is made,
-the crossings test stays `expectedFailure` at its own number.
+met. The two crossings left are +1-point steps over a tier line (cand-031 @ job-018 69 -> 70,
+cand-061 @ job-114 54 -> 55).
+
+**Operator decision 2026-10-18: keep the cap.** The cap-vs-drop sweep from `abeff477e`: drop =
+0/66 crossings but 2 protected losses; cap 1 = 2/66, 0 losses. The operator accepts the 2 of 66
+one-point crossings rather than drop bare claims from velocity, because that would cost two real
+students (cand-009, cand-045) their strong tier, and protecting a real student who lists one bare
+skill beside real evidence outranks the last two crossings. The target is restated as **at most
+2 of 66, each a 1-point step**, and is met at 2/66. It is pinned by a passing ratchet,
+`test_target_free_claim_crossings_at_best_job_at_most_2_of_66`, which goes red if the count
+rises or a crossing steps by more than 1 point. No other target was loosened.
 
 **Alternative that lost:** keep proof weights as an opt-in preview until every target is
 met.
@@ -151,5 +160,5 @@ went 70.8 -> 76.0, to be checked in S2.
   gamer-cohort figure above when S2 lands.
 - This record is **accepted** for the decision and **partial** for the build; update the
   table as each step ships. C1 to C6, the default-scorer adoption and C6b have shipped; the
-  C6b best-job crossings target is still open at 2/66.
+  C6b best-job crossings target (at most 2 of 66, each a 1-point step) is met at 2/66.
 - Reopen if: the gamer cohort keeps rising faster than strong-weak discrimination at S2.
