@@ -156,9 +156,15 @@ export function scanFiles(files, { root = REPO_ROOT, read = null } = {}) {
     read ??
     ((p) => {
       const abs = path.join(root, p);
-      const stat = fs.statSync(abs);
-      if (stat.size > MAX_BYTES) return { skip: `${Math.round(stat.size / 1024)} KB` };
-      return { text: fs.readFileSync(abs, 'utf8') };
+      // Size and text come from one open descriptor (js/file-system-race).
+      const fd = fs.openSync(abs, 'r');
+      try {
+        const stat = fs.fstatSync(fd);
+        if (stat.size > MAX_BYTES) return { skip: `${Math.round(stat.size / 1024)} KB` };
+        return { text: fs.readFileSync(fd, 'utf8') };
+      } finally {
+        fs.closeSync(fd);
+      }
     });
 
   const findings = [];

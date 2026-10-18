@@ -120,7 +120,12 @@ function neutralCwd(): string {
  *  and its quoting); one file per distinct text, named by its digest. */
 function systemFile(system: string): string {
   const file = path.join(neutralCwd(), `system-${createHash("sha256").update(system, "utf8").digest("hex").slice(0, 16)}.txt`);
-  if (!existsSync(file)) writeFileSync(file, system, "utf8");
+  try {
+    // Exclusive create: the name is the text's digest, so an existing file already holds it.
+    writeFileSync(file, system, { encoding: "utf8", flag: "wx", mode: 0o600 });
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e;
+  }
   return file;
 }
 
