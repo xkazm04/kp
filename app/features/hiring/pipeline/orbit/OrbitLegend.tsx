@@ -5,8 +5,7 @@ import { ChipButton } from "@/app/_components/kit";
 import type { InterviewPlanRule } from "@/app/_lib/decision-config-schema";
 import type { StageDef } from "@/app/features/shared/pipelineTypes";
 import { planMarkText } from "../pipelinePlanMarks";
-import { LegendBead, OrbitMark } from "./OrbitMarks";
-import { OrbitPlanMark } from "./OrbitPlanMark";
+import { LegendBead, OrbitMark, OrbitPlanMark } from "./OrbitMarks";
 import type { OrbitWords } from "./orbitWords";
 
 type Props = {
