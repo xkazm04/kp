@@ -14,11 +14,18 @@ sources:
   - app/_lib/ats-delivery-store.ts
   - app/_lib/pull-pass.ts
   - app/_lib/calendar/edge-fetch.ts
+  - app/_lib/comms-receipt.ts
+  - app/_lib/db/outreach-letters.ts
+  - app/_lib/outreach-release.ts
+  - app/_lib/automation-run.ts
+  - app/api/outreach-letters/[id]/route.ts
 ---
 
-**Status: accepted, partially implemented.** Only the egress seal (C3) has landed
-(`d588df42a`). The message identity (C1) and the human release (C2) are decided and
-**pending**; the rest is the approved build order, not the state of the code.
+**Status: accepted, partially implemented.** Landed on main: the egress seal (C3,
+`d588df42a`), the message identity (C1, `c578b7704` and its follow-ups) and the
+server half of the human release (C2a, `d0c1d1345`..`9987b30f3`). **Decided, not built:**
+the release card and bulk dry-run sheet (C2b), then C4, C5, C6, S2, S3, L1 and L2 in the
+build order below.
 
 ## Context
 
@@ -37,12 +44,22 @@ gitignored, so its points are restated here). Three defects motivate it:
 
 ## Decision
 
-### 1. One message identity (C1 - decided, pending)
+### 1. One message identity (C1 - landed)
 
 The `messageId` that `sendComm` mints is persisted on `dev_outbox.message_id`. Receipts
 match that exact row instead of the time-window heuristic in `comms-view.ts`. A delivered
 receipt stamps a last-delivered time. A resend reuses the id and the `Idempotency-Key`
 (the ATS side already keys on the row id, see `app/_lib/ats-delivery-lease.test.ts`).
+
+What landed: `c578b7704` adds the nullable `dev_outbox.message_id` column and an index
+(`app/_lib/db/core.ts`), has `sendComm` store the id, and matches receipts to the row by
+exact id (`app/_lib/comms-receipt.ts`, `app/_lib/comms-view.ts`, the callback route). The
+red-first tests are `748940d57` and `3bc7d0dec`. Hardening that followed: `defd1ad63` (the
+resend door refuses a relay receipt row), `cef1e3841` (the relay probe vets its target
+with the delivery's resolved guard), `0bc49d90e` (the callback refuses a receipt for
+another org's ref) and `f6f0deb2a` (an exact-id delivered receipt no longer stamps a
+queued row, only sent or failed ones). Rows written before the column existed have a
+null `message_id` and keep the old heuristic.
 
 ### 2. One egress seal (C3 - landed in `d588df42a`)
 
@@ -55,10 +72,41 @@ spent), a sealed calendar read is unknown, a sealed pull skips, a probe says `se
 `sealed` is distinct from `not configured`, and the hub must show the two apart. It is
 deliberately not `KP_OFFLINE`, which would also cut the Claude CLI.
 
-### 3. Human release (C2 - decided, pending)
+### 3. Human release (C2 - C2a landed, C2b pending)
 
 Every candidate-affecting message is human-approved through a revision-bound
 compare-and-swap that names the approver. First outreach drafts instead of sending.
+
+**Constraint that forced the design.** A named human releases every message that
+affects a candidate, and the keyless start must keep working: no key, relay or
+service may be needed to draft, approve and release (keyless the release is `queued`
+in the local outbox).
+
+**C2a, landed.** A dedicated `outreach_letters` store (`d0c1d1345`,
+`app/_lib/db/outreach-letters.ts`, DDL in `core.ts`) holds a first-contact draft, one row
+per application, with a revision and the `message_id` minted at draft time. Approve is a
+CAS on id, team, revision and `drafted`, naming the approver, and a stale revision is
+refused (`app/api/outreach-letters/`, `59044dda9`). Release goes through the ordinary
+send path under the drafted message id (`59044dda9`, `app/_lib/outreach-release.ts`), so C1
+and C2 share one identity from draft to receipt. Every outreach door (the drawer task,
+batch outreach, sourcing Reach-out) now holds the letter and sends nothing
+(`804bfa671`, `app/_lib/automation-run.ts`). Erasure blanks a held letter's subject and
+body (`1dd5e199c`). The behaviour is documented in `docs/features/comms/README.md` §8a
+(`e4d319c3c`).
+
+**Alternatives that lost.** Staging the draft on `entry.automation` would share state
+with the screening and offer gates, so a gate write could clobber a draft and the reverse.
+A resumable wave worker is premature while no wave is gated.
+
+**What the security scan found.** Scan `4b3553a4` found one release defect, fixed in
+`9987b30f3`: a release that dead-lettered leaves a failed outbox row that the resend door
+re-sends under the same message id, recording no `outreach_sent` marker, so a later
+release delivered the first contact twice. The release now closes the letter as
+released when a sent or queued outbox row already carries its message id. Related
+test hygiene: `c12e70121`.
+
+**C2b, decided and not built.** The release card UI and the bulk dry-run sheet. Until
+then approve and release are reachable only through the API.
 
 ### 4. Bounded services
 
@@ -87,8 +135,10 @@ S1 (a Slack and Teams desk for the hiring team) was excluded by the operator on 
 
 - A new outbound connector must call `egressSealed()` before its network call; one that
   does not reopens the hole C3 closed.
-- Until C1 lands, receipt matching stays heuristic; do not build on it as exact.
-- Until C2 lands, this record is accepted for the decision and partial for the build;
-  update the state as each step ships.
+- Receipt matching is exact for rows that carry a `message_id`; older rows stay heuristic.
+- A new door that contacts a candidate for the first time must write a held letter and
+  not call `sendComm`; one that does reopens what C2a closed.
+- Until C2b lands, a held letter has no UI to release it; update this state as each
+  step ships.
 - Reopen if: a local install gains a public callback URL and a way to name a kp user
   keylessly, which removes the reason chat approval lost.
