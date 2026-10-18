@@ -298,6 +298,15 @@ export interface BuildAutomationArgvOptions {
   notesPath?: string | null;
   lang?: string | null;
   githubEvidencePath?: string | null;
+  /** S1 — scorecard only: the entry carries a work sample, so the rubric gains the
+   *  optional "Working with AI tools" axis. Absent/false = the pre-S1 argv. */
+  devCase?: boolean;
+}
+
+/** The one rule for "this entry has a dev case" — the scorecard route's hasDevCase,
+ *  the argv and the cache key all read it from here. */
+export function entryHasDevCase(entry: { devCaseId?: string | null; devSubmissionId?: string | null }): boolean {
+  return Boolean(entry.devCaseId || entry.devSubmissionId);
 }
 
 export function buildAutomationArgv(options: BuildAutomationArgvOptions): string[] {
@@ -325,6 +334,9 @@ export function buildAutomationArgv(options: BuildAutomationArgvOptions): string
   }
   if (options.task === "scorecard" && options.notesPath) {
     args.push("--notes-file", options.notesPath);
+  }
+  if (options.task === "scorecard" && options.devCase) {
+    args.push("--dev-case");
   }
   if (options.lang) {
     args.push("--lang", options.lang);
@@ -477,6 +489,7 @@ export async function runAutomationTask(
     task === "screen" && entry.jobId ? countActiveEntriesForJob(entry.jobId, workspaceId) : null;
   const jobRecord = task !== "rematch" && entry.jobId ? getJob(entry.jobId, workspaceId) : null;
   const jobJson = jobRecord ? JSON.stringify(jobRecord) : null;
+  const devCase = task === "scorecard" && entryHasDevCase(entry);
   const cacheKey = computeAutomationCacheKey({
     version,
     task,
@@ -498,6 +511,7 @@ export async function runAutomationTask(
     // Tasks in neither set (rematch) ignore it.
     lang: uiLang ?? letterLang,
     githubEvidenceJson: githubEvidenceJson ?? undefined,
+    devCase,
     // Bucketed inside computeAutomationCacheKey (small/medium/large), so the key is
     // stable as candidates trickle in but a verdict computed at 3 is never served at 80.
     pipelineSize,
@@ -555,6 +569,7 @@ export async function runAutomationTask(
         notesPath,
         lang: uiLang ?? letterLang,
         githubEvidencePath,
+        devCase,
       });
 
       const { result } = spawnPython(args, { signal, env: buildLlmConfigEnv() });

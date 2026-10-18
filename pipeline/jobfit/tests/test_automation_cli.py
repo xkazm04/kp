@@ -335,3 +335,43 @@ class TestScreenPipelineSizeFlag(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestScorecardDevCaseFlag(unittest.TestCase):
+    """S1 — `scorecard --dev-case` appends the optional "Working with AI tools" axis."""
+
+    def _scorecard(self, extra):
+        with _fixture() as (cand, jobs):
+            notes = jobs.parent / "notes.txt"
+            notes.write_text("Solid answers on the API design.", encoding="utf-8")
+            code, out, _err = _run(
+                ["scorecard", "--no-llm", "--candidate-json", str(cand), "--job-id", _JOB_ID,
+                 "--jobs", str(jobs), "--notes-file", str(notes), *extra]
+            )
+        self.assertEqual(code, 0)
+        return out, _last_json(out)
+
+    def test_flag_reaches_the_scorecard_rubric(self):
+        _out, payload = self._scorecard(["--dev-case"])
+        result = payload["result"]
+        self.assertEqual(result["rubricKeys"][-1], "Working with AI tools")
+        # keyless there is no evidence behind the axis: not assessed, never a midpoint
+        self.assertEqual(result["notAssessed"], ["Working with AI tools"])
+        self.assertNotIn("Working with AI tools", [r["competency"] for r in result["ratings"]])
+
+    def test_without_the_flag_the_output_is_the_pre_s1_output(self):
+        out, payload = self._scorecard([])
+        self.assertNotIn("Working with AI tools", payload["result"]["rubricKeys"])
+        self.assertNotIn("notAssessed", payload["result"])
+        # the flag's absence passes nothing new to the engine at all
+        seen = {}
+        real = automation.interview_scorecard
+
+        def spy(*a, **kw):
+            seen.update(kw)
+            return real(*a, **kw)
+
+        with mock.patch.object(automation, "interview_scorecard", spy):
+            again, _ = self._scorecard([])
+        self.assertNotIn("dev_case", seen)
+        self.assertEqual(again, out)

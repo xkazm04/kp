@@ -42,7 +42,7 @@ export function HumanScorecardPanel({
 }) {
   const t = useTranslations("scheduleTab.scorecard");
   const tc = useTranslations("common");
-  const { data, error, reload } = useJsonFetch<{ mine?: HumanScorecardRecord | null; records?: HumanScorecardRecord[] }>(
+  const { data, error, reload } = useJsonFetch<{ mine?: HumanScorecardRecord | null; records?: HumanScorecardRecord[]; devCase?: boolean }>(
     `/api/interview-prep/scorecard?entry=${encodeURIComponent(entryId)}`,
     t("loadMineFailed")
   );
@@ -98,6 +98,7 @@ export function HumanScorecardPanel({
       entryId={entryId}
       archetype={archetype}
       roleFamily={roleFamily}
+      devCase={data?.devCase === true}
       initial={mine}
       othersCount={othersCount}
       onSaved={setSavedHere}
@@ -112,6 +113,7 @@ function HumanScorecardEditor({
   entryId,
   archetype,
   roleFamily,
+  devCase,
   initial,
   othersCount,
   onSaved,
@@ -120,6 +122,10 @@ function HumanScorecardEditor({
   entryId: string;
   archetype: string | null | undefined;
   roleFamily?: string | null;
+  // S1 — the entry carries a work sample, so the rubric gains the optional "Working with
+  // AI tools" axis (the same flag the POST route resolves). Left unrated it saves with
+  // no number; it is never seeded to a midpoint.
+  devCase: boolean;
   initial: Scorecard | null;
   othersCount: number;
   onSaved: (sc: Scorecard) => void;
@@ -134,7 +140,7 @@ function HumanScorecardEditor({
   // PREP3 — render the rubric in the recruiter's language; the canonical English
   // `competency` stays the POSTed scorecard key (ratings/evidence are keyed by
   // it below), so localizing display can't corrupt the scoring contract.
-  const rubric = localizedRubric(rubricForArchetype(archetype, roleFamily), rubricStrings);
+  const rubric = localizedRubric(rubricForArchetype(archetype, roleFamily, devCase), rubricStrings);
   const ratingAnchors = localizedRatingAnchors(rubricStrings);
   // Honest coverage cue, resolved by the SAME pure function the prep header and the
   // scorecard write path use (rubricCoverage), so the pack, the form and the stored
