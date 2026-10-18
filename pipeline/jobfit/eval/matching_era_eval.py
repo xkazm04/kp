@@ -534,7 +534,7 @@ def _format_legacy(report: dict[str, Any]) -> list[str]:
     lines = [
         f"proof weights (the default, ADR 0027) vs legacy {pv['scorer_version']}",
         "  " + "  ".join(f"{k}={v:g}" for k, v in report["weights"].items()),
-        row("metric", "legacy", "default", "C6 target (NOT met; adopted anyway)"),
+        row("metric", "legacy", "default", "C6 target (C6b frontier: README, ADR 0027)"),
         row("free-claim gain", f"{b['free_claim_gain']:+}", f"{p['free_claim_gain']:+}", "<= 2.0"),
         row("free-claim crossings @best", at_best(b), at_best(p), "0"),
         row("proof premium", f"{b['proof_premium']:+}", f"{p['proof_premium']:+}", ">= base"),

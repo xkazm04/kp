@@ -289,15 +289,29 @@ wave over it.
 
 `score_job` runs the proof weights (`DEFAULT_PROOF_WEIGHTS` = `PROOF_PREVIEW_WEIGHTS`,
 `matching.py`) unless a caller passes `proof=None`, which runs the historical arithmetic
-(the C5 harness uses it for before/after; nothing in the product path does). Two levers,
-both read off the posting: a must-have marked `hardness="learnable"` weighs
-`learnable_must_weight` = 0.8 instead of 1.0, and a bare `self_declared` claim on it is
-credited at `self_declared_learnable` = 0.05 of what it earned (anything above
-self-declared keeps full credit). The discounted claim stays *unproven*, never *missing*.
-`score_skills` itself stays the primitive and defaults to the historical arithmetic.
+(the C5 harness uses it for before/after; nothing in the product path does). The levers:
 
-**Scorer version on every score.** `MatchResult.scorer_version` is `proof-weights.1-lam0.8-sd0.05`
-(`proof_scorer_version()`) under the default and `match-scorer.v1` under `proof=None`. It is a
+- a must-have marked `hardness="learnable"` weighs `learnable_must_weight` = 0.8 instead of 1.0;
+- a bare `self_declared` claim on it is credited at `self_declared_learnable` = 0.05 of what it
+  earned (anything above self-declared keeps full credit);
+- **C6b (a):** a bare claim on a prerequisite must-have or a nice-to-have is credited at
+  `self_declared_requirement` = 0.05 (`score_skills`);
+- **C6b (b):** in the BAU personal keyword overlap (`score_personal`), an ad word matched only by
+  a bare skill claim counts `self_declared_requirement` of a hit; traits and evidenced skills
+  keep a whole hit;
+- **C6b (c):** in early-career potential (`transform.compute_potential`), bare claims add at most
+  `BARE_CLAIM_VELOCITY_CAP` = 1 skill of learning velocity between them. The candidate carries the
+  old figure as `bare_claim_potential_score` (only when it differs) so `proof=None` stays the
+  historical arithmetic.
+
+The discounted claim stays *unproven*, never *missing*. Every score the proof weights move carries
+a `ProofReason` line: `learnable_weight`, `self_declared_discount`, `self_declared_overlap` or
+`self_declared_velocity`. `score_skills` and `score_personal` stay primitives and default to the
+historical arithmetic; `score_job` passes the proof weights to both.
+
+**Scorer version on every score.** `MatchResult.scorer_version` is
+`proof-weights.2-lam0.8-sd0.05-sr0.05` (`proof_scorer_version()`; C6b, before it
+`proof-weights.1-lam0.8-sd0.05`) under the default and `match-scorer.v1` under `proof=None`. It is a
 slug, so it fits the add door's `SCORER_VERSION_RE`. On the TS side `matchReasonFacts`
 (`matchReasons.ts`) carries it into the verdict facts, `recordMatchRun` stores it in
 `match_run_results.scorer_version`, and the sealed record's `policyVersion` is that value; a
@@ -309,24 +323,41 @@ cohort before comparing across the boundary, as above.
 **What it changed, measured** (`python -m pipeline.jobfit.eval.matching_era_eval --legacy`, 66
 synthetic candidates x 120 jobs, keyless, deterministic):
 
-| metric | legacy (before) | proof weights (after) | C6 target |
-|---|---|---|---|
-| free-claim gain (stuffed - base) | +18.3801 | **+13.6659** | <= 2.0 — **not met** |
-| best-job tier crossings from free claims | 9/66 | **7/66** | 0 — **not met** |
-| proof premium (proven - stuffed) | +24.703 | +29.3913 | >= before — met |
-| name deltas (nonzero, 4 axes) | 0 | 0 | 0 — met |
-| student / career_switcher tier loss at best job | – | 0 | 0 — met |
-| hardness lift learnable / prerequisite | +9.50 / +8.91 | +8.58 / +9.42 | learnable < prerequisite — met |
+| metric | legacy | C6 (`proof-weights.1`) | C6b (`proof-weights.2`, today) | target |
+|---|---|---|---|---|
+| free-claim gain (stuffed - base) | +18.3801 | +13.6659 | **+1.2283** | <= 2.0 — **met** |
+| best-job tier crossings from free claims | 9/66 | 7/66 | **2/66** | 0 — **not met** |
+| proof premium (proven - stuffed) | +24.703 | +29.3913 | +41.8304 | not lower — met |
+| name deltas (nonzero, 4 axes) | 0 | 0 | 0 | 0 — met |
+| student / career_switcher tier loss at best job | – | 0 | 0 | 0 — met |
+| changed scores without a reasons line | – | 0 | 0 | 0 — met |
+| hardness lift learnable / prerequisite | +9.50 / +8.91 | +8.58 / +9.42 | +8.58 / +9.42 | learnable < prerequisite — met |
 
-Per archetype free-claim gain: bau 20.42 -> 15.03, career_switcher 14.47 -> 10.83, student 17.41 -> 13.12.
-Student and career_switcher base-twin tier changes: 11 and 3 pairs of 2760 and 1320, none at a
-candidate's best job; each carries its reasons line (`comparison.protected_tier_changes`).
-The targets were **not met and the operator adopted the weights anyway**; the frontier above is
-the honest figure and no target was loosened (the two `expectedFailure` tests in
-`test_matching_proof_preview.py` stay until it is met). The remaining leaks — `score_personal`
-keyword overlap, `transform.compute_potential` velocity, `self_declared` credit on prerequisite
-and nice-to-have requirements — are C6b. `test:eval:match` was re-recorded: role_relevance_at5
-moved 0.857 -> 0.886 (switcher_support 0.8 -> 1.0).
+Per archetype free-claim gain (legacy -> C6 -> C6b): bau 20.42 -> 15.03 -> 0.95, career_switcher
+14.47 -> 10.83 -> 1.77, student 17.41 -> 13.12 -> 1.36. Each C6b leak, in order: (a) +13.6659 ->
++3.0495 and 7 -> 3 crossings; (b) -> +2.0505, 3 crossings; (c) -> +1.2283, 2 crossings
+(commits `b6bd61a4e`, `e715216eb`, `abeff477e`).
+Student and career_switcher base-twin tier changes: 13 and 3 pairs of 2760 and 1320 (C6: 11 and 3),
+none at a candidate's best job; each carries its reasons line (`comparison.protected_tier_changes`).
+C6 met neither of the first two targets and the operator adopted the weights anyway. C6b closed
+the three leaks and met the free-claim gain; the best-job crossings target is **still not met** and
+its `expectedFailure` test in `test_matching_proof_preview.py` stays, with the 2/66 frontier pinned
+beside it. No target was loosened. The two crossings left are +1-point steps over a tier line
+(cand-031 @ job-018 69 -> 70, cand-061 @ job-114 54 -> 55, both students, `career_shift`). The
+velocity lever trades them one-for-one against the protected target: dropping bare claims from
+velocity outright reaches 0/66, but two students who hold one bare claim beside real evidence
+(cand-009 @ job-002 73 -> 69, cand-045 @ job-027 71 -> 69) then lose their strong tier at their
+best job. The cap of 1 is the setting that loses no met target; the drop is an operator decision.
+`test:eval:match` was re-recorded at the adoption (role_relevance_at5 0.857 -> 0.886); C6b leaves
+it at 0.886, so it was not re-recorded.
+
+**Known gaps (C6b).** The opt-in embedding term of `score_personal` (`--embeddings`) is not gated:
+it embeds the joined skill text, bare claims included. An inline tag-only candidate (`/api/match`
+with no `skillProvenance`) is all bare claims, so every requirement it names is now discounted.
+A claim whose provenance is free prose rather than a known value is not treated as bare
+(`_is_self_declared` reads the exact value), so it escapes every proof discount — skills, overlap
+and velocity — although `provenance_weight` scores it at the self-declared floor. The seed corpus
+holds 18 such career_switcher claims; aligning the two is not part of the approved C6b scope.
 
 ### 3. Early-career dimension swap
 For `student`/`career_switcher` archetypes, `pipeline/jobfit/matching.py`

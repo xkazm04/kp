@@ -13,10 +13,10 @@ sources:
   - pipeline/jobfit/tests/test_devcase_eval.py
 ---
 
-**Status: accepted, partially implemented.** C1 to C6 below have landed (C6 as an opt-in
-preview). On 2026-10-18 the operator decided to adopt the C6 weights as the default
-scorer; that adoption is planned, not landed (see the dated decision below). S1 to S3
-and L1 are still the approved build order.
+**Status: accepted, partially implemented.** C1 to C6 below have landed. On 2026-10-18 the
+operator adopted the C6 weights as the default scorer (landed, see the dated decision
+below), and C6b "close the leaks" has landed on top of it. S1 to S3 and L1 are still the
+approved build order.
 
 ## Context
 
@@ -90,12 +90,36 @@ Before -> after: free-claim gain +18.3801 -> +13.6659, best-job crossings 9/66 -
 premium +24.703 -> +29.3913, name deltas 0 -> 0. Figures and method are in
 `docs/features/matching/README.md`.
 
-**Approved follow-up C6b, "close the leaks" (planned after adoption, not landed).**
+**Approved follow-up C6b, "close the leaks" (landed 2026-10-18).**
 Discount `self_declared` claims on prerequisite and nice-to-have requirements; proof-gate
 the BAU personal keyword overlap in `score_personal`; stop counting bare claims in
 `transform.compute_potential` velocity. C6b uses the same harness and the same targets, the
 frontier is reported honestly, a target is never loosened, and the `expectedFailure` tests
 flip when met.
+
+Landed one commit per leak, each test-first (`pipeline/jobfit/tests/test_matching_c6b_leaks.py`):
+(a) `b6bd61a4e`, a new lever `self_declared_requirement` = 0.05 on prerequisites and
+nice-to-haves; (b) `e715216eb`, a bare skill claim counts 0.05 of a keyword hit in
+`score_personal` under the proof weights; (c) `abeff477e`, bare claims add at most one skill
+(`BARE_CLAIM_VELOCITY_CAP` = 1) of learning velocity. The stamp is now
+`proof-weights.2-lam0.8-sd0.05-sr0.05`, so C6 and C6b scores stay distinguishable in storage.
+
+| target | legacy | C6 (adopted) | C6b | met |
+|---|---|---|---|---|
+| free-claim gain <= 2.0 | +18.3801 | +13.6659 | **+1.2283** | yes |
+| best-job crossings 0 | 9/66 | 7/66 | **2/66** | **no** |
+| proof premium not lower than C6 | +24.703 | +29.3913 | +41.8304 | yes |
+| name deltas 0 | 0 | 0 | 0 | yes |
+| 0 student/career_switcher best-job tier losses | – | 0 | 0 | yes |
+| every changed score carries a reasons line | – | 0 unexplained | 0 unexplained | yes |
+
+**Crossings frontier.** The velocity lever (c) trades the last crossings one-for-one against the
+protected-cohort target. Dropping bare claims from velocity outright reaches 0/66, but two
+students who hold one bare claim beside real evidence lose their strong tier at their best job
+(cand-009 73 -> 69, cand-045 71 -> 69). The cap of 1 is the setting that keeps every met target
+met. The two crossings left are +1-point steps over a tier line. Whether to take the drop, and so
+trade the protected target for the crossings target, is an operator decision; until it is made,
+the crossings test stays `expectedFailure` at its own number.
 
 **Alternative that lost:** keep proof weights as an opt-in preview until every target is
 met.
@@ -126,6 +150,6 @@ went 70.8 -> 76.0, to be checked in S2.
 - Later steps must keep the judgment gap at zero on the observed path and report the
   gamer-cohort figure above when S2 lands.
 - This record is **accepted** for the decision and **partial** for the build; update the
-  table as each step ships. C1 to C6 have shipped; the default-scorer adoption and C6b
-  have not.
+  table as each step ships. C1 to C6, the default-scorer adoption and C6b have shipped; the
+  C6b best-job crossings target is still open at 2/66.
 - Reopen if: the gamer cohort keeps rising faster than strong-weak discrimination at S2.
