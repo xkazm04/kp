@@ -12,7 +12,7 @@
 import { cleanupUnitDb } from "../testing/unit-db.ts";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
@@ -61,6 +61,33 @@ test("every outreach_letters statement binds workspace_id — no by-id exemption
 test("one letter per application is keyed per team", () => {
   const core = readFileSync(path.join(dir, "core.ts"), "utf8").replace(/\r\n/g, "\n");
   assert.match(core, /CREATE UNIQUE INDEX IF NOT EXISTS uq_outreach_letters_entry ON outreach_letters \(workspace_id, entry_id\)/);
+});
+
+test("outside this store, only the erasure scrub touches the table", () => {
+  const appDir = path.resolve(dir, "..", "..");
+  const offenders: string[] = [];
+  const walk = (d: string) => {
+    for (const e of readdirSync(d, { withFileTypes: true })) {
+      const p = path.join(d, e.name);
+      if (e.isDirectory()) {
+        if (e.name !== "node_modules") walk(p);
+        continue;
+      }
+      if (!e.name.endsWith(".ts") || e.name.endsWith(".test.ts")) continue;
+      if (p === path.join(dir, "outreach-letters.ts") || p === path.join(dir, "core.ts")) continue;
+      const text = readFileSync(p, "utf8");
+      for (const m of text.matchAll(/`([^`]*)`/g)) {
+        if (/\b(from|into|update)\s+outreach_letters\b/i.test(m[1])) offenders.push(`${path.relative(appDir, p)}: ${m[1].trim().slice(0, 80)}`);
+      }
+    }
+  };
+  walk(appDir);
+  assert.deepEqual(
+    offenders.map((o) => o.split(":")[0]),
+    [path.join("_lib", "db", "pipeline.ts")],
+    `only the erasure scrub may write outreach_letters outside its store:\n${offenders.join("\n")}`
+  );
+  assert.match(offenders[0] ?? "", /UPDATE outreach_letters SET subject = NULL, body = NULL/, "…and that write is the scrub");
 });
 
 // ---- the behavioural half -------------------------------------------------

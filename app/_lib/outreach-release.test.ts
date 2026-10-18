@@ -8,9 +8,9 @@
 import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { test, after, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { createPipelineEntry, hasEvent, listPipelineEventsForEntry } from "./db/pipeline.ts";
+import { anonymizeEntry, createPipelineEntry, getPipelineEntry, hasEvent, listPipelineEventsForEntry } from "./db/pipeline.ts";
 import { listOutboxFiltered } from "./db/devcase.ts";
-import { outreachLetterApprove, outreachLetterById } from "./db/outreach-letters.ts";
+import { outreachLetterApprove, outreachLetterById, outreachLetterDraft } from "./db/outreach-letters.ts";
 import { draftOutreachLetter, releaseOutreachLetter } from "./outreach-release.ts";
 import { haltOutreach } from "./outreach-state-store.ts";
 import { setRelayHostLookupForTests } from "./comms.ts";
@@ -181,4 +181,23 @@ test("a letter from another workspace is invisible to the release", async () => 
   assert.deepEqual(out, { ok: false, status: 404, code: "PIPELINE_ENTRY_NOT_FOUND" });
   assert.equal(posts.length, 0);
   assert.equal(outreachLetterById(letter.id, "team-release-beta")!.state, "approved");
+});
+
+test("an erased entry's letter is blanked and can no longer be released", async () => {
+  const posts = fixtureRelay(200);
+  const e = entry();
+  const { letter } = outreachLetterDraft({ entryId: e.id, subject: "Hi Jana", body: "Dear Jana, …", lang: "en" }, WS);
+  outreachLetterApprove(letter.id, { revision: 1, approvedBy: APPROVER }, WS);
+  anonymizeEntry(e.id, "erasure", WS);
+  const blanked = outreachLetterById(letter.id, WS)!;
+  assert.equal(blanked.subject, null);
+  assert.equal(blanked.body, null);
+  assert.ok(blanked.erasedAt);
+  assert.ok(getPipelineEntry(e.id, WS)?.anonymizedAt);
+  // A draft still being generated when the erasure landed cannot write the text back.
+  outreachLetterDraft({ entryId: e.id, subject: "Hi Jana", body: "Dear Jana, again", lang: "en" }, WS);
+  assert.equal(outreachLetterById(letter.id, WS)!.body, null);
+  const out = await releaseOutreachLetter(letter.id, WS, APPROVER);
+  assert.equal(out.ok, false);
+  assert.equal(posts.length, 0);
 });

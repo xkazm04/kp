@@ -2594,6 +2594,18 @@ function scrubEntryLinkedPii(
       `UPDATE interview_letters SET draft_text = NULL, final_text = NULL, erased_at = COALESCE(erased_at, ?) WHERE entry_id = ?`
     ).run(new Date().toISOString(), entryId);
   }
+  // The held first-contact outreach (db/outreach-letters.ts, comms scope C2): subject and
+  // body are written TO this person by name, so both are blanked, the same way the
+  // dev_outbox block above blanks a letter that already left. The row stays — state,
+  // revision, message id, language, dates and the approver's actor token are the record
+  // that a letter was drafted and what became of it, and they name nobody. `erased_at`
+  // closes the row to every later write: a draft still being generated cannot write the
+  // text back, an approval cannot land, and the release refuses a letter with no body.
+  if (tables.has("outreach_letters")) {
+    db.prepare(
+      `UPDATE outreach_letters SET subject = NULL, body = NULL, erased_at = COALESCE(erased_at, ?) WHERE entry_id = ?`
+    ).run(new Date().toISOString(), entryId);
+  }
   // --- The DEV-CASE family, reached through the entry's work-sample link. ---
   //
   // These rows are keyed by SUBMISSION, never by entry id, which is exactly why the
