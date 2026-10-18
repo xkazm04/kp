@@ -12288,6 +12288,42 @@
           "evidence": "app/features/hiring/pipeline/pipelineBoardFilters.test.ts:176 The parser receives an otherwise valid CSV containing one invalid token and must preserve exactly the valid tokens; nearby positive cases prevent an always-empty parser from passing."
         }
       ]
+    },
+    "ec7480d1-b046-46b8-ad78-ba60c3612b85/ai-assistance-detection-and-fairness": {
+      "context": "devcase-core",
+      "subject": "ai-assistance-detection-and-fairness",
+      "bundle": "recruiting",
+      "state": "conformant",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T21:15:48.616Z",
+      "worker": "66a1b8f6-e96f-4903-9faa-2c355185cba9",
+      "techniques": [
+        {
+          "technique": "behaviour-matched-peer-test-for-over-reliance",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/devcase/submission_eval.py:301 Audits over-reliance flags against behaviour-matched peers with identical verification habits to catch tool discrimination."
+        },
+        {
+          "technique": "never-penalise-tool-use-invariant",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/devcase/submission_eval.py:332 Evaluates non-inferiority of AI verifiers against behaviour-matched peers within a declared tolerance margin."
+        },
+        {
+          "technique": "frozen-naive-baseline-comparison",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/devcase/artifact_checks.py:200 Excludes the candidate decision log from delta similarity calculations to avoid inflating scores from boilerplate templates."
+        },
+        {
+          "technique": "planted-canary-with-real-ground-truth",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/devcase/artifact_checks.py:108 Checks seed line descent before grading so complete rewrites are marked unverifiable rather than addressed."
+        },
+        {
+          "technique": "observed-process-is-supporting-not-load-bearing",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/devcase/process_events.py:169 Enforces that process telemetry never infers over-reliance flags or moves decision boundaries on its own."
+        }
+      ]
     }
   }
 }

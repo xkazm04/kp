@@ -12081,7 +12081,11 @@
           "revision": 4,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "pipeline/jobfit/devcase/submission_eval.py:335 The evaluation gate combines verifier lead requirements, AI non-inferiority parity, and behaviour-matched peer over-reliance checks to certify fairness.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:a28201782a40ecdc",
+          "evaluatedRevision": 4
         },
         {
           "subject": "fleet-orchestration",
