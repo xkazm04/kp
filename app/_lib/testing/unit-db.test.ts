@@ -143,7 +143,7 @@ type LauncherRun = { code: number | null; out: string };
 /** Start the real launcher on one file, contending for the slot at `slotDir` (never the
  *  machine's real slot, which the suite running this file holds). */
 function launch(file: string, slotDir: string, extraEnv: Record<string, string> = {}): Promise<LauncherRun> {
-  const env: Record<string, string | undefined> = { ...process.env, KP_TEST_SLOT_DIR: slotDir, KP_FLAKE_RERUN: "0", ...extraEnv };
+  const env: NodeJS.ProcessEnv = { ...process.env, KP_TEST_SLOT_DIR: slotDir, KP_FLAKE_RERUN: "0", ...extraEnv };
   // This file runs inside a launcher that holds its own slot; a child that inherited
   // the marker would skip the slot and prove nothing.
   if (!("KP_TEST_SLOT_HELD" in extraEnv)) delete env.KP_TEST_SLOT_HELD;
