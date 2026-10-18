@@ -406,7 +406,16 @@ def _scorers() -> dict[str, Scorer]:
         ),
         "matching.score_skills": Scorer(_per_job(lambda c, j: {"v": matching.score_skills(c, j)}), "v"),
         "matching.score_career": Scorer(_per_job(lambda c, j: {"v": matching.score_career(c, j)}), "v"),
-        "matching.score_personal": Scorer(_per_job(lambda c, j: {"v": matching.score_personal(c, j)}), "v"),
+        # C6b gates the keyword overlap under the proof weights; both arithmetics are proven.
+        "matching.score_personal": Scorer(
+            _per_job(
+                lambda c, j: {
+                    "v": matching.score_personal(c, j),
+                    "proof": matching.score_personal(c, j, proof=matching.DEFAULT_PROOF_WEIGHTS),
+                }
+            ),
+            "v",
+        ),
         "matching.score_motivation": Scorer(_per_job(lambda c, j: {"v": matching.score_motivation(c, j)}), "v"),
         "matching.propose_weights": Scorer(_per_job(lambda c, j: {"v": matching.propose_weights(c, j)}), "v"),
         "matching.embedding_texts_for": Scorer(

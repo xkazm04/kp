@@ -956,7 +956,14 @@ def embedding_texts_for(candidate: MatchCandidate, job: Job) -> list[str]:
     return list(_personal_embed_pair(candidate, job))
 
 
-def score_personal(candidate: MatchCandidate, job: Job, *, embedder: Any | None = None) -> float:
+def score_personal(
+    candidate: MatchCandidate,
+    job: Job,
+    *,
+    embedder: Any | None = None,
+    proof: ProofWeights | None = None,
+    proof_reasons: list[ProofReason] | None = None,
+) -> float:
     """Keyword heuristic by default; the embedding bridge when opted in.
 
     Blends language coverage with the overlap of the candidate's traits/skills
@@ -973,6 +980,12 @@ def score_personal(candidate: MatchCandidate, job: Job, *, embedder: Any | None 
       ``--embeddings``) — embedding cosine between the candidate's own words and
       the ad, so paraphrases finally meet without sharing a token. Fail-open:
       any bridge failure falls back to the keyword term.
+
+    ``proof`` (C6b, leak b; ``score_job`` passes the default) gates the keyword term:
+    a skill held only as a bare ``self_declared`` claim counts
+    ``proof.self_declared_requirement`` of a hit instead of a whole one, the same
+    discount ``score_skills`` gives it on a requirement. Traits are not skill claims and
+    keep a whole hit. ``proof=None`` stays the historical arithmetic.
     """
     overlap: float | None = None
     if embedder is not None:
@@ -987,6 +1000,16 @@ def score_personal(candidate: MatchCandidate, job: Job, *, embedder: Any | None 
         # skill families with short canonical names.
         tokens = [t for t in (candidate.traits + candidate.skills) if t]
         hits = sum(1 for t in tokens if _term_in_words(t, desc_words))
+        bare: list[str] = []
+        if proof is not None:
+            bare = [
+                s
+                for s in candidate.skills
+                if s
+                and _is_self_declared(candidate.skill_provenance.get(s, candidate.provenance_default))
+                and _term_in_words(s, desc_words)
+            ]
+        gated_hits = hits - len(bare) * (1.0 - proof.self_declared_requirement) if bare else hits
         # Saturation denominator, formerly a bare ``/5.0``: a fixed constant tied to
         # NEITHER the ad's demand nor its keyword surface, so a focused ad and a
         # keyword-dense one both maxed out at 5 hits and an 8-token overlap could
@@ -995,7 +1018,10 @@ def score_personal(candidate: MatchCandidate, job: Job, *, embedder: Any | None 
         # preserve the prior calibration for a typical ad, so a keyword-rich role
         # genuinely separates a broad candidate from a narrow one.
         n_must_have = sum(1 for r in job.requirements if r.kind == "must_have")
-        overlap = min(1.0, hits / max(_OVERLAP_DENOM_FLOOR, n_must_have))
+        denom = max(_OVERLAP_DENOM_FLOOR, n_must_have)
+        overlap = min(1.0, gated_hits / denom)
+        if bare:
+            _overlap_reason(proof_reasons, bare, min(1.0, hits / denom), overlap, proof.self_declared_requirement)
     # Language coverage joins the blend only when the ad STATES a language
     # requirement. An ad naming none carries no language signal, so rather than the
     # old free full-credit 1.0 — a fixed 0.5 gift to `personal` on every
@@ -1005,6 +1031,27 @@ def score_personal(candidate: MatchCandidate, job: Job, *, embedder: Any | None 
     # (_language_coverage still returns 1.0 for score_motivation, unchanged.)
     lang_cov = _language_coverage(candidate, job) if job.languages else _NEUTRAL_LANGUAGE_COVERAGE
     return round(0.5 * lang_cov + 0.5 * overlap, 4)
+
+
+def _overlap_reason(
+    out: list[ProofReason] | None, bare: list[str], base_overlap: float, overlap: float, weight: float
+) -> None:
+    """One reasons line for the personal overlap the proof weights withheld from bare claims."""
+    if out is None or overlap >= base_overlap:
+        return
+    names = ", ".join(bare)
+    out.append(
+        ProofReason(
+            "personal overlap",
+            "self_declared_overlap",
+            1.0,
+            weight,
+            round(base_overlap, 4),
+            round(overlap, 4),
+            f"personal fit: the ad's words {names} are matched only by self-declared skill claims — "
+            f"each counts {weight:g} of a hit, overlap {overlap:.2f} instead of {base_overlap:.2f}",
+        )
+    )
 
 
 def _language_coverage(candidate: MatchCandidate, job: Job) -> float:
@@ -1310,7 +1357,7 @@ def _score_dimensions(
         personal = score_motivation(candidate, job, embedder=embedder)
     else:
         career = score_career(candidate, job)
-        personal = score_personal(candidate, job, embedder=embedder)
+        personal = score_personal(candidate, job, embedder=embedder, proof=proof, proof_reasons=proof_reasons)
     return _Dimensions(skills, career, personal, matched, missing, matched_strength, unproven)
 
 

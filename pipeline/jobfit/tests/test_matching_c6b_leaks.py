@@ -20,6 +20,7 @@ from pipeline.jobfit.matching import (
     MatchCandidate,
     ProofReason,
     score_job,
+    score_personal,
 )
 
 
@@ -81,6 +82,62 @@ class LeakA_PrerequisiteAndNiceToHave(unittest.TestCase):
         self.assertIn("nice-to-have", discounted["Airflow"].text)
         for r in discounted.values():
             self.assertLess(r.preview_credit, r.base_credit)
+
+
+def _ad() -> Job:
+    # The ad names more keywords than it requires: personal overlap reads the whole text.
+    return Job(
+        id="j-c6b-ad",
+        title="Data Engineer",
+        company="Acme",
+        location="Praha",
+        description="You will build Python pipelines on Kafka and Spark, orchestrated with Airflow on Kubernetes.",
+        requirements=[JobRequirement(skill="Python", kind="must_have", hardness="prerequisite")],
+    )
+
+
+class LeakB_PersonalKeywordOverlap(unittest.TestCase):
+    """A bare skill claim no longer earns BAU personal-fit credit for naming the ad's words."""
+
+    BASE = {"Python": "professional"}
+    STUFFED = {"Python": "professional", "Kafka": "self_declared", "Spark": "self_declared", "Kubernetes": "self_declared"}
+
+    def test_control_the_legacy_overlap_pays_for_the_bare_keywords(self) -> None:
+        legacy = lambda prov: score_job(_bau(prov), _ad(), proof=None).personal_score  # noqa: E731
+        self.assertGreater(legacy(self.STUFFED), legacy(self.BASE))
+
+    def test_the_stuffed_twin_gains_at_most_the_discounted_fraction(self) -> None:
+        job = _ad()
+        legacy_gain = score_job(_bau(self.STUFFED), job, proof=None).personal_score - score_job(_bau(self.BASE), job, proof=None).personal_score
+        proof_gain = score_job(_bau(self.STUFFED), job).personal_score - score_job(_bau(self.BASE), job).personal_score
+        self.assertLessEqual(proof_gain, legacy_gain * DEFAULT_PROOF_WEIGHTS.self_declared_requirement + 1e-4)
+
+    def test_evidenced_keywords_keep_their_overlap(self) -> None:
+        proven = {k: "professional" for k in self.STUFFED}
+        job = _ad()
+        self.assertEqual(score_job(_bau(proven), job).personal_score, score_job(_bau(proven), job, proof=None).personal_score)
+
+    def test_traits_are_not_claims_and_keep_their_overlap(self) -> None:
+        cand = MatchCandidate(skills=[], traits=["Kafka"], archetype="bau", provenance_default="self_declared")
+        self.assertEqual(score_job(cand, _ad()).personal_score, score_job(cand, _ad(), proof=None).personal_score)
+
+    def test_the_primitive_stays_the_historical_arithmetic(self) -> None:
+        cand = _bau(self.STUFFED)
+        self.assertEqual(score_personal(cand, _ad()), score_job(cand, _ad(), proof=None).personal_score)
+
+    def test_the_withheld_overlap_carries_a_reasons_line(self) -> None:
+        reasons: list[ProofReason] = []
+        score_job(_bau(self.STUFFED), _ad(), proof_reasons=reasons)
+        overlap = [r for r in reasons if r.code == "self_declared_overlap"]
+        self.assertEqual(len(overlap), 1)
+        for skill in ("Kafka", "Spark", "Kubernetes"):
+            self.assertIn(skill, overlap[0].text)
+        self.assertLess(overlap[0].preview_credit, overlap[0].base_credit)
+
+    def test_no_reasons_line_when_nothing_was_withheld(self) -> None:
+        reasons: list[ProofReason] = []
+        score_job(_bau(self.BASE), _ad(), proof_reasons=reasons)
+        self.assertEqual([r for r in reasons if r.code == "self_declared_overlap"], [])
 
 
 if __name__ == "__main__":

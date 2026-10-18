@@ -74,8 +74,9 @@ class ProofPreviewHarnessTests(unittest.TestCase):
 
     def test_frontier_free_claim_gain(self) -> None:
         # Reached: +18.3801 (legacy) -> +13.6659 (C6) -> +3.0495 (C6b leak a: bare claims on
-        # prerequisites and nice-to-haves discounted). Re-pin deliberately if the scorer moves.
-        self.assertEqual(self.pv["free_claim_gain"], 3.0495)
+        # prerequisites and nice-to-haves discounted) -> +2.0505 (leak b: the personal keyword
+        # overlap gated). Re-pin deliberately if the scorer moves.
+        self.assertEqual(self.pv["free_claim_gain"], 2.0505)
         self.assertLess(self.pv["free_claim_gain"], BASE_FREE_CLAIM_GAIN)
 
     @unittest.expectedFailure
