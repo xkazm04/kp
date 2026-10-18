@@ -672,6 +672,10 @@ def _classify_unproven(cand_skill: str, req_skill: str, provenance: str | None) 
 #     must-have is credited at this fraction of what it earns today. A learnable
 #     skill is exactly the one a keyword can be written for at no cost; evidence
 #     (any provenance above self_declared) keeps its full credit.
+#   * ``self_declared_requirement`` (C6b, leak a) — the same discount on every other
+#     requirement: a prerequisite must-have or a nice-to-have. A keyword costs as
+#     little to write for a prerequisite as for a learnable skill; only the weight of
+#     the requirement differs, and that is the posting's to set, not the claim's.
 #
 # Lambda is "learnable" in the plain sense: it was chosen by sweeping the C5
 # twin-cast harness, and the frontier that sweep found is pinned in
@@ -679,7 +683,9 @@ def _classify_unproven(cand_skill: str, req_skill: str, provenance: str | None) 
 #
 # Scorer-version stamps are slugs (the TS add door's SCORER_VERSION_RE:
 # ^[a-z0-9][a-z0-9._-]{0,39}$), so a stored score names the arithmetic that made it.
-PROOF_SCORER_STAMP = "proof-weights.1"
+# proof-weights.1 = C6 (learnable must-haves only); proof-weights.2 = C6b, which also
+# discounts bare claims on prerequisites and nice-to-haves.
+PROOF_SCORER_STAMP = "proof-weights.2"
 PROOF_PREVIEW_STAMP = PROOF_SCORER_STAMP  # the pre-adoption name
 # What every score stored before the stamp existed was made by (the TS side's
 # MATCH_SCORER_VERSION); ``proof=None`` still emits it.
@@ -689,6 +695,7 @@ LEGACY_SCORER_VERSION = "match-scorer.v1"
 class ProofWeights(NamedTuple):
     learnable_must_weight: float = 0.8
     self_declared_learnable: float = 0.05
+    self_declared_requirement: float = 0.05
 
 
 PROOF_PREVIEW_WEIGHTS = ProofWeights()
@@ -710,7 +717,10 @@ class ProofReason(NamedTuple):
 
 def proof_scorer_version(proof: ProofWeights = DEFAULT_PROOF_WEIGHTS) -> str:
     """The stamp a proof-weighted score carries: never mistakable for the legacy arithmetic's."""
-    return f"{PROOF_SCORER_STAMP}-lam{proof.learnable_must_weight:g}-sd{proof.self_declared_learnable:g}"
+    return (
+        f"{PROOF_SCORER_STAMP}-lam{proof.learnable_must_weight:g}-sd{proof.self_declared_learnable:g}"
+        f"-sr{proof.self_declared_requirement:g}"
+    )
 
 
 def _is_self_declared(provenance: str | None) -> bool:
@@ -740,20 +750,29 @@ def score_skills(
         best = 0.0
         best_cs: str | None = None
         learnable_must = proof is not None and req.kind == "must_have" and req.hardness == "learnable"
+        # C6b (a): a bare claim on a prerequisite must-have or a nice-to-have is as free to
+        # write as one on a learnable must-have, so it is discounted too.
+        if proof is None:
+            discount = 1.0
+        elif learnable_must:
+            discount = proof.self_declared_learnable
+        else:
+            discount = proof.self_declared_requirement
         base_best = 0.0
         for cs in candidate.skills:
             prov = candidate.skill_provenance.get(cs, candidate.provenance_default)
             s = skill_match_score(cs, req.skill, prov)
-            if learnable_must:
-                base_best = max(base_best, s)
-                if _is_self_declared(prov):
-                    s *= proof.self_declared_learnable
+            base_best = max(base_best, s)
+            if discount < 1.0 and _is_self_declared(prov):
+                s *= discount
             if s > best:
                 best = s
                 best_cs = cs
         if learnable_must:
             _proof_reason(proof_reasons, req.skill, weight, proof.learnable_must_weight, base_best, best)
             weight = proof.learnable_must_weight
+        elif proof is not None and best < base_best:
+            _proof_reason(proof_reasons, req.skill, weight, weight, base_best, best, kind=_requirement_label(req))
         acc += best * weight
         total_w += weight
         if best >= _MATCH_THRESHOLD:
@@ -782,17 +801,30 @@ def score_skills(
     return round(score, 4), matched, missing, strength, unproven
 
 
+def _requirement_label(req: Any) -> str:
+    if req.kind == "must_have":
+        return f"{req.hardness or 'prerequisite'} must-have"
+    return "nice-to-have"
+
+
 def _proof_reason(
-    out: list[ProofReason] | None, skill: str, base_w: float, preview_w: float, base_best: float, best: float
+    out: list[ProofReason] | None,
+    skill: str,
+    base_w: float,
+    preview_w: float,
+    base_best: float,
+    best: float,
+    *,
+    kind: str = "learnable must-have",
 ) -> None:
-    """Record why the preview moved one learnable must-have's credit (one line each)."""
+    """Record why the proof weights moved one requirement's credit (one line each)."""
     if out is None:
         return
     base_credit, preview_credit = round(base_best * base_w, 4), round(best * preview_w, 4)
     if best < base_best:
         code = "self_declared_discount"
         text = (
-            f"{skill}: learnable must-have backed only by a self-declared claim — credited "
+            f"{skill}: {kind} backed only by a self-declared claim — credited "
             f"{preview_credit:g} instead of {base_credit:g} (weight {preview_w:g}, claim at "
             f"{best:.2f} instead of {base_best:.2f})"
         )

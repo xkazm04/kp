@@ -58,6 +58,11 @@ class ProofIsTheDefaultTests(unittest.TestCase):
         for v in (default, LEGACY_SCORER_VERSION, proof_scorer_version()):
             self.assertRegex(v, SCORER_VERSION_RE)
 
+    def test_the_stamp_names_the_c6b_vintage(self) -> None:
+        # proof-weights.1 (C6) scores stay readable as what they were; C6b's are .2.
+        self.assertTrue(proof_scorer_version().startswith("proof-weights.2-"))
+        self.assertIn("-sr", proof_scorer_version())
+
 
 if __name__ == "__main__":
     unittest.main()

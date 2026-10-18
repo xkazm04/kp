@@ -73,8 +73,9 @@ class ProofPreviewHarnessTests(unittest.TestCase):
         self.assertLessEqual(self.pv["free_claim_gain"], 2.0)
 
     def test_frontier_free_claim_gain(self) -> None:
-        # Reached: +13.6659, down from +18.3801. Re-pin deliberately if the preview moves.
-        self.assertEqual(self.pv["free_claim_gain"], 13.6659)
+        # Reached: +18.3801 (legacy) -> +13.6659 (C6) -> +3.0495 (C6b leak a: bare claims on
+        # prerequisites and nice-to-haves discounted). Re-pin deliberately if the scorer moves.
+        self.assertEqual(self.pv["free_claim_gain"], 3.0495)
         self.assertLess(self.pv["free_claim_gain"], BASE_FREE_CLAIM_GAIN)
 
     @unittest.expectedFailure
@@ -82,9 +83,9 @@ class ProofPreviewHarnessTests(unittest.TestCase):
         self.assertEqual(self.pv["tier_crossings"]["free_claim_at_best_job"], 0)
 
     def test_frontier_free_claim_crossings_at_best_job(self) -> None:
-        # Reached: 7/66, down from 9/66.
+        # Reached: 9/66 (legacy) -> 7/66 (C6) -> 3/66 (C6b leak a).
         tc = self.pv["tier_crossings"]
-        self.assertEqual((tc["free_claim_at_best_job"], tc["best_job_pairs"]), (7, 66))
+        self.assertEqual((tc["free_claim_at_best_job"], tc["best_job_pairs"]), (3, 66))
 
     def test_target_proof_premium_not_below_today(self) -> None:
         self.assertGreaterEqual(self.pv["proof_premium"], BASE_PROOF_PREMIUM)
@@ -102,7 +103,7 @@ class ProofPreviewHarnessTests(unittest.TestCase):
     def test_protected_tier_changes_are_pinned_and_each_carries_its_reasons(self) -> None:
         changes = self.cmp["protected_tier_changes"]
         by_arch = {a: sum(1 for c in changes if c["archetype"] == a) for a in ("student", "career_switcher")}
-        self.assertEqual(by_arch, {"student": 11, "career_switcher": 3})
+        self.assertEqual(by_arch, {"student": 13, "career_switcher": 3})
         self.assertFalse([c for c in changes if c["at_best_job"]])
         for c in changes:
             self.assertTrue(c["reasons"], c)
@@ -174,8 +175,13 @@ class ProofPreviewUnitTests(unittest.TestCase):
         # Docker: a bare claim (discounted). Figma: not held at all (its gap weighs less).
         cand = self._cand({"Python": "professional", "Docker": "self_declared"})
         _result, reasons = _preview(cand, self._job())
-        self.assertEqual([r.skill for r in reasons], ["Docker", "Figma"])
-        docker, figma = reasons
+        # Terraform (a nice-to-have) is reached only by the bare Docker claim's adjacency,
+        # which C6b (leak a) discounts too: its line is the discount, never a weight.
+        self.assertEqual([r.skill for r in reasons], ["Docker", "Figma", "Terraform"])
+        docker, figma, terraform = reasons
+        self.assertEqual(terraform.code, "self_declared_discount")
+        self.assertIn("nice-to-have", terraform.text)
+        self.assertEqual(terraform.base_weight, terraform.preview_weight)
         self.assertEqual(docker.code, "self_declared_discount")
         self.assertLess(docker.preview_credit, docker.base_credit)
         self.assertEqual(figma.code, "learnable_weight")
@@ -197,7 +203,7 @@ class ProofPreviewUnitTests(unittest.TestCase):
         self.assertIn("Docker", claimed.unproven_skills)
         self.assertNotIn("Docker", claimed.missing_skills)
 
-    def test_a_posting_with_no_learnable_must_is_untouched(self) -> None:
+    def test_a_posting_with_no_learnable_must_is_untouched_when_evidenced(self) -> None:
         job = Job(
             id="j-pre",
             title="Engineer",
@@ -205,11 +211,15 @@ class ProofPreviewUnitTests(unittest.TestCase):
             location="Praha",
             requirements=[JobRequirement(skill="Python", kind="must_have", hardness="prerequisite")],
         )
-        cand = self._cand({"Python": "self_declared"})
+        cand = self._cand({"Python": "professional"})
         result, reasons = _preview(cand, job)
         self.assertEqual(reasons, [])
         self.assertEqual(result, score_job(cand, job))
         self.assertEqual(result.total, score_job(cand, job, proof=None).total)
+        # C6b (leak a): before proof-weights.2 a bare claim here was untouched too.
+        bare, bare_reasons = _preview(self._cand({"Python": "self_declared"}), job)
+        self.assertEqual([(r.skill, r.code) for r in bare_reasons], [("Python", "self_declared_discount")])
+        self.assertLess(bare.skills_score, score_job(self._cand({"Python": "self_declared"}), job, proof=None).skills_score)
 
     def test_preview_report_is_deterministic(self) -> None:
         records, jobs = E.load_candidates()[:8], load_corpus(_DEFAULT_CORPUS)[:15]
