@@ -12411,6 +12411,32 @@
           "evidence": "app/_components/toast-store.ts:53 The store identifies notifications by variant and message; these primitives own no compound data-request key or previous-window retention policy."
         }
       ]
+    },
+    "c914a994-2658-490a-9f11-41768247fa0d/build-economics": {
+      "context": "dev-toolchain",
+      "subject": "build-economics",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T21:51:59.982Z",
+      "techniques": [
+        {
+          "technique": "build-measurement",
+          "verdict": "deviation",
+          "evidence": "scripts/perf/devbench.mjs:198 Asset measurements consume the helper's success-shaped failure values; the later validity check only tests the initial page's status."
+        },
+        {
+          "technique": "cache-budgeting",
+          "verdict": "deviation",
+          "evidence": "scripts/perf/devbench.mjs:162 Cache removal is an explicit cold-benchmark option; searches of scripts, hooks, and build configuration found no byte ceiling with an automatic enforcing pruner."
+        }
+      ],
+      "withdrawn": {
+        "worker": "fff58b97-aa81-40a9-8fea-d9e4aba8fa6f",
+        "state": "deviation",
+        "at": "2026-10-18T21:52:22.133491+00:00",
+        "reason": "reviewer (sonnet): The cited code is real: line 154 turns fetch failures into empty buffers, line 198 uses them for asset sizes, and the validity check at line 210 only tests the page status. But scripts/perf/devbench.mjs is not one of the dev-toolchain context's files, and none of those files call it. Also, line 162 "
+      }
     }
   }
 }
