@@ -1,0 +1,317 @@
+{
+  "schema": "conform-run/1",
+  "worker": "3ce5de5c-d1a7-40aa-ae05-8273a4b55c3e",
+  "subject": "guest-execution-bounding",
+  "evaluatedAt": "2026-10-18T01:31:19.990865+00:00",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "pairs": [
+    {
+      "context": "shell-tasks",
+      "subject": "guest-execution-bounding",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/features/shell/tasks/TasksProvider.tsx:62 Context and repository searches found no bytecode, instructionBudget or recursionLimit constructs here; these files poll and render server-owned tasks rather than execute guest programs.",
+      "techniques": [
+        {
+          "technique": "back-edge-iteration-counter",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/tasks/tasksTaskMeter.ts:23 This bounds a display meter, not guest loop execution."
+        },
+        {
+          "technique": "bounded-shadow-backtrace",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/tasks/useTaskResult.ts:52 The UI reads stored task diagnostics; it owns no interpreter frames or unwind."
+        },
+        {
+          "technique": "budget-tier-from-observed-output",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/tasks/TasksProvider.tsx:182 The selected duration controls polling frequency, not a guest execution budget."
+        },
+        {
+          "technique": "cost-budget-cooperative-yield",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/tasks/TasksProvider.tsx:181 The scheduled work awaits a status refresh rather than driving guest dispatch."
+        },
+        {
+          "technique": "count-host-reentry-in-recursion-depth",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/tasks/tasksTaskMeter.ts:25 Meter construction performs ordinary host arithmetic without guest/native re-entry."
+        },
+        {
+          "technique": "grace-for-the-uninterruptible-host-call",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/tasks/TaskFlightNote.tsx:34 The component presents remote progress rather than hosting guest callbacks."
+        },
+        {
+          "technique": "instruction-budget-for-fuzzing",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/tasks/tasksTaskMeter.test.ts:28 The inspected tests exercise display functions, not generated guest programs."
+        },
+        {
+          "technique": "nested-liveness-ceilings",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/tasks/useTaskResult.ts:94 This bounds result-fetch retries; it does not claim to bound the server task."
+        },
+        {
+          "technique": "one-terminator-many-armed-slots",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/tasks/TasksIndicator.tsx:40 The indicator counts ledger records rather than managing engine termination slots."
+        },
+        {
+          "technique": "terminate-from-outside-when-you-cannot-count",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/tasks/TasksProvider.tsx:105 Cancellation is delegated to the server; these client files host no guest execution."
+        },
+        {
+          "technique": "uncatchable-limit-errors",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/tasks/tasksProviderTypes.ts:7 These are task ledger states, not guest and engine exception classes."
+        }
+      ],
+      "absenceTerms": [
+        "bytecode",
+        "instructionBudget",
+        "recursionLimit"
+      ]
+    },
+    {
+      "context": "calendar-scheduling",
+      "subject": "guest-execution-bounding",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/_lib/calendar/google-calendar.ts:171 Context and repository searches found no bytecode, instructionBudget or recursionLimit constructs here; the inspected modules process scheduling data through fixed calendar requests and parameterized SQL rather than guest-authored programs.",
+      "techniques": [
+        {
+          "technique": "back-edge-iteration-counter",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/schedule-slots.ts:222 This is a bounded host-authored slot-proposal loop, not a guest-language loop compilation site."
+        },
+        {
+          "technique": "bounded-shadow-backtrace",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/calendar/google-oauth.ts:42 The error belongs to OAuth transport and response handling, with no guest frame stack."
+        },
+        {
+          "technique": "budget-tier-from-observed-output",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/calendar/available-slots.ts:86 Calendar failure selects an explicit scheduling fallback rather than classifying guest work for different budgets."
+        },
+        {
+          "technique": "cost-budget-cooperative-yield",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/calendar/edge-fetch.ts:115 The asynchronous operation is an HTTP request, not an interpreter dispatch loop."
+        },
+        {
+          "technique": "count-host-reentry-in-recursion-depth",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/calendar/free-busy.ts:117 Overlap computation uses host-authored predicates without native-to-guest recursion."
+        },
+        {
+          "technique": "grace-for-the-uninterruptible-host-call",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/calendar/event-sync.ts:93 Event synchronization calls a fixed provider API rather than servicing a guest's native callback."
+        },
+        {
+          "technique": "instruction-budget-for-fuzzing",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/calendar/free-busy.test.ts:14 The inspected tests evaluate scheduling data, not generated executable programs."
+        },
+        {
+          "technique": "nested-liveness-ceilings",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/calendar/constants.ts:32 The documented quantity is a Google HTTP per-attempt timeout, not a ceiling over nested guest execution."
+        },
+        {
+          "technique": "one-terminator-many-armed-slots",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/calendar/edge-fetch.ts:112 Each HTTP attempt owns a cancellation controller; there are no embedded engine instances or termination slots."
+        },
+        {
+          "technique": "terminate-from-outside-when-you-cannot-count",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/calendar/google-calendar.ts:171 The provider receives a fixed free-busy data query rather than guest-authored executable work."
+        },
+        {
+          "technique": "uncatchable-limit-errors",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/calendar/google-oauth.ts:204 This preserves an ordinary host API error; guest catchability and runtime ceiling classes do not arise."
+        }
+      ],
+      "absenceTerms": [
+        "bytecode",
+        "instructionBudget",
+        "recursionLimit"
+      ]
+    },
+    {
+      "context": "jobseeker-core",
+      "subject": "guest-execution-bounding",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "app/_lib/jobseeker/rules/engine.ts:201 Owner- or model-authored regex rules execute synchronously on the server thread, so the post-match counter and same-thread scan timer cannot stop an individual expensive match.",
+      "techniques": [
+        {
+          "technique": "back-edge-iteration-counter",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/jobseeker/rules/engine.ts:207 This counts completed regex matches, while the foreign regex engine's internal back-edges are unavailable to this code."
+        },
+        {
+          "technique": "bounded-shadow-backtrace",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/jobseeker/rules/engine.ts:244 The extractor reports per-rule values and verdicts rather than guest call frames or bytecode positions."
+        },
+        {
+          "technique": "budget-tier-from-observed-output",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/jobseeker/rules/dsl.ts:138 Rule necessity is explicitly supplied by the caller; the technique excludes cases with an available explicit classification."
+        },
+        {
+          "technique": "cost-budget-cooperative-yield",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/jobseeker/rules/engine.ts:197 This uses the platform's foreign regex engine and cannot insert cost accounting into its dispatch loop."
+        },
+        {
+          "technique": "count-host-reentry-in-recursion-depth",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/jobseeker/rules/engine.ts:183 The locator submits a selector expression without exposing guest callbacks that re-enter a maintained interpreter frame stack."
+        },
+        {
+          "technique": "grace-for-the-uninterruptible-host-call",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/jobseeker/rules/engine.ts:202 Regex evaluation returns captured values; it does not invoke host routines from a guest callback boundary."
+        },
+        {
+          "technique": "instruction-budget-for-fuzzing",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/jobseeker/scan.test.ts:9 The inspected orchestration tests use fixture data and scripted CLIs rather than fuzzing generated guest programs."
+        },
+        {
+          "technique": "nested-liveness-ceilings",
+          "verdict": "deviation",
+          "evidence": "app/_lib/jobseeker/scan.ts:169 The outer scan bound is armed on the same event loop that performs synchronous rule extraction, so a slow RegExp.exec prevents the backstop from firing."
+        },
+        {
+          "technique": "one-terminator-many-armed-slots",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/jobseeker/python-cli.ts:40 CLI work receives a separate OS process per call; the technique explicitly exempts that process-table model."
+        },
+        {
+          "technique": "terminate-from-outside-when-you-cannot-count",
+          "verdict": "deviation",
+          "evidence": "app/_lib/jobseeker/rules/engine.ts:201 Regex work executes directly in the host without an external termination boundary; the nested-quantifier filter and completed-match cap do not enforce a duration ceiling on one exec call."
+        },
+        {
+          "technique": "uncatchable-limit-errors",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/jobseeker/python-cli.ts:46 This is a host-side subprocess failure boundary, not a guest-language recursion or iteration exception handler."
+        }
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "guest-execution-bounding",
+      "context": "voice-stt-package",
+      "reason": "withdrawn after review: reviewer (sonnet): The claim that adjacent comments acknowledge the vendor job keeps running and billing is not in assemblyai.ts; the only nearby comment is about not re-submitting (a retry means a second charge), and a cloud transcription poll deadline is not guest-program execution."
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-18T01:31:19.990865+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "guest-execution-bounding"
+      ],
+      "techniques": [
+        "back-edge-iteration-counter",
+        "bounded-shadow-backtrace",
+        "budget-tier-from-observed-output",
+        "cost-budget-cooperative-yield",
+        "count-host-reentry-in-recursion-depth",
+        "grace-for-the-uninterruptible-host-call",
+        "instruction-budget-for-fuzzing",
+        "nested-liveness-ceilings",
+        "one-terminator-many-armed-slots",
+        "terminate-from-outside-when-you-cannot-count",
+        "uncatchable-limit-errors"
+      ],
+      "deviations": 0,
+      "context": "shell-tasks",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-18T01:31:19.990865+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "guest-execution-bounding"
+      ],
+      "techniques": [
+        "back-edge-iteration-counter",
+        "bounded-shadow-backtrace",
+        "budget-tier-from-observed-output",
+        "cost-budget-cooperative-yield",
+        "count-host-reentry-in-recursion-depth",
+        "grace-for-the-uninterruptible-host-call",
+        "instruction-budget-for-fuzzing",
+        "nested-liveness-ceilings",
+        "one-terminator-many-armed-slots",
+        "terminate-from-outside-when-you-cannot-count",
+        "uncatchable-limit-errors"
+      ],
+      "deviations": 1,
+      "context": "voice-stt-package",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-18T01:31:19.990865+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "guest-execution-bounding"
+      ],
+      "techniques": [
+        "back-edge-iteration-counter",
+        "bounded-shadow-backtrace",
+        "budget-tier-from-observed-output",
+        "cost-budget-cooperative-yield",
+        "count-host-reentry-in-recursion-depth",
+        "grace-for-the-uninterruptible-host-call",
+        "instruction-budget-for-fuzzing",
+        "nested-liveness-ceilings",
+        "one-terminator-many-armed-slots",
+        "terminate-from-outside-when-you-cannot-count",
+        "uncatchable-limit-errors"
+      ],
+      "deviations": 0,
+      "context": "calendar-scheduling",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-18T01:31:19.990865+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "guest-execution-bounding"
+      ],
+      "techniques": [
+        "back-edge-iteration-counter",
+        "bounded-shadow-backtrace",
+        "budget-tier-from-observed-output",
+        "cost-budget-cooperative-yield",
+        "count-host-reentry-in-recursion-depth",
+        "grace-for-the-uninterruptible-host-call",
+        "instruction-budget-for-fuzzing",
+        "nested-liveness-ceilings",
+        "one-terminator-many-armed-slots",
+        "terminate-from-outside-when-you-cannot-count",
+        "uncatchable-limit-errors"
+      ],
+      "deviations": 1,
+      "context": "jobseeker-core",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    }
+  ]
+}

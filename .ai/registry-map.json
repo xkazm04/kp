@@ -6333,7 +6333,11 @@
           "revision": 3,
           "changedAt": "2026-09-04",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/calendar/google-calendar.ts:171 Context and repository searches found no bytecode, instructionBudget or recursionLimit constructs here; the inspected modules process scheduling data through fixed calendar requests and parameterized SQL rather than guest-authored programs.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:a59e479b7cea486b",
+          "evaluatedRevision": 3
         },
         {
           "subject": "scheduling",
@@ -20134,7 +20138,11 @@
           "revision": 3,
           "changedAt": "2026-09-04",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/jobseeker/rules/engine.ts:201 Owner- or model-authored regex rules execute synchronously on the server thread, so the post-match counter and same-thread scan timer cannot stop an individual expensive match.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:a59e479b7cea486b",
+          "evaluatedRevision": 3
         }
       ],
       "governance": "governed"
@@ -29841,7 +29849,11 @@
           "revision": 3,
           "changedAt": "2026-09-04",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/shell/tasks/TasksProvider.tsx:62 Context and repository searches found no bytecode, instructionBudget or recursionLimit constructs here; these files poll and render server-owned tasks rather than execute guest programs.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:a59e479b7cea486b",
+          "evaluatedRevision": 3
         },
         {
           "subject": "agent-memory",
