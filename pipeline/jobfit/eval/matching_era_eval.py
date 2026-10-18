@@ -137,10 +137,6 @@ def _proven(profile: CandidateProfileV2, skills: list[str]) -> CandidateProfileV
     return profile.model_copy(update={"evidence": [*profile.evidence, proof]})
 
 
-def _score(profile: CandidateProfileV2, job: Job, proof: ProofWeights | None = None):
-    return score_job(build_match_candidate(profile), job, proof=proof)
-
-
 def _crossing_reason(lo, hi) -> str:
     """Why the tier moved: the score dimension that moved most, and what in skills moved it."""
     deltas = {
@@ -177,11 +173,14 @@ def measure(
     proof: ProofWeights | None = None,
     *,
     rows: list[dict[str, Any]] | None = None,
+    twins: dict[tuple[str, str], tuple[MatchCandidate, ...]] | None = None,
 ) -> dict[str, Any]:
     """The twin-cast metrics under the default scorer, or under the C6 preview.
 
     ``rows``, when given, receives one row per pair (base and stuffed totals, tiers
-    and, under the preview, the reasons codes) for :func:`compare_preview`."""
+    and, under the preview, the reasons codes) for :func:`compare_preview`.
+    ``twins``, when given, memoises the built twin candidates per pair, so the
+    preview pass scores the very candidates the default pass built."""
     pairs: list[dict[str, Any]] = []
     crossings: list[dict[str, Any]] = []
     # per (candidate) best base job, for the per-candidate crossing view
@@ -197,16 +196,28 @@ def measure(
             added = _missing_requirements(base_cand, job)
             learn = _missing_requirements(base_cand, job, hardness="learnable", musts_only=True)
             prereq = _missing_requirements(base_cand, job, hardness="prerequisite", musts_only=True)
+            built = twins.get((cid, job.id)) if twins is not None else None
+            if built is None:
+                built = tuple(
+                    build_match_candidate(p)
+                    for p in (
+                        _stuffed(profile, added),
+                        _proven(profile, added),
+                        _proven(profile, learn),
+                        _proven(profile, prereq),
+                    )
+                )
+                if twins is not None:
+                    twins[(cid, job.id)] = built
+            stuffed_cand, proven_cand, learn_cand, prereq_cand = built
             why_base: list[ProofReason] = []
             why_stuffed: list[ProofReason] = []
             res = {
                 "base": score_job(base_cand, job, proof=proof, proof_reasons=why_base),
-                "stuffed": score_job(
-                    build_match_candidate(_stuffed(profile, added)), job, proof=proof, proof_reasons=why_stuffed
-                ),
-                "proven": _score(_proven(profile, added), job, proof),
-                "learnable": _score(_proven(profile, learn), job, proof),
-                "prereq": _score(_proven(profile, prereq), job, proof),
+                "stuffed": score_job(stuffed_cand, job, proof=proof, proof_reasons=why_stuffed),
+                "proven": score_job(proven_cand, job, proof=proof),
+                "learnable": score_job(learn_cand, job, proof=proof),
+                "prereq": score_job(prereq_cand, job, proof=proof),
             }
             t = {k: v.total for k, v in res.items()}
             pairs.append({"c": cid, "j": job.id, "arch": profile.archetype, "n_added": len(added), **t})
@@ -397,7 +408,8 @@ def run(
     records = load_candidates() if records is None else records
     jobs = load_corpus(_DEFAULT_CORPUS) if jobs is None else jobs
     base_rows: list[dict[str, Any]] | None = [] if preview is not None else None
-    results = measure(records, jobs, rows=base_rows)
+    twins: dict[tuple[str, str], tuple[MatchCandidate, ...]] | None = {} if preview is not None else None
+    results = measure(records, jobs, rows=base_rows, twins=twins)
     inputs = {
         "candidates": _sha(_canon(records)),
         "jobs": _sha(_canon([j.model_dump(mode="json") for j in jobs])),
@@ -406,7 +418,7 @@ def run(
     body = {"stamp": STAMP, "schema": SCHEMA, "inputs": inputs, "scorer_version": scorer, "results": results}
     if preview is not None:
         preview_rows: list[dict[str, Any]] = []
-        preview_results = measure(records, jobs, preview, rows=preview_rows)
+        preview_results = measure(records, jobs, preview, rows=preview_rows, twins=twins)
         body["preview"] = {
             "scorer_version": f"{scorer}+{proof_scorer_version(preview)}",
             "weights": preview._asdict(),
