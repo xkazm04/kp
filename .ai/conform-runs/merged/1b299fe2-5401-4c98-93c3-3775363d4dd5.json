@@ -1,0 +1,221 @@
+{
+ "schema": "conform-run/1",
+ "worker": "1b299fe2-5401-4c98-93c3-3775363d4dd5",
+ "subject": "candidate-communication-integrity",
+ "evaluatedAt": "2026-10-18T00:32:37.773774+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "comms-dispatch-relay",
+   "subject": "candidate-communication-integrity",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_lib/comms-dispatch.ts:72 Recipient resolution forwards names, opaque identifiers and malformed contacts instead of rejecting unaddressable recipients before transport.",
+   "techniques": [
+    {
+     "technique": "bounce-receipt-supersedes-a-green-send",
+     "verdict": "deviation",
+     "evidence": "app/_lib/comms-view.ts:187 Even an exact messageId match passes through timestamp filtering, so a receipt recorded before its send remains orphaned and the send stays unbounced; a read-only probe confirmed this."
+    },
+    {
+     "technique": "capability-honesty-never-promise-a-channel",
+     "verdict": "deviation",
+     "evidence": "app/_lib/comms-truth.ts:70 A syntactically configured domain and token produce an advertised address without a round-trip verification state."
+    },
+    {
+     "technique": "dead-letter-escalation-and-orphan-receipts",
+     "verdict": "deviation",
+     "evidence": "app/_lib/comms.ts:334 The terminal-failure handler emits console output and a log file, but implements no timed notification to a responsible human."
+    },
+    {
+     "technique": "recipient-addressability-contract",
+     "verdict": "deviation",
+     "evidence": "app/_lib/comms-dispatch.ts:72 Missing candidate contact falls through to names and identifiers, and the result reaches the channel without boundary address validation."
+    },
+    {
+     "technique": "terminal-delivery-status-vocabulary",
+     "verdict": "deviation",
+     "evidence": "app/_lib/comms-dispatch.ts:535 Terminal queued outreach returns sent:true and also writes outreach_sent and the outreach send counter, despite no external acceptance."
+    }
+   ]
+  },
+  {
+   "context": "comms-locale-optout",
+   "subject": "candidate-communication-integrity",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_lib/comms-resend-outcome.ts:66 A successful HTTP response with an absent or unrecognised message status becomes sent, permitting a delivery claim without readable delivery evidence.",
+   "techniques": [
+    {
+     "technique": "bounce-receipt-supersedes-a-green-send",
+     "verdict": "deviation",
+     "evidence": "app/_lib/comms-receipt.ts:168 Deferred outcomes enter this non-bounce branch and are discarded, leaving the acceptance standing instead of retaining a soft adverse state until resolution."
+    },
+    {
+     "technique": "candidate-locale-resolution-authority",
+     "verdict": "deviation",
+     "evidence": "app/_lib/comms-translator.ts:53 Composition uses the locale-only wrapper, which discards the source returned by resolveCommsLocaleWithSource; the source-aware API had no production callers in the repository search."
+    },
+    {
+     "technique": "recipient-addressability-contract",
+     "verdict": "deviation",
+     "evidence": "app/_lib/comms-recipient.ts:102 The resolver returns non-address identifiers and does not return a resolution tier or reject malformed contacts; bulk preview validation does not repair this resolver contract."
+    },
+    {
+     "technique": "terminal-delivery-status-vocabulary",
+     "verdict": "deviation",
+     "evidence": "app/_lib/comms-resend-outcome.ts:66 Missing and unknown successful-response statuses default to sent; resendOutcome(true, 200, null) was confirmed to return sent."
+    }
+   ]
+  },
+  {
+   "context": "candidate-channels-ui",
+   "subject": "candidate-communication-integrity",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/features/hiring/channels/night/ledger/channelsNightLedgerModel.ts:87 Within the actionable failure group, the queue prioritises newest records rather than candidate impact, so a recent routine message can precede an older undelivered offer.",
+   "techniques": [
+    {
+     "technique": "bounce-receipt-supersedes-a-green-send",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/channels/channelsCommsHelpers.ts:73 Status rendering consumes the shared derived verdict and maps bounced messages to a critical badge rather than their stored sent status."
+    },
+    {
+     "technique": "candidate-locale-resolution-authority",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/channels/night/setup/SetupAddReceiver.tsx:35 Receiver setup preselects the application default and always submits lang, so untouched setup supplies a candidate-message language without consulting the workspace default or preserving an unrecorded choice."
+    },
+    {
+     "technique": "capability-honesty-never-promise-a-channel",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/channels/night/setup/setupModel.ts:46 A configured domain alone selects a forwarding address; receiver liveness and round-trip verification do not gate its publication."
+    },
+    {
+     "technique": "dead-letter-escalation-and-orphan-receipts",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/channels/night/ledger/channelsNightLedgerModel.ts:87 Actionable rows are grouped first, then ordered by recency without considering offer, adverse-decision or nurture impact."
+    },
+    {
+     "technique": "recipient-addressability-contract",
+     "verdict": "conformant",
+     "evidence": "app/features/hiring/channels/night/message/ChannelsNightLetter.tsx:82 The letter uses the shared warning predicate, which stays silent for unknown addressability, absent transport and orphan receipts."
+    },
+    {
+     "technique": "terminal-delivery-status-vocabulary",
+     "verdict": "deviation",
+     "evidence": "app/features/hiring/channels/useCommsResend.ts:40 Unreadable successful responses become null and enter the shared fold's sent default, allowing the resend control to display Resent without reading a terminal message status."
+    }
+   ]
+  },
+  {
+   "context": "channels-comms-api",
+   "subject": "candidate-communication-integrity",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/api/channels/inbound/[token]/route.ts:110 Multipart intake substitutes the application default for an unset receiver language and passes it into candidate filing instead of preserving a fall-through to workspace authority.",
+   "techniques": [
+    {
+     "technique": "bounce-receipt-supersedes-a-green-send",
+     "verdict": "deviation",
+     "evidence": "app/api/comms/[id]/resend/route.ts:128 Recovery dedup examines stored status, so a newer sent row that subsequently bounced still satisfies the older row's already-recovered guard."
+    },
+    {
+     "technique": "candidate-locale-resolution-authority",
+     "verdict": "deviation",
+     "evidence": "app/api/channels/inbound/[token]/route.ts:110 An absent receiver language becomes an explicit application-default locale before candidate filing, bypassing the workspace fallback for new candidates."
+    },
+    {
+     "technique": "capability-honesty-never-promise-a-channel",
+     "verdict": "deviation",
+     "evidence": "app/api/comms/capability/route.ts:41 Capability discovery publishes a configured inbound domain without distinguishing configured-but-unverified from round-trip-verified availability."
+    },
+    {
+     "technique": "recipient-addressability-contract",
+     "verdict": "deviation",
+     "evidence": "app/api/comms/[id]/resend/route.ts:134 Only a corrected override is shape-validated; a malformed stored recipient falls through unchanged to sendComm instead of being rejected before transport."
+    },
+    {
+     "technique": "terminal-delivery-status-vocabulary",
+     "verdict": "deviation",
+     "evidence": "app/api/comms/[id]/resend/route.ts:67 An in-progress resend is labelled recovered before any transport outcome exists, even when the first dispatch subsequently fails."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-18T00:32:37.773774+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "candidate-communication-integrity"
+   ],
+   "techniques": [
+    "bounce-receipt-supersedes-a-green-send",
+    "capability-honesty-never-promise-a-channel",
+    "dead-letter-escalation-and-orphan-receipts",
+    "recipient-addressability-contract",
+    "terminal-delivery-status-vocabulary"
+   ],
+   "deviations": 1,
+   "context": "comms-dispatch-relay",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-18T00:32:37.773774+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "candidate-communication-integrity"
+   ],
+   "techniques": [
+    "bounce-receipt-supersedes-a-green-send",
+    "candidate-locale-resolution-authority",
+    "recipient-addressability-contract",
+    "terminal-delivery-status-vocabulary"
+   ],
+   "deviations": 1,
+   "context": "comms-locale-optout",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-18T00:32:37.773774+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "candidate-communication-integrity"
+   ],
+   "techniques": [
+    "bounce-receipt-supersedes-a-green-send",
+    "candidate-locale-resolution-authority",
+    "capability-honesty-never-promise-a-channel",
+    "dead-letter-escalation-and-orphan-receipts",
+    "recipient-addressability-contract",
+    "terminal-delivery-status-vocabulary"
+   ],
+   "deviations": 1,
+   "context": "candidate-channels-ui",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-18T00:32:37.773774+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "candidate-communication-integrity"
+   ],
+   "techniques": [
+    "bounce-receipt-supersedes-a-green-send",
+    "candidate-locale-resolution-authority",
+    "capability-honesty-never-promise-a-channel",
+    "recipient-addressability-contract",
+    "terminal-delivery-status-vocabulary"
+   ],
+   "deviations": 1,
+   "context": "channels-comms-api",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

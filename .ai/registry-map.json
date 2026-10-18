@@ -6781,7 +6781,11 @@
           "revision": 6,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/hiring/channels/night/ledger/channelsNightLedgerModel.ts:87 Within the actionable failure group, the queue prioritises newest records rather than candidate impact, so a recent routine message can precede an older undelivered offer.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:c969375a5572288d",
+          "evaluatedRevision": 6
         },
         {
           "subject": "delivery-analytics",
@@ -8331,7 +8335,11 @@
           "revision": 6,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/comms-dispatch.ts:72 Recipient resolution forwards names, opaque identifiers and malformed contacts instead of rejecting unaddressable recipients before transport.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:c969375a5572288d",
+          "evaluatedRevision": 6
         },
         {
           "subject": "fleet-orchestration",
@@ -8402,7 +8410,11 @@
           "revision": 6,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/comms-resend-outcome.ts:66 A successful HTTP response with an absent or unrecognised message status becomes sent, permitting a delivery claim without readable delivery evidence.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:c969375a5572288d",
+          "evaluatedRevision": 6
         },
         {
           "subject": "i18n",
