@@ -7105,7 +7105,11 @@
           "revision": 1,
           "changedAt": "2026-08-21",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/rediscover.ts:326 The alerts API's live projection checks pipeline presence only for the target role, allowing people active or hired elsewhere to remain visible.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:02b33939b6fbed96",
+          "evaluatedRevision": 1
         },
         {
           "subject": "eval-harness",
@@ -19457,7 +19461,11 @@
           "revision": 1,
           "changedAt": "2026-08-21",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/library/jobs/jobsRediscoveryFeedLogic.ts:251 The feed's reach-out action ultimately uses a first-contact draft without prior-process facts, preventing the required rediscovery disclosure.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:02b33939b6fbed96",
+          "evaluatedRevision": 1
         },
         {
           "subject": "job-coordination",
