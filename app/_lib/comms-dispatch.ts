@@ -338,7 +338,7 @@ export function delivered(outcome: DispatchOutcome): boolean {
 async function sendCandidateComm(
   entry: CandidateCommTarget,
   t: CommsTranslator,
-  msg: { subject: string; body: string; kind: string; ref?: string; workspaceId?: string | null },
+  msg: { subject: string; body: string; kind: string; ref?: string; workspaceId?: string | null; messageId?: string },
   // The language the letter is written in — carried so the footer's own link is pinned to
   // it. Passed rather than re-derived: `t` cannot report the locale it was built for.
   locale: Locale
@@ -376,6 +376,9 @@ async function sendCandidateComm(
     // why kp cannot set those itself). The visible link in the body is the half a
     // candidate reads; this is the one their mail client offers them.
     unsubscribeUrl: footers.unsubscribeUrl ?? undefined,
+    // A caller releasing an already-identified message (a held outreach draft) passes
+    // its id, so the outbox row, the envelope and the Idempotency-Key all name it.
+    messageId: msg.messageId,
   }, entry.jobTitle);
   return dispatchOutcome(recorded);
 }
@@ -494,7 +497,10 @@ export type OutreachResult =
  *  gate FAILS CLOSED on an unreadable consent state. */
 export async function dispatchOutreach(
   entry: PipelineEntry,
-  draft: { subject?: unknown; body?: unknown }
+  draft: { subject?: unknown; body?: unknown },
+  // A RELEASED draft (outreach-release.ts, comms scope C2): the message id minted when the
+  // letter was drafted, and the person who approved it, named on the `outreach_sent` event.
+  release?: { messageId: string; actor: string }
 ): Promise<OutreachResult> {
   const suppress = candidateOutreachSuppression(entry.candidateId, {
     givenAt: entry.consentGivenAt,
@@ -519,7 +525,7 @@ export async function dispatchOutreach(
   const role = entry.jobTitle ?? t("aRole");
   const subject = String(draft.subject ?? t("outreach.subjectFallback", { role })).trim();
   const body = String(draft.body ?? "").trim();
-  const { status } = await sendCandidateComm(entry, t, { subject, body, kind: "outreach" }, locale);
+  const { status } = await sendCandidateComm(entry, t, { subject, body, kind: "outreach", messageId: release?.messageId }, locale);
   // Keyed on the outbox row (REC-10), not on call resolution. A relay 5xx still
   // resolves — `sendCandidateComm` dead-letters and returns `failed` without throwing
   // — and that must not consume the one-shot `outreach_sent` marker automation-run
@@ -531,7 +537,7 @@ export async function dispatchOutreach(
   // dead-letter look like a contact, and `sends > 0` is what later distinguishes a
   // reply from a fresh application.
   recordOutreachSend(entry.id, entry.workspaceId);
-  recordAutomationEvent(entry.id, "outreach_sent", entry.jobTitle ?? "", entry.workspaceId);
+  recordAutomationEvent(entry.id, "outreach_sent", entry.jobTitle ?? "", entry.workspaceId, release?.actor);
   return { sent: true, status: status === "sent" ? "sent" : "queued" };
 }
 
