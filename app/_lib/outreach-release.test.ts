@@ -13,7 +13,7 @@ import { listOutboxFiltered } from "./db/devcase.ts";
 import { outreachLetterApprove, outreachLetterById, outreachLetterDraft } from "./db/outreach-letters.ts";
 import { draftOutreachLetter, releaseOutreachLetter } from "./outreach-release.ts";
 import { haltOutreach } from "./outreach-state-store.ts";
-import { setRelayHostLookupForTests } from "./comms.ts";
+import { sendComm, setRelayHostLookupForTests } from "./comms.ts";
 import { DEFAULT_WORKSPACE_ID as WS } from "./db/workspaces.ts";
 
 after(() => cleanupUnitDb());
@@ -200,4 +200,27 @@ test("an erased entry's letter is blanked and can no longer be released", async 
   const out = await releaseOutreachLetter(letter.id, WS, APPROVER);
   assert.equal(out.ok, false);
   assert.equal(posts.length, 0);
+});
+
+test("a dead letter the Comms Center already resent is not released a second time", async () => {
+  // The release dead-letters; a recruiter then recovers the failed outbox row through
+  // /api/comms/[id]/resend, which re-sends it under the SAME message id (the route's own
+  // sendComm call, reproduced here) and leaves the letter at delivery_failed. A release
+  // after that must not deliver the first contact again.
+  fixtureRelay(500);
+  const { e, letter } = await approvedLetter();
+  const failed = await releaseOutreachLetter(letter.id, WS, APPROVER);
+  assert.equal(failed.ok && failed.letter.state, "delivery_failed");
+  const dead = listOutboxFiltered({ ref: e.id, kind: "outreach" }).find((m) => m.status === "failed")!;
+
+  const resendPosts = fixtureRelay(200);
+  await sendComm({ to: dead.recipient!, subject: dead.subject!, body: dead.body!, kind: dead.kind!, ref: e.id, workspaceId: WS, messageId: dead.messageId! });
+  assert.equal(resendPosts.length, 1, "the resend delivered the letter");
+
+  const releasePosts = fixtureRelay(200);
+  const out = await releaseOutreachLetter(letter.id, WS, APPROVER);
+  assert.equal(out.ok, false);
+  assert.equal(!out.ok && out.status, 409);
+  assert.equal(releasePosts.length, 0, "the letter already reached the person — nothing is sent twice");
+  assert.equal(outreachLetterById(letter.id, WS)!.state, "released", "…and the row is closed truthfully");
 });

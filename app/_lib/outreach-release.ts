@@ -1,5 +1,6 @@
 import type { PipelineEntry } from "./db/core";
 import { getPipelineEntry, hasEvent } from "./db/pipeline";
+import { listOutboxFiltered } from "./db/devcase";
 import {
   RELEASABLE_STATES,
   outreachLetterById,
@@ -69,6 +70,13 @@ export type OutreachReleaseResult =
       extra?: Record<string, unknown>;
     };
 
+/** A `sent` or `queued` outbox row for this application's outreach under `messageId`. */
+function messageDelivered(entryId: string, messageId: string, workspaceId: string): boolean {
+  return listOutboxFiltered({ ref: entryId, kind: "outreach", limit: 500 }, workspaceId).some(
+    (m) => m.messageId === messageId && (m.status === "sent" || m.status === "queued")
+  );
+}
+
 // Same-process single-flight per letter: two clicks on Release must not both pass the
 // state check and send twice. The Idempotency-Key is the receiver's second line; this is
 // ours. Released on completion and on failure, so a dead letter can be retried.
@@ -94,6 +102,15 @@ export async function releaseOutreachLetter(letterId: string, workspaceId: strin
   // being here means this letter (or an older direct send) already reached the person —
   // close the row truthfully instead of sending a second first-contact.
   if (hasEvent(entry.id, "outreach_sent", workspaceId)) {
+    const closed = outreachLetterMarkReleased(letter.id, workspaceId) ?? letter;
+    return { ok: false, status: 409, code: "PIPELINE_MOVE_CONFLICT", extra: { state: closed.state } };
+  }
+  // …and the marker is not the only way this message can have landed. A dead-lettered
+  // release leaves a `failed` outbox row the Comms Center can resend (/api/comms/[id]/
+  // resend) under the SAME message id, which records no `outreach_sent` and leaves the
+  // letter at delivery_failed. A delivered row carrying this letter's message id means it
+  // reached the person: close the row instead of sending it again.
+  if (messageDelivered(entry.id, letter.messageId, workspaceId)) {
     const closed = outreachLetterMarkReleased(letter.id, workspaceId) ?? letter;
     return { ok: false, status: 409, code: "PIPELINE_MOVE_CONFLICT", extra: { state: closed.state } };
   }
