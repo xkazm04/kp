@@ -2635,7 +2635,11 @@
           "revision": 2,
           "changedAt": "2026-09-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/agent-hire/bridge-client.ts:327 Context searches found no contentWindow or srcDoc references, and the bridge exchanges HTTP data with Personas and runs a Python transform without hosting an embedded guest application.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:a6e12ae70d42efcc",
+          "evaluatedRevision": 2
         }
       ],
       "governance": "governed"
@@ -6246,7 +6250,11 @@
           "revision": 2,
           "changedAt": "2026-09-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/palette-preview/resolve-hiring.ts:22 Context searches found no contentWindow or srcDoc references, and these modules manage theme configuration and return preview data objects, so no embedded guest application boundary exists.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:a6e12ae70d42efcc",
+          "evaluatedRevision": 2
         }
       ],
       "governance": "governed"
@@ -28989,7 +28997,11 @@
           "revision": 2,
           "changedAt": "2026-09-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/shell/palette/PalettePreviewPane.tsx:48 Context searches found no contentWindow or srcDoc references, and the pane renders fetched data through first-party React components, so the embedded guest application precondition is absent.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:a6e12ae70d42efcc",
+          "evaluatedRevision": 2
         },
         {
           "subject": "web-scraping",

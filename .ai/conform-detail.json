@@ -12607,6 +12607,129 @@
           "evidence": "app/_components/PotentialBadge.tsx:20 Transferred credits arrive and render as skill names without an attached prior-role source, preventing the recruiter from tracing each credit to its basis."
         }
       ]
+    },
+    "c6367667-9117-4b74-8800-3bdd54e304f2/embedded-preview": {
+      "context": "shell-palette-preview",
+      "subject": "embedded-preview",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T23:00:10.683Z",
+      "worker": "f49e7377-5ce6-4d26-8bca-5e26980b2e2f",
+      "techniques": [
+        {
+          "technique": "convention-discovery",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/palette/usePalettePreview.ts:34 Queries identify host workspace tabs; no guest file-tree routing is involved."
+        },
+        {
+          "technique": "cross-frame-protocol",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/palette/usePalettePreview.ts:73 Preview requests use the host's HTTP API, without a frame message channel."
+        },
+        {
+          "technique": "dev-server-registry",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/palette/PalettePreviewPane.tsx:56 The preview composes a local component; there is no separately served guest to register."
+        },
+        {
+          "technique": "injected-instrumentation-with-fallback",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/palette/PreviewHiring.tsx:21 The panel directly renders supplied data and needs no instrumentation inside a guest."
+        },
+        {
+          "technique": "origin-validation",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/palette/usePalettePreview.ts:75 Incoming preview data is an HTTP response, without cross-frame senders or target origins."
+        },
+        {
+          "technique": "preview-checkpoints",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/palette/usePalettePreview.ts:49 Mutation notifications invalidate a data memo; no mutable guest project requires snapshots."
+        }
+      ]
+    },
+    "afa8737b-82be-4548-b99a-5c9624e84ee0/embedded-preview": {
+      "context": "agent-hire-app-master",
+      "subject": "embedded-preview",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T23:00:10.683Z",
+      "worker": "f49e7377-5ce6-4d26-8bca-5e26980b2e2f",
+      "techniques": [
+        {
+          "technique": "convention-discovery",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/agent-hire/bridge-client.ts:205 Discovery obtains connector metadata through an API, not routes from a guest application."
+        },
+        {
+          "technique": "cross-frame-protocol",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/agent-hire/bridge-client.ts:327 Agent dispatch uses HTTP request/response; it is not a frame protocol."
+        },
+        {
+          "technique": "dev-server-registry",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/agent-hire/bridge-store.ts:80 Configuration selects an external integration endpoint, without owning a preview server lifecycle."
+        },
+        {
+          "technique": "injected-instrumentation-with-fallback",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/agent-hire/transform-run.ts:76 The invoked program transforms recruiting data; it does not instrument an embedded guest."
+        },
+        {
+          "technique": "origin-validation",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/agent-hire/pairing.ts:83 This Origin header belongs to HTTP pairing, without a frame message dispatch boundary."
+        },
+        {
+          "technique": "preview-checkpoints",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/app-master/spec-vintage.ts:52 Freshness compares a specification with its brief; there is no running preview project to checkpoint."
+        }
+      ]
+    },
+    "52bcad98-82d2-464d-ad5f-dd04255667d0/embedded-preview": {
+      "context": "brand-theme-tokens",
+      "subject": "embedded-preview",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T23:00:10.683Z",
+      "worker": "f49e7377-5ce6-4d26-8bca-5e26980b2e2f",
+      "techniques": [
+        {
+          "technique": "convention-discovery",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/palette-preview/index.ts:45 The dispatcher resolves a host workspace tab, without discovering guest routes."
+        },
+        {
+          "technique": "cross-frame-protocol",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/palette-preview/index.ts:92 Entity resolution is an ordinary function call, without a frame request/reply channel."
+        },
+        {
+          "technique": "dev-server-registry",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/palette-preview/resolve-hiring.ts:17 Preview facts come from workspace data reads, without starting a guest development server."
+        },
+        {
+          "technique": "injected-instrumentation-with-fallback",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/theme.ts:27 Theme application updates the host document directly; no guest instrumentation is injected."
+        },
+        {
+          "technique": "origin-validation",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/brand-config.ts:273 External branding content is an image resource, without a cross-frame messaging bridge."
+        },
+        {
+          "technique": "preview-checkpoints",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/brand-store.ts:60 Persistence stores brand configuration, without capturing mutation turns of a live guest project."
+        }
+      ]
     }
   }
 }
