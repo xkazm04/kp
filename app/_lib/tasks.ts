@@ -550,7 +550,7 @@ let lastMaintenanceMs = 0;
 //      result_json blobs can't accumulate forever.
 // Best-effort and self-contained: any failure is logged and the next submission
 // retries. Exported so tests / callers can force a sweep.
-export function runMaintenance(nowMs: number = Date.now()): void {
+function runMaintenance(nowMs: number = Date.now()): void {
   if (nowMs - lastMaintenanceMs < MAINTENANCE_INTERVAL_MS) return;
   lastMaintenanceMs = nowMs;
   try {
