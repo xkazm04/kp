@@ -27262,7 +27262,11 @@
           "revision": 15,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "app/features/hiring/schedule/useScheduleTab.ts:83 The Schedule tab establishes a unified agenda client state updated via write-through mutations and live-refresh invalidation, with latest-wins token sequencing and stable latched accumulators.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:b667f5c1f4abdd9d",
+          "evaluatedRevision": 15
         },
         {
           "subject": "alerting",

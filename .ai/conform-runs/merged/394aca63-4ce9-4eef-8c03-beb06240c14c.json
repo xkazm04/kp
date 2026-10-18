@@ -1,0 +1,101 @@
+{
+  "schema": "conform-run/1",
+  "worker": "394aca63-4ce9-4eef-8c03-beb06240c14c",
+  "subject": "client-state",
+  "evaluatedAt": "2026-10-18T22:23:20.456317+00:00",
+  "provider": "agy",
+  "model": "gemini-3.8-flash-high",
+  "pairs": [
+    {
+      "context": "schedule-calendar-invites",
+      "subject": "client-state",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evidence": "app/features/hiring/schedule/useScheduleTab.ts:83 The Schedule tab establishes a unified agenda client state updated via write-through mutations and live-refresh invalidation, with latest-wins token sequencing and stable latched accumulators.",
+      "techniques": [
+        {
+          "technique": "async-race-guards",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/schedule/useScheduleTab.ts:168 Monotonic sequence token agendaSeq.current minted before fetch, verified on completion and bumped on mutation, ensuring stale loads are dropped."
+        },
+        {
+          "technique": "effect-identity-and-latched-callbacks",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/schedule/useScheduleTab.ts:450 Stores consecutive poll failures in a stable useRef cell so recording failures preserves the backoff curve across renders without triggering unneeded re-renders."
+        },
+        {
+          "technique": "invalidation-strategy",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/schedule/useScheduleTab.ts:252 Adopts mutation response rows directly into the agenda state, broadcasting changes over the window/channel bus and refetching only when uncarried server state moves."
+        },
+        {
+          "technique": "status-fsms",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/schedule/schedulePendingCardState.ts:27 Pending cards and invites derive from an explicit closed set of enumerated lifecycle states, keyed per candidate and invite token with dedicated error and busy tracking."
+        },
+        {
+          "technique": "store-slicing",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/schedule/scheduleAgenda.ts:176 Mutations are encapsulated in the agenda slice, with external callers using commitMutation, reference identity preserved for unchanged items, and memoized selectors."
+        },
+        {
+          "technique": "optimistic-write-path",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/schedule/useScheduleTab.ts:548 Adheres to non-optimistic criteria for irreversible mutations with server collision checks (409), showing keyed busy state and awaiting authority confirmation before committing state."
+        }
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "client-state",
+      "context": "billing-api",
+      "reason": "billing-api consists entirely of server-side Next.js route handlers and backend authority checks with no client-side state architecture; as not-applicable is not accepted from this seat, the pair is declined."
+    },
+    {
+      "subject": "client-state",
+      "context": "pipeline-actions-events",
+      "reason": "withdrawn after review: reviewer (sonnet): The unconditional rollback at usePipelineSla.ts:76 is real, but three of the four technique anchors (the module cache, 10-minute TTL and `failed` flag) are in app/features/hiring/pipeline/map/useCellMatchData.ts, which is not among this context's listed files, and the 'risking clobbering concurrent "
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-18T22:23:20.456317+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "client-state"
+      ],
+      "techniques": [
+        "async-race-guards",
+        "effect-identity-and-latched-callbacks",
+        "invalidation-strategy",
+        "optimistic-write-path",
+        "status-fsms",
+        "store-slicing"
+      ],
+      "deviations": 0,
+      "context": "schedule-calendar-invites",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-18T22:23:20.456317+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "client-state"
+      ],
+      "techniques": [
+        "async-race-guards",
+        "invalidation-strategy",
+        "optimistic-write-path",
+        "singleton-lifecycle",
+        "status-fsms",
+        "store-slicing"
+      ],
+      "deviations": 1,
+      "context": "pipeline-actions-events",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    }
+  ]
+}

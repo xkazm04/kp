@@ -12473,6 +12473,93 @@
           "evidence": "app/_lib/application-status.ts:84 Collapses role_closed and rematched into not_selected, conflating structural requisition endings with candidate merit rejections."
         }
       ]
+    },
+    "c780fee6-52c0-484e-b383-875b9aa63a1e/client-state": {
+      "context": "schedule-calendar-invites",
+      "subject": "client-state",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T22:23:20.456Z",
+      "worker": "394aca63-4ce9-4eef-8c03-beb06240c14c",
+      "techniques": [
+        {
+          "technique": "async-race-guards",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/schedule/useScheduleTab.ts:168 Monotonic sequence token agendaSeq.current minted before fetch, verified on completion and bumped on mutation, ensuring stale loads are dropped."
+        },
+        {
+          "technique": "effect-identity-and-latched-callbacks",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/schedule/useScheduleTab.ts:450 Stores consecutive poll failures in a stable useRef cell so recording failures preserves the backoff curve across renders without triggering unneeded re-renders."
+        },
+        {
+          "technique": "invalidation-strategy",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/schedule/useScheduleTab.ts:252 Adopts mutation response rows directly into the agenda state, broadcasting changes over the window/channel bus and refetching only when uncarried server state moves."
+        },
+        {
+          "technique": "status-fsms",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/schedule/schedulePendingCardState.ts:27 Pending cards and invites derive from an explicit closed set of enumerated lifecycle states, keyed per candidate and invite token with dedicated error and busy tracking."
+        },
+        {
+          "technique": "store-slicing",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/schedule/scheduleAgenda.ts:176 Mutations are encapsulated in the agenda slice, with external callers using commitMutation, reference identity preserved for unchanged items, and memoized selectors."
+        },
+        {
+          "technique": "optimistic-write-path",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/schedule/useScheduleTab.ts:548 Adheres to non-optimistic criteria for irreversible mutations with server collision checks (409), showing keyed busy state and awaiting authority confirmation before committing state."
+        }
+      ]
+    },
+    "01ce0010-7ed5-4f5c-9374-dd1283978131/client-state": {
+      "context": "pipeline-actions-events",
+      "subject": "client-state",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T22:23:20.456Z",
+      "techniques": [
+        {
+          "technique": "optimistic-write-path",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/pipeline/usePipelineSla.ts:76 Unconditional rollback deletes the stage override without compare-and-swap verification against concurrent edits, and lacks per-entity mutation serialization."
+        },
+        {
+          "technique": "singleton-lifecycle",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/pipeline/map/useCellMatchData.ts:27 Module-scoped cache lacks a test-reset hatch and replacement-safe generation tokens, risking state leaks between test runs."
+        },
+        {
+          "technique": "invalidation-strategy",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/pipeline/map/useCellMatchData.ts:41 Relies on a coarse 10-minute polling TTL instead of surgical event-driven invalidation when candidate rankings change."
+        },
+        {
+          "technique": "status-fsms",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/pipeline/map/useCellMatchData.ts:21 Uses a boolean flag failed alongside data rather than an explicit enumerated lifecycle state machine carrying error evidence."
+        },
+        {
+          "technique": "async-race-guards",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/pipeline/map/useCellMatchData.ts:42 In-flight deduplication tracks active fetches per jobId in a Set and cleans up in finally on settlement."
+        },
+        {
+          "technique": "store-slicing",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/pipeline/pipelineRenderDiet.ts:165 Computes a content signature over immutable entry slices to preserve render identity across unchanged poll ticks."
+        }
+      ],
+      "withdrawn": {
+        "worker": "394aca63-4ce9-4eef-8c03-beb06240c14c",
+        "state": "deviation",
+        "at": "2026-10-18T22:23:45.239414+00:00",
+        "reason": "reviewer (sonnet): The unconditional rollback at usePipelineSla.ts:76 is real, but three of the four technique anchors (the module cache, 10-minute TTL and `failed` flag) are in app/features/hiring/pipeline/map/useCellMatchData.ts, which is not among this context's listed files, and the 'risking clobbering concurrent "
+      }
     }
   }
 }
