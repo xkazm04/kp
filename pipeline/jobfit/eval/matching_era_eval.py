@@ -48,9 +48,18 @@ from typing import Any
 
 from .._cli import configure_stdio
 from ..jobs import Job
-from ..matching import _DEFAULT_CORPUS, MatchCandidate, fit_tier_for, load_corpus, score_job
+from ..matching import (
+    _DEFAULT_CORPUS,
+    PROOF_PREVIEW_WEIGHTS,
+    MatchCandidate,
+    ProofReason,
+    ProofWeights,
+    fit_tier_for,
+    load_corpus,
+    proof_scorer_version,
+    score_job,
+)
 from ..profile import CandidateProfileV2, Evidence, SkillClaim
-from ..taxonomy import resolve_term
 from ..transform import build_match_candidate
 from .neutrality import PERTURBATIONS, gender_pairs
 
@@ -65,6 +74,9 @@ SCORER_SOURCES = ("matching.py", "taxonomy.py", "jobs.py", "transform.py")
 TWINS = ("base", "stuffed", "proven", "learnable", "prereq")
 # Longest list of crossings printed in the pretty report; --json carries all of them.
 LISTED_CROSSINGS = 15
+# The cohorts C6 must not cost a tier: the preview lowers credit on bare claims, and
+# early-career candidates are the ones whose skills are most often only claimed.
+PROTECTED_ARCHETYPES = ("student", "career_switcher")
 # The English control the Czech-name delta is read against (a perturbation-registry pair).
 CZ_PAIR_AXIS = "cz"
 EN_PAIR_AXIS = "en"
@@ -124,8 +136,8 @@ def _proven(profile: CandidateProfileV2, skills: list[str]) -> CandidateProfileV
     return profile.model_copy(update={"evidence": [*profile.evidence, proof]})
 
 
-def _score(profile: CandidateProfileV2, job: Job):
-    return score_job(build_match_candidate(profile), job)
+def _score(profile: CandidateProfileV2, job: Job, proof: ProofWeights | None = None):
+    return score_job(build_match_candidate(profile), job, proof=proof)
 
 
 def _crossing_reason(lo, hi) -> str:
@@ -158,7 +170,17 @@ def _mean(xs: list[float]) -> float:
     return round(sum(xs) / len(xs), 4) if xs else 0.0
 
 
-def measure(records: list[dict[str, Any]], jobs: list[Job]) -> dict[str, Any]:
+def measure(
+    records: list[dict[str, Any]],
+    jobs: list[Job],
+    proof: ProofWeights | None = None,
+    *,
+    rows: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """The twin-cast metrics under the default scorer, or under the C6 preview.
+
+    ``rows``, when given, receives one row per pair (base and stuffed totals, tiers
+    and, under the preview, the reasons codes) for :func:`compare_preview`."""
     pairs: list[dict[str, Any]] = []
     crossings: list[dict[str, Any]] = []
     # per (candidate) best base job, for the per-candidate crossing view
@@ -174,15 +196,30 @@ def measure(records: list[dict[str, Any]], jobs: list[Job]) -> dict[str, Any]:
             added = _missing_requirements(base_cand, job)
             learn = _missing_requirements(base_cand, job, hardness="learnable", musts_only=True)
             prereq = _missing_requirements(base_cand, job, hardness="prerequisite", musts_only=True)
+            why_base: list[ProofReason] = []
+            why_stuffed: list[ProofReason] = []
             res = {
-                "base": score_job(base_cand, job),
-                "stuffed": _score(_stuffed(profile, added), job),
-                "proven": _score(_proven(profile, added), job),
-                "learnable": _score(_proven(profile, learn), job),
-                "prereq": _score(_proven(profile, prereq), job),
+                "base": score_job(base_cand, job, proof=proof, proof_reasons=why_base),
+                "stuffed": score_job(
+                    build_match_candidate(_stuffed(profile, added)), job, proof=proof, proof_reasons=why_stuffed
+                ),
+                "proven": _score(_proven(profile, added), job, proof),
+                "learnable": _score(_proven(profile, learn), job, proof),
+                "prereq": _score(_proven(profile, prereq), job, proof),
             }
             t = {k: v.total for k, v in res.items()}
             pairs.append({"c": cid, "j": job.id, "arch": profile.archetype, "n_added": len(added), **t})
+            if rows is not None:
+                rows.append(
+                    {
+                        "c": cid,
+                        "j": job.id,
+                        "arch": profile.archetype,
+                        **{k: (res[k].total, res[k].fit_tier) for k in ("base", "stuffed")},
+                        "why_base": why_base,
+                        "why_stuffed": why_stuffed,
+                    }
+                )
             if learn:
                 hardness_lift["learnable"].append((t["learnable"] - t["base"]) / len(learn))
             if prereq:
@@ -255,11 +292,12 @@ def measure(records: list[dict[str, Any]], jobs: list[Job]) -> dict[str, Any]:
             "prerequisite_samples": len(hardness_lift["prerequisite"]),
         },
         "per_archetype": per_arch,
-        "neutrality": _neutrality(profiles, jobs),
+        "neutrality": _neutrality(profiles, jobs, proof),
+        "best_jobs": {cid: {"job": jid, "total": tot} for cid, (tot, jid) in sorted(best_by_cand.items())},
     }
 
 
-def _neutrality(profiles: list[tuple[str, CandidateProfileV2]], jobs: list[Job]) -> dict[str, Any]:
+def _neutrality(profiles: list[tuple[str, CandidateProfileV2]], jobs: list[Job], proof: ProofWeights | None = None) -> dict[str, Any]:
     """Name deltas over every (candidate, job) score: masculine vs feminine, Czech vs English.
 
     Only the display name changes between the twins; any non-zero delta is a defect.
@@ -271,7 +309,7 @@ def _neutrality(profiles: list[tuple[str, CandidateProfileV2]], jobs: list[Job])
         out: list[int] = []
         for _cid, profile in profiles:
             cand = build_match_candidate(profile.model_copy(update={"display_name": name}))
-            out.extend(score_job(cand, job).total for job in jobs)
+            out.extend(score_job(cand, job, proof=proof).total for job in jobs)
         return out
 
     cz_m, cz_f = totals(by_axis[(CZ_PAIR_AXIS, "m")]), totals(by_axis[(CZ_PAIR_AXIS, "f")])
@@ -295,17 +333,85 @@ def _neutrality(profiles: list[tuple[str, CandidateProfileV2]], jobs: list[Job])
     }
 
 
-def run(records: list[dict[str, Any]] | None = None, jobs: list[Job] | None = None) -> dict[str, Any]:
-    """One stamped, fingerprinted report. Pure: the same inputs give the same string."""
+_TIER_RANK = {"partial": 0, "promising": 1, "strong": 2}
+
+
+def compare_preview(
+    base_rows: list[dict[str, Any]], preview_rows: list[dict[str, Any]], base: dict[str, Any]
+) -> dict[str, Any]:
+    """Default scorer vs the C6 preview, pair by pair, for the base and stuffed twins.
+
+    ``changed_without_reason`` must be 0: the preview owes a reasons line for every
+    score it moves. ``protected_tier_losses_at_best_job`` are the early-career base
+    candidates whose tier at their default-scorer best job fell under the preview.
+    """
+    changed = unexplained = 0
+    by_code: dict[str, int] = defaultdict(int)
+    tier_losses: list[dict[str, Any]] = []
+    deltas: list[float] = []
+    for old, new in zip(base_rows, preview_rows, strict=True):
+        for twin in ("base", "stuffed"):
+            old_total, new_total = old[twin][0], new[twin][0]
+            reasons = new[f"why_{twin}"]
+            for r in reasons:
+                by_code[r.code] += 1
+            if new_total != old_total:
+                changed += 1
+                if not reasons:
+                    unexplained += 1
+        deltas.append(float(new["base"][0] - old["base"][0]))
+        at_best = base["best_jobs"][old["c"]]["job"] == old["j"]
+        if at_best and old["arch"] in PROTECTED_ARCHETYPES and _TIER_RANK[new["base"][1]] < _TIER_RANK[old["base"][1]]:
+            tier_losses.append(
+                {
+                    "candidate": old["c"],
+                    "job": old["j"],
+                    "archetype": old["arch"],
+                    "from": f"{old['base'][1]}({old['base'][0]})",
+                    "to": f"{new['base'][1]}({new['base'][0]})",
+                    "reasons": [r.text for r in new["why_base"]],
+                }
+            )
+    return {
+        "changed_scores": changed,
+        "changed_without_reason": unexplained,
+        "reasons_by_code": dict(sorted(by_code.items())),
+        "base_twin_mean_delta": _mean(deltas),
+        "protected_archetypes": list(PROTECTED_ARCHETYPES),
+        "protected_tier_losses_at_best_job": tier_losses,
+    }
+
+
+def run(
+    records: list[dict[str, Any]] | None = None,
+    jobs: list[Job] | None = None,
+    *,
+    preview: ProofWeights | None = None,
+) -> dict[str, Any]:
+    """One stamped, fingerprinted report. Pure: the same inputs give the same string.
+
+    ``preview`` adds the C6 proof-weights preview, measured by the same cast and
+    side by side with the default scorer, under its own scorer stamp; the
+    fingerprint then covers both."""
     records = load_candidates() if records is None else records
     jobs = load_corpus(_DEFAULT_CORPUS) if jobs is None else jobs
-    results = measure(records, jobs)
+    base_rows: list[dict[str, Any]] | None = [] if preview is not None else None
+    results = measure(records, jobs, rows=base_rows)
     inputs = {
         "candidates": _sha(_canon(records)),
         "jobs": _sha(_canon([j.model_dump(mode="json") for j in jobs])),
     }
     scorer = scorer_version()
     body = {"stamp": STAMP, "schema": SCHEMA, "inputs": inputs, "scorer_version": scorer, "results": results}
+    if preview is not None:
+        preview_rows: list[dict[str, Any]] = []
+        preview_results = measure(records, jobs, preview, rows=preview_rows)
+        body["preview"] = {
+            "scorer_version": f"{scorer}+{proof_scorer_version(preview)}",
+            "weights": preview._asdict(),
+            "results": preview_results,
+            "comparison": compare_preview(base_rows or [], preview_rows, results),
+        }
     body["fingerprint"] = _sha(_canon(body))[:16]
     return body
 
@@ -320,10 +426,16 @@ def integrity_failures(report: dict[str, Any]) -> list[str]:
         bad.append(f"pair count {r['pairs']} != {r['candidates']} x {r['jobs']}")
     if any(not c.get("reason") for c in r["tier_crossings"]["listed"]):
         bad.append("a tier crossing has no reason code")
-    nb = r["neutrality"]
-    for key in ("czech_gender_pair", "english_gender_pair", "czech_vs_english_male", "czech_vs_english_female"):
-        if nb[key]["max_abs"] != 0:
-            bad.append(f"name delta on {key}: max |{nb[key]['max_abs']}|")
+    sections = [("", r)]
+    if "preview" in report:
+        sections.append(("preview ", report["preview"]["results"]))
+        if report["preview"]["comparison"]["changed_without_reason"]:
+            bad.append("a preview score changed with no reasons line")
+    for label, res in sections:
+        nb = res["neutrality"]
+        for key in ("czech_gender_pair", "english_gender_pair", "czech_vs_english_male", "czech_vs_english_female"):
+            if nb[key]["max_abs"] != 0:
+                bad.append(f"{label}name delta on {key}: max |{nb[key]['max_abs']}|")
     return bad
 
 
@@ -364,7 +476,46 @@ def _format(report: dict[str, Any]) -> str:
             f"  {arch:16} gain {a['free_claim_gain']:+}  premium {a['proof_premium']:+}"
             f"  stuffed>proven {a['stuffed_beats_proven_rate']:.1%}  loss {a['mean_loss_to_stuffing']}  crossings {a['crossings']}"
         )
+    if "preview" in report:
+        lines += ["", *_format_preview(report)]
     return "\n".join(lines)
+
+
+def _format_preview(report: dict[str, Any]) -> list[str]:
+    """Base and preview side by side: the C6 targets, then what the preview changed."""
+    pv = report["preview"]
+    b, p, cmp_ = report["results"], pv["results"], pv["comparison"]
+
+    def row(label: str, base_v: Any, prev_v: Any, target: str) -> str:
+        return f"  {label:28} {str(base_v):>12} {str(prev_v):>12}   {target}"
+
+    def nonzero(res: dict[str, Any]) -> int:
+        return sum(v["nonzero"] for v in res["neutrality"].values() if isinstance(v, dict))
+
+    def at_best(res: dict[str, Any]) -> str:
+        return f"{res['tier_crossings']['free_claim_at_best_job']}/{res['tier_crossings']['best_job_pairs']}"
+
+    def lift(res: dict[str, Any]) -> str:
+        h = res["hardness"]
+        return f"{h['learnable_lift_per_requirement']:+}/{h['prerequisite_lift_per_requirement']:+}"
+
+    lines = [
+        f"proof-weights PREVIEW (opt-in, not the default)  scorer {pv['scorer_version']}",
+        "  " + "  ".join(f"{k}={v:g}" for k, v in pv["weights"].items()),
+        row("metric", "base", "preview", "C6 target"),
+        row("free-claim gain", f"{b['free_claim_gain']:+}", f"{p['free_claim_gain']:+}", "<= 2.0"),
+        row("free-claim crossings @best", at_best(b), at_best(p), "0"),
+        row("proof premium", f"{b['proof_premium']:+}", f"{p['proof_premium']:+}", ">= base"),
+        row("name deltas (nonzero)", nonzero(b), nonzero(p), "0"),
+        row("hardness lift learn/prereq", lift(b), lift(p), "learnable < prereq"),
+        row("protected tier losses @best", "-", len(cmp_["protected_tier_losses_at_best_job"]), "0"),
+        f"  changed scores {cmp_['changed_scores']} (base+stuffed twins), without a reason {cmp_['changed_without_reason']};"
+        f" base-twin mean delta {cmp_['base_twin_mean_delta']:+}",
+        "  reasons " + "  ".join(f"{k}: {v}" for k, v in cmp_["reasons_by_code"].items()),
+    ]
+    for loss in cmp_["protected_tier_losses_at_best_job"]:
+        lines.append(f"  - tier loss {loss['archetype']} {loss['candidate']} @ {loss['job']}: {loss['from']} -> {loss['to']}")
+    return lines
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -373,7 +524,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--no-llm", action="store_true", help="Accepted for symmetry; this harness has no LLM mode.")
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--strict", action="store_true", help="Exit 1 if the measurement's own integrity checks fail.")
+    parser.add_argument(
+        "--preview",
+        action="store_true",
+        help="Also measure the C6 proof-weights preview (opt-in, never the default) side by side.",
+    )
     args = parser.parse_args(argv)
+    preview = PROOF_PREVIEW_WEIGHTS if args.preview else None
 
     try:
         records, jobs = load_candidates(), load_corpus(_DEFAULT_CORPUS)
@@ -384,14 +541,14 @@ def main(argv: list[str] | None = None) -> int:
         sys.stderr.write("matching_era_eval: empty candidate seed or job corpus.\n")
         return 2
 
-    first = run(records, jobs)
+    first = run(records, jobs, preview=preview)
     if args.json:
         print(json.dumps(first, indent=2, ensure_ascii=False))
     else:
         print(_format(first))
     if not args.strict:
         return 0
-    second = run(records, jobs)
+    second = run(records, jobs, preview=preview)
     print(f"fingerprint run 1: {first['fingerprint']}", file=sys.stderr)
     print(f"fingerprint run 2: {second['fingerprint']}", file=sys.stderr)
     bad = integrity_failures(first)

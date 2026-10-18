@@ -650,8 +650,74 @@ def _classify_unproven(cand_skill: str, req_skill: str, provenance: str | None) 
     return "adjacency" if adjacency else "provenance"
 
 
+# -- Proof-weights PREVIEW (scoring hunt C6) ---------------------------------
+#
+# An opt-in, logged alternative to the skills weighting, OFF by default: nothing
+# calls it unless it asks for it by name (score_job_proof_preview, or the C5
+# harness's --preview). Adopting it as the default is an operator's decision, and
+# the default path below is unchanged by its existence — score_skills with
+# ``proof=None`` runs exactly the historical arithmetic.
+#
+# Two levers, both read off the posting itself:
+#
+#   * ``learnable_must_weight`` (lambda < 1) — a must-have the posting marks
+#     ``hardness="learnable"`` weighs lambda instead of 1.0, so a gap the employer
+#     says it will train costs less than a prerequisite gap, and holding it earns
+#     less than holding a prerequisite.
+#   * ``self_declared_learnable`` — a bare ``self_declared`` claim on a learnable
+#     must-have is credited at this fraction of what it earns today. A learnable
+#     skill is exactly the one a keyword can be written for at no cost; evidence
+#     (any provenance above self_declared) keeps its full credit.
+#
+# Lambda is "learnable" in the plain sense: it was chosen by sweeping the C5
+# twin-cast harness (pipeline/jobfit/eval/matching_era_eval.py --preview), and
+# the frontier that sweep found is pinned in test_matching_proof_preview.py.
+PROOF_PREVIEW_STAMP = "proof-weights-preview/1"
+
+
+class ProofWeights(NamedTuple):
+    learnable_must_weight: float = 0.8
+    self_declared_learnable: float = 0.05
+
+
+PROOF_PREVIEW_WEIGHTS = ProofWeights()
+
+
+class ProofReason(NamedTuple):
+    """One requirement whose credit the preview changed, and why — the reasons line."""
+
+    skill: str
+    code: str  # learnable_weight | self_declared_discount
+    base_weight: float
+    preview_weight: float
+    base_credit: float
+    preview_credit: float
+    text: str
+
+
+class ProofPreview(NamedTuple):
+    result: "MatchResult"
+    reasons: list[ProofReason]
+    scorer_version: str
+
+
+def proof_scorer_version(proof: ProofWeights = PROOF_PREVIEW_WEIGHTS) -> str:
+    """The preview's own scorer stamp: never mistakable for the default scorer's."""
+    return f"{PROOF_PREVIEW_STAMP}+lambda={proof.learnable_must_weight:g},sd={proof.self_declared_learnable:g}"
+
+
+def _is_self_declared(provenance: str | None) -> bool:
+    if not provenance:
+        return DEFAULT_PROVENANCE == "self_declared"
+    return provenance.strip().lower().replace(" ", "_").replace("-", "_") == "self_declared"
+
+
 def score_skills(
-    candidate: MatchCandidate, job: Job
+    candidate: MatchCandidate,
+    job: Job,
+    *,
+    proof: ProofWeights | None = None,
+    proof_reasons: list[ProofReason] | None = None,
 ) -> tuple[float, list[str], list[str], dict[str, float], dict[str, dict[str, Any]]]:
     must_w, nice_w = 1.0, 0.4
     acc = 0.0
@@ -666,12 +732,21 @@ def score_skills(
         weight = must_w if req.kind == "must_have" else nice_w
         best = 0.0
         best_cs: str | None = None
+        learnable_must = proof is not None and req.kind == "must_have" and req.hardness == "learnable"
+        base_best = 0.0
         for cs in candidate.skills:
             prov = candidate.skill_provenance.get(cs, candidate.provenance_default)
             s = skill_match_score(cs, req.skill, prov)
+            if learnable_must:
+                base_best = max(base_best, s)
+                if _is_self_declared(prov):
+                    s *= proof.self_declared_learnable
             if s > best:
                 best = s
                 best_cs = cs
+        if learnable_must:
+            _proof_reason(proof_reasons, req.skill, weight, proof.learnable_must_weight, base_best, best)
+            weight = proof.learnable_must_weight
         acc += best * weight
         total_w += weight
         if best >= _MATCH_THRESHOLD:
@@ -698,6 +773,35 @@ def score_skills(
             missing.append(req.skill)
     score = (acc / total_w) if total_w else 0.0
     return round(score, 4), matched, missing, strength, unproven
+
+
+def _proof_reason(
+    out: list[ProofReason] | None, skill: str, base_w: float, preview_w: float, base_best: float, best: float
+) -> None:
+    """Record why the preview moved one learnable must-have's credit (one line each)."""
+    if out is None:
+        return
+    base_credit, preview_credit = round(base_best * base_w, 4), round(best * preview_w, 4)
+    if best < base_best:
+        code = "self_declared_discount"
+        text = (
+            f"{skill}: learnable must-have backed only by a self-declared claim — credited "
+            f"{preview_credit:g} instead of {base_credit:g} (weight {preview_w:g}, claim at "
+            f"{best:.2f} instead of {base_best:.2f})"
+        )
+    elif base_best > 0.0:
+        code = "learnable_weight"
+        text = (
+            f"{skill}: the posting marks this must-have learnable — weighted {preview_w:g} instead "
+            f"of {base_w:g}, credited {preview_credit:g} instead of {base_credit:g}"
+        )
+    else:
+        code = "learnable_weight"
+        text = (
+            f"{skill}: missing, but the posting marks this must-have learnable — the gap "
+            f"weighs {preview_w:g} instead of {base_w:g}"
+        )
+    out.append(ProofReason(skill, code, base_w, preview_w, base_credit, preview_credit, text))
 
 
 def _target_alignment(candidate: MatchCandidate, job: Job) -> TargetAlignment | None:
@@ -1145,8 +1249,17 @@ class _Dimensions(NamedTuple):
     unproven: dict[str, dict[str, Any]]
 
 
-def _score_dimensions(candidate: MatchCandidate, job: Job, *, embedder: Any | None = None) -> _Dimensions:
-    skills, matched, missing, matched_strength, unproven = score_skills(candidate, job)
+def _score_dimensions(
+    candidate: MatchCandidate,
+    job: Job,
+    *,
+    embedder: Any | None = None,
+    proof: ProofWeights | None = None,
+    proof_reasons: list[ProofReason] | None = None,
+) -> _Dimensions:
+    skills, matched, missing, matched_strength, unproven = score_skills(
+        candidate, job, proof=proof, proof_reasons=proof_reasons
+    )
     if candidate.archetype in _EARLY_CAREER:
         # career slot carries POTENTIAL (readiness); personal carries motivation/domain fit.
         career = candidate.potential_score if candidate.potential_score is not None else score_career(candidate, job)
@@ -1176,8 +1289,12 @@ def score_job(
     *,
     weights: dict[str, float] | None = None,
     embedder: Any | None = None,
+    proof: ProofWeights | None = None,
+    proof_reasons: list[ProofReason] | None = None,
 ) -> MatchResult:
-    dims = _score_dimensions(candidate, job, embedder=embedder)
+    # ``proof``/``proof_reasons`` are the C6 preview's door (score_job_proof_preview);
+    # left at None this is the default scorer, unchanged.
+    dims = _score_dimensions(candidate, job, embedder=embedder, proof=proof, proof_reasons=proof_reasons)
     skills, career, personal = dims.skills, dims.career, dims.personal
     matched, missing, matched_strength = dims.matched, dims.missing, dims.matched_strength
     unproven = dims.unproven
@@ -1233,6 +1350,23 @@ def score_job(
         eligibility=eligibility_flags(candidate, job),
         target_alignment=_target_alignment(candidate, job),
     )
+
+
+def score_job_proof_preview(
+    candidate: MatchCandidate,
+    job: Job,
+    proof: ProofWeights = PROOF_PREVIEW_WEIGHTS,
+    *,
+    embedder: Any | None = None,
+) -> ProofPreview:
+    """The proof-weights PREVIEW of one pair: the result, one reasons line per
+    learnable must-have whose weight or credit it changed, and its own scorer stamp.
+
+    Opt-in only. The default weights for the archetype are kept; only the skills
+    dimension's per-requirement weighting differs (see ProofWeights)."""
+    reasons: list[ProofReason] = []
+    result = score_job(candidate, job, embedder=embedder, proof=proof, proof_reasons=reasons)
+    return ProofPreview(result=result, reasons=reasons, scorer_version=proof_scorer_version(proof))
 
 
 def fairness_matrix(pairs: list[tuple[MatchCandidate, dict[str, float] | None]], job: Job) -> dict:
