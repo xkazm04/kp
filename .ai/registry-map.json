@@ -2343,7 +2343,11 @@
           "revision": 3,
           "changedAt": "2026-09-26",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/insights/about/stage/parts.tsx:94 Diagram labels start invisible at phase zero, so keeping them mounted does not satisfy the requirement for a fully visible unscripted rendering.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:e93abcf9f70a6c36",
+          "evaluatedRevision": 3
         },
         {
           "subject": "agent-memory",
@@ -5036,7 +5040,11 @@
           "revision": 3,
           "changedAt": "2026-09-26",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/diagrams/page.tsx:106 Context and repository searches for useScroll, view-timeline, and filmstrip found no context matches; the page exposes architecture reference diagrams and implementation drawers, which the standard distinguishes from narrative explainers.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:e93abcf9f70a6c36",
+          "evaluatedRevision": 3
         },
         {
           "subject": "agent-memory",
@@ -15083,7 +15091,11 @@
           "revision": 3,
           "changedAt": "2026-09-26",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_components/glyph/MotionizedGlyph.tsx:186 Context and repository searches for useScroll, view-timeline, and filmstrip found no context matches; these files render reusable glyph illustrations rather than an explanatory page with narrative stations.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:e93abcf9f70a6c36",
+          "evaluatedRevision": 3
         },
         {
           "subject": "test-harness",
@@ -28420,7 +28432,11 @@
           "revision": 3,
           "changedAt": "2026-09-26",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/useInfiniteScroll.ts:79 Context and repository searches for useScroll, view-timeline, and filmstrip found no context matches; these utilities manage application data and preferences rather than compose a narrative surface.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:e93abcf9f70a6c36",
+          "evaluatedRevision": 3
         },
         {
           "subject": "supply-chain",

@@ -11722,6 +11722,166 @@
         "at": "2026-10-18T01:53:36.293390+00:00",
         "reason": "reviewer (sonnet): The deviation says the panel should select a complete shared preset, but I found no shared framer-motion preset or variants module in app/_lib or app/_components that it could use (only the unrelated STUDIO_SPRING), so that precondition could not be confirmed."
       }
+    },
+    "23edc789-314a-44a3-b30f-ee7353edfab4/narrative-scroll-surface": {
+      "context": "about-product",
+      "subject": "narrative-scroll-surface",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T01:58:22.102Z",
+      "worker": "bdd08652-e7ac-46e7-8f98-b2f0ac958bb6",
+      "techniques": [
+        {
+          "technique": "motion-carries-the-mechanism",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/about/scenes/shared.tsx:191 Bars run their own transitions after beat changes, so intermediate frames depend on transition history rather than solely on scene time; step and scrub controls exist, but no filmstrip view was found."
+        },
+        {
+          "technique": "no-orientation-tax",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/about/ChapterRail.tsx:95 The active entry changes font weight, violating the requirement that active treatment preserve footprint through color and opacity alone."
+        },
+        {
+          "technique": "reveal-without-loss",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/about/scenes/jd/data.ts:77 The initial transport phase is zero, so source labels render hidden until playback advances; without script, the resolved explanation never appears."
+        },
+        {
+          "technique": "scroll-bound-progression",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/about/AboutTab.tsx:74 Chapter frames have no entrance or scroll envelope; the timed motion belongs to the mechanisms inside them."
+        },
+        {
+          "technique": "sequence-as-spine",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/about/chapters.ts:54 Chapter numbers are authored literals rather than derived from list position; the equality test detects numbering drift but does not implement the required derivation."
+        }
+      ],
+      "registryProposal": "Clarify explicitly that a mechanism's playback clock is distinct from a station's scroll-driven entrance, reconciling the timer refusal with the clock-driven playback permitted by motion-carries-the-mechanism."
+    },
+    "b53482a5-a3bf-4daa-8011-a09391c974e2/narrative-scroll-surface": {
+      "context": "glyph-system",
+      "subject": "narrative-scroll-surface",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T01:58:22.102Z",
+      "worker": "bdd08652-e7ac-46e7-8f98-b2f0ac958bb6",
+      "techniques": [
+        {
+          "technique": "illustration-carries-the-claim",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/glyph/MotionizedGlyph.tsx:74 This primitive supplies accompanying glyph art, not evidence for an explanatory station's claim."
+        },
+        {
+          "technique": "motion-carries-the-mechanism",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/glyph/motionPresets.ts:67 The motion reveals a finished glyph rather than teaching process order, overlap, or waiting."
+        },
+        {
+          "technique": "no-orientation-tax",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/glyph/MotionizedGlyph.tsx:90 The documented consumers are empty-state illustrations, not a narrative side index."
+        },
+        {
+          "technique": "reveal-without-loss",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/glyph/MotionizedGlyph.tsx:130 The asynchronously loaded content is glyph path data, not an explanatory page's argument."
+        },
+        {
+          "technique": "scroll-bound-progression",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/glyph/MotionizedGlyph.tsx:151 Viewport entry controls glyph replay; there is no narrative station gesture requiring a progress envelope."
+        },
+        {
+          "technique": "sequence-as-spine",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/glyph/MotionizedGlyph.tsx:190 The rendered collection consists of SVG paths, not ordered explanatory stations."
+        }
+      ]
+    },
+    "74171ef0-a76e-499a-8dbc-5f0af5bebeb6/narrative-scroll-surface": {
+      "context": "shared-client-hooks",
+      "subject": "narrative-scroll-surface",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T01:58:22.102Z",
+      "worker": "bdd08652-e7ac-46e7-8f98-b2f0ac958bb6",
+      "techniques": [
+        {
+          "technique": "illustration-carries-the-claim",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/use-number-format.ts:41 The utility formats values and authors no explanatory illustration."
+        },
+        {
+          "technique": "motion-carries-the-mechanism",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/useReducedMotion.ts:28 The hook observes a motion preference; it defines no mechanism animation."
+        },
+        {
+          "technique": "no-orientation-tax",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/use-enum-label.ts:29 Enum localization supplies labels without composing a narrative index or reading path."
+        },
+        {
+          "technique": "reveal-without-loss",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/useLoader.ts:59 This updates fetched application data, not the presence of authored explanatory stations."
+        },
+        {
+          "technique": "scroll-bound-progression",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/useInfiniteScroll.ts:131 Intersection triggers pagination rather than controlling a narrative station's appearance."
+        },
+        {
+          "technique": "sequence-as-spine",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/useJsonFetch.ts:118 The hook returns request state and localized failures, not an ordered page composition."
+        }
+      ]
+    },
+    "e52eec3f-4cbb-4b6e-a212-e71e0a679584/narrative-scroll-surface": {
+      "context": "architecture-diagrams-explorer",
+      "subject": "narrative-scroll-surface",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T01:58:22.102Z",
+      "worker": "bdd08652-e7ac-46e7-8f98-b2f0ac958bb6",
+      "techniques": [
+        {
+          "technique": "illustration-carries-the-claim",
+          "verdict": "not-applicable",
+          "evidence": "app/diagrams/page.tsx:96 The displayed artifact is an identified architecture source document, outside this technique's narrative-evidence scope."
+        },
+        {
+          "technique": "motion-carries-the-mechanism",
+          "verdict": "not-applicable",
+          "evidence": "app/diagrams/PipelineExplorer.tsx:46 The transition makes room for a drawer; it does not animate the pipeline's mechanism."
+        },
+        {
+          "technique": "no-orientation-tax",
+          "verdict": "not-applicable",
+          "evidence": "app/diagrams/PipelineExplorer.tsx:55 Selecting a diagram node retrieves implementation reference material rather than choosing a narrative reading path."
+        },
+        {
+          "technique": "reveal-without-loss",
+          "verdict": "not-applicable",
+          "evidence": "app/diagrams/PipelineExplorer.tsx:72 Conditional content is a user-selected reference drawer, not a station revealed by scrolling."
+        },
+        {
+          "technique": "scroll-bound-progression",
+          "verdict": "not-applicable",
+          "evidence": "app/diagrams/page.tsx:92 The page renders its diagram catalog directly, without station progress gestures."
+        },
+        {
+          "technique": "sequence-as-spine",
+          "verdict": "not-applicable",
+          "evidence": "app/diagrams/diagramCatalog.ts:15 Architecture versions are reference entries, not successive stations in a narrative argument."
+        }
+      ]
     }
   }
 }
