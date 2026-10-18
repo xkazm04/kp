@@ -17245,7 +17245,11 @@
           "revision": 6,
           "changedAt": "2026-09-30",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/templates-store.ts:11 Searches found no preboarding, rescission, renege or firstDay matches in this context, whose templates and background tasks author job descriptions rather than manage accepted hires.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:642373c1d68765ca",
+          "evaluatedRevision": 6
         },
         {
           "subject": "translation-pipeline-topology",
@@ -29326,7 +29330,11 @@
           "revision": 6,
           "changedAt": "2026-09-30",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/shell/setup/setupFinishOutcome.ts:18 Searches found no preboarding, rescission, renege or firstDay matches in this context, whose complete finish vocabulary concerns operator workspace setup rather than an accepted hire's first-day handoff.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:642373c1d68765ca",
+          "evaluatedRevision": 6
         },
         {
           "subject": "companion-identity",

@@ -11969,6 +11969,93 @@
           "evidence": "app/features/hiring/pipeline/usePipelineTabState.ts:110 The header predicate consults only live board stages; a retired noncanonical terminal stage becomes unrecognized and can subsequently enter staleCount through the fallback threshold."
         }
       ]
+    },
+    "2c3bab35-1a41-4ed0-85d3-e48cdaea2546/pre-boarding-and-first-day-handoff": {
+      "context": "shell-setup-wizard",
+      "subject": "pre-boarding-and-first-day-handoff",
+      "bundle": "recruiting",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T02:13:30.825Z",
+      "worker": "e0eba58d-1e4f-40ea-9c11-2a0ed2d10678",
+      "techniques": [
+        {
+          "technique": "industry-preset-checklists",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/setup/setupSteps.ts:75 The step configures the operator's organization, not a new-hire checklist."
+        },
+        {
+          "technique": "language-neutral-template-keys",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/setup/SetupLanguageSwitch.tsx:45 This changes the operator's UI locale; it does not store new-hire template copy."
+        },
+        {
+          "technique": "pre-boarding-questionnaire-as-a-hire-record",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/setup/setupOnboardingFinish.ts:48 Collected answers configure the workspace rather than an employee record."
+        },
+        {
+          "technique": "rescinding-an-accepted-offer-is-a-decision-with-a-process",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/setup/OnboardingExperience.tsx:203 Dismissal skips operator setup; it does not withdraw a hire."
+        },
+        {
+          "technique": "signature-seam-declared-not-implied",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/setup/setupOnboardingFinish.ts:262 The consent action concerns companion memory, not signing employment documents."
+        },
+        {
+          "technique": "the-acceptance-to-start-date-silence-gap",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/setup/SetupHandoffSummary.tsx:92 The handoff summarizes workspace configuration, not contact with an accepted hire."
+        },
+        {
+          "technique": "the-live-stage-gates-the-handoff",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/setup/setupSteps.ts:89 The gate selects operator setup steps by intent and capability, not hire provisioning."
+        }
+      ]
+    },
+    "03ead2c6-6756-41a6-84c9-7b0843d9e216/pre-boarding-and-first-day-handoff": {
+      "context": "jd-build-templates",
+      "subject": "pre-boarding-and-first-day-handoff",
+      "bundle": "recruiting",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T02:13:30.825Z",
+      "worker": "e0eba58d-1e4f-40ea-9c11-2a0ed2d10678",
+      "techniques": [
+        {
+          "technique": "industry-preset-checklists",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/templates-store.ts:154 The stored templates are JD markdown, not sector-specific new-hire checklists."
+        },
+        {
+          "technique": "language-neutral-template-keys",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/jd-template-tokens.ts:19 Localization targets published job descriptions, outside this technique's new-hire precondition."
+        },
+        {
+          "technique": "pre-boarding-questionnaire-as-a-hire-record",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/jd-build-run.ts:232 The content describes role responsibilities, not employment intake answers."
+        },
+        {
+          "technique": "rescinding-an-accepted-offer-is-a-decision-with-a-process",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/templates-store.ts:270 Deletion removes a JD template; it does not rescind an acceptance."
+        },
+        {
+          "technique": "the-acceptance-to-start-date-silence-gap",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/jd-build-start.ts:56 The background task tracks JD analysis rather than post-acceptance contact."
+        },
+        {
+          "technique": "the-live-stage-gates-the-handoff",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/jd-limits.ts:82 The gate validates JD authoring input, not authorization to provision a hire."
+        }
+      ]
     }
   }
 }
