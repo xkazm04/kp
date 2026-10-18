@@ -19263,7 +19263,11 @@
           "revision": 2,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/library/jobs/JobsIngestAdPanel.tsx:107 The ingest panel directly commits parsed job advertisements into the catalog without providing a field-by-field extraction preview for reviewer verification.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:548fa21c15091d6e",
+          "evaluatedRevision": 2
         },
         {
           "subject": "inclusive-job-advertising",

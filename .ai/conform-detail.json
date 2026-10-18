@@ -12139,6 +12139,52 @@
           "evidence": "app/landing/spark/market/MarketPulseAtlas.tsx:59 Selection changes persist map-view parameters in the URL, without proposing or editing hiring requirements."
         }
       ]
+    },
+    "181b8632-82ec-4203-a308-42e58eca6c49/requisition-lifecycle-governance": {
+      "context": "jobs-posting-campaign",
+      "subject": "requisition-lifecycle-governance",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T02:28:49.133Z",
+      "worker": "dea59075-8b73-4a2e-861b-f424c07c4b31",
+      "techniques": [
+        {
+          "technique": "best-effort-ingest-with-an-explicit-retry",
+          "verdict": "conformant",
+          "evidence": "app/features/library/jobs/jobsIngestRunOutcome.ts:54 Run settlement preserves raw ad text in the input area when an import produces no new catalog entries or is cancelled."
+        },
+        {
+          "technique": "closing-withdraws-candidates-in-flight",
+          "verdict": "conformant",
+          "evidence": "app/features/library/jobs/JobsPostingModalFooter.tsx:93 Modal footer cleanly separates zero candidates in flight from positive withdrawal counts and surfaces failed withdrawals."
+        },
+        {
+          "technique": "draft-live-and-closed-as-distinct-states",
+          "verdict": "conformant",
+          "evidence": "app/features/library/jobs/jobsPostingLifecycle.ts:28 Derives discrete draft, live, and closed states to govern candidate entry permissions and apply link availability."
+        },
+        {
+          "technique": "fill-is-a-count-and-close-is-the-act-it-triggers",
+          "verdict": "conformant",
+          "evidence": "app/features/library/jobs/JobsLifecycleStrip.tsx:117 Derives the hired metric directly from candidates standing on stages carrying the terminal role on the pipeline axis."
+        },
+        {
+          "technique": "headcount-approval-as-a-precondition",
+          "verdict": "deviation",
+          "evidence": "app/features/library/jobs/jobsPostingModalLogic.ts:167 Publishing modal captures target hires and languages but includes no headcount approval precondition or named approver chain."
+        },
+        {
+          "technique": "ingest-as-draft-never-as-live",
+          "verdict": "deviation",
+          "evidence": "app/features/library/jobs/JobsIngestAdPanelResults.tsx:28 The results display reports binary addition status without providing a field-by-field extraction preview prior to catalog entry."
+        },
+        {
+          "technique": "publish-means-two-different-things",
+          "verdict": "conformant",
+          "evidence": "app/features/library/jobs/JobsPostingModalFooter.tsx:142 The modal labels internal go-live 'Source into Pipeline', withholding public apply links until the role is live."
+        }
+      ]
     }
   }
 }
