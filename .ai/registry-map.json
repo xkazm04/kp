@@ -8811,12 +8811,11 @@
           "changedAt": "2026-09-20",
           "confidence": "strong",
           "state": "deviation",
-          "evidence": "deviation: consent has an append-only trail, but no withdrawal transition - app/_lib/db/pipeline.ts:1994 enumerates ConsentEventKind as granted|renewed|expiring_notified|expired|anonymized|erasure_requested|erased, and app/api/pipeline/[id]/consent/route.ts:33 exposes GET only, so a candidate who wants out of the pool while their live application continues has only erasure (a heavier, different instruction), and the trail cannot evidence a withdrawal as distinct from a lapse - the one distinction the golden path says the log exists to make. Realized and cited: retention-ttl-and-derived-disclosure derives the disclosed ceiling from the enforced TTL and rounds up (app/_lib/consent.ts:28); read-time-gate-not-just-the-sweep is the synchronous control with the sweep as an optimization (app/_lib/consent.ts:91); deep-redact-verbatim-quote-containers drops the transcript and the free-text scorecard synthesis while keeping non-identifying session metadata (app/_lib/consent.ts:102); legal-claims-carve-out-from-erasure keeps consent_events outside the scrub because the proof of erasure cannot be what erasure deletes (app/_lib/db/pipeline.ts:2186).",
-          "evaluatedAt": "2026-09-20",
-          "evaluatedAgainst": "sha256:a3bbfb5180a23acd",
-          "evaluatedRevision": 1,
-          "revisionsBehind": 1,
-          "stale": true
+          "evidence": "app/_lib/consent.ts:38 Consent lifecycle states omit withdrawal and fail open when expiry is missing, while the legal-claims carve-out holds decision records indefinitely without an end date.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:3c9042dc4cd9f910",
+          "evaluatedRevision": 2,
+          "revisionsBehind": 1
         },
         {
           "subject": "hitl-approval",

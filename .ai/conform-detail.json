@@ -10948,6 +10948,57 @@
           "evidence": "app/features/hiring/channels/useCommsResend.ts:40 Unreadable successful responses become null and enter the shared fold's sent default, allowing the resend control to display Resent without reading a terminal message status."
         }
       ]
+    },
+    "9a774a39-7277-44b7-ba26-c4c412951c64/candidate-consent-and-retention": {
+      "context": "consent-erasure-privacy",
+      "subject": "candidate-consent-and-retention",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T00:44:26.968Z",
+      "worker": "e118f853-7d06-47ed-94b0-0b9209d947a5",
+      "techniques": [
+        {
+          "technique": "retention-ttl-and-derived-disclosure",
+          "verdict": "conformant",
+          "evidence": "app/_lib/consent.ts:28 Candidate-facing retention months are derived from enforced TTL days and rounded up via Math.ceil so disclosure never understates the window."
+        },
+        {
+          "technique": "read-time-gate-not-just-the-sweep",
+          "verdict": "deviation",
+          "evidence": "app/_lib/consent.ts:68 Treats missing expiry as active rather than withholding, and ConsentStatus lacks a withdrawn state."
+        },
+        {
+          "technique": "one-transaction-scrub-across-linked-records",
+          "verdict": "conformant",
+          "evidence": "app/_lib/erasure-full-scrub.test.ts:257 Regression test asserts that every workspace-scoped table is reached by the single-transaction erasure or listed in ERASURE_EXEMPT."
+        },
+        {
+          "technique": "deep-redact-verbatim-quote-containers",
+          "verdict": "conformant",
+          "evidence": "app/_lib/consent.ts:220 Recursively traverses container subtrees to blank strings and empty arrays while preserving structural shape and scores."
+        },
+        {
+          "technique": "anonymise-but-retain-the-aggregate-signal",
+          "verdict": "conformant",
+          "evidence": "app/_lib/consent.ts:148 Masks candidate labels to initials with stopword stripping so pipeline history remains legible without identifying candidates."
+        },
+        {
+          "technique": "legal-claims-carve-out-from-erasure",
+          "verdict": "deviation",
+          "evidence": "app/_lib/erasure-full-scrub.test.ts:277 Retained carve-out tables require a written reason but carry no limitation period or end date, leaving retention indefinite."
+        }
+      ],
+      "registryProposal": "Clarify in the standard whether consent withdrawal belongs under read-time-gate-not-just-the-sweep or warrants its own named technique, as the golden path mandates append-only withdrawal transitions distinct from expiry.",
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "deviation: consent has an append-only trail, but no withdrawal transition - app/_lib/db/pipeline.ts:1994 enumerates ConsentEventKind as granted|renewed|expiring_notified|expired|anonymized|erasure_requested|erased, and app/api/pipeline/[id]/consent/route.ts:33 exposes GET only, so a candidate who wants out of the pool while their live application continues has only erasure (a heavier, different instruction), and the trail cannot evidence a withdrawal as distinct from a lapse - the one distinction the golden path says the log exists to make. Realized and cited: retention-ttl-and-derived-disclosure derives the disclosed ceiling from the enforced TTL and rounds up (app/_lib/consent.ts:28); read-time-gate-not-just-the-sweep is the synchronous control with the sweep as an optimization (app/_lib/consent.ts:91); deep-redact-verbatim-quote-containers drops the transcript and the free-text scorecard synthesis while keeping non-identifying session metadata (app/_lib/consent.ts:102); legal-claims-carve-out-from-erasure keeps consent_events outside the scrub because the proof of erasure cannot be what erasure deletes (app/_lib/db/pipeline.ts:2186).",
+          "evaluatedAt": "2026-09-20",
+          "worker": null,
+          "reason": "replaced by e118f853-7d06-47ed-94b0-0b9209d947a5"
+        }
+      ]
     }
   }
 }
