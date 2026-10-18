@@ -14507,7 +14507,11 @@
           "revision": 4,
           "changedAt": "2026-09-20",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_components/Skeleton.tsx:10 The default Skeleton paints immediately without an appearance delay, allowing fast loads to flash a placeholder.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:c71d22c8deba8577",
+          "evaluatedRevision": 4
         },
         {
           "subject": "agent-memory",
@@ -17936,11 +17940,14 @@
           "bundle": "software-engineering",
           "source": "conform",
           "confidence": "strong",
-          "state": "unknown",
-          "evidence": "added by /conform: the matcher scored this at zero, but JdsLedgerTable.tsx:114-133 is a full body-state machine - unsettled holds height behind reveal-quiet, empty-library and empty-filtered are separate typed branches.",
+          "state": "deviation",
+          "evidence": "app/features/library/jds/jdsHooks.ts:41 User-triggered reloads discard held rows and return the populated table to its initial placeholder.",
           "digest": "sha256-b2:c71d22c8deba8577",
           "revision": 4,
-          "changedAt": "2026-09-20"
+          "changedAt": "2026-09-20",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:c71d22c8deba8577",
+          "evaluatedRevision": 4
         }
       ],
       "governance": "governed"

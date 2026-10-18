@@ -12324,6 +12324,93 @@
           "evidence": "pipeline/jobfit/devcase/process_events.py:169 Enforces that process telemetry never infers over-reliance flags or moves decision boundaries on its own."
         }
       ]
+    },
+    "23ea22ae-fc24-4af0-a51f-58347b533287/async-ui-states": {
+      "context": "jd-ledger",
+      "subject": "async-ui-states",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T21:35:40.879Z",
+      "worker": "d58e5951-e070-4a15-ac5c-99a9e61c67c4",
+      "techniques": [
+        {
+          "technique": "action-busy-states",
+          "verdict": "deviation",
+          "evidence": "app/features/library/jds/jdsHooks.ts:156 Updating busy state does not stop this invocation from continuing to fetch; there is no synchronous latch or early return preventing concurrent ingest calls."
+        },
+        {
+          "technique": "arrival-choreography",
+          "verdict": "deviation",
+          "evidence": "app/features/library/jds/JdsLedgerTable.tsx:112 Arrival animation depends on data presence, without checking whether loading exceeded the placeholder delay, so fast responses also animate instead of painting settled immediately."
+        },
+        {
+          "technique": "empty-state-design",
+          "verdict": "deviation",
+          "evidence": "app/features/library/jds/JdsLedgerTable.tsx:138 The no-match branch correctly distinguishes filtered emptiness but offers no one-tap clearing of the active filters; individual column menus require separate resets."
+        },
+        {
+          "technique": "failure-states",
+          "verdict": "deviation",
+          "evidence": "app/features/library/jds/JdsSavedLedgerPanel.tsx:122 Any library error selects the error panel instead of JdsLedgerTable, including silent refresh failures that still hold rows, hiding both content and column controls."
+        },
+        {
+          "technique": "placeholder-design",
+          "verdict": "deviation",
+          "evidence": "app/features/library/jds/JdsLedgerTable.tsx:121 The delayed blank block reserves height but does not describe the table's row and column geometry, as the standard requires."
+        },
+        {
+          "technique": "state-model",
+          "verdict": "deviation",
+          "evidence": "app/features/library/jds/jdsHooks.ts:102 The detail loader manually maintains status separately from held content and sets error on refresh failure; the modal then replaces held detail with its error branch rather than letting data presence dominate."
+        },
+        {
+          "technique": "windowing-vs-identifying-keys",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jds/jdsLedgerLogic.ts:139 Table filtering and sorting operate synchronously on the held response; these controls do not change an asynchronous request key or retain a previous request window."
+        }
+      ]
+    },
+    "f30881e0-b39e-4c58-b717-7a325dd7f906/async-ui-states": {
+      "context": "feedback-status-primitives",
+      "subject": "async-ui-states",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T21:35:40.879Z",
+      "worker": "d58e5951-e070-4a15-ac5c-99a9e61c67c4",
+      "techniques": [
+        {
+          "technique": "action-busy-states",
+          "verdict": "deviation",
+          "evidence": "app/_components/IconAction.tsx:64 IconAction forwards activation directly and renders a static icon, with no operation-lifetime handling, synchronous latch, spinner treatment, or aria-busy support for its asynchronous uses."
+        },
+        {
+          "technique": "arrival-choreography",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/Toast.tsx:135 These entrances present individual notifications keyed by toast identity, rather than a loading surface's data-arrival cascade."
+        },
+        {
+          "technique": "empty-state-design",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/Badge.tsx:145 The badge formats an already classified empty status; the listed primitives do not decide whether a fetched collection has settled empty."
+        },
+        {
+          "technique": "failure-states",
+          "verdict": "deviation",
+          "evidence": "app/_components/LoadStatus.tsx:59 The failure banner distinguishes initial failure from stale data and states its age, but its API and rendering provide no retry affordance for the failed request."
+        },
+        {
+          "technique": "placeholder-design",
+          "verdict": "deviation",
+          "evidence": "app/_components/Skeleton.tsx:10 Reduced motion is supported, but the primitive's default styling has no appearance delay to suppress fast-load flashes."
+        },
+        {
+          "technique": "windowing-vs-identifying-keys",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/toast-store.ts:53 The store identifies notifications by variant and message; these primitives own no compound data-request key or previous-window retention policy."
+        }
+      ]
     }
   }
 }
