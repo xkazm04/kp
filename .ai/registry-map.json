@@ -25103,7 +25103,11 @@
           "revision": 9,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/hiring/pipeline/pipelineBulkConfirm.test.ts:46 Cancel and fired cases enumerate only two of the three confirmation kinds, leaving the small finite transition matrix incompletely covered.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:d5ab12a92aba67c4",
+          "evaluatedRevision": 10
         },
         {
           "subject": "codebase-scanning",

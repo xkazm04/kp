@@ -12267,6 +12267,27 @@
           "evidence": "app/_lib/rediscover.ts:324 The live read filters stored alerts by role, pipeline presence and consent, but does not recompute fit against an edited brief or enforce a read-time age horizon."
         }
       ]
+    },
+    "bfeaddc0-56a8-4128-9a38-f1a7f89428e7/test-input-generation": {
+      "context": "pipeline-move-bulk-operations",
+      "subject": "test-input-generation",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T02:49:48.993Z",
+      "worker": "fa0eb7b9-dffa-416f-b4ba-2357a9af2118",
+      "techniques": [
+        {
+          "technique": "exhaustive-when-bounded",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/pipeline/pipelineBulkConfirm.test.ts:46 The implementation also admits move; supplementary preview tests cover move arming, drift and selection changes, but cancel/fired and cross-action replacement are not enumerated across all three kinds."
+        },
+        {
+          "technique": "negative-space-generation",
+          "verdict": "conformant",
+          "evidence": "app/features/hiring/pipeline/pipelineBoardFilters.test.ts:176 The parser receives an otherwise valid CSV containing one invalid token and must preserve exactly the valid tokens; nearby positive cases prevent an always-empty parser from passing."
+        }
+      ]
     }
   }
 }
