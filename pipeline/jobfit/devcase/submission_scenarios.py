@@ -18,11 +18,13 @@ synthetic traces are ever enriched with structural signals.
 
 OBSERVED PATH (``path="observed"``): the same BEHAVIOR tags, each rendered as ONE fixed Live
 Work Surface template — an event stream, a captured chat, a submitted tree, a frozen seed with
-two planted canaries and a one-shot baseline — replicated to n. This is what in-product
-candidates are scored on (devcase-run.ts passes --events/--chat/--files/--seed/--baseline-json),
-so the fairness/discrimination gate certifies the observed chain too. The templates are
-deliberately canonical (verifiers read first, edit a test, keep DECISIONS warm, fix or flag the
-canaries; non-verifiers edit unread and ship the flaws): they pin that the observed scorer
+two planted canaries plus the supplied unreviewed AI draft (ADR 0027 S2) and a one-shot
+baseline — replicated to n. This is what in-product candidates are scored on (devcase-run.ts
+passes --events/--chat/--files/--seed/--baseline-json), so the fairness/discrimination gate
+certifies the observed chain too. The templates are deliberately canonical (verifiers read
+first, edit a test, keep DECISIONS warm, fix or flag the canaries and fix the draft's flaws;
+non-verifiers edit unread and ship the flaws, the AI-no-verify gamer submitting the draft as it
+came): they pin that the observed scorer
 separates the archetypes, not how well it reads an adversary — case-sim rounds do that.
 """
 
@@ -32,6 +34,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from ._synth import SENIORITIES, pick as _pick
+from .ai_drafts import draft_for
 from .models import RUBRIC_DIMENSIONS
 from .scenarios import DOMAINS, _DOMAIN_KEYS
 
@@ -81,22 +84,30 @@ _LEGACY_SEED = (
 )
 _CONFIG_SEED = "TIMEOUT = 30\nretries = 0\nNAME = 'exports'\n"
 _TEST_SEED = "def test_rate():\n    assert True\n"
+# S2: the case's one labelled unreviewed AI draft (the software family's, since this template
+# is software-flavoured for every row). Its flaws ride as canaries beside c1/c2.
+_DRAFT = draft_for("software_engineering")
+_DRAFT_PATH = _DRAFT["path"]
 _SEED = {
     "files": [
         {"path": _LEGACY, "contents": _LEGACY_SEED},
         {"path": _CONFIG, "contents": _CONFIG_SEED},
         {"path": _TEST, "contents": _TEST_SEED},
         {"path": _DECISIONS, "contents": "# Decisions\n"},
+        {"path": _DRAFT_PATH, "contents": _DRAFT["contents"]},
     ],
     "canaries": [
         {"id": "c1", "kind": "subtle_bug", "path": _LEGACY, "flaw": "the rate is hardcoded as 'RATE = 0.19' for every market", "reveals": "read the legacy module before generating?"},
         {"id": "c2", "kind": "subtle_bug", "path": _CONFIG, "flaw": "the client config sets 'retries = 0'", "reveals": "notice the config the change depends on?"},
+        *_DRAFT["canaries"],
     ],
 }
 # Submitted file bodies. Fixes keep the seed's structure (they descend from it, so the
 # canary verdict is gradable); the one-shot bodies append to an unread file.
 _LEGACY_FIXED = _LEGACY_SEED.replace("RATE = 0.19\n", "RATES = {'default': 0.19}\n").replace("* RATE", "* RATES['default']")
 _LEGACY_ONESHOT = _LEGACY_SEED + "\n\ndef export_rate(amount, market):\n    return rate(amount)\n"
+# The draft as a verifier leaves it: both flaws corrected to their ground truth.
+_DRAFT_FIXED = _DRAFT["contents"].replace("base * 2 * n", "base * 2 ** n").replace("delay is in milliseconds", "delay is in seconds")
 _FILES = {
     "legacy_fixed": {"path": _LEGACY, "contents": _LEGACY_FIXED},
     "legacy_oneshot": {"path": _LEGACY, "contents": _LEGACY_ONESHOT},
@@ -104,19 +115,21 @@ _FILES = {
     "config_seed": {"path": _CONFIG, "contents": _CONFIG_SEED},
     "test": {"path": _TEST, "contents": "def test_rate():\n    assert rate(100) == 19.0\n"},
     "decisions": {"path": _DECISIONS, "contents": "# Decisions\n- rates keyed per market\n"},
+    "draft_fixed": {"path": _DRAFT_PATH, "contents": _DRAFT_FIXED},
+    "draft_asis": {"path": _DRAFT_PATH, "contents": _DRAFT["contents"]},
     "decisions_flag": {"path": _DECISIONS, "contents": "# Decisions\n- rates keyed per market\n- src/config.py sets retries = 0, which looks wrong; left for the owner\n"},
 }
 _ASK = {"channel": "stakeholder", "role": "user", "text": "Which markets need their own rate first?"}
 # behavior -> (events as (kind, path), submitted files, chat)
 _OBSERVED: dict[str, tuple[list[tuple[str, str]], list[str], list[dict]]] = {
     "careful_verifier": (
-        [("open", _LEGACY), ("open", _TEST), ("open", _CONFIG), ("edit", _TEST), ("edit", _LEGACY), ("decision_log", _DECISIONS), ("decision_log", _DECISIONS)],
-        ["legacy_fixed", "config_seed", "test", "decisions_flag"],
+        [("open", _LEGACY), ("open", _TEST), ("open", _CONFIG), ("open", _DRAFT_PATH), ("edit", _TEST), ("edit", _LEGACY), ("edit", _DRAFT_PATH), ("decision_log", _DECISIONS), ("decision_log", _DECISIONS)],
+        ["legacy_fixed", "config_seed", "test", "draft_fixed", "decisions_flag"],
         [_ASK],
     ),
     "ai_then_verify": (
-        [("open", _LEGACY), ("open", _CONFIG), ("prompt", "assistant"), ("edit", _LEGACY), ("edit", _CONFIG), ("open", _TEST), ("prompt", "assistant"), ("edit", _TEST), ("decision_log", _DECISIONS), ("decision_log", _DECISIONS)],
-        ["legacy_fixed", "config_fixed", "test", "decisions"],
+        [("open", _LEGACY), ("open", _CONFIG), ("prompt", "assistant"), ("edit", _LEGACY), ("edit", _CONFIG), ("open", _DRAFT_PATH), ("edit", _DRAFT_PATH), ("open", _TEST), ("prompt", "assistant"), ("edit", _TEST), ("decision_log", _DECISIONS), ("decision_log", _DECISIONS)],
+        ["legacy_fixed", "config_fixed", "test", "draft_fixed", "decisions"],
         [
             {"channel": "assistant", "role": "user", "text": "Draft a per-market rate table for rate() and ceil_rate()"},
             {"channel": "assistant", "role": "model", "text": "Here is a draft."},
@@ -125,13 +138,13 @@ _OBSERVED: dict[str, tuple[list[tuple[str, str]], list[str], list[dict]]] = {
         ],
     ),
     "tdd": (
-        [("open", _TEST), ("edit", _TEST), ("open", _LEGACY), ("edit", _LEGACY), ("decision_log", _DECISIONS), ("decision_log", _DECISIONS)],
-        ["legacy_fixed", "config_seed", "test", "decisions"],
+        [("open", _TEST), ("edit", _TEST), ("open", _LEGACY), ("edit", _LEGACY), ("open", _DRAFT_PATH), ("edit", _DRAFT_PATH), ("decision_log", _DECISIONS), ("decision_log", _DECISIONS)],
+        ["legacy_fixed", "config_seed", "test", "draft_fixed", "decisions"],
         [],
     ),
     "exploratory_reverts": (
-        [("open", _LEGACY), ("edit", _LEGACY), ("edit", _LEGACY), ("open", _CONFIG), ("edit", _LEGACY), ("open", _TEST), ("edit", _TEST), ("decision_log", _DECISIONS), ("decision_log", _DECISIONS)],
-        ["legacy_fixed", "config_seed", "test", "decisions_flag"],
+        [("open", _LEGACY), ("edit", _LEGACY), ("edit", _LEGACY), ("open", _CONFIG), ("edit", _LEGACY), ("open", _DRAFT_PATH), ("edit", _DRAFT_PATH), ("open", _TEST), ("edit", _TEST), ("decision_log", _DECISIONS), ("decision_log", _DECISIONS)],
+        ["legacy_fixed", "config_seed", "test", "draft_fixed", "decisions_flag"],
         [_ASK],
     ),
     "big_bang_no_verify": (
@@ -141,7 +154,7 @@ _OBSERVED: dict[str, tuple[list[tuple[str, str]], list[str], list[dict]]] = {
     ),
     "ai_no_verify": (
         [("prompt", "assistant"), ("paste", _LEGACY), ("edit", _LEGACY)],
-        ["legacy_oneshot"],
+        ["legacy_oneshot", "draft_asis"],
         [{"channel": "assistant", "role": "user", "text": _BRIEF}],
     ),
 }
