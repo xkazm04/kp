@@ -24480,7 +24480,11 @@
           "revision": 4,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/hiring/pipeline/usePipelineTabState.ts:128 The board independently reduces aging to a boolean and coerces unavailable dwell to zero, losing the standard's unavailable state and severity distinction.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:771f4c9edd97ec09",
+          "evaluatedRevision": 4
         }
       ],
       "governance": "governed"

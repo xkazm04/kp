@@ -11882,6 +11882,93 @@
           "evidence": "app/diagrams/diagramCatalog.ts:15 Architecture versions are reference entries, not successive stations in a narrative argument."
         }
       ]
+    },
+    "ea210994-45ae-4cb6-8143-23633254094a/pipeline-aging-and-attention-triage": {
+      "context": "pipeline-actions-commands",
+      "subject": "pipeline-aging-and-attention-triage",
+      "bundle": "recruiting",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T02:07:01.943Z",
+      "techniques": [
+        {
+          "technique": "aging-versus-stalled-two-tier-alerts",
+          "verdict": "deviation",
+          "evidence": "app/_lib/aging-policy.ts:161 Two dwell tiers exist, but the resolver cannot distinguish unsent offers, live response windows, or lapsed deadlines."
+        },
+        {
+          "technique": "attention-queue-ordering-and-rationale",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/attention.ts:81 This module returns bucket counts rather than an ordered strip of individual entries."
+        },
+        {
+          "technique": "badges-degrade-rather-than-error",
+          "verdict": "deviation",
+          "evidence": "app/_lib/attention.ts:101 An unresolved stage reaches the helper's legacy threshold fallback and can contribute a positive badge count instead of an unavailable result."
+        },
+        {
+          "technique": "overridable-defaults-with-a-server-side-approximation",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/pipeline-axis.ts:30 Configured cadences travel on the stored axis read by the shared computation; the standard explicitly exempts this arrangement from approximation."
+        },
+        {
+          "technique": "per-stage-aging-thresholds-not-one-global-cut",
+          "verdict": "deviation",
+          "evidence": "app/_lib/aging-policy.ts:88 An off-axis stage falls back to a canonical-name threshold or the global legacy cut, although an unresolved role should receive no threshold."
+        },
+        {
+          "technique": "terminal-stages-never-age",
+          "verdict": "deviation",
+          "evidence": "app/_lib/attention.ts:73 Only live definitions reach aging resolution; a retired terminal stage with a noncanonical ID loses its terminal role and can age under the fallback threshold."
+        }
+      ],
+      "withdrawn": {
+        "worker": "d3c2dd39-24d5-4d30-a49e-9eb7c291e0c5",
+        "state": "deviation",
+        "at": "2026-10-18T02:07:19.259499+00:00",
+        "reason": "reviewer (sonnet): The deviation is about aging-policy.ts and attention.ts, which are not among the command/axis files listed for this context. The cited aging-policy.ts:161 line is only the thin agingTierAt wrapper, and it does not show the claimed 'cannot distinguish unsent offers, live response windows, or lapsed d"
+      }
+    },
+    "a84a06f8-4280-473d-acc3-0cdcf6f98cad/pipeline-aging-and-attention-triage": {
+      "context": "pipeline-board-ui",
+      "subject": "pipeline-aging-and-attention-triage",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T02:07:01.943Z",
+      "worker": "d3c2dd39-24d5-4d30-a49e-9eb7c291e0c5",
+      "techniques": [
+        {
+          "technique": "aging-versus-stalled-two-tier-alerts",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/pipeline/orbit/orbitModel.ts:161 The rendered Orbit model carries a single aging boolean, without a separate stalled tier for presentation or ranking."
+        },
+        {
+          "technique": "attention-queue-ordering-and-rationale",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/pipeline/orbit/orbitModel.ts:211 groupsFor sorts by this blended score, allowing sufficiently many aging entries to outweigh a group containing a human approval gate."
+        },
+        {
+          "technique": "badges-degrade-rather-than-error",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/pipeline/orbit/PipelineOrbitView.tsx:102 Missing or invalid timestamps become zero days instead of remaining explicitly unavailable."
+        },
+        {
+          "technique": "overridable-defaults-with-a-server-side-approximation",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/pipeline/usePipelineSla.ts:74 Overrides are saved as team configuration and reloaded on the shared axis, so the standard's exception for server-visible policy applies."
+        },
+        {
+          "technique": "per-stage-aging-thresholds-not-one-global-cut",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/pipeline/usePipelineTabState.ts:128 The board supplies its axis but uses dwell alone, with no offer-window ownership handling and no guard against the resolver's unknown-role fallback."
+        },
+        {
+          "technique": "terminal-stages-never-age",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/pipeline/usePipelineTabState.ts:110 The header predicate consults only live board stages; a retired noncanonical terminal stage becomes unrecognized and can subsequently enter staleCount through the fallback threshold."
+        }
+      ]
     }
   }
 }
