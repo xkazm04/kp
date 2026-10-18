@@ -653,8 +653,8 @@ def _classify_unproven(cand_skill: str, req_skill: str, provenance: str | None) 
 # -- Proof-weights PREVIEW (scoring hunt C6) ---------------------------------
 #
 # An opt-in, logged alternative to the skills weighting, OFF by default: nothing
-# calls it unless it asks for it by name (score_job_proof_preview, or the C5
-# harness's --preview). Adopting it as the default is an operator's decision, and
+# calls it unless it passes ``proof=`` to score_job (the C5 harness's --preview
+# does). Adopting it as the default is an operator's decision, and
 # the default path below is unchanged by its existence — score_skills with
 # ``proof=None`` runs exactly the historical arithmetic.
 #
@@ -693,12 +693,6 @@ class ProofReason(NamedTuple):
     base_credit: float
     preview_credit: float
     text: str
-
-
-class ProofPreview(NamedTuple):
-    result: "MatchResult"
-    reasons: list[ProofReason]
-    scorer_version: str
 
 
 def proof_scorer_version(proof: ProofWeights = PROOF_PREVIEW_WEIGHTS) -> str:
@@ -1292,8 +1286,12 @@ def score_job(
     proof: ProofWeights | None = None,
     proof_reasons: list[ProofReason] | None = None,
 ) -> MatchResult:
-    # ``proof``/``proof_reasons`` are the C6 preview's door (score_job_proof_preview);
-    # left at None this is the default scorer, unchanged.
+    # ``proof``/``proof_reasons`` are the C6 preview's only door: pass PROOF_PREVIEW_WEIGHTS
+    # and a list, and the list receives one ProofReason per learnable must-have the
+    # preview changed; stamp the result with proof_scorer_version(proof). Kept on
+    # score_job rather than a second public scorer, so the neutrality registry's
+    # score_job runner stays the one entry point. Left at None this is the default
+    # scorer, unchanged.
     dims = _score_dimensions(candidate, job, embedder=embedder, proof=proof, proof_reasons=proof_reasons)
     skills, career, personal = dims.skills, dims.career, dims.personal
     matched, missing, matched_strength = dims.matched, dims.missing, dims.matched_strength
@@ -1350,23 +1348,6 @@ def score_job(
         eligibility=eligibility_flags(candidate, job),
         target_alignment=_target_alignment(candidate, job),
     )
-
-
-def score_job_proof_preview(
-    candidate: MatchCandidate,
-    job: Job,
-    proof: ProofWeights = PROOF_PREVIEW_WEIGHTS,
-    *,
-    embedder: Any | None = None,
-) -> ProofPreview:
-    """The proof-weights PREVIEW of one pair: the result, one reasons line per
-    learnable must-have whose weight or credit it changed, and its own scorer stamp.
-
-    Opt-in only. The default weights for the archetype are kept; only the skills
-    dimension's per-requirement weighting differs (see ProofWeights)."""
-    reasons: list[ProofReason] = []
-    result = score_job(candidate, job, embedder=embedder, proof=proof, proof_reasons=reasons)
-    return ProofPreview(result=result, reasons=reasons, scorer_version=proof_scorer_version(proof))
 
 
 def fairness_matrix(pairs: list[tuple[MatchCandidate, dict[str, float] | None]], job: Job) -> dict:

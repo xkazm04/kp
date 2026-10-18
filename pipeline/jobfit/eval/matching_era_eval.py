@@ -46,6 +46,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
+from .. import registry
 from .._cli import configure_stdio
 from ..jobs import Job
 from ..matching import (
@@ -76,7 +77,7 @@ TWINS = ("base", "stuffed", "proven", "learnable", "prereq")
 LISTED_CROSSINGS = 15
 # The cohorts C6 must not cost a tier: the preview lowers credit on bare claims, and
 # early-career candidates are the ones whose skills are most often only claimed.
-PROTECTED_ARCHETYPES = ("student", "career_switcher")
+PROTECTED_ARCHETYPES = registry.early_career_archetypes()
 # The English control the Czech-name delta is read against (a perturbation-registry pair).
 CZ_PAIR_AXIS = "cz"
 EN_PAIR_AXIS = "en"

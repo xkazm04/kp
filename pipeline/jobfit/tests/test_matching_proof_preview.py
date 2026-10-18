@@ -1,6 +1,6 @@
 """Scoring C6: the proof-weights PREVIEW, measured by the C5 twin-cast harness.
 
-The preview (matching.score_job_proof_preview, ``--preview`` on the harness) weighs
+The preview (``score_job(..., proof=PROOF_PREVIEW_WEIGHTS)``, ``--preview`` on the harness) weighs
 a learnable must-have at lambda < 1 and credits a bare self-declared claim on one
 at a fraction of today's credit. It is opt-in: the default scorer and the C5 pinned
 baseline must not move.
@@ -32,17 +32,23 @@ from pipeline.jobfit.matching import (
     PROOF_PREVIEW_STAMP,
     PROOF_PREVIEW_WEIGHTS,
     MatchCandidate,
+    ProofReason,
     load_corpus,
     _DEFAULT_CORPUS,
     proof_scorer_version,
     score_job,
-    score_job_proof_preview,
 )
+from pipeline.jobfit import registry
 
 # The C5 baseline the preview is read against (test_matching_era_eval.py pins it).
 BASE_FREE_CLAIM_GAIN = 18.3801
 BASE_PROOF_PREMIUM = 24.703
 NAME_AXES = ("czech_gender_pair", "english_gender_pair", "czech_vs_english_male", "czech_vs_english_female")
+
+
+def _preview(cand: MatchCandidate, job: Job):
+    reasons: list[ProofReason] = []
+    return score_job(cand, job, proof=PROOF_PREVIEW_WEIGHTS, proof_reasons=reasons), reasons
 
 
 def _forbidden(*_a, **_k):
@@ -88,7 +94,8 @@ class ProofPreviewHarnessTests(unittest.TestCase):
             self.assertEqual(self.pv["neutrality"][key]["nonzero"], 0, key)
 
     def test_target_no_protected_tier_loss_at_best_job(self) -> None:
-        self.assertEqual(self.cmp["protected_archetypes"], ["student", "career_switcher"])
+        self.assertEqual(set(self.cmp["protected_archetypes"]), {"student", "career_switcher"})
+        self.assertEqual(tuple(self.cmp["protected_archetypes"]), registry.early_career_archetypes())
         self.assertEqual(self.cmp["protected_tier_losses_at_best_job"], [])
 
     def test_target_every_changed_score_has_a_reason(self) -> None:
@@ -153,29 +160,29 @@ class ProofPreviewUnitTests(unittest.TestCase):
     def test_one_reasons_line_per_learnable_must_have(self) -> None:
         # Docker: a bare claim (discounted). Figma: not held at all (its gap weighs less).
         cand = self._cand({"Python": "professional", "Docker": "self_declared"})
-        out = score_job_proof_preview(cand, self._job())
-        self.assertEqual([r.skill for r in out.reasons], ["Docker", "Figma"])
-        docker, figma = out.reasons
+        _result, reasons = _preview(cand, self._job())
+        self.assertEqual([r.skill for r in reasons], ["Docker", "Figma"])
+        docker, figma = reasons
         self.assertEqual(docker.code, "self_declared_discount")
         self.assertLess(docker.preview_credit, docker.base_credit)
         self.assertEqual(figma.code, "learnable_weight")
         self.assertEqual((figma.base_credit, figma.preview_credit), (0.0, 0.0))
         self.assertIn("missing", figma.text)
         self.assertEqual((figma.base_weight, figma.preview_weight), (1.0, PROOF_PREVIEW_WEIGHTS.learnable_must_weight))
-        for r in out.reasons:
+        for r in reasons:
             self.assertIn(r.skill, r.text)
-        self.assertEqual(out.scorer_version, proof_scorer_version())
+        self.assertTrue(proof_scorer_version().startswith(PROOF_PREVIEW_STAMP + "+lambda="))
 
     def test_bare_claim_on_a_learnable_must_pays_less_than_proof(self) -> None:
         job = self._job()
-        claimed = score_job_proof_preview(self._cand({"Python": "professional", "Docker": "self_declared"}), job)
-        proven = score_job_proof_preview(self._cand({"Python": "professional", "Docker": "professional"}), job)
+        claimed, _ = _preview(self._cand({"Python": "professional", "Docker": "self_declared"}), job)
+        proven, _ = _preview(self._cand({"Python": "professional", "Docker": "professional"}), job)
         base_claimed = score_job(self._cand({"Python": "professional", "Docker": "self_declared"}), job)
-        self.assertLess(claimed.result.skills_score, base_claimed.skills_score)
-        self.assertGreater(proven.result.total, claimed.result.total)
+        self.assertLess(claimed.skills_score, base_claimed.skills_score)
+        self.assertGreater(proven.total, claimed.total)
         # The discounted claim stays a claim: unproven, never re-labelled missing.
-        self.assertIn("Docker", claimed.result.unproven_skills)
-        self.assertNotIn("Docker", claimed.result.missing_skills)
+        self.assertIn("Docker", claimed.unproven_skills)
+        self.assertNotIn("Docker", claimed.missing_skills)
 
     def test_a_posting_with_no_learnable_must_is_untouched(self) -> None:
         job = Job(
@@ -186,9 +193,9 @@ class ProofPreviewUnitTests(unittest.TestCase):
             requirements=[JobRequirement(skill="Python", kind="must_have", hardness="prerequisite")],
         )
         cand = self._cand({"Python": "self_declared"})
-        out = score_job_proof_preview(cand, job)
-        self.assertEqual(out.reasons, [])
-        self.assertEqual(out.result, score_job(cand, job))
+        result, reasons = _preview(cand, job)
+        self.assertEqual(reasons, [])
+        self.assertEqual(result, score_job(cand, job))
 
     def test_preview_report_is_deterministic(self) -> None:
         records, jobs = E.load_candidates()[:8], load_corpus(_DEFAULT_CORPUS)[:15]
