@@ -389,7 +389,17 @@ def _scorers() -> dict[str, Scorer]:
         "matching.match": Scorer(
             lambda p: matching.match(_mc(p), jobs, limit=25), "total", ("candidate.label",)
         ),
-        "matching.score_job": Scorer(_per_job(lambda c, j: matching.score_job(c, j)), "total"),
+        # Both arithmetics are proven: the proof weights (the product default, ADR 0027) and
+        # the historical ``proof=None`` the C5 harness still measures. A name must move neither.
+        "matching.score_job": Scorer(
+            _per_job(
+                lambda c, j: {
+                    "proof": matching.score_job(c, j, proof=matching.DEFAULT_PROOF_WEIGHTS),
+                    "legacy": matching.score_job(c, j, proof=None),
+                }
+            ),
+            "total",
+        ),
         "matching.ko_filter": Scorer(_per_job(lambda c, j: list(matching.ko_filter(c, j))), "key"),
         "matching.eligibility_flags": Scorer(
             _per_job(lambda c, j: {"flags": matching.eligibility_flags(c, j)}), "flags"

@@ -366,7 +366,7 @@
       "student_data": 1.0,
       "student_frontend": 1.0,
       "switcher_backend": 0.8,
-      "switcher_support": 0.8
+      "switcher_support": 1.0
     },
     "RELIABILITY_THRESHOLD": {
       "offer/bau_strong": 1.0,

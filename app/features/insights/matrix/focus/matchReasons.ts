@@ -16,6 +16,7 @@
 import type { MatchResult, ScoreDimension } from "@/app/features/shared/matchTypes";
 import {
   isDimensionLabelCode,
+  isScorerVersion,
   MATCH_FACTS_MAX_SKILLS,
   MATCH_FACTS_SKILL_MAX_CHARS,
   type MatchReasonDimension,
@@ -32,10 +33,16 @@ export type MatchReasonsTranslator = {
 };
 
 /** The version of the scorer whose output the facts describe, sealed as the record's
- *  `policyVersion`. No version travels with a /api/match result today (the Python
- *  scorer does not emit one), so this names the facts contract the client builds;
- *  bump it when matchReasonFacts or the scorer's tier/dimension semantics change. */
+ *  `policyVersion`. Since ADR 0027 (2026-10-18) the engine stamps every result with the
+ *  arithmetic that made it (`scorerVersion`, e.g. `proof-weights.1-lam0.8-sd0.05`) and
+ *  the facts carry that. This constant is the version of a result that carries NO stamp,
+ *  which is the historical weighting every score before the stamp was made by; it is also
+ *  what `proof=None` stamps. */
 export const MATCH_SCORER_VERSION = "match-scorer.v1";
+
+/** A /api/match result as the engine now returns it: the shared MatchResult plus the
+ *  scorer-version stamp (the shared type predates it). */
+export type VersionedMatchResult = MatchResult & { scorerVersion?: string };
 
 /** The renderer's bound on one line. */
 export const MATCH_REASONS_MAX_CHARS = 600;
@@ -68,7 +75,7 @@ function quotedDimension(d: ScoreDimension | undefined): MatchReasonDimension | 
  *  anything is the renderer's call — so every Match add seals a verdict, including one
  *  that cannot explain itself (the meter then names it as a miss). `matchScore` follows
  *  matchScoreForPipeline: a finite total, else null. */
-export function matchReasonFacts(m: MatchResult): MatchReasonFacts {
+export function matchReasonFacts(m: VersionedMatchResult): MatchReasonFacts {
   const dims = (m.scoreBreakdown ?? [])
     .map((d) => ({ d, q: quotedDimension(d) }))
     .filter((x): x is { d: ScoreDimension; q: MatchReasonDimension } => x.q !== null)
@@ -81,7 +88,7 @@ export function matchReasonFacts(m: MatchResult): MatchReasonFacts {
     unproven: pickSkills(m.unprovenSkills),
     missing: pickSkills(m.missingSkills),
     matchScore: typeof m.total === "number" && Number.isFinite(m.total) ? m.total : null,
-    scorerVersion: MATCH_SCORER_VERSION,
+    scorerVersion: isScorerVersion(m.scorerVersion) ? m.scorerVersion : MATCH_SCORER_VERSION,
   };
 }
 

@@ -285,6 +285,49 @@ before/after this change are not comparable in the same screening wave
 not refresh old snapshots). Re-score a mixed-vintage cohort before running a
 wave over it.
 
+#### Proof weights are the default scorer (ADR 0027, adopted 2026-10-18)
+
+`score_job` runs the proof weights (`DEFAULT_PROOF_WEIGHTS` = `PROOF_PREVIEW_WEIGHTS`,
+`matching.py`) unless a caller passes `proof=None`, which runs the historical arithmetic
+(the C5 harness uses it for before/after; nothing in the product path does). Two levers,
+both read off the posting: a must-have marked `hardness="learnable"` weighs
+`learnable_must_weight` = 0.8 instead of 1.0, and a bare `self_declared` claim on it is
+credited at `self_declared_learnable` = 0.05 of what it earned (anything above
+self-declared keeps full credit). The discounted claim stays *unproven*, never *missing*.
+`score_skills` itself stays the primitive and defaults to the historical arithmetic.
+
+**Scorer version on every score.** `MatchResult.scorer_version` is `proof-weights.1-lam0.8-sd0.05`
+(`proof_scorer_version()`) under the default and `match-scorer.v1` under `proof=None`. It is a
+slug, so it fits the add door's `SCORER_VERSION_RE`. On the TS side `matchReasonFacts`
+(`matchReasons.ts`) carries it into the verdict facts, `recordMatchRun` stores it in
+`match_run_results.scorer_version`, and the sealed record's `policyVersion` is that value; a
+result with no stamp (an older payload) falls back to `match-scorer.v1`. A score from the old
+arithmetic is therefore distinguishable from a proof score in storage and in the chain. Scores
+already stored (`pipeline_entries.match_score`) are not refreshed: re-score a mixed-vintage
+cohort before comparing across the boundary, as above.
+
+**What it changed, measured** (`python -m pipeline.jobfit.eval.matching_era_eval --legacy`, 66
+synthetic candidates x 120 jobs, keyless, deterministic):
+
+| metric | legacy (before) | proof weights (after) | C6 target |
+|---|---|---|---|
+| free-claim gain (stuffed - base) | +18.3801 | **+13.6659** | <= 2.0 — **not met** |
+| best-job tier crossings from free claims | 9/66 | **7/66** | 0 — **not met** |
+| proof premium (proven - stuffed) | +24.703 | +29.3913 | >= before — met |
+| name deltas (nonzero, 4 axes) | 0 | 0 | 0 — met |
+| student / career_switcher tier loss at best job | – | 0 | 0 — met |
+| hardness lift learnable / prerequisite | +9.50 / +8.91 | +8.58 / +9.42 | learnable < prerequisite — met |
+
+Per archetype free-claim gain: bau 20.42 -> 15.03, career_switcher 14.47 -> 10.83, student 17.41 -> 13.12.
+Student and career_switcher base-twin tier changes: 11 and 3 pairs of 2760 and 1320, none at a
+candidate's best job; each carries its reasons line (`comparison.protected_tier_changes`).
+The targets were **not met and the operator adopted the weights anyway**; the frontier above is
+the honest figure and no target was loosened (the two `expectedFailure` tests in
+`test_matching_proof_preview.py` stay until it is met). The remaining leaks — `score_personal`
+keyword overlap, `transform.compute_potential` velocity, `self_declared` credit on prerequisite
+and nice-to-have requirements — are C6b. `test:eval:match` was re-recorded: role_relevance_at5
+moved 0.857 -> 0.886 (switcher_support 0.8 -> 1.0).
+
 ### 3. Early-career dimension swap
 For `student`/`career_switcher` archetypes, `pipeline/jobfit/matching.py`
 (`_DIM_SLUG_EARLY`) replaces the `career` dimension (seniority/family fit —

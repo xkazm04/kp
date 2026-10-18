@@ -1,9 +1,11 @@
 """The twin-cast match harness (scoring hunt C5): determinism, stamp, reason codes,
 keylessness and the baseline it measured on 2026-10-18.
 
-The pinned numbers are what the CURRENT scorer pays for a free claim and for proof.
-They are a measurement, not a target: scoring C6 is expected to move them, and the
-person moving them re-pins here in the same change. If this goes red without a
+The pinned numbers are what the PRODUCT scorer (the proof weights, ADR 0027, adopted
+2026-10-18) pays for a free claim and for proof; the historical arithmetic they replaced
+(18.3801 / 24.703, 9/66 crossings) is pinned in test_matching_proof_preview.py. They are
+a measurement, not a target: C6b is expected to move them, and the person moving them
+re-pins here in the same change. If this goes red without a
 scorer change, the harness or the seed inputs drifted instead.
 """
 
@@ -57,17 +59,17 @@ class MatchingEraEvalTests(unittest.TestCase):
     def test_pinned_baseline(self) -> None:
         r = self.first["results"]
         self.assertEqual((r["candidates"], r["jobs"], r["pairs"]), (66, 120, 7920))
-        self.assertEqual(r["free_claim_gain"], 18.3801)
-        self.assertEqual(r["proof_premium"], 24.703)
+        self.assertEqual(r["free_claim_gain"], 13.6659)
+        self.assertEqual(r["proof_premium"], 29.3913)
         tc = r["tier_crossings"]
-        self.assertEqual((tc["free_claim"], tc["proof_premium"]), (3903, 7193))
-        self.assertEqual((tc["free_claim_at_best_job"], tc["best_job_pairs"]), (9, 66))
+        self.assertEqual((tc["free_claim"], tc["proof_premium"]), (2251, 7468))
+        self.assertEqual((tc["free_claim_at_best_job"], tc["best_job_pairs"]), (7, 66))
         for key in ("czech_gender_pair", "english_gender_pair", "czech_vs_english_male", "czech_vs_english_female"):
             self.assertEqual(r["neutrality"][key]["max_abs"], 0, key)
             self.assertEqual(r["neutrality"][key]["nonzero"], 0, key)
         self.assertEqual(
             {a: v["free_claim_gain"] for a, v in r["per_archetype"].items()},
-            {"bau": 20.4247, "career_switcher": 14.4652, "student": 17.4076},
+            {"bau": 15.0349, "career_switcher": 10.8341, "student": 13.1156},
         )
 
     def test_harness_measures_only(self) -> None:

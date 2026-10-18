@@ -295,6 +295,9 @@ class MatchResult(_Base):
     role_family: str = ""
     salary_band: list[int] = Field(default_factory=list)
     total: int = 0
+    # The arithmetic that made this score: proof_scorer_version(proof), or
+    # LEGACY_SCORER_VERSION under ``proof=None``. A slug (TS SCORER_VERSION_RE).
+    scorer_version: str = ""
     # Server-computed banding so cards/recruiter/sim share one badge (see fit_tier_for).
     fit_tier: FitTier = "partial"
     skills_score: float = 0.0
@@ -650,13 +653,14 @@ def _classify_unproven(cand_skill: str, req_skill: str, provenance: str | None) 
     return "adjacency" if adjacency else "provenance"
 
 
-# -- Proof-weights PREVIEW (scoring hunt C6) ---------------------------------
+# -- Proof weights: kp's DEFAULT scorer (scoring hunt C6, adopted 2026-10-18) -
 #
-# An opt-in, logged alternative to the skills weighting, OFF by default: nothing
-# calls it unless it passes ``proof=`` to score_job (the C5 harness's --preview
-# does). Adopting it as the default is an operator's decision, and
-# the default path below is unchanged by its existence — score_skills with
-# ``proof=None`` runs exactly the historical arithmetic.
+# ADR 0027, Decision 2026-10-18: the operator adopted these weights as the product
+# default although the C6 targets were not met (free-claim gain +13.67 against <= 2.0,
+# 7/66 best-job crossings); C6b closes the remaining leaks. ``score_job`` with no
+# ``proof=`` argument now runs them. ``proof=None`` still runs exactly the historical
+# arithmetic, which the C5 harness (eval/matching_era_eval.py --legacy) measures
+# before/after; ``score_skills`` itself stays the primitive and defaults to that arithmetic.
 #
 # Two levers, both read off the posting itself:
 #
@@ -670,9 +674,16 @@ def _classify_unproven(cand_skill: str, req_skill: str, provenance: str | None) 
 #     (any provenance above self_declared) keeps its full credit.
 #
 # Lambda is "learnable" in the plain sense: it was chosen by sweeping the C5
-# twin-cast harness (pipeline/jobfit/eval/matching_era_eval.py --preview), and
-# the frontier that sweep found is pinned in test_matching_proof_preview.py.
-PROOF_PREVIEW_STAMP = "proof-weights-preview/1"
+# twin-cast harness, and the frontier that sweep found is pinned in
+# test_matching_proof_preview.py.
+#
+# Scorer-version stamps are slugs (the TS add door's SCORER_VERSION_RE:
+# ^[a-z0-9][a-z0-9._-]{0,39}$), so a stored score names the arithmetic that made it.
+PROOF_SCORER_STAMP = "proof-weights.1"
+PROOF_PREVIEW_STAMP = PROOF_SCORER_STAMP  # the pre-adoption name
+# What every score stored before the stamp existed was made by (the TS side's
+# MATCH_SCORER_VERSION); ``proof=None`` still emits it.
+LEGACY_SCORER_VERSION = "match-scorer.v1"
 
 
 class ProofWeights(NamedTuple):
@@ -681,6 +692,8 @@ class ProofWeights(NamedTuple):
 
 
 PROOF_PREVIEW_WEIGHTS = ProofWeights()
+# The product default. A separate name so a caller reads "the default", not "the preview".
+DEFAULT_PROOF_WEIGHTS = PROOF_PREVIEW_WEIGHTS
 
 
 class ProofReason(NamedTuple):
@@ -695,9 +708,9 @@ class ProofReason(NamedTuple):
     text: str
 
 
-def proof_scorer_version(proof: ProofWeights = PROOF_PREVIEW_WEIGHTS) -> str:
-    """The preview's own scorer stamp: never mistakable for the default scorer's."""
-    return f"{PROOF_PREVIEW_STAMP}+lambda={proof.learnable_must_weight:g},sd={proof.self_declared_learnable:g}"
+def proof_scorer_version(proof: ProofWeights = DEFAULT_PROOF_WEIGHTS) -> str:
+    """The stamp a proof-weighted score carries: never mistakable for the legacy arithmetic's."""
+    return f"{PROOF_SCORER_STAMP}-lam{proof.learnable_must_weight:g}-sd{proof.self_declared_learnable:g}"
 
 
 def _is_self_declared(provenance: str | None) -> bool:
@@ -1248,7 +1261,7 @@ def _score_dimensions(
     job: Job,
     *,
     embedder: Any | None = None,
-    proof: ProofWeights | None = None,
+    proof: ProofWeights | None = DEFAULT_PROOF_WEIGHTS,
     proof_reasons: list[ProofReason] | None = None,
 ) -> _Dimensions:
     skills, matched, missing, matched_strength, unproven = score_skills(
@@ -1283,15 +1296,14 @@ def score_job(
     *,
     weights: dict[str, float] | None = None,
     embedder: Any | None = None,
-    proof: ProofWeights | None = None,
+    proof: ProofWeights | None = DEFAULT_PROOF_WEIGHTS,
     proof_reasons: list[ProofReason] | None = None,
 ) -> MatchResult:
-    # ``proof``/``proof_reasons`` are the C6 preview's only door: pass PROOF_PREVIEW_WEIGHTS
-    # and a list, and the list receives one ProofReason per learnable must-have the
-    # preview changed; stamp the result with proof_scorer_version(proof). Kept on
-    # score_job rather than a second public scorer, so the neutrality registry's
-    # score_job runner stays the one entry point. Left at None this is the default
-    # scorer, unchanged.
+    # The proof weights are the product default (ADR 0027, 2026-10-18). Pass a list as
+    # ``proof_reasons`` and it receives one ProofReason per learnable must-have whose
+    # credit they changed. ``proof=None`` is the explicit way to run the historical
+    # arithmetic (the C5 harness's before/after). The result is stamped with the scorer
+    # version that made it, so a stored score names its arithmetic.
     dims = _score_dimensions(candidate, job, embedder=embedder, proof=proof, proof_reasons=proof_reasons)
     skills, career, personal = dims.skills, dims.career, dims.personal
     matched, missing, matched_strength = dims.matched, dims.missing, dims.matched_strength
@@ -1313,6 +1325,7 @@ def score_job(
         role_family=job.role_family,
         salary_band=job.salary_band,
         total=total,
+        scorer_version=proof_scorer_version(proof) if proof is not None else LEGACY_SCORER_VERSION,
         fit_tier=tier,
         skills_score=skills,
         career_score=career,

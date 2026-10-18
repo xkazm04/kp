@@ -29,7 +29,8 @@ from unittest import mock
 from pipeline.jobfit.eval import matching_era_eval as E
 from pipeline.jobfit.jobs import Job, JobRequirement
 from pipeline.jobfit.matching import (
-    PROOF_PREVIEW_STAMP,
+    PROOF_SCORER_STAMP,
+    LEGACY_SCORER_VERSION,
     PROOF_PREVIEW_WEIGHTS,
     MatchCandidate,
     ProofReason,
@@ -40,7 +41,7 @@ from pipeline.jobfit.matching import (
 )
 from pipeline.jobfit import registry
 
-# The C5 baseline the preview is read against (test_matching_era_eval.py pins it).
+# The C5 baseline (the historical arithmetic, proof=None) the proof weights are read against.
 BASE_FREE_CLAIM_GAIN = 18.3801
 BASE_PROOF_PREMIUM = 24.703
 NAME_AXES = ("czech_gender_pair", "english_gender_pair", "czech_vs_english_male", "czech_vs_english_female")
@@ -61,9 +62,9 @@ class ProofPreviewHarnessTests(unittest.TestCase):
         with mock.patch.object(socket.socket, "connect", _forbidden), mock.patch.object(
             socket, "create_connection", _forbidden
         ), mock.patch.object(subprocess, "Popen", _forbidden):
-            cls.report = E.run(preview=PROOF_PREVIEW_WEIGHTS)
-        cls.pv = cls.report["preview"]["results"]
-        cls.cmp = cls.report["preview"]["comparison"]
+            cls.report = E.run(legacy=True)
+        cls.pv = cls.report["results"]
+        cls.cmp = cls.report["legacy"]["comparison"]
 
     # -- the six C6 targets -------------------------------------------------
 
@@ -98,6 +99,14 @@ class ProofPreviewHarnessTests(unittest.TestCase):
         self.assertEqual(tuple(self.cmp["protected_archetypes"]), registry.early_career_archetypes())
         self.assertEqual(self.cmp["protected_tier_losses_at_best_job"], [])
 
+    def test_protected_tier_changes_are_pinned_and_each_carries_its_reasons(self) -> None:
+        changes = self.cmp["protected_tier_changes"]
+        by_arch = {a: sum(1 for c in changes if c["archetype"] == a) for a in ("student", "career_switcher")}
+        self.assertEqual(by_arch, {"student": 11, "career_switcher": 3})
+        self.assertFalse([c for c in changes if c["at_best_job"]])
+        for c in changes:
+            self.assertTrue(c["reasons"], c)
+
     def test_target_every_changed_score_has_a_reason(self) -> None:
         self.assertGreater(self.cmp["changed_scores"], 0)
         self.assertEqual(self.cmp["changed_without_reason"], 0)
@@ -105,8 +114,8 @@ class ProofPreviewHarnessTests(unittest.TestCase):
 
     # -- what the preview is ------------------------------------------------
 
-    def test_preview_reads_hardness(self) -> None:
-        # Today the scorer ignores hardness (learnable lift > prerequisite lift).
+    def test_proof_weights_read_hardness(self) -> None:
+        # The legacy arithmetic ignores hardness (learnable lift > prerequisite lift).
         h = self.pv["hardness"]
         self.assertLess(h["learnable_lift_per_requirement"], h["prerequisite_lift_per_requirement"])
 
@@ -115,16 +124,18 @@ class ProofPreviewHarnessTests(unittest.TestCase):
         self.assertGreater(PROOF_PREVIEW_WEIGHTS.self_declared_learnable, 0.0)
         self.assertLess(PROOF_PREVIEW_WEIGHTS.self_declared_learnable, 1.0)
 
-    def test_preview_carries_its_own_stamp(self) -> None:
+    def test_the_report_carries_both_scorer_stamps(self) -> None:
         self.assertEqual(self.report["stamp"], "SYNTHETIC")
-        version = self.report["preview"]["scorer_version"]
-        self.assertTrue(version.startswith(self.report["scorer_version"] + "+" + PROOF_PREVIEW_STAMP))
-        self.assertNotEqual(version, self.report["scorer_version"])
-        self.assertIn("proof-weights PREVIEW", E._format(self.report))
+        version = self.report["scorer_version"]
+        self.assertTrue(version.endswith("+" + proof_scorer_version()))
+        legacy = self.report["legacy"]["scorer_version"]
+        self.assertTrue(legacy.endswith("+" + LEGACY_SCORER_VERSION))
+        self.assertNotEqual(version, legacy)
+        self.assertIn("proof weights (the default, ADR 0027)", E._format(self.report))
 
-    def test_default_path_is_unchanged(self) -> None:
-        # The base half of a --preview report is the C5 baseline, unmoved.
-        r = self.report["results"]
+    def test_legacy_path_is_unchanged(self) -> None:
+        # The legacy half of a --legacy report is the C5 baseline, unmoved by the adoption.
+        r = self.report["legacy"]["results"]
         self.assertEqual(r["free_claim_gain"], BASE_FREE_CLAIM_GAIN)
         self.assertEqual(r["proof_premium"], BASE_PROOF_PREMIUM)
         self.assertEqual(r["tier_crossings"]["free_claim_at_best_job"], 9)
@@ -153,9 +164,11 @@ class ProofPreviewUnitTests(unittest.TestCase):
             provenance_default="self_declared",
         )
 
-    def test_default_call_is_the_historical_scorer(self) -> None:
+    def test_proof_none_is_the_historical_scorer(self) -> None:
         cand, job = self._cand({"Python": "professional", "Docker": "self_declared"}), self._job()
-        self.assertEqual(score_job(cand, job), score_job(cand, job, proof=None, proof_reasons=[]))
+        legacy = score_job(cand, job, proof=None, proof_reasons=[])
+        self.assertEqual(legacy.scorer_version, LEGACY_SCORER_VERSION)
+        self.assertGreater(legacy.skills_score, score_job(cand, job).skills_score)
 
     def test_one_reasons_line_per_learnable_must_have(self) -> None:
         # Docker: a bare claim (discounted). Figma: not held at all (its gap weighs less).
@@ -171,13 +184,13 @@ class ProofPreviewUnitTests(unittest.TestCase):
         self.assertEqual((figma.base_weight, figma.preview_weight), (1.0, PROOF_PREVIEW_WEIGHTS.learnable_must_weight))
         for r in reasons:
             self.assertIn(r.skill, r.text)
-        self.assertTrue(proof_scorer_version().startswith(PROOF_PREVIEW_STAMP + "+lambda="))
+        self.assertTrue(proof_scorer_version().startswith(PROOF_SCORER_STAMP + "-lam"))
 
     def test_bare_claim_on_a_learnable_must_pays_less_than_proof(self) -> None:
         job = self._job()
         claimed, _ = _preview(self._cand({"Python": "professional", "Docker": "self_declared"}), job)
         proven, _ = _preview(self._cand({"Python": "professional", "Docker": "professional"}), job)
-        base_claimed = score_job(self._cand({"Python": "professional", "Docker": "self_declared"}), job)
+        base_claimed = score_job(self._cand({"Python": "professional", "Docker": "self_declared"}), job, proof=None)
         self.assertLess(claimed.skills_score, base_claimed.skills_score)
         self.assertGreater(proven.total, claimed.total)
         # The discounted claim stays a claim: unproven, never re-labelled missing.
@@ -196,11 +209,12 @@ class ProofPreviewUnitTests(unittest.TestCase):
         result, reasons = _preview(cand, job)
         self.assertEqual(reasons, [])
         self.assertEqual(result, score_job(cand, job))
+        self.assertEqual(result.total, score_job(cand, job, proof=None).total)
 
     def test_preview_report_is_deterministic(self) -> None:
         records, jobs = E.load_candidates()[:8], load_corpus(_DEFAULT_CORPUS)[:15]
-        a = E.run(records, jobs, preview=PROOF_PREVIEW_WEIGHTS)
-        b = E.run(records, jobs, preview=PROOF_PREVIEW_WEIGHTS)
+        a = E.run(records, jobs, legacy=True)
+        b = E.run(records, jobs, legacy=True)
         self.assertEqual(a["fingerprint"], b["fingerprint"])
         self.assertNotEqual(a["fingerprint"], E.run(records, jobs)["fingerprint"])
 
