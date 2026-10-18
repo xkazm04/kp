@@ -7,7 +7,7 @@
 import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { createPosting, createSubmission, getSubmission, saveSubmissionEvaluation } from "./db.ts";
+import { createPosting, createSubmission, getSubmission, saveSubmissionEvaluation } from "./db/devcase.ts";
 import {
   clearAuthorship,
   clearedByFor,

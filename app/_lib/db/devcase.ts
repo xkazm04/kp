@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { canonicalize } from "../decision-hash";
+import { listDecisionRecords } from "../decision-record-store";
 import { coerceOutboxStatus, type OutboxStatus } from "../comms-status";
 import { randomId } from "../random-id";
 import { jdJobId } from "../jd-limits";
@@ -1476,4 +1478,52 @@ export function saveSubmissionEvaluation(id: string, evaluation: unknown, transf
     transferScore,
     id
   );
+}
+
+// ---------------------------------------------------------------------------
+// C4 — the authorship-hold READ side (the write side is devcase-debrief-findings.ts)
+// ---------------------------------------------------------------------------
+// A suspect authenticity band or an unwitnessed trace holds promote and minting; the only
+// exit is a sealed `authorship_verified` decision bound to the digest of THIS evaluation.
+
+export const DEBRIEF_FINDINGS_KIND = "debrief_findings";
+export const AUTHORSHIP_VERIFIED_KIND = "authorship_verified";
+
+/** What a clearance is bound to: the stored evaluation and its score. Any re-evaluation
+ *  that writes a different bundle (it stamps `evaluatedAt`) changes it. */
+export function submissionDigest(sub: DevSubmission): string {
+  return createHash("sha256")
+    .update(canonicalize({ id: sub.id, evaluation: sub.evaluation, transferScore: sub.transferScore }))
+    .digest("hex");
+}
+
+export type Sealed = { actor: string; findings: unknown[] };
+
+/** The newest record of `kind` sealed against THIS evaluation's digest. */
+export function sealedFor(sub: DevSubmission, kind: string): Sealed | null {
+  const digest = submissionDigest(sub);
+  for (const rec of listDecisionRecords({ candidateRef: sub.id, workspaceId: sub.workspaceId, limit: 100 })) {
+    if (rec.kind !== kind) continue;
+    let inputs: { digest?: unknown; findings?: unknown } = {};
+    try {
+      inputs = (JSON.parse(rec.payloadJson) as { inputs?: typeof inputs }).inputs ?? {};
+    } catch {
+      continue; // best-effort: an unreadable record binds nothing
+    }
+    if (inputs.digest !== digest) continue; // sealed against another evaluation: history
+    return { actor: rec.actor, findings: Array.isArray(inputs.findings) ? (inputs.findings as unknown[]) : [] };
+  }
+  return null;
+}
+
+/** Who cleared this evaluation, or null — also null once the submission was re-evaluated. */
+export function clearedByFor(sub: DevSubmission): string | null {
+  return sealedFor(sub, AUTHORSHIP_VERIFIED_KIND)?.actor ?? null;
+}
+
+/** Suspect band or unwitnessed trace, with no clearance on this evaluation. */
+export function heldForAuthorship(sub: DevSubmission): boolean {
+  const band = (sub.evaluation as { authenticity?: { band?: unknown } } | null | undefined)?.authenticity?.band;
+  if (band !== "suspect" && !bundleTraceUnwitnessed(sub.evaluation)) return false;
+  return clearedByFor(sub) === null;
 }

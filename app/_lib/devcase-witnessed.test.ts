@@ -16,7 +16,8 @@ import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { appendDevSessionEvents, getDevSessionIntegrity, startDevSession, type DevSessionEvent } from "./db/devcase.ts";
-import { createPosting, createSubmission, saveDevCase, saveProfile, saveSubmissionEvaluation } from "./db.ts";
+import { createPosting, createSubmission, saveDevCase, saveSubmissionEvaluation } from "./db/devcase.ts";
+import { saveProfile } from "./db/profiles.ts";
 import { scoreAuthenticity } from "./devcase-authenticity.ts";
 import { mintObservedFromSubmission, promoteSubmission } from "./devcase-run.ts";
 

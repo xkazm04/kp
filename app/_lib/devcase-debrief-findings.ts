@@ -1,7 +1,10 @@
-import { createHash } from "node:crypto";
-import { canonicalize } from "./decision-hash";
-import { listDecisionRecords, sealDecisionRecord } from "./decision-record-store";
-import { bundleTraceUnwitnessed, type DevSubmission } from "./db/devcase";
+import { sealDecisionRecord } from "./decision-record-store";
+import { AUTHORSHIP_VERIFIED_KIND, DEBRIEF_FINDINGS_KIND, clearedByFor, heldForAuthorship, sealedFor, submissionDigest, type DevSubmission } from "./db/devcase";
+
+// The read half (the digest, the sealed lookup, the two hold predicates) lives in db/devcase.ts:
+// devcase-run.ts needs it on the task-hub graph, and a module of its own bought +1 module on
+// every route that starts or polls a task. Re-exported so this file stays the one public door.
+export { AUTHORSHIP_VERIFIED_KIND, DEBRIEF_FINDINGS_KIND, clearedByFor, heldForAuthorship, submissionDigest };
 
 // C4 — RECORDED DEBRIEF FINDINGS RELEASE HOLDS.
 //
@@ -21,9 +24,6 @@ export const FINDING_KINDS = ["supported", "revised", "not_evidenced", "not_aske
 export type FindingKind = (typeof FINDING_KINDS)[number];
 /** Findings that say something against the candidate: they must carry the words heard. */
 export const ADVERSE_FINDINGS: readonly FindingKind[] = ["revised", "not_evidenced"];
-
-export const DEBRIEF_FINDINGS_KIND = "debrief_findings";
-export const AUTHORSHIP_VERIFIED_KIND = "authorship_verified";
 
 /** Share of the follow-ups that must read `supported` before a human may clear. Four of
  *  five clears; an unasked follow-up counts against, it is never a midpoint. */
@@ -56,14 +56,6 @@ function followupsOf(evaluation: unknown): unknown[] {
 /** How many follow-ups the debrief covers for this submission. */
 export function followupCount(sub: DevSubmission): number {
   return followupsOf(sub.evaluation).length;
-}
-
-/** What a clearance is bound to: the stored evaluation and its score. Any re-evaluation
- *  that writes a different bundle (it stamps `evaluatedAt`) changes it. */
-export function submissionDigest(sub: DevSubmission): string {
-  return createHash("sha256")
-    .update(canonicalize({ id: sub.id, evaluation: sub.evaluation, transferScore: sub.transferScore }))
-    .digest("hex");
 }
 
 /** Validate raw input at the trust boundary. Uncovered follow-ups are NOT filled here —
@@ -107,25 +99,6 @@ export function recordDebriefFindings(sub: DevSubmission, raw: unknown, actor: s
   return { digest, findings };
 }
 
-type Sealed = { actor: string; findings: DebriefFinding[] };
-
-/** The newest record of `kind` sealed against THIS evaluation's digest. */
-function sealedFor(sub: DevSubmission, kind: string): Sealed | null {
-  const digest = submissionDigest(sub);
-  for (const rec of listDecisionRecords({ candidateRef: sub.id, workspaceId: sub.workspaceId, limit: 100 })) {
-    if (rec.kind !== kind) continue;
-    let inputs: { digest?: unknown; findings?: unknown } = {};
-    try {
-      inputs = (JSON.parse(rec.payloadJson) as { inputs?: typeof inputs }).inputs ?? {};
-    } catch {
-      continue; // best-effort: an unreadable record binds nothing
-    }
-    if (inputs.digest !== digest) continue; // sealed against another evaluation: history
-    return { actor: rec.actor, findings: Array.isArray(inputs.findings) ? (inputs.findings as DebriefFinding[]) : [] };
-  }
-  return null;
-}
-
 export type DebriefReadout = {
   /** One entry per follow-up, in order; an uncovered one reads `not_asked`. */
   findings: DebriefFinding[];
@@ -138,7 +111,7 @@ export type DebriefReadout = {
 export function readDebriefFindings(sub: DevSubmission): DebriefReadout {
   const total = followupCount(sub);
   const sealed = sealedFor(sub, DEBRIEF_FINDINGS_KIND);
-  const byIndex = new Map((sealed?.findings ?? []).map((f) => [f.followupIndex, f]));
+  const byIndex = new Map(((sealed?.findings ?? []) as DebriefFinding[]).map((f) => [f.followupIndex, f]));
   const findings = Array.from({ length: total }, (_, i): DebriefFinding => byIndex.get(i + 1) ?? { followupIndex: i + 1, kind: "not_asked" });
   return { findings, recorded: sealed !== null, supported: findings.filter((f) => f.kind === "supported").length, total };
 }
@@ -168,14 +141,3 @@ export function clearAuthorship(sub: DevSubmission, actor: string): ClearanceVer
   return { cleared: true, clearedBy: actor };
 }
 
-/** Who cleared this evaluation, or null — also null once the submission was re-evaluated. */
-export function clearedByFor(sub: DevSubmission): string | null {
-  return sealedFor(sub, AUTHORSHIP_VERIFIED_KIND)?.actor ?? null;
-}
-
-/** Suspect band or unwitnessed trace, with no clearance on this evaluation. */
-export function heldForAuthorship(sub: DevSubmission): boolean {
-  const band = (sub.evaluation as { authenticity?: { band?: unknown } } | null | undefined)?.authenticity?.band;
-  if (band !== "suspect" && !bundleTraceUnwitnessed(sub.evaluation)) return false;
-  return clearedByFor(sub) === null;
-}
