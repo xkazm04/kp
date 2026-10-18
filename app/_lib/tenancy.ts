@@ -230,6 +230,12 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // Holds candidate personal data, so the erasure scrub blanks it
   // (interview-letters-tenancy.test.ts, exemption list empty).
   "interview_letters",
+  // First-contact outreach held for a human (db/outreach-letters.ts, comms scope C2): the
+  // draft, the approved revision and who approved it. NO by-id carve-out — the letter id
+  // travels through the approve/release routes, and an unscoped read would hand one team
+  // another team's letter to a named person. Unique key (workspace_id, entry_id). Holds
+  // candidate personal data, so the erasure scrub blanks it (outreach-letters-tenancy.test.ts).
+  "outreach_letters",
   // Cohort Studio (db/analysis-cohorts.ts): NO by-id carve-out — every statement binds
   // workspace_id (analysis-cohorts-tenancy.test.ts); erasure masks member labels.
   "analysis_cohorts",

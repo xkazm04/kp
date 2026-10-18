@@ -1610,6 +1610,36 @@ export function ensureDb(): Database.Database {
     CREATE UNIQUE INDEX IF NOT EXISTS uq_interview_letters_entry ON interview_letters (workspace_id, entry_id);
     CREATE INDEX IF NOT EXISTS idx_interview_letters_open ON interview_letters (workspace_id, state, requested_at);
 
+    -- First-contact OUTREACH held for a human (comms scope C2, db/outreach-letters.ts).
+    -- Every outreach door used to send the moment the letter was drafted; it now writes a
+    -- row here and the letter leaves only when a person approves THIS revision and
+    -- releases it (outreach-release.ts). One row per application: a first touch is sent
+    -- once. message_id is minted at draft time and carried to the release, so the outbox
+    -- row, the relay envelope and its Idempotency-Key all name the same message (C1).
+    --
+    -- CANDIDATE PERSONAL DATA: subject and body are written to one named person, so the
+    -- entry-keyed erasure scrub (db/pipeline.ts scrubEntryLinkedPii) blanks both and stamps
+    -- erased_at. The row stays as the record that a letter was drafted and what became of it.
+    CREATE TABLE IF NOT EXISTS outreach_letters (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
+      entry_id TEXT NOT NULL,
+      state TEXT NOT NULL DEFAULT 'drafted' CHECK(state IN ('drafted','approved','released','delivery_failed','suppressed','discarded')),
+      revision INTEGER NOT NULL DEFAULT 1,
+      subject TEXT,
+      body TEXT,
+      lang TEXT NOT NULL,
+      message_id TEXT NOT NULL,
+      approved_by TEXT,
+      approved_at TEXT,
+      released_at TEXT,
+      erased_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_outreach_letters_entry ON outreach_letters (workspace_id, entry_id);
+    CREATE INDEX IF NOT EXISTS idx_outreach_letters_open ON outreach_letters (workspace_id, state, created_at);
+
     -- Gigs module (app/_lib/gigs/types.ts, stores in db/gigs-*.ts): real paid work found in
     -- the world, drafted by a specialist agent and SENT BY THE OPERATOR. Six tables, every
     -- one workspace-scoped with NO by-id carve-out (a leaked id must not resolve another
