@@ -4146,7 +4146,11 @@
           "revision": 2,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/tools/analyze/AnalyzeApi.ts:181 The searched terms had no context matches, and this engine submits recruiting documents for analysis rather than generating, training, and selecting model packages.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:a8a570eae3950671",
+          "evaluatedRevision": 2
         },
         {
           "subject": "agent-instruction-files",
@@ -9780,7 +9784,11 @@
           "revision": 2,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/tools/analyze/AnalyzeForm.tsx:86 The searched terms had no context matches, and this workspace accepts CVs and displays recruiting reports rather than managing generated model training packages.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:a8a570eae3950671",
+          "evaluatedRevision": 2
         }
       ],
       "governance": "governed"
@@ -18685,7 +18693,11 @@
           "revision": 2,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/shared/renderTemplate.ts:177 The searched terms had no context matches, and the renderer substitutes job-description content into markdown rather than producing model candidates from dataset measurements.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:a8a570eae3950671",
+          "evaluatedRevision": 2
         }
       ],
       "governance": "governed"

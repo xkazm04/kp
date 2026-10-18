@@ -12781,6 +12781,129 @@
           "evidence": "app/_lib/ats-delivery-store.ts:209 Supervised lease sweep reclaims expired in-flight deliveries, increments the attempt count, and requeues or dead-letters accordingly."
         }
       ]
+    },
+    "1a8b63b3-ac28-4460-a74c-fbbe54884aec/generated-workflow-candidates": {
+      "context": "analyze-engine",
+      "subject": "generated-workflow-candidates",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T23:27:01.656Z",
+      "worker": "b4ce1daa-2359-4c22-96d5-5f35169e44e1",
+      "techniques": [
+        {
+          "technique": "candidates-as-ordinary-artifacts",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/analyze/AnalyzeApi.ts:198 Submission returns an analysis task identifier; this is not a model candidate generator."
+        },
+        {
+          "technique": "score-keyed-candidate-selection",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/analyze/analyzePipelineRef.ts:74 The score belongs to a recruiting pipeline entry, not a trained model selected for retention or ensembling."
+        },
+        {
+          "technique": "search-as-candidate-mutation",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/analyze/analyzeGithubRun.ts:74 The optional run analyzes a GitHub profile against a JD; it does not execute hyperparameter trials."
+        },
+        {
+          "technique": "stage-level-result-caching",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/analyze/analyzeRunAnalysis.ts:63 The client watches an analysis task; it does not drive the standard's analyze-generate-train-select runner."
+        },
+        {
+          "technique": "template-filling-with-provenance",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/analyze/useAnalyzeJdLibrary.ts:125 The library loads an existing JD body into the form rather than filling a training recipe from statistics."
+        },
+        {
+          "technique": "two-tier-data-statistics",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/analyze/AnalyzeApi.ts:396 Document text extraction supplies analysis input, not per-case and summary measurements for model generation."
+        }
+      ]
+    },
+    "6f7a0c99-f2d4-4070-83be-89bc582d0228/generated-workflow-candidates": {
+      "context": "cv-analyze-workspace",
+      "subject": "generated-workflow-candidates",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T23:27:01.656Z",
+      "worker": "b4ce1daa-2359-4c22-96d5-5f35169e44e1",
+      "techniques": [
+        {
+          "technique": "candidates-as-ordinary-artifacts",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/analyze/AnalyzeTab.tsx:161 The displayed artifact is an identified analysis report, not a runnable training-and-inference package."
+        },
+        {
+          "technique": "score-keyed-candidate-selection",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/analyze/history/HistoryTable.tsx:58 A recruiter opens a decision action on a saved report; this is not trained-model selection."
+        },
+        {
+          "technique": "search-as-candidate-mutation",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/analyze/history/HistoryFilterBar.tsx:75 Search controls filter recruiting history by role family, not a generator's hyperparameter space."
+        },
+        {
+          "technique": "stage-level-result-caching",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/analyze/AnalyzeTab.tsx:167 The UI displays the report's cache receipt; it does not implement the four-stage model-generation cache contract."
+        },
+        {
+          "technique": "template-filling-with-provenance",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/analyze/AnalyzeFormOptionalColumns.tsx:57 The user selects a saved job description rather than a program filling model configurations from measurements."
+        },
+        {
+          "technique": "two-tier-data-statistics",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/analyze/AnalyzeFormFooter.tsx:38 Preflight checks document readability, not dataset statistics consumed by a model candidate generator."
+        }
+      ]
+    },
+    "5e74c65c-50d7-4139-83b9-5f2cadbbbc48/generated-workflow-candidates": {
+      "context": "jd-template-engine",
+      "subject": "generated-workflow-candidates",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T23:27:01.656Z",
+      "worker": "b4ce1daa-2359-4c22-96d5-5f35169e44e1",
+      "techniques": [
+        {
+          "technique": "candidates-as-ordinary-artifacts",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/renderTemplate.ts:161 The renderer's result is document text, not a generated model package."
+        },
+        {
+          "technique": "score-keyed-candidate-selection",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/renderTemplate.ts:165 Lists are formatted as markdown bullets; there are no trained candidates to rank or ensemble."
+        },
+        {
+          "technique": "search-as-candidate-mutation",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/renderTemplate.ts:388 Template edits validate document length and tokens rather than mutate training parameters for search trials."
+        },
+        {
+          "technique": "stage-level-result-caching",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/renderTemplate.ts:215 The sentinel supports document separator cleanup, not persisted completion checks for model-generation stages."
+        },
+        {
+          "technique": "template-filling-with-provenance",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/renderTemplate.ts:167 Substitutions use supplied JD content and localized fallback text, not measurements filling a runnable model recipe."
+        },
+        {
+          "technique": "two-tier-data-statistics",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/renderTemplate.ts:176 Inputs are document fields; this module does not analyze samples or derive dataset summaries."
+        }
+      ]
     }
   }
 }
