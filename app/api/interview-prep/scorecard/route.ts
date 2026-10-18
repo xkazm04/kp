@@ -113,8 +113,15 @@ export const GET = withWorkspace(async (ws: string, request: NextRequest) => {
     const prep = getInterviewPrep(entry, ws);
     if (!prep) return jsonRefusal("INTERVIEW_PREP_NOT_FOUND", 404);
     const records = readHumanScorecards(prep.payload);
-    const key = await scorecardKey(getPipelineEntry(entry, ws)?.stage ?? null);
-    return NextResponse.json({ mine: ownScorecard(records, key.author, key.stage), records });
+    const pipelineEntry = getPipelineEntry(entry, ws);
+    const key = await scorecardKey(pipelineEntry?.stage ?? null);
+    // `devCase` is the same predicate the POST resolves its rubric with, so the panel
+    // offers the optional AI-tools axis exactly when the write will expect it.
+    return NextResponse.json({
+      mine: ownScorecard(records, key.author, key.stage),
+      records,
+      devCase: pipelineEntry ? hasDevCase(pipelineEntry) : false,
+    });
   } catch (error) {
     return safeJsonError(error, "api:interview-prep:scorecard", "INTERVIEW_PREP_FAILED");
   }

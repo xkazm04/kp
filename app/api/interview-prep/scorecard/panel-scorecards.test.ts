@@ -183,3 +183,50 @@ test("open mode keeps today's one slot per stage, and a new round is a new recor
     process.env.KP_OPERATOR_PASSWORD = PASSWORD;
   }
 });
+
+// S1 — the GET tells the panel whether the entry carries a work sample, using the same
+// predicate the POST resolves its rubric with, so the optional axis shows exactly when
+// the write expects it.
+function preppedWithSample(ws: string, sample: { devCaseId?: string; devSubmissionId?: string }): string {
+  seq += 1;
+  const { entry } = createPipelineEntry({
+    candidateId: `panel-c${seq}`,
+    candidateLabel: `Panel Candidate ${seq}`,
+    jobId: `panel-job-${seq}`,
+    jobTitle: "Panel Role",
+    stage: "Interview",
+    workspaceId: ws,
+    ...sample,
+  });
+  saveInterviewPrep(entry.id, entry.candidateLabel, entry.jobTitle, { scenario: "panel" });
+  return entry.id;
+}
+
+test("GET carries devCase, and the rubric built from it matches the keys POST stamps", async () => {
+  const { rubricForArchetype } = await import("../../../_lib/interview-rubric.ts");
+  const { getPipelineEntry } = await import("../../../_lib/db/pipeline.ts");
+  signedInAs(u1);
+  const cases: Array<[string, string, boolean]> = [
+    ["devCaseId", preppedWithSample(team.id, { devCaseId: "case-1" }), true],
+    ["devSubmissionId", preppedWithSample(team.id, { devSubmissionId: "sub-1" }), true],
+    ["neither", prepped(team.id), false],
+  ];
+  for (const [label, id, expected] of cases) {
+    const body = (await (await get(id)).json()) as { devCase: boolean };
+    assert.equal(body.devCase, expected, label);
+
+    assert.equal((await post(id, 4, label)).status, 200);
+    const mine = ((await (await get(id)).json()) as { mine: { rubricKeys?: string[] } | null }).mine;
+    const e = getPipelineEntry(id, team.id)!;
+    const panelKeys = rubricForArchetype(e.archetype, e.roleFamily, body.devCase).map((c) => c.competency);
+    assert.deepEqual(mine?.rubricKeys, panelKeys, `${label}: panel rubric == stamped rubric`);
+  }
+});
+
+test("GET devCase never leaks across workspaces: a foreign entry with a work sample is still 404", async () => {
+  const id = preppedWithSample(team.id, { devCaseId: "case-foreign" });
+  signedInAs(outsider);
+  const res = await get(id);
+  assert.equal(res.status, 404);
+  assert.equal("devCase" in ((await res.json()) as object), false);
+});
