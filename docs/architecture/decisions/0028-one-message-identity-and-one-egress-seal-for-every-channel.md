@@ -23,8 +23,9 @@ sources:
 
 **Status: accepted, partially implemented.** Landed on main: the egress seal (C3,
 `d588df42a`), the message identity (C1, `c578b7704` and its follow-ups) and the
-server half of the human release (C2a, `d0c1d1345`..`9987b30f3`). **Decided, not built:**
-the release card and bulk dry-run sheet (C2b), then C4, C5, C6, S2, S3, L1 and L2 in the
+server half of the human release (C2a, `d0c1d1345`..`9987b30f3`) and the per-candidate
+release card (C2b, first half, `02840920d`). **Decided, not built:**
+the bulk dry-run sheet (C2b, second half), then C4, C5, C6, S2, S3, L1 and L2 in the
 build order below.
 
 ## Context
@@ -72,7 +73,7 @@ spent), a sealed calendar read is unknown, a sealed pull skips, a probe says `se
 `sealed` is distinct from `not configured`, and the hub must show the two apart. It is
 deliberately not `KP_OFFLINE`, which would also cut the Claude CLI.
 
-### 3. Human release (C2 - C2a landed, C2b pending)
+### 3. Human release (C2 - C2a and the C2b release card landed, bulk sheet pending)
 
 Every candidate-affecting message is human-approved through a revision-bound
 compare-and-swap that names the approver. First outreach drafts instead of sending.
@@ -105,8 +106,9 @@ release delivered the first contact twice. The release now closes the letter as
 released when a sent or queued outbox row already carries its message id. Related
 test hygiene: `c12e70121`.
 
-**C2b, decided and not built.** The release card UI and the bulk dry-run sheet. Until
-then approve and release are reachable only through the API.
+**C2b release card, landed** (`02840920d`). The candidate drawer renders the exact letter,
+its forecast and state, Approve (the rendered revision) and Release, so a held letter is
+releasable in the product. **C2b bulk dry-run sheet, decided and not built.**
 
 ### 4. Bounded services
 
@@ -138,7 +140,7 @@ S1 (a Slack and Teams desk for the hiring team) was excluded by the operator on 
 - Receipt matching is exact for rows that carry a `message_id`; older rows stay heuristic.
 - A new door that contacts a candidate for the first time must write a held letter and
   not call `sendComm`; one that does reopens what C2a closed.
-- Until C2b lands, a held letter has no UI to release it; update this state as each
-  step ships.
+- Until the bulk dry-run sheet lands, batch outreach has no bulk release: each letter is
+  released one by one from its drawer; update this state as each step ships.
 - Reopen if: a local install gains a public callback URL and a way to name a kp user
   keylessly, which removes the reason chat approval lost.

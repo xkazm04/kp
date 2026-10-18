@@ -662,8 +662,21 @@ first-contacted once.
 | --- | --- | --- |
 | Draft | the outreach task (`draftOutreachLetter`, `app/_lib/outreach-release.ts`) | one row per application (unique on `workspace_id, entry_id`), revision 1, a `message_id` minted now; a re-draft of a still-drafted letter bumps the revision (identical text does not) |
 | Read | `GET /api/outreach-letters/[id]` | the draft, its `revision`, and the letter a release would send: body plus the legal footers with `PREVIEW_TOKEN` links, and a forecast (`refused` / `simulation` / `suppressed` / `relay` / `local`) |
+| Find | `GET /api/outreach-letters/by-entry/[entryId]` | the drawer's lookup from an application to its letter, same shape as Read; `{ letter: null, preview: null }` when none was drafted, 404 for an entry outside the team |
 | Approve | `POST /api/outreach-letters/[id]/approve` `{ revision }` | a CAS on id + team + revision + `drafted`, naming `humanActor()`; a stale revision answers `409 PIPELINE_MOVE_CONFLICT` with the current `{ state, revision }` |
 | Release | `POST /api/outreach-letters/[id]/release` | `releaseOutreachLetter` → `dispatchOutreach` (consent, then halt, then `sendComm`) carrying the draft's `message_id` |
+
+**The release card (C2b, first half).** The candidate drawer's Overview tab renders
+`OutreachReleaseCard` (`app/features/hiring/pipeline/candidate/outreach/`) whenever the
+application has a letter; it re-reads after an outreach task. It shows the exact letter
+(subject, body and the legal footers, links as placeholders), its language and recipient,
+the delivery forecast, the letter's state and, once approved, the approver. **Approve**
+posts the revision the card rendered; a `409` shows inline as "the letter changed,
+reload" and is never retried. **Release** is live only in `RELEASABLE_STATES` (`approved`,
+`delivery_failed`, `suppressed`). `COMMS_SUPPRESSED` and `delivery_failed` are states of
+the card, not toasts, and a keyless release reads `queued` in the local outbox, never
+"delivered". The call and state logic lives in `outreachCard.ts`
+(`outreachCard.test.ts`). The bulk dry-run sheet is still pending.
 
 **One message identity.** The release hands the draft's `message_id` to `sendComm`
 (§7, C1). The outbox row's `message_id`, the envelope's `messageId` and the
@@ -1455,8 +1468,8 @@ already returns alongside the entries. Both rules are pinned by
   door's pre-check answers `replied` / `manual` / `candidate` with the consent token,
   because `task-fanout.ts` and `task-outcome-summary.ts` know only the two
   `suppressed_*` values. Map each halt reason 1:1 once those vocabularies grow one.
-- **No UI reads a held outreach letter yet.** The release card and the bulk dry-run
-  sheet are comms scope C2b. Until then, the drawer and the Reach-out button read
+- **Only the drawer reads a held outreach letter.** The release card is live (§8a); the
+  bulk dry-run sheet is still comms scope C2b. Until it lands, the Reach-out button reads
   `applied: "drafted"` as the "sent" note (`useReachOut.ts` `reachOutVerdict` defaults
   to `sent`), and the approve / release doors answer with borrowed codes
   (`PIPELINE_ENTRY_NOT_FOUND`, `PIPELINE_MOVE_CONFLICT`) rather than outreach-letter codes of
