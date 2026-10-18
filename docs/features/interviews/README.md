@@ -2685,7 +2685,9 @@ anyone else's, and no save destroys another.
 - **Open mode.** With no operator password (or on an operator-password session)
   there is no user id, so `author` is null and each round keeps today's single slot.
 - **The form seeds from your own record only.** `GET /api/interview-prep/scorecard`
-  answers `{ mine, records }`: `mine` is the caller's record for the candidate's
+  answers `{ mine, records, devCase }`: `devCase` is true when the entry carries a
+  dev-case assignment or submission (the POST's own `hasDevCase`), so the panel
+  offers the optional "Working with AI tools" axis exactly when the POST expects it; `mine` is the caller's record for the candidate's
   current round, scoped by the same `getInterviewPrep(entry, ws)` read the POST
   uses (another team's id answers `INTERVIEW_PREP_NOT_FOUND`).
   `ScheduleHumanScorecardPanel` seeds only from `mine`, so a second interviewer
