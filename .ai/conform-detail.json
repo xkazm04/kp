@@ -12437,6 +12437,42 @@
         "at": "2026-10-18T21:52:22.133491+00:00",
         "reason": "reviewer (sonnet): The cited code is real: line 154 turns fetch failures into empty buffers, line 198 uses them for asset sizes, and the validity check at line 210 only tests the page status. But scripts/perf/devbench.mjs is not one of the dev-toolchain context's files, and none of those files call it. Also, line 162 "
       }
+    },
+    "bb3b0815-c5cd-423f-b87b-8c3c78aaf77d/candidate-status-transparency": {
+      "context": "candidate-apply-flow",
+      "subject": "candidate-status-transparency",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T22:08:25.808Z",
+      "worker": "418ad724-8c52-4a33-aef5-61c90eea6c59",
+      "techniques": [
+        {
+          "technique": "candidate-safe-status-projection",
+          "verdict": "conformant",
+          "evidence": "app/_lib/application-status.ts:8 Defines candidate-visible status as a closed set of coarse states by construction without exposing internal database fields or scores."
+        },
+        {
+          "technique": "honest-failure-classification",
+          "verdict": "conformant",
+          "evidence": "app/_lib/application-status.ts:121 Classifies HTTP status codes into retryable transient failures versus invalid link errors."
+        },
+        {
+          "technique": "stage-role-mapping-not-stage-names",
+          "verdict": "deviation",
+          "evidence": "app/_lib/application-status.ts:87 Falls back to stage name lookup and the initial entry bucket (received) instead of a neutral in-progress state when stage role is absent or unmappable."
+        },
+        {
+          "technique": "terminal-moment-experience-measurement",
+          "verdict": "deviation",
+          "evidence": "app/_lib/candidate-nps-store.ts:25 Stores candidate NPS responses without recording the terminal outcome kind (hired, declined, withdrew, requisition ended), preventing outcome-split satisfaction reporting."
+        },
+        {
+          "technique": "terminal-state-copy-without-implying-merit",
+          "verdict": "deviation",
+          "evidence": "app/_lib/application-status.ts:84 Collapses role_closed and rematched into not_selected, conflating structural requisition endings with candidate merit rejections."
+        }
+      ]
     }
   }
 }

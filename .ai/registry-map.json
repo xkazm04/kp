@@ -6678,7 +6678,11 @@
           "revision": 3,
           "changedAt": "2026-09-28",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/application-status.ts:84 The status projection collapses requisition closures and lateral rematches into not_selected alongside rejections, erasing the cause needed to distinguish merit decisions from process endings.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:8b56bba66e157ca3",
+          "evaluatedRevision": 3
         },
         {
           "subject": "fleet-orchestration",
