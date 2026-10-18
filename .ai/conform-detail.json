@@ -10568,6 +10568,125 @@
           "evidence": "app/_lib/db/billing.ts:434 This durable financial journal is not an optional product analytics destination."
         }
       ]
+    },
+    "822b34e7-a55d-4dbf-a113-7097faf18f66/analytics-time-windows": {
+      "context": "db-analytics-billing-llm",
+      "subject": "analytics-time-windows",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T00:01:59.659Z",
+      "worker": "b4d9b017-c5de-4901-807c-19d56ed5b1f4",
+      "techniques": [
+        {
+          "technique": "calendar-arithmetic",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/billing.ts:381 Billing storage accepts an existing period key; analytics uses rolling day durations rather than constructing calendar months, quarters, or aligned weeks."
+        },
+        {
+          "technique": "canonical-zone-single-source",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/llm.ts:505 Usage bucketing declares its zone independently of analytics.ts:249 BUCKET_TZ; the stores do not obtain their reporting zone from one shared accessor."
+        },
+        {
+          "technique": "half-open-interval-policy",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/analytics.ts:333 A live window has no upper predicate unless endMs is explicitly supplied, despite capturing a clock for that read."
+        }
+      ]
+    },
+    "ed438bd0-e9e2-48fe-aeda-1a2cd06924dc/analytics-time-windows": {
+      "context": "analytics-computation",
+      "subject": "analytics-time-windows",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T00:01:59.659Z",
+      "worker": "b4d9b017-c5de-4901-807c-19d56ed5b1f4",
+      "techniques": [
+        {
+          "technique": "calendar-arithmetic",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/analytics-momentum.ts:19 These are explicitly rolling duration buckets, so calendar-week alignment is not their contract."
+        },
+        {
+          "technique": "canonical-zone-single-source",
+          "verdict": "deviation",
+          "evidence": "app/_lib/metric-pack.ts:183 Metric-pack formatting hardcodes UTC independently of momentumWeekLabel's UTC literal; neither reads a shared reporting-zone authority."
+        },
+        {
+          "technique": "half-open-interval-policy",
+          "verdict": "deviation",
+          "evidence": "app/_lib/analytics-momentum.ts:73 The now + 1 comparison admits the endpoint; a file-free Node probe confirmed that an event exactly at now contributes one."
+        }
+      ]
+    },
+    "777cb8a1-955a-471f-8ce9-35c55ce69066/analytics-time-windows": {
+      "context": "analytics-calibration",
+      "subject": "analytics-time-windows",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T00:01:59.659Z",
+      "worker": "b4d9b017-c5de-4901-807c-19d56ed5b1f4",
+      "techniques": [
+        {
+          "technique": "baseline-as-window-start",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/calibrationVerdict.ts:125 This compares rates of decisions before and after a policy change, rather than an entity's state against its window-start value."
+        },
+        {
+          "technique": "calendar-arithmetic",
+          "verdict": "conformant",
+          "evidence": "app/_lib/calibration.ts:136 The drift producer assigns quarters by calendar month, rather than fixed ninety-day spans."
+        },
+        {
+          "technique": "canonical-zone-single-source",
+          "verdict": "deviation",
+          "evidence": "app/_lib/calibration.ts:135 Quarter bucketing chooses UTC locally rather than reading a shared zone accessor, and CalibrationCohort carries no zone."
+        },
+        {
+          "technique": "cohort-matched-comparison",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsDriftStrip.tsx:42 Each quarter displays the predictive error of its decision-event population; it does not compute longitudinal movement of matched entities."
+        },
+        {
+          "technique": "half-open-interval-policy",
+          "verdict": "conformant",
+          "evidence": "app/_lib/calibration.ts:386 The policy-change split assigns boundary observations exclusively to the after side, with no overlap or gap."
+        },
+        {
+          "technique": "range-precedence-resolution",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsCalibrationPanel.tsx:100 Calibration selects source, outcome and family; its request does not resolve competing reporting-period inputs."
+        }
+      ]
+    },
+    "6b065d33-5aa4-46b4-ad68-97ce316d0388/analytics-time-windows": {
+      "context": "analytics-dashboard",
+      "subject": "analytics-time-windows",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T00:01:59.659Z",
+      "worker": "b4d9b017-c5de-4901-807c-19d56ed5b1f4",
+      "techniques": [
+        {
+          "technique": "calendar-arithmetic",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsMomentumPanel.tsx:11 This component renders supplied rolling-week buckets rather than constructing calendar periods."
+        },
+        {
+          "technique": "canonical-zone-single-source",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/AnalyticsHeader.tsx:115 The header displays the zone echoed by the served payload instead of inferring the browser's zone."
+        },
+        {
+          "technique": "range-precedence-resolution",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/AnalyticsTab.tsx:67 Local parsing treats an invalid explicit parameter identically to absence, with no rejection or fallback provenance."
+        }
+      ]
     }
   }
 }

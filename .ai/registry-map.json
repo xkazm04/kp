@@ -3161,7 +3161,11 @@
           "revision": 6,
           "changedAt": "2026-09-30",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/calibration.ts:137 The calibration producer defines UTC locally and returns quarter metadata without its zone, leaving the drift payload outside the shared reporting-zone contract.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:9b81f64365c4edae",
+          "evaluatedRevision": 6
         },
         {
           "subject": "people-analytics-ethics",
@@ -3329,7 +3333,11 @@
           "revision": 6,
           "changedAt": "2026-09-30",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/analytics-momentum.ts:73 Momentum includes an event stamped exactly at now, making its event-time window closed at the upper endpoint instead of half-open.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:9b81f64365c4edae",
+          "evaluatedRevision": 6
         },
         {
           "subject": "prompt-assembly",
@@ -3544,7 +3552,11 @@
           "revision": 6,
           "changedAt": "2026-09-30",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/insights/analytics/AnalyticsTab.tsx:67 An unsupported explicit win parameter silently selects all time instead of being rejected or disclosed as a fallback.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:9b81f64365c4edae",
+          "evaluatedRevision": 6
         },
         {
           "subject": "client-fetch-cache",
@@ -9903,7 +9915,11 @@
           "revision": 6,
           "changedAt": "2026-09-30",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/db/analytics.ts:364 The live cohort query omits the captured window end, allowing boundary-time and future-dated entries into a nominally bounded reporting window.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:9b81f64365c4edae",
+          "evaluatedRevision": 6
         },
         {
           "subject": "mcp-tools",
