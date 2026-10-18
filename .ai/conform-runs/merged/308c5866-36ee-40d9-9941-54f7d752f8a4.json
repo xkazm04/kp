@@ -1,0 +1,175 @@
+{
+ "schema": "conform-run/1",
+ "worker": "308c5866-36ee-40d9-9941-54f7d752f8a4",
+ "subject": "decision-audit-and-traceability",
+ "evaluatedAt": "2026-10-18T01:07:46.939499+00:00",
+ "provider": "agy",
+ "model": "gemini-3.8-flash-high",
+ "pairs": [
+  {
+   "context": "analytics-sections",
+   "subject": "decision-audit-and-traceability",
+   "bundle": "recruiting",
+   "state": "conformant",
+   "evidence": "app/features/insights/analytics/sections/DecisionRecordDetail.tsx:61 The detail view preserves and displays the immutable sealed English rationale beside localized text, maintaining audit string invariance across locales.",
+   "techniques": [
+    {
+     "technique": "structured-facts-plus-a-locale-invariant-audit-string",
+     "verdict": "conformant",
+     "evidence": "app/features/insights/analytics/sections/DecisionRecordDetail.tsx:61 Displays the byte-stable sealed English rationale beside the localized view only when they differ, keeping the invariant string visible."
+    },
+    {
+     "technique": "seal-actor-policy-version-and-decisive-inputs",
+     "verdict": "conformant",
+     "evidence": "app/features/insights/analytics/sections/DecisionRecordDetail.tsx:84 Surfaces the snapshotted policy version and decisive inputs (verbatim prompt version and lead model reasoning) in the record detail."
+    },
+    {
+     "technique": "hash-chained-append-only-records",
+     "verdict": "conformant",
+     "evidence": "app/features/insights/analytics/sections/DecisionRecordsTable.tsx:203 Renders the append-only sequence position and cryptographic hashes of the record and its predecessor across table sort views."
+    },
+    {
+     "technique": "integrity-evident-is-not-tamper-resistant",
+     "verdict": "conformant",
+     "evidence": "app/features/insights/analytics/sections/DecisionRecordsTable.tsx:286 Explicitly flags unkeyed links as carrying no secret rather than presenting an unconditioned tamper-resistance claim."
+    },
+    {
+     "technique": "reason-codes-over-prose",
+     "verdict": "conformant",
+     "evidence": "app/features/insights/analytics/sections/DecisionLogTable.tsx:135 Translates structured reason codes from the decision record into localized text rather than relying on unconstrained free-text narratives."
+    }
+   ]
+  },
+  {
+   "context": "hiring-decisions-offers",
+   "subject": "decision-audit-and-traceability",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "app/_lib/offer-finalize.ts:111 Consequential terminal hiring and decline decisions are logged only as unchained pipeline events rather than being sealed into the tamper-evident append-only hash chain.",
+   "techniques": [
+    {
+     "technique": "hash-chained-append-only-records",
+     "verdict": "deviation",
+     "evidence": "app/_lib/offer-finalize.ts:111 Consequential terminal hiring decisions are logged to unchained pipeline events instead of being sealed into the tamper-evident hash chain."
+    },
+    {
+     "technique": "seal-actor-policy-version-and-decisive-inputs",
+     "verdict": "conformant",
+     "evidence": "app/_lib/status-decisions.ts:112 Derives actor attribution server-side into a three-state model without caller guessing or defaulting."
+    },
+    {
+     "technique": "structured-facts-plus-a-locale-invariant-audit-string",
+     "verdict": "conformant",
+     "evidence": "app/_lib/status-decisions.ts:291 Redacts sealed decision records into candidate-appropriate structured facts while preserving internal audit details server-side."
+    },
+    {
+     "technique": "reason-codes-over-prose",
+     "verdict": "conformant",
+     "evidence": "app/_lib/offer-finalize.ts:21 Refusals and terminal statuses use structured machine-readable error and status codes that are localized at presentation rather than unconstrained prose."
+    },
+    {
+     "technique": "capture-the-machine-verdict-before-a-human-overwrites-it",
+     "verdict": "conformant",
+     "evidence": "app/_lib/reinstate-seal.test.ts:18 Ensures human reversals of automated decisions seal under the acting person rather than inheriting the automated actor."
+    }
+   ]
+  },
+  {
+   "context": "hiring-decisions-api",
+   "subject": "decision-audit-and-traceability",
+   "bundle": "recruiting",
+   "state": "conformant",
+   "evidence": "app/api/decisions/records/route.ts:44 The decisions records API serves tenant-isolated decision records alongside an active cryptographic verification of the append-only hash chain.",
+   "techniques": [
+    {
+     "technique": "hash-chained-append-only-records",
+     "verdict": "conformant",
+     "evidence": "app/api/decisions/records/route.ts:44 Re-verifies the tenant-scoped hash chain across all stored decision records on read."
+    },
+    {
+     "technique": "seal-actor-policy-version-and-decisive-inputs",
+     "verdict": "conformant",
+     "evidence": "app/api/decisions/screen-wave/route.ts:108 Derives the approver server-side from the authenticated session and rejects client-supplied actor values."
+    },
+    {
+     "technique": "capture-the-machine-verdict-before-a-human-overwrites-it",
+     "verdict": "conformant",
+     "evidence": "app/api/decisions/screen-wave/route.ts:88 Gates automated screening batch commits on a signed human approval token over the reviewed preview."
+    },
+    {
+     "technique": "structured-facts-plus-a-locale-invariant-audit-string",
+     "verdict": "conformant",
+     "evidence": "app/api/decisions/reconsider/route.ts:46 Reads back structured reason codes and parameters from sealed records for client-side localization."
+    },
+    {
+     "technique": "reason-codes-over-prose",
+     "verdict": "conformant",
+     "evidence": "app/api/decisions/screen-wave/route.ts:124 Returns closed machine-readable approval refusal codes on human review gate failures rather than unstructured English errors."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "decision-audit-and-traceability",
+   "context": "devcase-evaluation",
+   "reason": "The devcase-evaluation context implements evaluation rubrics, candidate feedback drafting, cohort probe heatmaps, and interview kit preparation rather than the decision audit store, hash chaining, or tamper-evident seal verification."
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-18T01:07:46.939499+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "decision-audit-and-traceability"
+   ],
+   "techniques": [
+    "hash-chained-append-only-records",
+    "integrity-evident-is-not-tamper-resistant",
+    "reason-codes-over-prose",
+    "seal-actor-policy-version-and-decisive-inputs",
+    "structured-facts-plus-a-locale-invariant-audit-string"
+   ],
+   "deviations": 0,
+   "context": "analytics-sections",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-18T01:07:46.939499+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "decision-audit-and-traceability"
+   ],
+   "techniques": [
+    "capture-the-machine-verdict-before-a-human-overwrites-it",
+    "hash-chained-append-only-records",
+    "reason-codes-over-prose",
+    "seal-actor-policy-version-and-decisive-inputs",
+    "structured-facts-plus-a-locale-invariant-audit-string"
+   ],
+   "deviations": 1,
+   "context": "hiring-decisions-offers",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-18T01:07:46.939499+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "decision-audit-and-traceability"
+   ],
+   "techniques": [
+    "capture-the-machine-verdict-before-a-human-overwrites-it",
+    "hash-chained-append-only-records",
+    "reason-codes-over-prose",
+    "seal-actor-policy-version-and-decisive-inputs",
+    "structured-facts-plus-a-locale-invariant-audit-string"
+   ],
+   "deviations": 0,
+   "context": "hiring-decisions-api",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  }
+ ]
+}

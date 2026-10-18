@@ -3913,7 +3913,11 @@
           "revision": 2,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "app/features/insights/analytics/sections/DecisionRecordDetail.tsx:61 The detail view preserves and displays the immutable sealed English rationale beside localized text, maintaining audit string invariance across locales.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:465adcb645f8d26a",
+          "evaluatedRevision": 2
         },
         {
           "subject": "small-sample-honesty-in-hiring-analytics",
@@ -15605,7 +15609,11 @@
           "revision": 2,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "app/api/decisions/records/route.ts:44 The decisions records API serves tenant-isolated decision records alongside an active cryptographic verification of the append-only hash chain.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:465adcb645f8d26a",
+          "evaluatedRevision": 2
         }
       ],
       "governance": "governed"
@@ -15695,7 +15703,11 @@
           "revision": 2,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/offer-finalize.ts:111 Consequential terminal hiring and decline decisions are logged only as unchained pipeline events rather than being sealed into the tamper-evident append-only hash chain.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:465adcb645f8d26a",
+          "evaluatedRevision": 2
         },
         {
           "subject": "prompt-assembly",

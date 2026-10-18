@@ -10999,6 +10999,114 @@
           "reason": "replaced by e118f853-7d06-47ed-94b0-0b9209d947a5"
         }
       ]
+    },
+    "56800c7a-3ea2-492d-93a2-06fb994b5137/decision-audit-and-traceability": {
+      "context": "analytics-sections",
+      "subject": "decision-audit-and-traceability",
+      "bundle": "recruiting",
+      "state": "conformant",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T01:07:46.939Z",
+      "worker": "308c5866-36ee-40d9-9941-54f7d752f8a4",
+      "techniques": [
+        {
+          "technique": "structured-facts-plus-a-locale-invariant-audit-string",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/sections/DecisionRecordDetail.tsx:61 Displays the byte-stable sealed English rationale beside the localized view only when they differ, keeping the invariant string visible."
+        },
+        {
+          "technique": "seal-actor-policy-version-and-decisive-inputs",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/sections/DecisionRecordDetail.tsx:84 Surfaces the snapshotted policy version and decisive inputs (verbatim prompt version and lead model reasoning) in the record detail."
+        },
+        {
+          "technique": "hash-chained-append-only-records",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/sections/DecisionRecordsTable.tsx:203 Renders the append-only sequence position and cryptographic hashes of the record and its predecessor across table sort views."
+        },
+        {
+          "technique": "integrity-evident-is-not-tamper-resistant",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/sections/DecisionRecordsTable.tsx:286 Explicitly flags unkeyed links as carrying no secret rather than presenting an unconditioned tamper-resistance claim."
+        },
+        {
+          "technique": "reason-codes-over-prose",
+          "verdict": "conformant",
+          "evidence": "app/features/insights/analytics/sections/DecisionLogTable.tsx:135 Translates structured reason codes from the decision record into localized text rather than relying on unconstrained free-text narratives."
+        }
+      ]
+    },
+    "1f6c2946-3e45-464e-9113-c7b7a39187dd/decision-audit-and-traceability": {
+      "context": "hiring-decisions-offers",
+      "subject": "decision-audit-and-traceability",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T01:07:46.939Z",
+      "worker": "308c5866-36ee-40d9-9941-54f7d752f8a4",
+      "techniques": [
+        {
+          "technique": "hash-chained-append-only-records",
+          "verdict": "deviation",
+          "evidence": "app/_lib/offer-finalize.ts:111 Consequential terminal hiring decisions are logged to unchained pipeline events instead of being sealed into the tamper-evident hash chain."
+        },
+        {
+          "technique": "seal-actor-policy-version-and-decisive-inputs",
+          "verdict": "conformant",
+          "evidence": "app/_lib/status-decisions.ts:112 Derives actor attribution server-side into a three-state model without caller guessing or defaulting."
+        },
+        {
+          "technique": "structured-facts-plus-a-locale-invariant-audit-string",
+          "verdict": "conformant",
+          "evidence": "app/_lib/status-decisions.ts:291 Redacts sealed decision records into candidate-appropriate structured facts while preserving internal audit details server-side."
+        },
+        {
+          "technique": "reason-codes-over-prose",
+          "verdict": "conformant",
+          "evidence": "app/_lib/offer-finalize.ts:21 Refusals and terminal statuses use structured machine-readable error and status codes that are localized at presentation rather than unconstrained prose."
+        },
+        {
+          "technique": "capture-the-machine-verdict-before-a-human-overwrites-it",
+          "verdict": "conformant",
+          "evidence": "app/_lib/reinstate-seal.test.ts:18 Ensures human reversals of automated decisions seal under the acting person rather than inheriting the automated actor."
+        }
+      ]
+    },
+    "1427e2ae-3cf6-48f4-a866-6c5a0dc67559/decision-audit-and-traceability": {
+      "context": "hiring-decisions-api",
+      "subject": "decision-audit-and-traceability",
+      "bundle": "recruiting",
+      "state": "conformant",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T01:07:46.939Z",
+      "worker": "308c5866-36ee-40d9-9941-54f7d752f8a4",
+      "techniques": [
+        {
+          "technique": "hash-chained-append-only-records",
+          "verdict": "conformant",
+          "evidence": "app/api/decisions/records/route.ts:44 Re-verifies the tenant-scoped hash chain across all stored decision records on read."
+        },
+        {
+          "technique": "seal-actor-policy-version-and-decisive-inputs",
+          "verdict": "conformant",
+          "evidence": "app/api/decisions/screen-wave/route.ts:108 Derives the approver server-side from the authenticated session and rejects client-supplied actor values."
+        },
+        {
+          "technique": "capture-the-machine-verdict-before-a-human-overwrites-it",
+          "verdict": "conformant",
+          "evidence": "app/api/decisions/screen-wave/route.ts:88 Gates automated screening batch commits on a signed human approval token over the reviewed preview."
+        },
+        {
+          "technique": "structured-facts-plus-a-locale-invariant-audit-string",
+          "verdict": "conformant",
+          "evidence": "app/api/decisions/reconsider/route.ts:46 Reads back structured reason codes and parameters from sealed records for client-side localization."
+        },
+        {
+          "technique": "reason-codes-over-prose",
+          "verdict": "conformant",
+          "evidence": "app/api/decisions/screen-wave/route.ts:124 Returns closed machine-readable approval refusal codes on human review gate failures rather than unstructured English errors."
+        }
+      ]
     }
   }
 }
