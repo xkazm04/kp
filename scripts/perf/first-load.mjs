@@ -26,7 +26,26 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { REPO_ROOT, SIDE_EFFECT_RE, VALUE_FROM_RE, resolveSpecifier } from './check-budget.mjs';
 
-const DIRECTIVE_RE = /^(?:\s|\/\/[^\n]*\n|\/\*[\s\S]*?\*\/)*['"]use (client|server)['"]/;
+const DIRECTIVE_LITERAL_RE = /^['"]use (client|server)['"]/;
+
+/** Offset of the first token that is not whitespace or a comment (linear; js/redos). */
+function skipTrivia(source) {
+  let i = 0;
+  for (;;) {
+    while (i < source.length && /\s/.test(source[i])) i++;
+    if (source.startsWith('//', i)) {
+      const nl = source.indexOf('\n', i);
+      if (nl === -1) return source.length;
+      i = nl + 1;
+    } else if (source.startsWith('/*', i)) {
+      const end = source.indexOf('*/', i + 2);
+      if (end === -1) return source.length;
+      i = end + 2;
+    } else {
+      return i;
+    }
+  }
+}
 
 /** Static-only runtime specifiers: value imports, re-exports and side-effect imports. */
 export function parseStaticImports(source) {
@@ -35,7 +54,8 @@ export function parseStaticImports(source) {
 
 /** 'client' | 'server' | null - the module's leading directive. */
 export function directiveOf(source) {
-  return DIRECTIVE_RE.exec(source)?.[1] ?? null;
+  const start = skipTrivia(source);
+  return DIRECTIVE_LITERAL_RE.exec(source.slice(start, start + 16))?.[1] ?? null;
 }
 
 /** `@scope/name/sub` -> `@scope/name`, `name/sub` -> `name`; node: and URLs -> null. */
