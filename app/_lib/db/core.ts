@@ -2248,21 +2248,12 @@ export function ensureDb(): Database.Database {
     // separately — its single-column PK must widen to (channel, workspace_id).
     "ALTER TABLE channel_webhooks ADD COLUMN workspace_id TEXT",
     "ALTER TABLE dev_outbox ADD COLUMN workspace_id TEXT",
-    // failure-truth-everywhere: WHY a send dead-lettered. comms.ts already computed a
-    // precise reason per attempt ("http 503", "getaddrinfo ENOTFOUND …", a timeout) and
-    // spent it on a console.error + comms.log line, then wrote the row without it — so
-    // the Comms Center could say a message failed but never why, and the recruiter's
-    // only recourse was server logs. Additive + nullable: legacy `failed` rows keep
-    // reading as "no reason recorded", never as a fabricated one.
+    // failure-truth-everywhere: WHY a send dead-lettered (comms.ts computed it, then dropped it).
+    // Additive + nullable: legacy `failed` rows read as "no reason recorded", never a fabricated one.
     "ALTER TABLE dev_outbox ADD COLUMN failure_detail TEXT",
-    // One message identity (channels C1): the `messageId` sendComm mints per logical
-    // message and ships in the envelope + Idempotency-Key, now kept on the row so a relay
-    // receipt can name the exact send it concerns. Nullable: rows written before this
-    // column have none and keep matching receipts by the (ref, kind) heuristic.
+    // C1: envelope messageId (null on old rows); newest delivered receipt
     "ALTER TABLE dev_outbox ADD COLUMN message_id TEXT",
-    // The newest "delivered" receipt for this row — a stamp, not a ledger row.
     "ALTER TABLE dev_outbox ADD COLUMN last_delivered_at TEXT",
-
     // JD archive (W8-4/JDL1): archived JDs drop out of listJds and the pickers,
     // but loadJd keeps serving them so existing analysis links never 404.
     "ALTER TABLE jds ADD COLUMN archived_at TEXT",
