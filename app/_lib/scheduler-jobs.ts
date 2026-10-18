@@ -26,6 +26,10 @@ export const SCHEDULER_JOB_NAMES = [
 ] as const;
 export type SchedulerJobName = (typeof SCHEDULER_JOB_NAMES)[number];
 
+/** The job-seeker scan's job name. Declared here, beside the registry that owns it, so
+ *  tasks.ts (a hub on ~60 route graphs) reads it without importing jobseeker/types.ts. */
+export const SCAN_JOB_NAME = "jobseeker_scan" satisfies SchedulerJobName;
+
 export function isSchedulerJobName(v: unknown): v is SchedulerJobName {
   return typeof v === "string" && (SCHEDULER_JOB_NAMES as readonly string[]).includes(v);
 }

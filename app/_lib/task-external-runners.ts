@@ -41,6 +41,8 @@
 // records it as a failed task, and a direct caller answers for it itself (the intake
 // route records the round unclassified rather than losing it) — never a silent no-op.
 
+import type { ScanPhaseFailure } from "./jobseeker/types";
+
 export type ExternalTaskCtx = {
   workspaceId: string;
   signal: AbortSignal;
@@ -51,6 +53,17 @@ export type ExternalTaskCtx = {
 };
 
 export type ExternalTaskRunner = (ctx: ExternalTaskCtx) => Promise<unknown>;
+
+/** The phase a job-seeker scan could not do AT ALL — every structure or match batch it
+ *  attempted threw — or null. A deep-dive failure never qualifies: the scores stand without
+ *  it. The manual door (tasks.ts) records such a run as `error`, so it neither reads `ok`
+ *  in the history nor verifies the clock job. Defensive over stored summaries that predate
+ *  `failures`. Lives on this seam rather than in jobseeker/types.ts so the hub reads it
+ *  without importing that file; types.ts re-exports it for the browser. */
+export function scanWholePhaseFailure(summary: { failures?: unknown }): ScanPhaseFailure | null {
+  const failures = Array.isArray(summary.failures) ? (summary.failures as ScanPhaseFailure[]) : [];
+  return failures.find((f) => f && f.phase !== "deepdive" && f.of > 0 && f.chunks >= f.of) ?? null;
+}
 
 // The map lives on globalThis, not in module scope. Next bundles instrumentation-node.ts
 // and the route handlers separately, so in `next start` this module is evaluated TWICE:

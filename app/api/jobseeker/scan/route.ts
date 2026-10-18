@@ -3,7 +3,6 @@ import { jsonRefusal, safeJsonError, requireCapabilityCoded } from "@/app/_lib/a
 import { withWorkspace } from "@/app/_lib/auth/workspace-context";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { requireCapability } from "@/app/_lib/auth/current-user";
-import { SCAN_TASK_KIND } from "@/app/_lib/jobseeker/types";
 import { clientIpFrom, rateLimit } from "@/app/_lib/rate-limit";
 import { startTask } from "@/app/_lib/tasks";
 
@@ -33,7 +32,7 @@ export const POST = withWorkspace(async (ws: string, request: Request): Promise<
   }
   try {
     // workspaceId rides in params for the dedupe builder (task-dedupe.ts sees params only).
-    const task = startTask(SCAN_TASK_KIND, { trigger: "manual", workspaceId: ws }, ws);
+    const task = startTask("jobseeker_scan", { trigger: "manual", workspaceId: ws }, ws);
     return NextResponse.json({ taskId: task.id }, { status: 202 });
   } catch (error) {
     return safeJsonError(error, "api:jobseeker/scan", "JOBSEEKER_STORE_FAILED");
