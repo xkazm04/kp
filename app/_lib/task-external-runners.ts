@@ -52,7 +52,7 @@ export type ExternalTaskCtx = {
   params: Record<string, unknown>;
 };
 
-export type ExternalTaskRunner = (ctx: ExternalTaskCtx) => Promise<unknown>;
+type ExternalTaskRunner = (ctx: ExternalTaskCtx) => Promise<unknown>;
 
 /** The phase a job-seeker scan could not do AT ALL — every structure or match batch it
  *  attempted threw — or null. A deep-dive failure never qualifies: the scores stand without
