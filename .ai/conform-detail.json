@@ -12730,6 +12730,57 @@
           "evidence": "app/_lib/brand-store.ts:60 Persistence stores brand configuration, without capturing mutation turns of a live guest project."
         }
       ]
+    },
+    "5aebe92f-cd9c-4168-ad0d-f9c9d06bbe65/delivery-guarantees": {
+      "context": "ats-sync-egress",
+      "subject": "delivery-guarantees",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-18",
+      "evaluatedTs": "2026-10-18T23:15:57.321Z",
+      "worker": "4dd6f1e6-0f9e-4f0c-8e3e-3f0f27d1b876",
+      "techniques": [
+        {
+          "technique": "atomic-claiming",
+          "verdict": "conformant",
+          "evidence": "app/_lib/ats-delivery-store.ts:183 Atomic CAS update claims pending delivery with a lease token and deadline, returning the token only on 1 affected row."
+        },
+        {
+          "technique": "co-transactional-consume",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/ats-egress.ts:318 Precondition does not hold because handler effects are external HTTP requests escaping local SQLite transactional boundaries."
+        },
+        {
+          "technique": "dead-letter-design",
+          "verdict": "deviation",
+          "evidence": "app/_lib/ats-delivery-store.ts:84 Dead-letter rows retain only entry_id and event rather than the verbatim original payload, provide no human discard verb, and lack bulk triage verbs."
+        },
+        {
+          "technique": "guarantee-selection",
+          "verdict": "conformant",
+          "evidence": "app/_lib/ats-egress.ts:281 Selects at-least-once with deduplication by transmitting stable delivery ledger id as Idempotency-Key and immutable sentAt across attempts."
+        },
+        {
+          "technique": "marker-certifies-what-was-done",
+          "verdict": "conformant",
+          "evidence": "app/_lib/ats-delivery-store.ts:303 Delivery status is updated to delivered only upon HTTP 2xx confirmation from the receiver, certifying acknowledged consumption."
+        },
+        {
+          "technique": "non-delivery-ledgers",
+          "verdict": "deviation",
+          "evidence": "app/_lib/ats-delivery-store.ts:319 Non-delivery and error reasons are written as arbitrary interpolated prose strings into last_error instead of groupable typed reason tokens."
+        },
+        {
+          "technique": "retry-escalation",
+          "verdict": "conformant",
+          "evidence": "app/_lib/ats-delivery-store.ts:309 Retries are bounded by MAX_ATTEMPTS with immediate escalation for terminal refusals and transition to dead-letter upon exhaustion."
+        },
+        {
+          "technique": "stuck-reaping",
+          "verdict": "conformant",
+          "evidence": "app/_lib/ats-delivery-store.ts:209 Supervised lease sweep reclaims expired in-flight deliveries, increments the attempt count, and requeues or dead-letters accordingly."
+        }
+      ]
     }
   }
 }

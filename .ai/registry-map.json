@@ -5341,7 +5341,11 @@
           "revision": 8,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/ats-delivery-store.ts:88 The delivery ledger table schema declares an unstructured text column last_error for failure reasons rather than an authoritative typed reason token column and detail payload, causing deliberate skips and error reasons to be recorded as ungroupable prose.",
+          "evaluatedAt": "2026-10-18",
+          "evaluatedAgainst": "sha256-b2:1023ff3ecf23d679",
+          "evaluatedRevision": 8
         },
         {
           "subject": "test-harness",
