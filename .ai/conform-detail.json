@@ -13471,6 +13471,43 @@
           "evidence": "app/login/login-result.ts:27 This classifies transport failures in a login consumer, rather than revoking authority or scheduling dependent teardown."
         }
       ]
+    },
+    "e69ea8c8-1943-4054-97d1-78001e6d4530/regulated-credential-gating": {
+      "context": "candidate-matching",
+      "subject": "regulated-credential-gating",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T00:43:05.289Z",
+      "worker": "cd0fe53a-afec-4738-b62d-dc6a9512599c",
+      "techniques": [
+        {
+          "technique": "licence-is-a-precondition-not-a-preference",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/matching.py:754 The requirement loop scores all requirements using ordinary weights; licence requirements receive no separate, non-offsettable treatment."
+        },
+        {
+          "technique": "required-but-missing-as-a-blocking-gate",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/matching.py:1417 After the inspected KO filter and requirement scoring, the fit tier depends only on total; missing regulated credentials do not cap it."
+        }
+      ]
+    },
+    "65c926f0-e6c4-4fb4-afe3-20a847eb91b2/regulated-credential-gating": {
+      "context": "cv-extraction",
+      "subject": "regulated-credential-gating",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T00:43:05.289Z",
+      "worker": "cd0fe53a-afec-4738-b62d-dc6a9512599c",
+      "techniques": [
+        {
+          "technique": "issue-versus-expiry-date-disambiguation",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/models.py:23 The schema expressly allows issue dates to populate expiry instead of retaining a separate date role or an unknown role."
+        }
+      ]
     }
   }
 }

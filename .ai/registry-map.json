@@ -7099,7 +7099,11 @@
           "revision": 3,
           "changedAt": "2026-08-24",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/matching.py:1417 The matcher derives its fit tier from the score without a regulated-credential cap, allowing an unevidenced licence requirement to coexist with a strong match.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:d1cb9f42198e2123",
+          "evaluatedRevision": 3
         }
       ],
       "governance": "governed"
@@ -9891,7 +9895,11 @@
           "revision": 3,
           "changedAt": "2026-08-24",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/models.py:23 The credential model permits an issue date in the expiry field, allowing a historical award date to be interpreted downstream as a licence lapse.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:d1cb9f42198e2123",
+          "evaluatedRevision": 3
         }
       ],
       "governance": "governed"

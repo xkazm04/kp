@@ -1,0 +1,81 @@
+{
+ "schema": "conform-run/1",
+ "worker": "cd0fe53a-afec-4738-b62d-dc6a9512599c",
+ "subject": "regulated-credential-gating",
+ "evaluatedAt": "2026-10-19T00:43:05.289153+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "candidate-matching",
+   "subject": "regulated-credential-gating",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/matching.py:1417 The matcher derives its fit tier from the score without a regulated-credential cap, allowing an unevidenced licence requirement to coexist with a strong match.",
+   "techniques": [
+    {
+     "technique": "licence-is-a-precondition-not-a-preference",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/matching.py:754 The requirement loop scores all requirements using ordinary weights; licence requirements receive no separate, non-offsettable treatment."
+    },
+    {
+     "technique": "required-but-missing-as-a-blocking-gate",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/matching.py:1417 After the inspected KO filter and requirement scoring, the fit tier depends only on total; missing regulated credentials do not cap it."
+    }
+   ]
+  },
+  {
+   "context": "cv-extraction",
+   "subject": "regulated-credential-gating",
+   "bundle": "recruiting",
+   "state": "deviation",
+   "evidence": "pipeline/jobfit/models.py:23 The credential model permits an issue date in the expiry field, allowing a historical award date to be interpreted downstream as a licence lapse.",
+   "techniques": [
+    {
+     "technique": "issue-versus-expiry-date-disambiguation",
+     "verdict": "deviation",
+     "evidence": "pipeline/jobfit/models.py:23 The schema expressly allows issue dates to populate expiry instead of retaining a separate date role or an unknown role."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "regulated-credential-gating",
+   "context": "tests-matching-taxonomy",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-19T00:43:05.289153+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "regulated-credential-gating"
+   ],
+   "techniques": [
+    "licence-is-a-precondition-not-a-preference",
+    "required-but-missing-as-a-blocking-gate"
+   ],
+   "deviations": 1,
+   "context": "candidate-matching",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-19T00:43:05.289153+00:00",
+   "bundle": "recruiting",
+   "subjects": [
+    "regulated-credential-gating"
+   ],
+   "techniques": [
+    "issue-versus-expiry-date-disambiguation"
+   ],
+   "deviations": 1,
+   "context": "cv-extraction",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}
