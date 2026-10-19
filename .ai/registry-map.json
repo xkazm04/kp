@@ -22312,7 +22312,11 @@
           "revision": 2,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/shared/matchLabels.ts:72 A shorter non-empty assumption-code array silently drops trailing fallback assumptions, hiding part of the score's basis.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:2f2c709e36632f30",
+          "evaluatedRevision": 2
         },
         {
           "subject": "quality-gates",
@@ -27736,7 +27740,11 @@
           "revision": 2,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_components/ScoreDial.tsx:64 The dial converts an invalid score into a visible zero and lowest-band verdict instead of preserving an unassessed state.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:2f2c709e36632f30",
+          "evaluatedRevision": 2
         },
         {
           "subject": "recruiter-anchored-model-evaluation",
