@@ -13663,6 +13663,68 @@
           "evidence": "app/features/shell/palette/previewCache.ts:129 Rendering selects a resolved preview by key rather than evaluating a user-authored rule."
         }
       ]
+    },
+    "3a7c3a7b-a8f1-4566-aabc-3e5e2b4c471b/subscription-billing-periods": {
+      "context": "billing-subscriptions",
+      "subject": "subscription-billing-periods",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T01:07:38.200Z",
+      "worker": "b4eabc6a-b338-4f80-8fb4-420183c97305",
+      "techniques": [
+        {
+          "technique": "anchor-re-derived-not-chained",
+          "verdict": "deviation",
+          "evidence": "app/_lib/billing/sync.ts:82 Renewals replace the field used as the allowance anchor; anchor/index arithmetic exists, but the original anchor does not survive this update."
+        },
+        {
+          "technique": "boundary-stitch-on-timezone-change",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/billing/plans.ts:186 Local allowance boundaries use hardcoded UTC arithmetic, without a mutable subscriber timezone frame."
+        },
+        {
+          "technique": "hourly-pass-with-derived-idempotency",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/billing/sync.ts:167 Subscription updates originate in provider webhooks; the technique explicitly excludes event-driven billing with upstream intent."
+        },
+        {
+          "technique": "timezone-anchored-period-dates",
+          "verdict": "deviation",
+          "evidence": "app/_lib/billing/plans.ts:230 The window exports instant boundaries without a resolved zone; the recurrence also preserves the anchor's time of day instead of materializing boundary dates at midnight."
+        }
+      ]
+    },
+    "6b5c4717-aa35-46d9-a266-50a296a27e09/subscription-billing-periods": {
+      "context": "billing-plan-and-spend",
+      "subject": "subscription-billing-periods",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T01:07:38.200Z",
+      "worker": "b4eabc6a-b338-4f80-8fb4-420183c97305",
+      "techniques": [
+        {
+          "technique": "anchor-re-derived-not-chained",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/billing/meterForecast.ts:85 This context compares supplied boundaries rather than computing subscription recurrence."
+        },
+        {
+          "technique": "boundary-stitch-on-timezone-change",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/billing/BillingCurrentPlanPanel.tsx:68 The component renders an existing period end; it does not open periods or modify the subscription's frame."
+        },
+        {
+          "technique": "hourly-pass-with-derived-idempotency",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/billing/BillingTab.tsx:130 Client refreshes read billing state; they are not a recurring pass that advances periods."
+        },
+        {
+          "technique": "timezone-anchored-period-dates",
+          "verdict": "deviation",
+          "evidence": "app/features/settings/billing/BillingCurrentPlanPanel.tsx:55 Paid-period calls use the default false branch, which supplies no timezone; allowance labels explicitly use UTC."
+        }
+      ]
     }
   }
 }

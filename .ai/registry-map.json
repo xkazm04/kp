@@ -5953,7 +5953,11 @@
           "revision": 1,
           "changedAt": "2026-09-07",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/settings/billing/BillingCurrentPlanPanel.tsx:55 Paid-period labels omit an explicit timezone and can display different calendar dates for the same enforced boundary in different environments.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:e5bcae321ac53d1d",
+          "evaluatedRevision": 1
         },
         {
           "subject": "usage-aggregation-semantics",
@@ -6088,7 +6092,11 @@
           "revision": 1,
           "changedAt": "2026-09-07",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/billing/plans.ts:194 Allowance recurrence uses the provider's rolling current-period start as its anchor, so a clamped renewal can shift subsequent locally derived allowance boundaries.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:e5bcae321ac53d1d",
+          "evaluatedRevision": 1
         },
         {
           "subject": "agent-cli-transport",
