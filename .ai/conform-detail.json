@@ -13987,6 +13987,52 @@
         "at": "2026-10-19T01:42:52.613695+00:00",
         "reason": "reviewer (sonnet): candidate-brief.ts:169 only drops the coachability probe from the browser-bound candidate-safe brief, and it does so on purpose (comments at lines 148-151 and 160-163); I did not confirm that the voice interviewer is left with no hint instruction, because the private brief in interview-run.ts and st"
       }
+    },
+    "181b8632-82ec-4203-a308-42e58eca6c49/background-jobs": {
+      "context": "jobs-posting-campaign",
+      "subject": "background-jobs",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T01:49:26.348Z",
+      "worker": "27e607dd-2b98-4598-9193-d88c10153668",
+      "techniques": [
+        {
+          "technique": "adaptive-cadence",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/JobsLifecycleStrip.tsx:102 The lifecycle strip refreshes on identity or explicit transition changes, rather than running an interval poller."
+        },
+        {
+          "technique": "job-progress-and-cancellation",
+          "verdict": "deviation",
+          "evidence": "app/features/library/jobs/jobsIngestAdPanelLogic.ts:65 A bulk import is owned by the mounted hook: unmount aborts execution, and run state has no persistent run identity or snapshot for reattachment."
+        },
+        {
+          "technique": "loop-health-telemetry",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsIngestAdPanelLogic.ts:166 The import processes a finite submitted collection; its outcomes belong to job progress rather than recurring-loop health."
+        },
+        {
+          "technique": "loop-supervision",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsPostingModalLogic.ts:260 The local timers reset clipboard feedback once; they are not recurring background loops."
+        },
+        {
+          "technique": "startup-sweeps",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsIngestAdPanelLogic.ts:53 This client hook holds transient import state and hosts no persistent execution runtime; its missing reattachment is assessed under the job contract."
+        },
+        {
+          "technique": "tick-isolation",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsIngestAdPanelLogic.ts:163 This is a finite sequential import, not a recurring cadence that can dispatch overlapping ticks."
+        },
+        {
+          "technique": "timeout-is-a-status-not-a-consumption",
+          "verdict": "not-applicable",
+          "evidence": "app/features/library/jobs/jobsPostingModalLogic.ts:137 Stopping publication aborts its request; this surface provides no bounded wait on a retained operation handle."
+        }
+      ]
     }
   }
 }

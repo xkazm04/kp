@@ -19510,7 +19510,11 @@
           "revision": 5,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/library/jobs/jobsIngestAdPanelLogic.ts:65 Unmounting the import viewer aborts its running import, violating the requirement that watched jobs survive their observers and support reattachment.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:22ed2a99172ae050",
+          "evaluatedRevision": 5
         }
       ],
       "governance": "governed"
