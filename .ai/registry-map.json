@@ -22183,7 +22183,11 @@
           "revision": 3,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/shared/MatchPresentation.tsx:33 Context and repository searches found roadmap references elsewhere but no roadmap, liveCount or noDataSource matches in this context, whose numbers present match measurements rather than claims about shipped product capabilities.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:60eb54ef03f44a69",
+          "evaluatedRevision": 3
         },
         {
           "subject": "prompt-assembly",

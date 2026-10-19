@@ -14729,6 +14729,52 @@
           "evidence": "app/_components/PotentialBadge.tsx:30 The display does not guard its documented fraction domain: an input of 85 becomes 8500 instead of being refused as a unit violation."
         }
       ]
+    },
+    "c849e8b8-1cd8-4644-ad0f-178331441cca/public-claim-provenance": {
+      "context": "match-presentation-components",
+      "subject": "public-claim-provenance",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T11:00:58.941Z",
+      "worker": "81e6b0f2-3b75-4084-856e-4926724d5cd1",
+      "techniques": [
+        {
+          "technique": "build-time-derivation-off-the-client-bundle",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/MatchPresentation.tsx:44 Consumes supplied match-score dimensions rather than loading a heavy product catalog for a headline count."
+        },
+        {
+          "technique": "degraded-never-claims-live",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/MatchReasoningPanel.tsx:90 The badge identifies reasoning origin; its localized labels make no liveness claim about a public counter."
+        },
+        {
+          "technique": "derived-numerator-authored-denominator",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/MatchPresentation.tsx:64 Encodes measured score contributions, not shipped facts against an authored product commitment."
+        },
+        {
+          "technique": "no-data-source-labelled-inline",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/MatchPresentation.tsx:79 The displayed percentage comes from the supplied score dimension rather than a typed public figure."
+        },
+        {
+          "technique": "presentation-invariants-on-derived-values",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/MatchPresentation.tsx:22 Normalizes a score against a fixed scale; there is no independently moving count and authored target."
+        },
+        {
+          "technique": "promise-only-what-ships",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/MatchReasoningPanel.tsx:101 Presents suggested interview probes, not a commitment to deliver a future message or capability."
+        },
+        {
+          "technique": "provenance-as-a-build-gate",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/MatchPresentation.tsx:97 Counts matching outcomes supplied by the scoring run; the standard distinguishes such measurements from product marketing claims."
+        }
+      ]
     }
   }
 }
