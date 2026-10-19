@@ -5459,7 +5459,11 @@
           "revision": 4,
           "changedAt": "2026-09-26",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/auth/home-gate-server.ts:29 The homepage signed-in gate accepts an unexpired non-demo session without checking account status or targeted revocation, leaving this gate open after other gates withdraw that authority.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:5f06e495d1f48a79",
+          "evaluatedRevision": 4
         },
         {
           "subject": "mcp-tools",
@@ -21908,7 +21912,11 @@
           "revision": 4,
           "changedAt": "2026-09-26",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/login/LoginClient.tsx:46 The login UI delegates issuance to the authentication API and handles its response; searches for cubbyhole, wrap_token and lease_id found no matches in this context or the repository.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:5f06e495d1f48a79",
+          "evaluatedRevision": 4
         },
         {
           "subject": "agent-browser-control",

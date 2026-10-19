@@ -13389,6 +13389,88 @@
         }
       ],
       "registryProposal": "The transport-contract standard requires distinguishing paused from buffering and stopped, but spoken turn UI surfaces intentionally collapse stop and pause into a single toggle because speech turns are ephemeral and non-seekable; the standard should specify whether turn-based speech surfaces are exempt from the pause-vs-stop requirement or how speech transport should model intent surrender."
+    },
+    "76d3b42f-9432-413e-a194-967ab66174d9/priced-authority": {
+      "context": "auth-session-rbac",
+      "subject": "priced-authority",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T00:37:43.121Z",
+      "worker": "8f5f718f-fc89-4b76-87dc-8fc074867195",
+      "techniques": [
+        {
+          "technique": "approver-not-requester",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/auth/operator-approver.ts:85 This attributes a human decision to the current actor; it does not implement a secret read requiring another person's agreement."
+        },
+        {
+          "technique": "inline-auth-cannot-lease",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/auth/current-user.ts:48 Requests authenticate with an existing session cookie, rather than combining login material and an operation under request-only authority."
+        },
+        {
+          "technique": "never-persisted-token-class",
+          "verdict": "deviation",
+          "evidence": "app/_lib/auth/home-gate-server.ts:29 The source-removal lever is inconsistent: require-operator.ts checks the live account, but this signed-in check consults neither the account nor the targeted revocation store."
+        },
+        {
+          "technique": "secondary-index-before-primary",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/auth/session.ts:88 Session creation returns a signed value without writing a token primary record or revocation indexes, so there is no multi-key issuance order to judge."
+        },
+        {
+          "technique": "single-use-cubbyhole-wrap",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/auth/session-issuer.ts:113 The issuer delivers a browser session directly in a cookie; this context has no machine bootstrap handoff through an intermediary forbidden to read the credential."
+        },
+        {
+          "technique": "write-ahead-revocation-marker",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/auth/session-revocation.ts:169 Revocation synchronously writes a denylist entry; it does not defer teardown of a token's leases or child tree."
+        }
+      ]
+    },
+    "9e0369a9-bb6b-4d4c-b165-b8c36a8a4fa3/priced-authority": {
+      "context": "login-flow",
+      "subject": "priced-authority",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T00:37:43.121Z",
+      "worker": "8f5f718f-fc89-4b76-87dc-8fc074867195",
+      "techniques": [
+        {
+          "technique": "approver-not-requester",
+          "verdict": "not-applicable",
+          "evidence": "app/login/LoginClient.tsx:49 The submitted operation is credential login, without a second-party secret-read request."
+        },
+        {
+          "technique": "inline-auth-cannot-lease",
+          "verdict": "not-applicable",
+          "evidence": "app/login/LoginClient.tsx:46 This is a standalone login call, rather than login combined with a main operation under ephemeral authority."
+        },
+        {
+          "technique": "never-persisted-token-class",
+          "verdict": "not-applicable",
+          "evidence": "app/login/LoginClient.tsx:13 The browser consumes a session issued elsewhere; these files do not choose or implement the server's token class."
+        },
+        {
+          "technique": "secondary-index-before-primary",
+          "verdict": "not-applicable",
+          "evidence": "app/login/LoginClient.tsx:52 The client records an HTTP outcome, with no token-store or lease-index writes to order."
+        },
+        {
+          "technique": "single-use-cubbyhole-wrap",
+          "verdict": "not-applicable",
+          "evidence": "app/login/LoginClient.tsx:70 Successful login navigates the browser; there is no bootstrap credential collection or unwrap workflow."
+        },
+        {
+          "technique": "write-ahead-revocation-marker",
+          "verdict": "not-applicable",
+          "evidence": "app/login/login-result.ts:27 This classifies transport failures in a login consumer, rather than revoking authority or scheduling dependent teardown."
+        }
+      ]
     }
   }
 }
