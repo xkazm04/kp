@@ -30483,7 +30483,11 @@
           "revision": 3,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/landing/spark/SparkHome.tsx:32 This shell composes an application marketing page, while searches found no repository-document publishing markers in its directories and located the repository badge in the separate root README.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:7f83bf34fe6f34be",
+          "evaluatedRevision": 3
         },
         {
           "subject": "app-shell",
