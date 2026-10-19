@@ -15424,6 +15424,42 @@
         "at": "2026-10-19T12:18:35.586875+00:00",
         "reason": "reviewer (sonnet): The primary anchor (MatchReasoningPanel.tsx:115) is only the ReasoningSkeleton div, so it does not show that fidelity tiers or a capability sampler are absent. The claim of 'no visual complexity knob' is also weakened by the reduced-motion branching in the same file (lines 24-65), which scales durat"
       }
+    },
+    "9e0369a9-bb6b-4d4c-b165-b8c36a8a4fa3/agent-browser-control": {
+      "context": "login-flow",
+      "subject": "agent-browser-control",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T12:30:51.989Z",
+      "worker": "f3b38117-d843-40da-8921-d221dad19d2b",
+      "techniques": [
+        {
+          "technique": "agent-actionable-errors",
+          "verdict": "not-applicable",
+          "evidence": "app/login/LoginClient.tsx:82 Errors reach the user through translated UI toasts, rather than an agent consuming browser-command failures."
+        },
+        {
+          "technique": "effect-classed-commands",
+          "verdict": "not-applicable",
+          "evidence": "app/login/LoginClient.tsx:49 The request carries login credentials; this context exposes no agent browser-command registry or dispatcher."
+        },
+        {
+          "technique": "persistent-browser-daemon",
+          "verdict": "not-applicable",
+          "evidence": "app/login/LoginClient.tsx:43 The timeout aborts a login fetch; this context does not launch or manage a browser process."
+        },
+        {
+          "technique": "references-over-selectors",
+          "verdict": "not-applicable",
+          "evidence": "app/login/LoginClient.tsx:100 This is application-owned form markup, rather than a runtime that snapshots arbitrary pages and resolves agent element references."
+        },
+        {
+          "technique": "socket-scoped-surface",
+          "verdict": "not-applicable",
+          "evidence": "app/login/page.tsx:35 Request-derived origin information supports a login redirect; it does not classify callers of a browser daemon or expose a tunneled command listener."
+        }
+      ]
     }
   }
 }
