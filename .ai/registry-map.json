@@ -23147,7 +23147,11 @@
           "revision": 1,
           "changedAt": "2026-09-07",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/settings/models/ModelsTab.tsx:45 Context and repository searches for graduated, groupingKey, unitPrice and arrears found no usage-pricing implementation in this context, whose sections manage routing, model quality and credentials.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:19da164d50059c7d",
+          "evaluatedRevision": 1
         },
         {
           "subject": "data-access",

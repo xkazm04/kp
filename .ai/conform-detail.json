@@ -15295,6 +15295,73 @@
           "evidence": "app/_lib/auth/session-nav.ts:52 Entry redirects the browser after login, without attaching terminal renderers or consuming terminal GPU budgets."
         }
       ]
+    },
+    "92d1ca34-143b-4d61-8cd6-b9becd08d145/usage-pricing-models": {
+      "context": "models-keys-and-routing",
+      "subject": "usage-pricing-models",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T12:04:57.004Z",
+      "worker": "9737199b-7a90-4bc2-a7e5-cecf0e3e456e",
+      "techniques": [
+        {
+          "technique": "advance-billing-refuses-retroactive-models",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/models/modelsRoutingActions.ts:37 The action saves provider/model routing configuration rather than selecting a usage-charge model and billing timing."
+        },
+        {
+          "technique": "exact-money-with-one-rounding-boundary",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/models/ModelsQualityOverview.tsx:278 This formats model-cost recommendations; provider spending is explicitly outside the standard's seller-side scope."
+        },
+        {
+          "technique": "grouping-key-reruns-the-ladder",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/models/modelsRoutingSections.ts:83 Sections organize routing use cases for presentation, without dimensioning a priced charge."
+        },
+        {
+          "technique": "inferred-tier-boundary-convention",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/models/modelsRoutingActions.ts:43 The configured model is an LLM identifier, not a pricing ladder with numeric ranges."
+        }
+      ]
+    },
+    "6b5c4717-aa35-46d9-a266-50a296a27e09/usage-pricing-models": {
+      "context": "billing-plan-and-spend",
+      "subject": "usage-pricing-models",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T12:04:57.004Z",
+      "techniques": [
+        {
+          "technique": "advance-billing-refuses-retroactive-models",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/billing/BillingTab.tsx:224 Checkout selects a named plan or prepaid pack; this context does not configure incremental usage billing or retroactive pricing."
+        },
+        {
+          "technique": "exact-money-with-one-rounding-boundary",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/billing/spend/spendUsageFold.ts:51 The fold sums recorded provider costs for reporting rather than calculating a seller's usage charge."
+        },
+        {
+          "technique": "grouping-key-reruns-the-ladder",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/billing/spend/spendUsageFold.ts:52 Grouping attributes existing spending to use cases; cost attribution is an explicit exclusion from this technique."
+        },
+        {
+          "technique": "inferred-tier-boundary-convention",
+          "verdict": "not-applicable",
+          "evidence": "app/features/settings/billing/billingPlanPriceKind.ts:24 Named subscription plans supply display prices directly, without numeric pricing-tier ranges."
+        }
+      ],
+      "withdrawn": {
+        "worker": "9737199b-7a90-4bc2-a7e5-cecf0e3e456e",
+        "state": "not-applicable",
+        "at": "2026-10-19T12:05:26.876849+00:00",
+        "reason": "reviewer (sonnet): The anchor BillingTab.tsx:48 is a blank line, so it shows nothing, and the claim leaves out usage-pricing material that is in the context: included allowances, 'billed as overage' for hires (meterForecast.ts, BillingUsageMeterRow.tsx), and per-minute billing facts (SpendVoiceFacts.tsx). The seat nev"
+      }
     }
   }
 }
