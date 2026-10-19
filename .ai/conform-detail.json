@@ -13725,6 +13725,134 @@
           "evidence": "app/features/settings/billing/BillingCurrentPlanPanel.tsx:55 Paid-period calls use the default false branch, which supplies no timezone; allowance labels explicitly use UTC."
         }
       ]
+    },
+    "1b76972a-b723-44f7-a452-16729228461f/web-scraping": {
+      "context": "jobseeker-feed-rules",
+      "subject": "web-scraping",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T01:18:57.981Z",
+      "worker": "b1830a1d-852a-4b11-8922-62c4ac20364b",
+      "techniques": [
+        {
+          "technique": "dedup-and-datasets",
+          "verdict": "deviation",
+          "evidence": "app/_lib/jobseeker/adapters/boardRules.ts:57 When no externalKey rule exists, the URL becomes identity without tracking-parameter canonicalization; URL variants can create duplicate listings."
+        },
+        {
+          "technique": "extraction-rule-dsl",
+          "verdict": "deviation",
+          "evidence": "app/_lib/jobseeker/rules/engine.ts:256 Rows are emitted unconditionally after column assembly, including rows missing required values; required-field misses and coercion failures do not invalidate individual records."
+        },
+        {
+          "technique": "llm-assisted-rule-authoring",
+          "verdict": "deviation",
+          "evidence": "app/_lib/jobseeker/rules/collapse.ts:33 The authoring reducer truncates embedded JSON islands at this cap, although the standard requires preserving these rule-targetable islands intact."
+        },
+        {
+          "technique": "shape-change-detection",
+          "verdict": "deviation",
+          "evidence": "app/_lib/jobseeker/rules/collapse.ts:22 Any positive raw match count bypasses detection, including near-total count collapse and cases where every captured value fails post-processing."
+        },
+        {
+          "technique": "soak-mode-and-verdict-replay",
+          "verdict": "deviation",
+          "evidence": "app/_lib/jobseeker/reconcile.ts:129 The first collapse immediately pauses the source; the inspected detector path has no observe/enforce split, persisted reasoned verdict replay, or earned recovery ladder."
+        }
+      ]
+    },
+    "d9b2a21b-5e9f-4c12-b5b5-247513338492/web-scraping": {
+      "context": "jobseeker-sources-scans",
+      "subject": "web-scraping",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T01:18:57.981Z",
+      "worker": "b1830a1d-852a-4b11-8922-62c4ac20364b",
+      "techniques": [
+        {
+          "technique": "dedup-and-datasets",
+          "verdict": "deviation",
+          "evidence": "app/features/jobseeker/ScanRunTable.tsx:35 The run table omits unchanged and total-seen reconciliation counts, preventing the complete per-harvest accounting required by the technique."
+        },
+        {
+          "technique": "dry-run-preview",
+          "verdict": "deviation",
+          "evidence": "app/features/jobseeker/RulesAuthoring.tsx:110 runPreview neither clears the prior preview when starting nor invalidates it on failure, so an unreachable target can leave Save enabled from an earlier success."
+        },
+        {
+          "technique": "llm-assisted-rule-authoring",
+          "verdict": "deviation",
+          "evidence": "app/features/jobseeker/RulesAuthoring.tsx:49 A proposal replaces the working rule set wholesale; the authoring UI provides no explicit replace-versus-merge choice or per-field conflict resolution."
+        },
+        {
+          "technique": "negotiated-representation-probe",
+          "verdict": "deviation",
+          "evidence": "app/api/jobseeker/sources/[id]/rules/propose/route.ts:61 The authoring endpoint requests HTML and proceeds to model authoring without probing preferred machine-readable representations, advertised alternates, or their provenance."
+        },
+        {
+          "technique": "scrape-scheduling",
+          "verdict": "deviation",
+          "evidence": "app/features/jobseeker/SourceCard.tsx:131 A source can be enabled or resumed without verifying its current rules; the separate clock gate checks a prior manual run rather than this source's current rule set."
+        },
+        {
+          "technique": "shape-change-detection",
+          "verdict": "deviation",
+          "evidence": "app/features/jobseeker/ScanRunTable.tsx:102 Collapse reporting displays a generic reason and a Sources link, without failed-rule names or expected-versus-actual measurements needed for actionable re-authoring."
+        }
+      ]
+    },
+    "c6367667-9117-4b74-8800-3bdd54e304f2/web-scraping": {
+      "context": "shell-palette-preview",
+      "subject": "web-scraping",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T01:18:57.981Z",
+      "worker": "b1830a1d-852a-4b11-8922-62c4ac20364b",
+      "techniques": [
+        {
+          "technique": "dedup-and-datasets",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/palette/previewCache.ts:58 This is a workspace-scoped preview memo, not reconciliation of harvested entities."
+        },
+        {
+          "technique": "dry-run-preview",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/palette/PalettePreviewPane.tsx:48 The pane renders contextual facts; it does not verify unsaved extraction rules."
+        },
+        {
+          "technique": "extraction-rule-dsl",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/palette/PreviewEntities.tsx:27 The renderer consumes named application fields rather than extracting fields from external pages."
+        },
+        {
+          "technique": "llm-assisted-rule-authoring",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/palette/PreviewLibraryTools.tsx:30 This transforms supplied preview values for display and authors no extraction rules."
+        },
+        {
+          "technique": "negotiated-representation-probe",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/palette/usePalettePreview.ts:73 The request targets the application's JSON preview API rather than a page requiring acquisition discovery."
+        },
+        {
+          "technique": "scrape-scheduling",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/palette/usePalettePreview.ts:87 The timer debounces highlighted-item requests; it schedules no repeated external harvest."
+        },
+        {
+          "technique": "shape-change-detection",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/palette/previewCache.ts:117 This validates an internal preview response, not extraction health against a changing page."
+        },
+        {
+          "technique": "soak-mode-and-verdict-replay",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/palette/usePalettePreview.ts:77 The outcome classifies an API response for rendering; no scrape detector or enforcement rollout is involved."
+        }
+      ]
     }
   }
 }

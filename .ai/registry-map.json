@@ -20479,7 +20479,11 @@
           "revision": 1,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/jobseeker/rules/engine.ts:254 The engine assembles records containing missing required fields instead of rejecting those records, weakening extraction failure semantics.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:19cc38b48911ea64",
+          "evaluatedRevision": 1
         },
         {
           "subject": "quality-gates",
@@ -20834,7 +20838,11 @@
           "revision": 1,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/jobseeker/RulesAuthoring.tsx:110 A failed re-preview leaves the previous successful preview intact and the save gate armed, allowing persistence after live verification fails.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:19cc38b48911ea64",
+          "evaluatedRevision": 1
         },
         {
           "subject": "docs-sync",
@@ -29109,7 +29117,11 @@
           "revision": 1,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/shell/palette/usePalettePreview.ts:73 Searches for robots, sitemap, runRules, and politeFetch found no hits in the palette context or its preview backend, while repository hits locate scraping elsewhere; this module previews internal application data.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:19cc38b48911ea64",
+          "evaluatedRevision": 1
         },
         {
           "subject": "native-shell-integration",
