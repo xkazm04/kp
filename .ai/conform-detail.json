@@ -14239,6 +14239,94 @@
           "evidence": "app/_lib/db/core.ts:2822 The database boot sequence executes direct synchronous better-sqlite3 calls and does not implement a network client mock or simulated network latency."
         }
       ]
+    },
+    "9f3047cf-311d-487b-89d3-7035a61e7433/draft-editing": {
+      "context": "profile-editor",
+      "subject": "draft-editing",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T08:33:00.895Z",
+      "worker": "99bcf29c-df80-48a2-9fdd-6f6b901fd102",
+      "techniques": [
+        {
+          "technique": "completeness-derivation",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/profile/ProfileResultPanel.tsx:120 Unmet completeness gaps are derived dynamically and rendered as actionable buttons navigating to the specific editor fields."
+        },
+        {
+          "technique": "debounced-save-groups",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/profile/ProfileEditor.tsx:187 The editor saves only via manual submission of the whole profile rather than debounced saves scoped to region groups."
+        },
+        {
+          "technique": "dirty-tracking",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/profile/ProfileEditor.tsx:189 Dirtiness is tracked solely via reference comparison of the full form against the last saved form rather than per-region derivation."
+        },
+        {
+          "technique": "draft-model",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/profile/useProfileEditorSubmit.ts:88 Submissions send the complete entity payload rather than computing and applying a diff of edited fields against the baseline."
+        },
+        {
+          "technique": "field-defaults-and-bounds",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/profile/profileEditorHelpers.ts:33 Numeric range bounds are validated externally in rendering helpers rather than clamped at a unified draft patch door."
+        },
+        {
+          "technique": "navigation-guards",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/profile/ProfileEditor.tsx:209 Exiting via the Back button clears the safety backup and unmounts without checking dirty state or prompting the user."
+        }
+      ],
+      "registryProposal": "Consider clarifying when discrete draft entities with crash recovery (sessionStorage backup envelopes) are an acceptable alternative to continuous debounced background saves to the remote server."
+    },
+    "09520f54-a3ff-4d23-add2-af0340c1e505/draft-editing": {
+      "context": "candidate-profile",
+      "subject": "draft-editing",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T08:33:00.895Z",
+      "techniques": [
+        {
+          "technique": "completeness-derivation",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/profile/profileCompletenessFields.ts:80 Maps each completeness check identifier to its corresponding input field target for checklist guidance."
+        },
+        {
+          "technique": "debounced-save-groups",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/profile/ArchetypeManagerEditPanel.tsx:115 Persisting changes relies exclusively on a manual button click submitting the full draft without debounced save groups."
+        },
+        {
+          "technique": "dirty-tracking",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/profile/ArchetypeManagerEditPanel.tsx:116 Gating verifies weight sum correctness but does not derive or display clean/dirty status relative to baseline."
+        },
+        {
+          "technique": "draft-model",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/profile/ArchetypeManagerEditPanel.tsx:30 Controls mutate draft state directly per input handler rather than routing changes through a single patch door."
+        },
+        {
+          "technique": "field-defaults-and-bounds",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/profile/ArchetypeManagerEditPanel.tsx:95 Clamping is applied in an individual control's onChange handler rather than centrally at a draft mutation door."
+        },
+        {
+          "technique": "navigation-guards",
+          "verdict": "deviation",
+          "evidence": "app/features/tools/profile/ArchetypeManagerEditPanel.tsx:121 The cancel button directly exits editing mode without checking for unsaved changes or presenting a discard confirmation."
+        }
+      ],
+      "withdrawn": {
+        "worker": "99bcf29c-df80-48a2-9fdd-6f6b901fd102",
+        "state": "deviation",
+        "at": "2026-10-19T08:33:42.490363+00:00",
+        "reason": "reviewer (sonnet): The claims hold in the code, but I could not confirm the verdict belongs to this context. ArchetypeManagerEditPanel.tsx, the evidence anchor, and ArchetypeManager.tsx, which defines `cancel`, are not among the context's listed files. The technique anchor profileCompletenessFields.ts is also missing "
+      }
     }
   }
 }

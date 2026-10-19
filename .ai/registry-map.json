@@ -25925,7 +25925,11 @@
           "revision": 3,
           "changedAt": "2026-08-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/tools/profile/ProfileEditor.tsx:209 Leaving the profile editor drops the backup copy and navigates away immediately without intercepting unsaved dirty state or offering save/discard/stay options.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:79771a6adb7936e5",
+          "evaluatedRevision": 3
         },
         {
           "subject": "candidate-archetype-routing",
