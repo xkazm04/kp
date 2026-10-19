@@ -15460,6 +15460,62 @@
           "evidence": "app/login/page.tsx:35 Request-derived origin information supports a login redirect; it does not classify callers of a browser daemon or expose a tunneled command listener."
         }
       ]
+    },
+    "c780fee6-52c0-484e-b383-875b9aa63a1e/alerting": {
+      "context": "schedule-calendar-invites",
+      "subject": "alerting",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T12:38:20.773Z",
+      "techniques": [
+        {
+          "technique": "absence-as-a-condition",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/ScheduleInviteLifecyclePanel.tsx:47 This displays an agenda-fetch failure; no alert-rule metric or no-data sustain policy is involved."
+        },
+        {
+          "technique": "alert-lifecycle",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/scheduleInviteLifecycleBuckets.ts:49 The lifecycle records invitation outcomes, not firing, acknowledgment, and resolution of alert episodes."
+        },
+        {
+          "technique": "dedup-and-cooldown",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/scheduleAgenda.ts:142 Identity matching updates invitation rows; it does not suppress repeated alert deliveries using fire history."
+        },
+        {
+          "technique": "escalation-routing",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/ScheduleInviteAttentionSection.tsx:54 The candidate-proposal escalation is a scheduling handoff to a recruiter, not severity-based alert routing."
+        },
+        {
+          "technique": "evaluation-loop",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/useScheduleTab.ts:471 The loop refreshes interview status for the displayed entries; it does not evaluate enabled alert predicates."
+        },
+        {
+          "technique": "flap-control",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/schedulePollBackoff.ts:41 This gates a stale-view status badge after polling failures, not firing and recovery of an alert episode."
+        },
+        {
+          "technique": "periodic-digest",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/ScheduleInviteAgendaRow.tsx:70 The row reports an individual interview reminder; no scheduled aggregate summary is authored or delivered here."
+        },
+        {
+          "technique": "rule-authoring-validation",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/schedule/ScheduleMeetingLinkCell.tsx:48 The editor writes a meeting URL for an invitation, not a metric, comparator, threshold, window, or alert severity."
+        }
+      ],
+      "withdrawn": {
+        "worker": "d8e3a837-d3c2-4868-a202-5f523fba2ce8",
+        "state": "not-applicable",
+        "at": "2026-10-19T12:38:38.351897+00:00",
+        "reason": "reviewer (sonnet): The main anchor, scheduleInviteLifecycleBuckets.ts:89, is only `const live = invites.filter(...)`, which does not show that alert rules, firing or routing are absent. The evidence also admits the context has scheduled reminders and status feedback, and the technique anchors (:49 closedReason, :142 a"
+      }
     }
   }
 }
