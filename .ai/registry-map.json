@@ -17641,7 +17641,11 @@
           "revision": 3,
           "changedAt": "2026-09-26",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/library/jds/intake/jdsIntakeLogic.ts:436 The client records card-generated wording as ordinary requestor text and sends no selection provenance, making adopted suggestions indistinguishable from independently authored answers.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:8166a864f6327e74",
+          "evaluatedRevision": 3
         },
         {
           "subject": "ai-interviewer-brief-authoring",
@@ -17713,7 +17717,11 @@
           "revision": 3,
           "changedAt": "2026-09-26",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/library/jds/intake/coats/atelier/IntakeAtelierDesk.tsx:127 Card selections use the same text-only callback as typed answers, losing the distinction between choosing interviewer wording and composing an answer.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:8166a864f6327e74",
+          "evaluatedRevision": 3
         },
         {
           "subject": "agent-memory",

@@ -13508,6 +13508,38 @@
           "evidence": "pipeline/jobfit/models.py:23 The schema expressly allows issue dates to populate expiry instead of retaining a separate date role or an unknown role."
         }
       ]
+    },
+    "4d98cf58-e6bc-4b08-9b46-c446af784e1d/role-intake-conversation": {
+      "context": "jd-intake-studio",
+      "subject": "role-intake-conversation",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T00:53:07.670Z",
+      "worker": "3e4bd56a-99c1-47b9-b7b9-6af9991dec15",
+      "techniques": [
+        {
+          "technique": "expansion-reflection-over-confirmation",
+          "verdict": "deviation",
+          "evidence": "app/features/library/jds/intake/coats/atelier/IntakeAtelierDesk.tsx:127 The composer also uses logic.send at line 140; StudioChoiceCards converts selections to labels and passes only that message, without identifying the answer as selected from an offer."
+        }
+      ]
+    },
+    "a626dbb6-a28d-4c99-be26-a5d9592ba2eb/role-intake-conversation": {
+      "context": "jd-intake-brief-logic",
+      "subject": "role-intake-conversation",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T00:53:07.670Z",
+      "worker": "3e4bd56a-99c1-47b9-b7b9-6af9991dec15",
+      "techniques": [
+        {
+          "technique": "expansion-reflection-over-confirmation",
+          "verdict": "deviation",
+          "evidence": "app/features/library/jds/intake/jdsIntakeLogic.ts:441 send accepts only a message string, appends it as candidate text, and transmits only that text; the selection origin and selected option identifiers are not carried."
+        }
+      ]
     }
   }
 }
