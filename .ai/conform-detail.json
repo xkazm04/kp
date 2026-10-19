@@ -14079,6 +14079,83 @@
           "evidence": "e2e/shell.spec.ts:85 Claims are implemented directly as Playwright assertions, not supplied through a specification format carrying inline verification commands."
         }
       ]
+    },
+    "65c926f0-e6c4-4fb4-afe3-20a847eb91b2/cv-authenticity-screening": {
+      "context": "cv-extraction",
+      "subject": "cv-authenticity-screening",
+      "bundle": "recruiting",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T02:06:43.256Z",
+      "techniques": [
+        {
+          "technique": "a-screen-is-not-a-verdict",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/authenticity.py:41 The flag appropriately requests human verification, but its fixed text supplies neither the triggering fragment nor measured counts."
+        },
+        {
+          "technique": "claim-density-and-stuffing-heuristics",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/authenticity.py:84 The character-based threshold can flag a short document containing four buzzwords; it does not decline measurement below the required document-length floor."
+        },
+        {
+          "technique": "document-as-data-never-as-instructions",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/pipeline.py:514 The deterministic injection screen covers local and model CV text, but omits employer-supplied job-description and company text and runs after the model."
+        },
+        {
+          "technique": "ground-the-model-against-a-deterministic-prepass",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/pipeline.py:1682 A pre-pass exists, but extraction failures produce empty evidence that this condition treats as corroborating nothing rather than skipping the cross-check as unavailable."
+        },
+        {
+          "technique": "hidden-text-and-smuggling-detection",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/authenticity.py:181 Unicode smuggling checks exist, but the document extraction path does not compare rendered visibility with extracted text to detect tiny or background-coloured keyword lists."
+        },
+        {
+          "technique": "implausible-span-and-arithmetic-checks",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/authenticity.py:98 A fixed ceiling on claimed experience substitutes for checking claims against dated spans, extraction damage and missing-date uncertainty."
+        }
+      ],
+      "withdrawn": {
+        "worker": "eba2da54-b0f2-408a-a0cb-211096b7d799",
+        "state": "deviation",
+        "at": "2026-10-19T02:07:24.234009+00:00",
+        "reason": "reviewer (sonnet): Three of the four technique anchors (pipeline.py:514 and :1682, plus the JD-coverage claim) are in pipeline.py, which is not among the cv-extraction context files, so the verdict mixes in code from another context. The authenticity.py anchors (:41, :84, :98) check out but are too weak to carry it al"
+      }
+    },
+    "bc01cbf1-ff85-4c0f-878c-1ca34fb9239c/cv-authenticity-screening": {
+      "context": "cv-analysis-api",
+      "subject": "cv-authenticity-screening",
+      "bundle": "recruiting",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T02:06:43.256Z",
+      "techniques": [
+        {
+          "technique": "document-as-data-never-as-instructions",
+          "verdict": "deviation",
+          "evidence": "app/_lib/github/code-review.ts:258 The GitHub route’s review implementation fences repository signals but leaves the employer’s job description outside an untrusted-data fence; its output schema also has no manipulation-attempt field."
+        },
+        {
+          "technique": "ground-the-model-against-a-deterministic-prepass",
+          "verdict": "deviation",
+          "evidence": "app/_lib/github/code-review.ts:317 The GitHub review publishes schema-validated model claims directly without cross-checking them against the independently computed requirement evidence."
+        },
+        {
+          "technique": "hidden-text-and-smuggling-detection",
+          "verdict": "deviation",
+          "evidence": "app/api/extract-text/route.ts:114 The endpoint invokes the text-only extractor and exposes no rendered-versus-extracted comparison, hidden-text evidence or unavailable-check status."
+        }
+      ],
+      "withdrawn": {
+        "worker": "eba2da54-b0f2-408a-a0cb-211096b7d799",
+        "state": "deviation",
+        "at": "2026-10-19T02:07:24.305681+00:00",
+        "reason": "reviewer (sonnet): The extract-text/route.ts:114 anchor does show that only text, charCount and pageCount are returned. But code-review.ts:317 claims the output is not cross-checked against 'independently computed requirement evidence', and code-review.ts contains no 'requirement' at all. The code-review.ts:258 claim "
+      }
     }
   }
 }

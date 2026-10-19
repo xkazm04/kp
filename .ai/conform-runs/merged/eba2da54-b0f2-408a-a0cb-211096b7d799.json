@@ -1,0 +1,58 @@
+{
+  "schema": "conform-run/1",
+  "worker": "eba2da54-b0f2-408a-a0cb-211096b7d799",
+  "subject": "cv-authenticity-screening",
+  "evaluatedAt": "2026-10-19T02:06:43.256403+00:00",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "pairs": [],
+  "declined": [
+    {
+      "subject": "cv-authenticity-screening",
+      "context": "cv-extraction",
+      "reason": "withdrawn after review: reviewer (sonnet): Three of the four technique anchors (pipeline.py:514 and :1682, plus the JD-coverage claim) are in pipeline.py, which is not among the cv-extraction context files, so the verdict mixes in code from another context. The authenticity.py anchors (:41, :84, :98) check out but are too weak to carry it al"
+    },
+    {
+      "subject": "cv-authenticity-screening",
+      "context": "cv-analysis-api",
+      "reason": "withdrawn after review: reviewer (sonnet): The extract-text/route.ts:114 anchor does show that only text, charCount and pageCount are returned. But code-review.ts:317 claims the output is not cross-checked against 'independently computed requirement evidence', and code-review.ts contains no 'requirement' at all. The code-review.ts:258 claim "
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-19T02:06:43.256403+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "cv-authenticity-screening"
+      ],
+      "techniques": [
+        "a-screen-is-not-a-verdict",
+        "claim-density-and-stuffing-heuristics",
+        "document-as-data-never-as-instructions",
+        "ground-the-model-against-a-deterministic-prepass",
+        "hidden-text-and-smuggling-detection",
+        "implausible-span-and-arithmetic-checks"
+      ],
+      "deviations": 1,
+      "context": "cv-extraction",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-19T02:06:43.256403+00:00",
+      "bundle": "recruiting",
+      "subjects": [
+        "cv-authenticity-screening"
+      ],
+      "techniques": [
+        "document-as-data-never-as-instructions",
+        "ground-the-model-against-a-deterministic-prepass",
+        "hidden-text-and-smuggling-detection"
+      ],
+      "deviations": 1,
+      "context": "cv-analysis-api",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    }
+  ]
+}
