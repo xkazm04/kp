@@ -14538,6 +14538,32 @@
           "evidence": "app/_components/results/job-fit/JobFitTab.tsx:141 Renders unproven skills in a dedicated amber bucket distinct from missing skills, mapping the reason taxonomy and preserving strength."
         }
       ]
+    },
+    "5e59aca6-ce51-498d-85c6-6ad37b847bc6/machine-paced-delivery": {
+      "context": "agents-api",
+      "subject": "machine-paced-delivery",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T10:31:29.196Z",
+      "techniques": [
+        {
+          "technique": "pre-authorship-verification",
+          "verdict": "deviation",
+          "evidence": "app/_lib/intake-brief.test.ts:367 The selector used by the dispatched mandate explicitly ranks typecheck before lint, contrary to the technique's lint-before-typecheck rule."
+        },
+        {
+          "technique": "proposal-not-push",
+          "verdict": "deviation",
+          "evidence": "app/_lib/intake-brief.ts:329 A permissive intake answer removes reserved classes from the continuing mandate, rather than requiring specific human scrutiny of each reserved change; the test at intake-brief.test.ts:309 explicitly removes dependency_bump_to_satisfy_check."
+        }
+      ],
+      "withdrawn": {
+        "worker": "f0c6ed57-c99e-411f-87e0-cff10fbd8be3",
+        "state": "deviation",
+        "at": "2026-10-19T10:31:46.928991+00:00",
+        "reason": "reviewer (sonnet): The cited route.ts:324 only calls briefToAppMasterSpec, and intake-brief.ts:326-335 relaxes only classes the requestor names with an explicit allow verb and refuses to relax all six, so 'blanket relaxation' is contradicted. The typecheck-before-lint order comes from selectApprovalGates in intake-bri"
+      }
     }
   }
 }
