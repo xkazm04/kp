@@ -14826,6 +14826,133 @@
           "evidence": "app/landing/spark/SparkHome.tsx:12 The surface is the signed-out application homepage; the standard's rendered repository-document cadence does not govern it."
         }
       ]
+    },
+    "e8793bc2-2220-4c18-9f74-07e55dd3e439/retrieval": {
+      "context": "candidate-matching-api",
+      "subject": "retrieval",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T11:14:56.371Z",
+      "worker": "8bd53e52-e544-45b1-864f-0a3ae8106bdc",
+      "techniques": [
+        {
+          "technique": "chunking-and-indexing",
+          "verdict": "not-applicable",
+          "evidence": "app/api/match/route.ts:69 This path passes complete normalized job records to the scorer; it does not ingest passages into retrieval indexes."
+        },
+        {
+          "technique": "embedding-lifecycle",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/match_cli.py:86 The invoked match path uses deterministic scoring without stored embeddings or an embedder migration."
+        },
+        {
+          "technique": "hybrid-lane-fusion",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/matching.py:1620 One scorer evaluates every eligible job; independent matcher candidate lists are not being fused."
+        },
+        {
+          "technique": "named-period-vote",
+          "verdict": "not-applicable",
+          "evidence": "app/api/rediscovery/alerts/route.ts:29 The feed requests current workspace alerts; the matching requests likewise supply structured candidates rather than historical-period questions."
+        },
+        {
+          "technique": "padded-slots-are-misses",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/matching.py:1669 Results are real scored records from a naturally shortening list slice, without fixed-width neighbour identifiers or sentinel hydration."
+        },
+        {
+          "technique": "query-decomposition-before-the-lanes",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/match-input.ts:65 The consumer supplies a structured candidate; there are no abstraction-tier indexes requiring inferred query decomposition."
+        },
+        {
+          "technique": "ranking-budgets",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/matching.py:1665 Match scores and sorts the eligible corpus before one row-limit cut, reporting evaluated, surviving and returned counts."
+        },
+        {
+          "technique": "relevance-floors",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/matching.py:1624 The preceding knockout checks enforce eligibility, but no minimum relevance score filters the sorted matches."
+        },
+        {
+          "technique": "retrieval-triggering",
+          "verdict": "not-applicable",
+          "evidence": "app/api/match/route.ts:66 An accepted Match request explicitly asks for corpus ranking; this endpoint has no general-answer versus corpus-grounding decision."
+        },
+        {
+          "technique": "second-pass-rescoring",
+          "verdict": "not-applicable",
+          "evidence": "pipeline/jobfit/matching.py:1621 The matching path sorts its primary scores directly; it does not apply a model reranker to a fused candidate pool."
+        }
+      ]
+    },
+    "124722c0-47ae-4af5-be2f-b62f65cef7de/retrieval": {
+      "context": "candidate-rediscovery",
+      "subject": "retrieval",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T11:14:56.371Z",
+      "worker": "8bd53e52-e544-45b1-864f-0a3ae8106bdc",
+      "techniques": [
+        {
+          "technique": "chunking-and-indexing",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/candidate-pool.ts:88 Rediscovery scores complete persisted candidate records rather than indexed document chunks."
+        },
+        {
+          "technique": "embedding-lifecycle",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/recruiter-run.ts:58 Embedding use requires an explicit option, and rediscoverForJob passes only its abort signal; this path does not maintain stored vectors."
+        },
+        {
+          "technique": "hybrid-lane-fusion",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/rediscover.ts:229 This combines a fit score with a bounded ordering refinement, rather than merging independent matcher candidate lists."
+        },
+        {
+          "technique": "named-period-vote",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/rediscover.ts:178 The ranking query is a structured current job and eligible candidate pool, without an asked-about historical period."
+        },
+        {
+          "technique": "padded-slots-are-misses",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/rediscover.ts:232 The result shortens naturally and is not padded or resolved through nearest-neighbour sentinel positions."
+        },
+        {
+          "technique": "query-decomposition-before-the-lanes",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/rediscover.ts:133 The structured job is scored against one level of candidate records; no specific-versus-thematic index dispatch occurs."
+        },
+        {
+          "technique": "ranking-budgets",
+          "verdict": "conformant",
+          "evidence": "app/_lib/rediscover.ts:241 Within the explicitly bounded input pool, one final 20-row cut follows admission and sorting, and the result reports additional qualifiers and pool truncation."
+        },
+        {
+          "technique": "relationship-proximity-lane",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/candidate-timeline.ts:518 Rematch relations resolve navigable history links; ranking uses per-candidate prior filters instead of expanding recall to neighbouring candidates."
+        },
+        {
+          "technique": "relevance-floors",
+          "verdict": "deviation",
+          "evidence": "app/_lib/rediscovery-alert-store.ts:471 Score flooring and unscored-row reporting exist, but a gate lookup outage is mislabeled as an ordinary exclusion instead of an unavailable/degraded result."
+        },
+        {
+          "technique": "retrieval-triggering",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/rediscover.ts:425 Explicit rediscovery sweeps target published roles; there is no optional corpus consultation while answering a general model request."
+        },
+        {
+          "technique": "second-pass-rescoring",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/rediscovery-rank.ts:54 The refinement is a deterministic numeric comparator, not a model or cross-encoder rescoring heterogeneous evidence."
+        }
+      ]
     }
   }
 }

@@ -7189,7 +7189,11 @@
           "revision": 17,
           "changedAt": "2026-09-30",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "pipeline/jobfit/matching.py:1624 Match returns the highest-scoring eligible jobs without a relevance floor, so uniformly weak matches can populate the result instead of producing an honest empty.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:a49d27f889212d3f",
+          "evaluatedRevision": 19
         },
         {
           "subject": "voice-io",
@@ -7488,7 +7492,11 @@
           "revision": 17,
           "changedAt": "2026-09-30",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/rediscovery-alert-store.ts:471 A consent-read failure becomes ordinary consent-expired exclusions and can produce an empty result without telling the consumer that a retrieval prerequisite was unavailable.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:a49d27f889212d3f",
+          "evaluatedRevision": 19
         },
         {
           "subject": "agent-memory",
