@@ -17380,7 +17380,11 @@
           "revision": 3,
           "changedAt": "2026-09-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/templates-store.ts:270 Template removal immediately deletes the origin record without deprecation or checking persisted JD references, leaving existing template provenance unresolved.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:3dd9549b75f4f998",
+          "evaluatedRevision": 3
         },
         {
           "subject": "module-design",

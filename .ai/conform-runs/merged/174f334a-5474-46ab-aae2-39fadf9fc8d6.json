@@ -1,0 +1,65 @@
+{
+ "schema": "conform-run/1",
+ "worker": "174f334a-5474-46ab-aae2-39fadf9fc8d6",
+ "subject": "templates-scaffolding",
+ "evaluatedAt": "2026-10-19T11:48:17.544896+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "jd-build-templates",
+   "subject": "templates-scaffolding",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/templates-store.ts:270 Template removal immediately deletes the origin record without deprecation or checking persisted JD references, leaving existing template provenance unresolved.",
+   "techniques": [
+    {
+     "technique": "adoption-lifecycle",
+     "verdict": "deviation",
+     "evidence": "app/_lib/jd-build-start.ts:85 After task pruning, retry resolves the mutable current template by id rather than a frozen adopted version, so identical persisted intent can use different template content."
+    },
+    {
+     "technique": "catalog-curation",
+     "verdict": "deviation",
+     "evidence": "app/_lib/templates-store.ts:270 Retirement directly deletes the row; the complete delete path checks visibility, last-template status, and default status, but provides no deprecation stage or preservation of referenced origins."
+    },
+    {
+     "technique": "instance-upgrade",
+     "verdict": "deviation",
+     "evidence": "app/_lib/jd-build-start.ts:63 The durable build intent records template identity and inputs without a frozen template version or retained payload base, preventing reconstruction of the template contribution for a three-way upgrade."
+    },
+    {
+     "technique": "integrity-and-provenance",
+     "verdict": "deviation",
+     "evidence": "app/_lib/templates-store.ts:60 The complete seed path inserts the shipped payload without an expected digest comparison or recorded template provenance; searches found no corresponding template verifier or manifest."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "templates-scaffolding",
+   "context": "jd-template-engine",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-19T11:48:17.544896+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "templates-scaffolding"
+   ],
+   "techniques": [
+    "adoption-lifecycle",
+    "catalog-curation",
+    "instance-upgrade",
+    "integrity-and-provenance"
+   ],
+   "deviations": 1,
+   "context": "jd-build-templates",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}
