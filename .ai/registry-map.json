@@ -10175,7 +10175,11 @@
           "revision": 10,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/db/core.ts:317 The database boot sequence runs schema mutations and table rebuilds directly on startup without a pre-migration snapshot gate, version ledger bump, or rollback halt policy.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:b7d5afcb859dfff9",
+          "evaluatedRevision": 10
         },
         {
           "subject": "module-design",
