@@ -15562,6 +15562,57 @@
         "at": "2026-10-19T12:43:37.983312+00:00",
         "reason": "reviewer (sonnet): The cited code is real and says what the evidence claims (llm_judge.py:87 compares provider/model labels, test line 110 accepts the same model on two providers, submission_eval.py:492 reports a mean of 1–5 scores). But all four files are Python pipeline code under pipeline/jobfit/. The context-map e"
       }
+    },
+    "a52e7c0d-e73d-49ee-b465-526da5899c6f/candidate-outreach-and-halt-rules": {
+      "context": "comms-locale-optout",
+      "subject": "candidate-outreach-and-halt-rules",
+      "bundle": "recruiting",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T21:33:49.815Z",
+      "techniques": [
+        {
+          "technique": "audit-the-non-send",
+          "verdict": "deviation",
+          "evidence": "app/_lib/comms.ts:426 dispatchOutreach records early suppressions, but the shared send gate throws without recording a refusal; the resend handler converts this exception to a 409 without an audit write."
+        },
+        {
+          "technique": "consent-gate-before-the-first-touch",
+          "verdict": "deviation",
+          "evidence": "app/_lib/rediscovery-alert-store.ts:527 Consent runs before halts and resolves across candidate entries, but no consent record permits contact; the underlying consent policy also permits the 'none' state rather than requiring a recorded lawful basis."
+        },
+        {
+          "technique": "distinguish-a-reply-from-a-re-application",
+          "verdict": "deviation",
+          "evidence": "app/_lib/comms-dispatch.ts:539 The discriminator correctly uses prior send counts, but this increment also follows a terminal local 'queued' outcome without external acceptance, allowing an uncontacted person’s arrival to count as a reply."
+        },
+        {
+          "technique": "grounded-personalisation-never-fabricated",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/automation.py:1257 Prompts supply candidate facts and prohibit invention, but the deterministic fallback uses English for every non-Czech locale, including German and French, while dispatch appends localized footers, violating the technique’s shared-language requirement."
+        },
+        {
+          "technique": "halt-state-scoped-per-role-not-per-person",
+          "verdict": "deviation",
+          "evidence": "app/_lib/comms.ts:394 Entry-scoped halts and durable candidate opt-outs are implemented, but the complete shared gate ends here without the required person-level volume ceiling across roles and outbound paths."
+        },
+        {
+          "technique": "halt-the-sequence-on-any-reply",
+          "verdict": "deviation",
+          "evidence": "app/_lib/outreach-state-store.ts:147 First-reply timestamps and dispatch-time halt checks exist, but a halt-state read error returns permission to send, explicitly contradicting the standard."
+        },
+        {
+          "technique": "the-first-touch-carries-the-notice",
+          "verdict": "deviation",
+          "evidence": "app/_lib/comms-dispatch.ts:528 Outreach dispatch accepts the draft without requiring a sourcing sentence or full-notice link; the wrapper adds erasure and opt-out footers but does not enforce or record a first-touch notice version and stated source."
+        }
+      ],
+      "withdrawn": {
+        "worker": "2a4a5b5e-a31e-4806-a049-5c3a6b3e9c16",
+        "state": "deviation",
+        "at": "2026-10-19T21:34:35.232736+00:00",
+        "reason": "reviewer (sonnet): The fail-open halt read at outreach-state-store.ts:157 is real, but I could not confirm the other claims. comms.ts:426 is sendComm, not dispatchOutreach, and I found no check for the missing refusal audit on the resend 409 path. The 'none' consent-policy claim is not shown by rediscovery-alert-store"
+      }
     }
   }
 }
