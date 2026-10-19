@@ -15153,6 +15153,148 @@
           "evidence": "app/_lib/templates-store.ts:60 The complete seed path inserts the shipped payload without an expected digest comparison or recorded template provenance; searches found no corresponding template verifier or manifest."
         }
       ]
+    },
+    "3e73bfbb-2232-43f7-9bd5-09155de4db6a/terminal-multiplexing": {
+      "context": "devcase-session-api",
+      "subject": "terminal-multiplexing",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T11:57:47.810Z",
+      "worker": "9e736a4d-93af-4d65-8bbf-f642ad9b11fe",
+      "techniques": [
+        {
+          "technique": "attach-detach-lifecycle",
+          "verdict": "not-applicable",
+          "evidence": "app/api/devcase/session/route.ts:46 Starting an assessment creates a database record; no terminal attachment machinery exists to park or detach."
+        },
+        {
+          "technique": "bounded-replay-buffers",
+          "verdict": "not-applicable",
+          "evidence": "app/api/devcase/session/[id]/route.ts:60 History is stored chat messages, without a terminal byte ring or replay-to-live splice."
+        },
+        {
+          "technique": "capability-revalidation",
+          "verdict": "not-applicable",
+          "evidence": "app/api/devcase/session/[id]/chat/route.ts:69 The per-request proof authorizes assessment access; there is no injected command-boundary capability to revalidate."
+        },
+        {
+          "technique": "completion-authority-arbitration",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/devcase-run.ts:49 The chat dependency awaits a subprocess result, without competing terminal protocol and screen-heuristic completion tiers."
+        },
+        {
+          "technique": "injected-hook-reconvergence",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/python-runner.ts:554 The subprocess bridge used by chat invokes the interpreter without a shell; it installs no shell prompt hooks."
+        },
+        {
+          "technique": "keystroke-injection",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/devcase-run.ts:277 Chat text is passed as an argument, without PTY keystrokes, paste modes, or key notation."
+        },
+        {
+          "technique": "multi-client-fan-out",
+          "verdict": "not-applicable",
+          "evidence": "app/api/devcase/session/[id]/route.ts:212 Saving returns a request-specific JSON response, without shared terminal viewers or redraw queues."
+        },
+        {
+          "technique": "multiplexer-state",
+          "verdict": "not-applicable",
+          "evidence": "app/api/devcase/session/route.ts:52 Identity addresses an assessment attempt, without a session-to-terminal manager or keyboard focus routing."
+        },
+        {
+          "technique": "occupant-state-detection",
+          "verdict": "not-applicable",
+          "evidence": "app/api/devcase/session/[id]/chat/route.ts:85 Availability comes from posting status, without a hosted interactive occupant whose screen must be classified."
+        },
+        {
+          "technique": "pty-management",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/python-runner.ts:564 The chat subprocess bridge closes its input pipe immediately; it does not expose an interactive PTY device."
+        },
+        {
+          "technique": "readiness-edge-detection",
+          "verdict": "not-applicable",
+          "evidence": "app/api/devcase/session/[id]/chat/route.ts:52 The prerequisite is stored assessment status, without shell input-readiness markers or a protocol detector."
+        },
+        {
+          "technique": "renderer-economics",
+          "verdict": "not-applicable",
+          "evidence": "app/api/devcase/session/[id]/chat/route.ts:139 The chat endpoint supplies structured reply data, without terminal emulators or accelerated renderers."
+        }
+      ]
+    },
+    "76d3b42f-9432-413e-a194-967ab66174d9/terminal-multiplexing": {
+      "context": "auth-session-rbac",
+      "subject": "terminal-multiplexing",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T11:57:47.810Z",
+      "worker": "9e736a4d-93af-4d65-8bbf-f642ad9b11fe",
+      "techniques": [
+        {
+          "technique": "attach-detach-lifecycle",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/auth/session-nav.ts:64 Leaving performs HTTP logout; there is no terminal attachment whose attention resources must be released."
+        },
+        {
+          "technique": "bounded-replay-buffers",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/auth/session.ts:87 The buffer encodes authentication claims, without terminal output history or an attach-time replay seam."
+        },
+        {
+          "technique": "capability-revalidation",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/auth/current-user.ts:75 Capabilities are workspace permissions, without an injected terminal protocol whose start marker must be re-earned."
+        },
+        {
+          "technique": "completion-authority-arbitration",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/auth/session.ts:131 Expiration invalidates a credential; it does not conclude a terminal command using competing evidence tiers."
+        },
+        {
+          "technique": "injected-hook-reconvergence",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/auth/current-user.ts:48 Session acquisition verifies a cookie, without shell startup integration or prompt-cycle invariants."
+        },
+        {
+          "technique": "keystroke-injection",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/auth/password.ts:130 Credential verification compares derived bytes, without writing semantic keystrokes into an interactive program."
+        },
+        {
+          "technique": "multi-client-fan-out",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/auth/current-workspace.ts:16 Each request resolves its workspace from a credential, without attachments sharing a terminal screen or input device."
+        },
+        {
+          "technique": "multiplexer-state",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/auth/session.ts:80 Session state consists of authentication claims, without terminal machinery, attachment rungs, or focus routing."
+        },
+        {
+          "technique": "occupant-state-detection",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/auth/require-operator.ts:66 The guard checks account status directly, without classifying a third-party interactive program from its screen."
+        },
+        {
+          "technique": "pty-management",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/auth/edge-verify.ts:54 Edge verification performs cryptographic operations, without allocating terminal devices or propagating terminal sizes."
+        },
+        {
+          "technique": "readiness-edge-detection",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/auth/home-gate-server.ts:29 Workspace entry depends on authenticated session claims, without a shell input-ready edge to detect."
+        },
+        {
+          "technique": "renderer-economics",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/auth/session-nav.ts:52 Entry redirects the browser after login, without attaching terminal renderers or consuming terminal GPU budgets."
+        }
+      ]
     }
   }
 }

@@ -5570,7 +5570,11 @@
           "revision": 7,
           "changedAt": "2026-09-04",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/auth/session.ts:58 Searches for node-pty, xterm, and scrollback found no matches in this context or the tracked repository, and these sessions are signed HTTP authentication credentials rather than hosted terminals.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:c3ef11aba4a471f5",
+          "evaluatedRevision": 7
         },
         {
           "subject": "voice-io",
@@ -13778,7 +13782,11 @@
           "revision": 7,
           "changedAt": "2026-09-04",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/db/devcase.ts:1008 Searches for node-pty, xterm, and scrollback found no matches in this context or the tracked repository, and the session implementation creates persisted assessment records rather than hosted terminals.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:c3ef11aba4a471f5",
+          "evaluatedRevision": 7
         },
         {
           "subject": "agent-instruction-files",
