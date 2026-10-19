@@ -13899,6 +13899,47 @@
           "evidence": "app/features/shell/setup/OnboardingExperience.tsx:115 The next() transition advances without checking stepSatisfied; validity is enforced by its UI callers instead of inside the transition."
         }
       ]
+    },
+    "3bdbe067-ad18-490f-b1a6-983e6eac8607/agent-addressable-ui": {
+      "context": "dev-inspector",
+      "subject": "agent-addressable-ui",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T01:33:37.684Z",
+      "worker": "f641a683-6621-4d0b-8735-8a2ca172b671",
+      "techniques": [
+        {
+          "technique": "agent-pasteable-reference-format",
+          "verdict": "deviation",
+          "evidence": "app/_dev-inspector/DevInspectorImpl.tsx:56 Temporary textarea is removed in the try block rather than a finally block, and copyText returns a boolean without reporting the specific rung or providing pre-selected text on failure."
+        },
+        {
+          "technique": "build-time-source-stamping",
+          "verdict": "deviation",
+          "evidence": "scripts/dev-inspector/source-loc-loader.cjs:58 Falls back to a bare filename when outside rootDir (and defaults rootDir to process.cwd) instead of treating root path resolution as a required input without fallback."
+        },
+        {
+          "technique": "call-site-vs-implementation-resolution",
+          "verdict": "deviation",
+          "evidence": "app/_dev-inspector/devLocate.ts:78 When all stamped ancestors are library code, pickDefaultIndex falls back to index 0 (innermost element) rather than the outermost boundary and does not signal that no product call site was found."
+        },
+        {
+          "technique": "framework-internals-independence",
+          "verdict": "conformant",
+          "evidence": "app/_dev-inspector/devLocate.ts:66 Climbs the ancestor chain using standard DOM parentElement and closest without inspecting React fibers or debug metadata."
+        },
+        {
+          "technique": "opt-in-instrumentation-gate",
+          "verdict": "conformant",
+          "evidence": "scripts/dev-inspector/source-loc-loader.cjs:29 Loader re-checks DEV_INSPECT before requiring Babel lazily, complementing the next.config.ts registration gate and the layout NODE_ENV check."
+        },
+        {
+          "technique": "uninstrumented-degradation",
+          "verdict": "deviation",
+          "evidence": "app/_dev-inspector/devInspectorUi.tsx:181 The HUD renders the same 'Hover a component…' text when hovering an unstamped element as when idle, and armed mode does not time out on its own."
+        }
+      ]
     }
   }
 }

@@ -11634,7 +11634,11 @@
           "revision": 3,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_dev-inspector/devLocate.ts:78 When all stamped ancestors in the chain are library-internal, pickDefaultIndex falls back to the innermost element at index 0 rather than the outermost boundary and fails to indicate that no product call site was found.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:eeacc7371e042d65",
+          "evaluatedRevision": 3
         },
         {
           "subject": "test-harness",
