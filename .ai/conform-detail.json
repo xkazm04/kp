@@ -15378,6 +15378,52 @@
           "evidence": "app/_lib/webhook-idempotency.ts:44 The sender's delivery identity is shortened without rejecting overlong identifiers; two 201-character identifiers differing only at the last character produce the same key."
         }
       ]
+    },
+    "c849e8b8-1cd8-4644-ad0f-178331441cca/adaptive-fidelity-tiers": {
+      "context": "match-presentation-components",
+      "subject": "adaptive-fidelity-tiers",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T12:18:19.649Z",
+      "techniques": [
+        {
+          "technique": "asymmetric-tier-transitions",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/MatchReasoningPanel.tsx:26 The panel switches on async reasoning state; it does not move between device fidelity tiers."
+        },
+        {
+          "technique": "measured-not-declared-capability",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/MatchPresentation.tsx:26 The visual classification represents a match score, with no device capability decision or scalable decorative workload."
+        },
+        {
+          "technique": "measurement-settle-budget",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/MatchReasoningPanel.tsx:53 This is a bounded reveal transition, with no capability sampler needing a settle deadline."
+        },
+        {
+          "technique": "per-tier-budget-tables",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/MatchPresentation.tsx:64 Segment dimensions and colors encode score data; reducing them by device tier would change the information displayed rather than budget optional richness."
+        },
+        {
+          "technique": "preference-short-circuits-measurement",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/MatchReasoningPanel.tsx:61 Reduced motion directly disables layout animation; there is no capability measurement to short-circuit."
+        },
+        {
+          "technique": "probe-deferral-to-idle",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shared/MatchReasoningPanel.tsx:27 The loading treatment uses a short opacity transition without starting a capability probe."
+        }
+      ],
+      "withdrawn": {
+        "worker": "67e4d134-6b2c-4c4e-9201-7e02bf450726",
+        "state": "not-applicable",
+        "at": "2026-10-19T12:18:35.586875+00:00",
+        "reason": "reviewer (sonnet): The primary anchor (MatchReasoningPanel.tsx:115) is only the ReasoningSkeleton div, so it does not show that fidelity tiers or a capability sampler are absent. The claim of 'no visual complexity knob' is also weakened by the reduced-motion branching in the same file (lines 24-65), which scales durat"
+      }
     }
   }
 }
