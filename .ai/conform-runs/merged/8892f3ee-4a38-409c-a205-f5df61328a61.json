@@ -1,0 +1,130 @@
+{
+ "schema": "conform-run/1",
+ "worker": "8892f3ee-4a38-409c-a205-f5df61328a61",
+ "subject": "demo-data-plane",
+ "evaluatedAt": "2026-10-19T07:31:02.439262+00:00",
+ "provider": "agy",
+ "model": "gemini-3.8-flash-high",
+ "pairs": [
+  {
+   "context": "workspace-config-api",
+   "subject": "demo-data-plane",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/api/demo/route.ts:47 The demo route gates demo availability on the server's KP_SECRET environment variable instead of dispatching to an in-artifact fake data plane at runtime, refusing gated deployments.",
+   "techniques": [
+    {
+     "technique": "runtime-dispatch-not-build-flag",
+     "verdict": "deviation",
+     "evidence": "app/api/demo/route.ts:47 The demo route checks environment configuration rather than dispatching to a fake data plane per call from session state, refusing demo access on gated deployments."
+    },
+    {
+     "technique": "one-interface-many-planes",
+     "verdict": "deviation",
+     "evidence": "app/api/demo/route.ts:54 Instead of routing queries through a client interface implemented by a fake plane, demo entry redirects to an auto-starting simulation that drives real server routes."
+    },
+    {
+     "technique": "fake-surface-honesty-contract",
+     "verdict": "conformant",
+     "evidence": "app/api/profile/candidates/route.ts:18 Profiles without analysis render an honest null em-dash badge conforming to the honesty contract ban on fabricated scores."
+    },
+    {
+     "technique": "network-faithful-mocks",
+     "verdict": "not-applicable",
+     "evidence": "app/api/demo/route.ts:43 The route handler provides a server HTTP endpoint with rate limiting rather than a client-side mock plane simulating network latency or error injection."
+    },
+    {
+     "technique": "seeded-determinism",
+     "verdict": "not-applicable",
+     "evidence": "app/api/demo/demo-door.test.ts:32 These workspace config API route handlers return stored database state or redirects without generating variation from a seeded pseudo-random stream."
+    },
+    {
+     "technique": "fixture-self-consistency",
+     "verdict": "not-applicable",
+     "evidence": "app/api/me/getting-started/route.ts:20 The route checks caller workspace authorization and does not declare or project demo fixture entity graphs."
+    }
+   ],
+   "registryProposal": "The standard assumes a client-side architecture where a fake API client plane is dispatched in the browser; it should explicitly address full-stack architectures where database bootstrap, multi-tenant workspace isolation, and server-side route handlers are used instead of client interface mocks."
+  },
+  {
+   "context": "db-core-migrations",
+   "subject": "demo-data-plane",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/db/core.ts:2821 The database boot sequence seeds fixture content directly into persistent SQLite tables gated by an environment variable rather than resolving an isolated fake data plane per call from session state.",
+   "techniques": [
+    {
+     "technique": "runtime-dispatch-not-build-flag",
+     "verdict": "deviation",
+     "evidence": "app/_lib/db/seed-gate.ts:11 Fixture seeding is gated at database initialization by the KP_EMPTY environment variable instead of dispatching to a fake data plane per call from live session state."
+    },
+    {
+     "technique": "fake-surface-honesty-contract",
+     "verdict": "deviation",
+     "evidence": "app/_lib/db/core.ts:2834 By default when KP_EMPTY is unset, demo data is automatically seeded and the tenant is marked onboarded in persistent storage, violating the rule that demo mode must never be auto-entered or persisted across sessions."
+    },
+    {
+     "technique": "one-interface-many-planes",
+     "verdict": "deviation",
+     "evidence": "app/_lib/db/core.ts:2821 No declared client interface exists with distinct implementations for live and fake planes; fixture rows are written directly into shared application tables."
+    },
+    {
+     "technique": "seeded-determinism",
+     "verdict": "deviation",
+     "evidence": "app/_lib/db/core.ts:3333 Job seeding captures the ambient current time new Date().toISOString() as created_at instead of deriving all timestamps from a fixed reference instant or seeded sequence."
+    },
+    {
+     "technique": "fixture-self-consistency",
+     "verdict": "deviation",
+     "evidence": "app/_lib/db/seed-benchmark-team.ts:39 The benchmark team and its 24 funnel entries are independently declared and inserted rather than projected from a unified root roster."
+    },
+    {
+     "technique": "network-faithful-mocks",
+     "verdict": "not-applicable",
+     "evidence": "app/_lib/db/core.ts:2822 The database boot sequence executes direct synchronous better-sqlite3 calls and does not implement a network client mock or simulated network latency."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-19T07:31:02.439262+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "demo-data-plane"
+   ],
+   "techniques": [
+    "fake-surface-honesty-contract",
+    "fixture-self-consistency",
+    "network-faithful-mocks",
+    "one-interface-many-planes",
+    "runtime-dispatch-not-build-flag",
+    "seeded-determinism"
+   ],
+   "deviations": 1,
+   "context": "workspace-config-api",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-19T07:31:02.439262+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "demo-data-plane"
+   ],
+   "techniques": [
+    "fake-surface-honesty-contract",
+    "fixture-self-consistency",
+    "network-faithful-mocks",
+    "one-interface-many-planes",
+    "runtime-dispatch-not-build-flag",
+    "seeded-determinism"
+   ],
+   "deviations": 1,
+   "context": "db-core-migrations",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  }
+ ]
+}

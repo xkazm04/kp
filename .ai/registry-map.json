@@ -10290,7 +10290,11 @@
           "revision": 4,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/db/core.ts:2821 The database boot sequence seeds fixture content directly into persistent SQLite tables gated by an environment variable rather than resolving an isolated fake data plane per call from session state.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:952fe6652c22027d",
+          "evaluatedRevision": 4
         },
         {
           "subject": "untrusted-extension-host",
@@ -33528,7 +33532,11 @@
           "revision": 4,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/api/demo/route.ts:47 The demo route gates demo availability on the server's KP_SECRET environment variable instead of dispatching to an in-artifact fake data plane at runtime, refusing gated deployments.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:952fe6652c22027d",
+          "evaluatedRevision": 4
         },
         {
           "subject": "hitl-approval",
