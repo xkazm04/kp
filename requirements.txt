@@ -16,7 +16,7 @@ numpy==2.5.3
 # nothing here. Revisit when google-genai widens the range.
 websockets==16.1.1
 
-pydantic==2.14.0
+pydantic==2.14.1
 google-genai==2.29.0
 python-dotenv==1.2.4
 defusedxml==0.7.1
