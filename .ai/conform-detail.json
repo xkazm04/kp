@@ -15516,6 +15516,52 @@
         "at": "2026-10-19T12:38:38.351897+00:00",
         "reason": "reviewer (sonnet): The main anchor, scheduleInviteLifecycleBuckets.ts:89, is only `const live = invites.filter(...)`, which does not show that alert rules, firing or routing are absent. The evidence also admits the context has scheduled reminders and status feedback, and the technique anchors (:49 closedReason, :142 a"
       }
+    },
+    "003cd283-f6d8-41bb-a936-5e2c3d23a76e/assessment-instrument-validation": {
+      "context": "devcase-evaluation",
+      "subject": "assessment-instrument-validation",
+      "bundle": "recruiting",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T12:42:48.251Z",
+      "techniques": [
+        {
+          "technique": "adversarial-persona-red-teaming",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/devcase/submission_eval.py:393 The gate requires separation from strong submissions but never asserts that gaming cannot outrank the honest floor; its gamer is an AI non-verifier rather than a fabricated-process persona."
+        },
+        {
+          "technique": "binary-metrics-over-a-noisy-scale",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/devcase/submission_eval.py:492 The quality summary aggregates holistic 1–5 LLM ratings into a mean, which the report presents as mean quality instead of demoting raw scores to supporting detail."
+        },
+        {
+          "technique": "discrimination-margin-gate",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/devcase/submission_eval.py:81 Both comparator margins exist, but their rationale uses deterministic cohort gaps and assumed LLM headroom rather than a measured repeated-input noise floor."
+        },
+        {
+          "technique": "judge-independent-of-generator",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_devcase_judge_independence.py:110 This test explicitly accepts the identical claude-haiku-4-5 model through anthropic and openrouter as independent; changing provider does not establish model independence."
+        },
+        {
+          "technique": "minimum-cohort-and-inconclusive-verdicts",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/devcase/submission_eval.py:94 Comparisons enforce a per-group floor of three; the rollup distinguishes pass, fail, inconclusive and not_evaluable, reports counts, and strict mode rejects fail and inconclusive."
+        },
+        {
+          "technique": "synthetic-candidate-behaviour-landscape",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/devcase/submission_eval.py:439 A fixed behavioral cast exercises the shared production chain, but its fingerprint hashes only row IDs, so changing submission content or domain without changing IDs preserves the reported cast identity."
+        }
+      ],
+      "withdrawn": {
+        "worker": "737d29fb-fa58-450a-8cb1-5468bbe10f70",
+        "state": "deviation",
+        "at": "2026-10-19T12:43:37.983312+00:00",
+        "reason": "reviewer (sonnet): The cited code is real and says what the evidence claims (llm_judge.py:87 compares provider/model labels, test line 110 accepts the same model on two providers, submission_eval.py:492 reports a mean of 1–5 scores). But all four files are Python pipeline code under pipeline/jobfit/. The context-map e"
+      }
     }
   }
 }
