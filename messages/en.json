@@ -10983,7 +10983,7 @@
       },
       "working_with_ai_tools": {
         "label": "Working with AI tools",
-        "description": "How they judge and direct AI assistance on the work sample: what the tool got wrong, how they caught it, and what they chose to do themselves. Scored on behaviour, never on which tool they name.",
+        "description": "How they judge and direct AI assistance on the work sample: what the tool got wrong, how they caught it, and what they chose to do themselves. Scored on behavior, never on which tool they name.",
         "anchor": {
           "1": "Cannot say what the tool got wrong; accepts its output as given or cannot describe how it was used.",
           "2": "Admits the tool can be wrong in general but names no specific error from their own work.",
