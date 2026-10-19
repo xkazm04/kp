@@ -13940,6 +13940,53 @@
           "evidence": "app/_dev-inspector/devInspectorUi.tsx:181 The HUD renders the same 'Hover a component…' text when hovering an unstamped element as when idle, and armed mode does not time out on its own."
         }
       ]
+    },
+    "eb0e8133-4575-4d03-8155-dcf219192bf4/ai-interviewer-brief-authoring": {
+      "context": "voice-interview-session",
+      "subject": "ai-interviewer-brief-authoring",
+      "bundle": "recruiting",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T01:42:29.285Z",
+      "techniques": [
+        {
+          "technique": "closing-read-back",
+          "verdict": "conformant",
+          "evidence": "app/_lib/student-interview.ts:174 Downstream scorecard synthesis explicitly prioritizes the candidate's closing read-back confirmation turn over earlier transcript mentions of corrupted tech terms."
+        },
+        {
+          "technique": "mandatory-coachability-hint",
+          "verdict": "deviation",
+          "evidence": "app/_lib/voice/candidate-brief.ts:169 The candidate-safe brief sanitization strips the coachability probe and omits the mandatory hint instruction, leaving the voice AI interviewer with no hint instruction or probe to offer."
+        },
+        {
+          "technique": "narrowing-follow-up-not-repetition",
+          "verdict": "conformant",
+          "evidence": "app/_lib/student-interview.ts:176 Instructs the interviewer to narrow to smaller concrete sub-questions rather than repeating verbatim on thin answers, and to verify quantitative claims neutrally."
+        },
+        {
+          "technique": "one-question-per-turn-and-wait",
+          "verdict": "conformant",
+          "evidence": "app/_lib/student-interview.ts:162 Enforces exactly one question per turn and explicitly directs the interviewer to wait for the answer without bundling second questions."
+        },
+        {
+          "technique": "praise-and-verdict-suppression",
+          "verdict": "conformant",
+          "evidence": "app/_lib/voice/candidate-brief.ts:269 Suppresses both evaluative verdicts and praise by explicitly banning praise of thinking/instinct, enumerating forbidden and permitted tokens, and deferring evaluation to human review."
+        },
+        {
+          "technique": "rule-ordering-adjacency-and-form",
+          "verdict": "conformant",
+          "evidence": "app/_lib/voice/candidate-brief.ts:255 Maintains critical consistency constraints adjacent in the brief to prevent language drift, with craft rules condensed into a single paragraph starting with content."
+        }
+      ],
+      "registryProposal": "Where interviewer prompts are client-sent to voice providers without server-side prompt storage, the brief authoring model must provide a mechanism to deliver stage-direction instructions to the agent without exposing ungrounded probes to candidate-accessible devtools.",
+      "withdrawn": {
+        "worker": "7485ea3e-3e22-46d8-977d-3920370d1deb",
+        "state": "deviation",
+        "at": "2026-10-19T01:42:52.613695+00:00",
+        "reason": "reviewer (sonnet): candidate-brief.ts:169 only drops the coachability probe from the browser-bound candidate-safe brief, and it does so on purpose (comments at lines 148-151 and 160-163); I did not confirm that the voice interviewer is left with no hint instruction, because the private brief in interview-run.ts and st"
+      }
     }
   }
 }
