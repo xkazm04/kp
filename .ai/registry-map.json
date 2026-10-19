@@ -30409,7 +30409,11 @@
           "revision": 3,
           "changedAt": "2026-09-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/landing/spark/market/data.ts:215 Market Pulse formats its English prose date with a numeric month, producing the ambiguous all-numeric dates EN-DATE requires replacing with a written month.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:3071c9ca3c71710b",
+          "evaluatedRevision": 3
         }
       ],
       "governance": "governed"

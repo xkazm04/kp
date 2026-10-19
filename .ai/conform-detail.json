@@ -14471,6 +14471,52 @@
           "evidence": "app/_lib/ats-delivery-store.ts:384 The function immediately executes DELETE with default arguments and exposes no dry-run option; its terminal allowlist and retention tests do correctly protect pending and retryable deliveries."
         }
       ]
+    },
+    "36b18c8d-ebd5-4f21-a265-c1e7c902094e/english": {
+      "context": "spark-feature-showcase",
+      "subject": "english",
+      "bundle": "localization",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T10:04:13.927Z",
+      "worker": "ed19fa4a-20bd-4ba7-87c3-de82439d464a",
+      "techniques": [
+        {
+          "technique": "false-friends-and-collocations",
+          "verdict": "conformant",
+          "evidence": "messages/en.json:857 EN-COLLOCATION: the scheduling feature uses the native verb-object pairing “pick their own slot”."
+        },
+        {
+          "technique": "generated-prose-patterns",
+          "verdict": "conformant",
+          "evidence": "messages/en.json:853 EN-TEMPLATED-GRID: the feature description supplies distinct mechanisms rather than interchangeable category praise."
+        },
+        {
+          "technique": "interference-constructions",
+          "verdict": "conformant",
+          "evidence": "messages/en.json:882 EN-ARTICLE and EN-ORDER: the voice pitch uses natural determiners and subject-verb-object statements."
+        },
+        {
+          "technique": "register-and-voice",
+          "verdict": "conformant",
+          "evidence": "messages/en.json:16444 EN-EXPLETIVE-OPEN: the salary-panel instruction starts with its action and avoids introductory padding or effort minimizers."
+        },
+        {
+          "technique": "typography-and-capitalization",
+          "verdict": "deviation",
+          "evidence": "messages/en.json:823 EN-END-PUNCT: Proof.tsx renders these full-stop-ended fragments as an h2; headline punctuation is not held consistently across the page."
+        },
+        {
+          "technique": "ui-and-landing-microcopy",
+          "verdict": "deviation",
+          "evidence": "messages/en.json:16268 EN-LIST-PARALLEL: Scene.tsx places this imperative after the noun phrases “0-100 fit score per CV” and “The evidence to back it up” in one ordered list."
+        },
+        {
+          "technique": "variant-and-locale-conventions",
+          "verdict": "deviation",
+          "evidence": "app/landing/spark/market/data.ts:215 EN-DATE: MarketPulseApp.tsx inserts this numeric-month output into the header’s “as of {date}” prose."
+        }
+      ]
     }
   }
 }
