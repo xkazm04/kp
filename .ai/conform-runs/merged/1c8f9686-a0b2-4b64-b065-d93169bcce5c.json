@@ -1,0 +1,99 @@
+{
+ "schema": "conform-run/1",
+ "worker": "1c8f9686-a0b2-4b64-b065-d93169bcce5c",
+ "subject": "embedded-db",
+ "evaluatedAt": "2026-10-19T09:43:23.381814+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "task-automation-engine",
+   "subject": "embedded-db",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/db/tasks.ts:438 Task retention deletes without a dry-run option and uses a status blocklist, making an unrecognized future status eligible for deletion.",
+   "techniques": [
+    {
+     "technique": "corruption-class-response",
+     "verdict": "deviation",
+     "evidence": "app/_lib/tasks.ts:836 The catch covering task database writes attempts another write on the same handle without distinguishing structural corruption or quarantining it."
+    },
+    {
+     "technique": "db-self-instrumentation",
+     "verdict": "deviation",
+     "evidence": "app/_lib/db/tasks.ts:320 Task operations execute directly without latency measurement or bounded operation-family records; the opened connection factory returns an uninstrumented database handle."
+    },
+    {
+     "technique": "quiet-window-maintenance",
+     "verdict": "deviation",
+     "evidence": "app/_lib/tasks.ts:639 Retention runs synchronously during task submission; runMaintenance checks elapsed time but has no foreground-activity gate or resumable deletion chunks."
+    },
+    {
+     "technique": "storage-accounting-and-pruning",
+     "verdict": "deviation",
+     "evidence": "app/_lib/db/tasks.ts:438 The production DELETE uses a blocklist despite the pure helper's terminal allowlist, and pruneFinishedTasks provides no dry-run mode."
+    }
+   ]
+  },
+  {
+   "context": "ats-sync-egress",
+   "subject": "embedded-db",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_lib/ats-delivery-store.ts:384 ATS retention preserves live deliveries but deletes eligible history by default without the standard's required dry-run mode.",
+   "techniques": [
+    {
+     "technique": "corruption-class-response",
+     "verdict": "deviation",
+     "evidence": "app/_lib/ats-egress.ts:554 A database failure during finalization enters this catch and attempts another write through the same memoized handle, without structural-corruption classification or quarantine."
+    },
+    {
+     "technique": "db-self-instrumentation",
+     "verdict": "deviation",
+     "evidence": "app/_lib/ats-delivery-store.ts:306 Delivery-ledger writes execute directly without database latency rings, slow-operation predicates, or busy-wait measurements; delivery outcome records do not provide those measurements."
+    },
+    {
+     "technique": "storage-accounting-and-pruning",
+     "verdict": "deviation",
+     "evidence": "app/_lib/ats-delivery-store.ts:384 The function immediately executes DELETE with default arguments and exposes no dry-run option; its terminal allowlist and retention tests do correctly protect pending and retryable deliveries."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-19T09:43:23.381814+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "embedded-db"
+   ],
+   "techniques": [
+    "corruption-class-response",
+    "db-self-instrumentation",
+    "quiet-window-maintenance",
+    "storage-accounting-and-pruning"
+   ],
+   "deviations": 1,
+   "context": "task-automation-engine",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-19T09:43:23.381814+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "embedded-db"
+   ],
+   "techniques": [
+    "corruption-class-response",
+    "db-self-instrumentation",
+    "storage-accounting-and-pruning"
+   ],
+   "deviations": 1,
+   "context": "ats-sync-egress",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}
