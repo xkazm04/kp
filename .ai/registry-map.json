@@ -10254,7 +10254,11 @@
           "revision": 3,
           "changedAt": "2026-09-26",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/db/core.ts:3183 Org-member and benchmark seeds commit rows individually before recording completion, so interruption can leave partial data that the next boot adopts as finished.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:1c83f54ea0028875",
+          "evaluatedRevision": 3
         },
         {
           "subject": "optional-dependency-degradation",

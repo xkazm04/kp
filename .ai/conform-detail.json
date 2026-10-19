@@ -14621,6 +14621,47 @@
         }
       ],
       "registryProposal": "The migrations standard treats ledger-less replay as a recognized variant in the golden path overview, but the idempotent-steps technique mandates 'Ledger always'; the standard should align these sections to clearly specify acceptable invariants for ledger-less embedded engines."
+    },
+    "ee64b398-8e4c-40aa-a4af-8ff922026ef2/node-boot-and-declarative-bootstrap": {
+      "context": "db-core-migrations",
+      "subject": "node-boot-and-declarative-bootstrap",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T10:49:50.854Z",
+      "worker": "f63a9449-ed7f-42ae-ad8e-67affc251d96",
+      "techniques": [
+        {
+          "technique": "config-objects-are-api-immutable",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/core.ts:3414 These seeds populate ordinary candidate records, not host-acting or always-on configuration devices; the refresh predicate preserves application edits."
+        },
+        {
+          "technique": "once-only-bootstrap-with-marker",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/seed-benchmark-team.ts:69 The loop inserts without a surrounding transaction or preceding failure marker; completion is marked afterward at line 83, while lines 47–48 adopt any surviving rows as complete on restart."
+        },
+        {
+          "technique": "ordered-boot-dag",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/core.ts:317 Connection acquisition has no enclosing failure cleanup: later DDL, migration, or tenancy-check exceptions escape without explicitly closing the handle, before it reaches the singleton."
+        },
+        {
+          "technique": "reload-partition",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/core.ts:310 This initializer reuses its process connection, including across development module reloads; it implements no operator-triggered configuration reload."
+        },
+        {
+          "technique": "request-chain-not-dsl",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db/core.ts:3341 The input is a typed demo-data corpus inserted into SQLite, rather than an operator-authored declarative bootstrap or workflow request schema."
+        },
+        {
+          "technique": "seal-before-storage-plugins",
+          "verdict": "not-applicable",
+          "evidence": "app/_lib/db-path.ts:152 The boot helper opens SQLite directly through the built-in database driver; this path has no pluggable sealing provider or storage-backed unsealer catalog."
+        }
+      ]
     }
   }
 }
