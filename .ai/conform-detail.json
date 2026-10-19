@@ -13853,6 +13853,52 @@
           "evidence": "app/features/shell/palette/usePalettePreview.ts:77 The outcome classifies an API response for rendering; no scrape detector or enforcement rollout is involved."
         }
       ]
+    },
+    "2c3bab35-1a41-4ed0-85d3-e48cdaea2546/wizard-flows": {
+      "context": "shell-setup-wizard",
+      "subject": "wizard-flows",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T01:27:59.285Z",
+      "worker": "a692789f-b28f-4fcd-abd1-f9ace89d420b",
+      "techniques": [
+        {
+          "technique": "ai-driven-elicitation",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/setup/SetupWizardStepPane.tsx:79 The companion step renders fixed consent choices from a status probe; it does not run a generative interview."
+        },
+        {
+          "technique": "branching-and-skipping",
+          "verdict": "conformant",
+          "evidence": "app/features/shell/setup/setupOnboardingFinish.ts:46 Finish derives eligible writers from the same relevance filtering as navigation, excluding retained company, invite, pipeline and companion answers on the seeker branch."
+        },
+        {
+          "technique": "commit-boundary",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/setup/OnboardingExperience.tsx:321 Returned partial failures receive receipts and selective retries, but a thrown write instead reaches settle(), discarding the draft without accounting for applied and unattempted parts."
+        },
+        {
+          "technique": "frontier-batched-elicitation",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/setup/OnboardingExperience.tsx:114 After the intent fork, independent company, team, pipeline and companion choices remain separate sequential screens; eligible questions are not batched from an authored dependency frontier."
+        },
+        {
+          "technique": "progress-communication",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/setup/SetupOnboardingWizard.tsx:105 Completion checkmarks depend only on position, ignoring visited status and current validity, and disappear when navigating backward."
+        },
+        {
+          "technique": "snapshot-and-resume",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/setup/useSetupDraft.ts:75 The stored draft restores automatically without an offer; parsing also treats corrupt storage as a missing draft rather than reporting recovery failure."
+        },
+        {
+          "technique": "step-state-model",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/setup/OnboardingExperience.tsx:115 The next() transition advances without checking stepSatisfied; validity is enforced by its UI callers instead of inside the transition."
+        }
+      ]
     }
   }
 }

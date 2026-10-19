@@ -29391,7 +29391,11 @@
           "revision": 4,
           "changedAt": "2026-08-22",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/shell/setup/OnboardingExperience.tsx:321 An exception during finish closes the wizard, clears its draft and stamps completion, potentially losing recovery state after earlier writes applied.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:e0fac678b7164451",
+          "evaluatedRevision": 4
         },
         {
           "subject": "quality-gates",
