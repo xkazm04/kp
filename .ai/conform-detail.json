@@ -15040,6 +15040,88 @@
           "evidence": "app/features/shared/matchTypes.ts:167 MatchResponse supplies candidate archetype weights, but MatchResult lacks the lens label under which individual match scores were evaluated."
         }
       ]
+    },
+    "241e8e29-1125-44c8-9d32-4339d665345c/sql-console": {
+      "context": "results-core",
+      "subject": "sql-console",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T11:40:53.260Z",
+      "worker": "74d2aa63-324f-40c0-84ea-178dd213e403",
+      "techniques": [
+        {
+          "technique": "dialect-capability-declaration",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/results/resultTabs.ts:19 The declared surfaces are recruiting-report tabs; searches found no database-engine capability consumers."
+        },
+        {
+          "technique": "editor-ergonomics",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/results/DispositionEditor.tsx:18 The editor records hiring dispositions; no SQL editing or query-history surface was found."
+        },
+        {
+          "technique": "introspection-architecture",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/results/extraction/ExtractionTab.tsx:31 Extraction reads candidate facts from an analysis payload; no external database catalog browser was found."
+        },
+        {
+          "technique": "nl-assist-gating",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/results/ArchetypeBanner.tsx:108 The analysis-derived editable artifact is a candidate profile; searches found no generated-SQL execution lane."
+        },
+        {
+          "technique": "result-fidelity",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/results/ReportActions.tsx:42 Export produces an analysis provenance dossier; no foreign-engine query result transport or grid was found."
+        },
+        {
+          "technique": "safe-mode-guarding",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/results/DispositionEditor.tsx:89 The mutation request carries a structured hiring decision; no user-authored SQL executor was found."
+        }
+      ]
+    },
+    "9f3047cf-311d-487b-89d3-7035a61e7433/sql-console": {
+      "context": "profile-editor",
+      "subject": "sql-console",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T11:40:53.260Z",
+      "worker": "74d2aa63-324f-40c0-84ea-178dd213e403",
+      "techniques": [
+        {
+          "technique": "dialect-capability-declaration",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/profile/ProfileEditorArchetypeOptions.tsx:41 Options enumerate candidate archetypes; no database connector-family capability model is consumed here."
+        },
+        {
+          "technique": "editor-ergonomics",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/profile/profileEditorHelpers.ts:33 The editor validates candidate experience fields; searches found no SQL buffer, query history or query execution controls."
+        },
+        {
+          "technique": "introspection-architecture",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/profile/profileCompletenessFields.ts:12 Completeness mappings consume the application-owned archetype registry; no foreign database catalog introspection was found."
+        },
+        {
+          "technique": "nl-assist-gating",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/profile/ProfileEditorAiDraft.tsx:46 Natural-language assistance drafts candidate profiles; it does not generate executable SQL."
+        },
+        {
+          "technique": "result-fidelity",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/profile/ProfileResultPanel.tsx:109 Results display profile completeness; no SQL result sets, affected-row acknowledgements or engine-error presentation was found."
+        },
+        {
+          "technique": "safe-mode-guarding",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/profile/useProfileEditorSubmit.ts:83 Submission uses the profile API with structured fields; no arbitrary SQL execution door was found."
+        }
+      ]
     }
   }
 }

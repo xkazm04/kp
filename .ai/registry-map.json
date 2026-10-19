@@ -26053,7 +26053,11 @@
           "revision": 1,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/tools/profile/useProfileEditorSubmit.ts:89 Context and repository searches found profile drafting and structured profile submissions rather than an external-database SQL console, with no context matches for dialect, introspect, safeMode or executeQuery, so the subject's precondition does not hold.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:60a26f15745fd8c1",
+          "evaluatedRevision": 1
         },
         {
           "subject": "hitl-approval",
@@ -26664,7 +26668,11 @@
           "revision": 1,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_components/results/resultTabs.ts:19 Context and repository searches found no SQL-console implementation connected to this recruiting-report panel, and the context has no matches for dialect, introspect, safeMode or executeQuery, so the subject's external-database execution precondition does not hold.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:60a26f15745fd8c1",
+          "evaluatedRevision": 1
         },
         {
           "subject": "table",
