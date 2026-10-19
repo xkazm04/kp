@@ -28884,7 +28884,11 @@
           "revision": 6,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/shell/companion/voice/VoicePlayback.tsx:56 The transport button collapses pause into stop by immediately terminating playback and surrendering utterance position when pressed during speech.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:122990080db4f70e",
+          "evaluatedRevision": 6
         },
         {
           "subject": "conversation-orchestration",
@@ -33151,7 +33155,11 @@
           "revision": 6,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "packages/voice-tts/src/react/utterance.ts:153 Pipelined utterance playback chains chunk execution sequentially off predecessor resolution rather than scheduling media intervals against an authoritative playback clock.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:122990080db4f70e",
+          "evaluatedRevision": 6
         },
         {
           "subject": "mcp-tools",
