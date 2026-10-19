@@ -1,0 +1,105 @@
+{
+ "schema": "conform-run/1",
+ "worker": "3a4414f9-f537-43be-8c74-da5ac75a0f76",
+ "subject": "measurement-honesty",
+ "evaluatedAt": "2026-10-19T00:23:07.234455+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "analytics-metrics",
+   "subject": "measurement-honesty",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/features/insights/analytics/AnalyticsReliabilityDiagram.tsx:61 The diagram publishes per-bin rates from single observations because its overall calibration gate does not enforce a sample floor for each bin.",
+   "techniques": [
+    {
+     "technique": "minimum-sample-floors",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/analytics/AnalyticsReliabilityDiagram.tsx:61 Every nonempty bin is plotted and its observed rate announced, including n=1; computeCalibration applies only an overall sample gate."
+    },
+    {
+     "technique": "the-baseline-is-the-untouched-path",
+     "verdict": "not-applicable",
+     "evidence": "app/features/insights/analytics/AnalyticsComputeCostPanel.tsx:94 This cost figure reports cost per hire, without claiming an intervention's saving or reduction."
+    },
+    {
+     "technique": "unelidable-measurement",
+     "verdict": "not-applicable",
+     "evidence": "app/features/insights/analytics/AnalyticsComputeCostPanel.tsx:63 The component displays recorded ledger cost rather than hosting work inside a cost-measurement harness."
+    },
+    {
+     "technique": "unmeasurable-vs-zero",
+     "verdict": "deviation",
+     "evidence": "app/features/insights/analytics/AnalyticsComputeCostPanel.tsx:48 An absent optional denominator becomes zero and selects the 'no hires yet' explanation instead of preserving unknown hire count."
+    }
+   ]
+  },
+  {
+   "context": "results-core",
+   "subject": "measurement-honesty",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "app/_components/results/extraction/ExtractionTab.tsx:60 The extraction dial bypasses the score-blocker check used by the leading verdict, allowing an uncomputed default score to appear as measured zero.",
+   "techniques": [
+    {
+     "technique": "renormalize-over-present",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/results/extraction/ExtractionTab.tsx:212 The inspected component arithmetic concerns a rubric's own score dimensions, which this technique explicitly excludes."
+    },
+    {
+     "technique": "the-baseline-is-the-untouched-path",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/results/compare/CompareTab.tsx:341 The comparison reports absolute differences between supplied CV variants, not an intervention's savings ratio."
+    },
+    {
+     "technique": "unelidable-measurement",
+     "verdict": "not-applicable",
+     "evidence": "app/_components/results/ResultPanel.tsx:117 The report formats a recorded run cost; it does not benchmark hosted work whose result could be elided."
+    },
+    {
+     "technique": "unmeasurable-vs-zero",
+     "verdict": "deviation",
+     "evidence": "app/_components/results/extraction/ExtractionTab.tsx:60 A score_section_missing blocker makes trustedScoreTotal return null in the banner, but this dial still renders the defaulted component sum as zero."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-19T00:23:07.234455+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "measurement-honesty"
+   ],
+   "techniques": [
+    "minimum-sample-floors",
+    "the-baseline-is-the-untouched-path",
+    "unelidable-measurement",
+    "unmeasurable-vs-zero"
+   ],
+   "deviations": 1,
+   "context": "analytics-metrics",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-19T00:23:07.234455+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "measurement-honesty"
+   ],
+   "techniques": [
+    "renormalize-over-present",
+    "the-baseline-is-the-untouched-path",
+    "unelidable-measurement",
+    "unmeasurable-vs-zero"
+   ],
+   "deviations": 1,
+   "context": "results-core",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

@@ -3798,7 +3798,11 @@
           "revision": 10,
           "changedAt": "2026-09-25",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/insights/analytics/AnalyticsReliabilityDiagram.tsx:61 The diagram publishes per-bin rates from single observations because its overall calibration gate does not enforce a sample floor for each bin.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:b702c58e785c6c51",
+          "evaluatedRevision": 11
         },
         {
           "subject": "agent-memory",
@@ -26625,7 +26629,11 @@
           "revision": 10,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_components/results/extraction/ExtractionTab.tsx:60 The extraction dial bypasses the score-blocker check used by the leading verdict, allowing an uncomputed default score to appear as measured zero.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:b702c58e785c6c51",
+          "evaluatedRevision": 11
         },
         {
           "subject": "fleet-orchestration",

@@ -13223,6 +13223,68 @@
           "evidence": "app/_lib/salary-band.ts:92 Market provenance is treated as sufficient to remove the unstated-pay marker; the function requires no employer-statement or approval evidence."
         }
       ]
+    },
+    "12e121d6-6032-464b-a349-68911bfbdbba/measurement-honesty": {
+      "context": "analytics-metrics",
+      "subject": "measurement-honesty",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T00:23:07.234Z",
+      "worker": "3a4414f9-f537-43be-8c74-da5ac75a0f76",
+      "techniques": [
+        {
+          "technique": "minimum-sample-floors",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/AnalyticsReliabilityDiagram.tsx:61 Every nonempty bin is plotted and its observed rate announced, including n=1; computeCalibration applies only an overall sample gate."
+        },
+        {
+          "technique": "the-baseline-is-the-untouched-path",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsComputeCostPanel.tsx:94 This cost figure reports cost per hire, without claiming an intervention's saving or reduction."
+        },
+        {
+          "technique": "unelidable-measurement",
+          "verdict": "not-applicable",
+          "evidence": "app/features/insights/analytics/AnalyticsComputeCostPanel.tsx:63 The component displays recorded ledger cost rather than hosting work inside a cost-measurement harness."
+        },
+        {
+          "technique": "unmeasurable-vs-zero",
+          "verdict": "deviation",
+          "evidence": "app/features/insights/analytics/AnalyticsComputeCostPanel.tsx:48 An absent optional denominator becomes zero and selects the 'no hires yet' explanation instead of preserving unknown hire count."
+        }
+      ]
+    },
+    "241e8e29-1125-44c8-9d32-4339d665345c/measurement-honesty": {
+      "context": "results-core",
+      "subject": "measurement-honesty",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T00:23:07.234Z",
+      "worker": "3a4414f9-f537-43be-8c74-da5ac75a0f76",
+      "techniques": [
+        {
+          "technique": "renormalize-over-present",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/results/extraction/ExtractionTab.tsx:212 The inspected component arithmetic concerns a rubric's own score dimensions, which this technique explicitly excludes."
+        },
+        {
+          "technique": "the-baseline-is-the-untouched-path",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/results/compare/CompareTab.tsx:341 The comparison reports absolute differences between supplied CV variants, not an intervention's savings ratio."
+        },
+        {
+          "technique": "unelidable-measurement",
+          "verdict": "not-applicable",
+          "evidence": "app/_components/results/ResultPanel.tsx:117 The report formats a recorded run cost; it does not benchmark hosted work whose result could be elided."
+        },
+        {
+          "technique": "unmeasurable-vs-zero",
+          "verdict": "deviation",
+          "evidence": "app/_components/results/extraction/ExtractionTab.tsx:60 A score_section_missing blocker makes trustedScoreTotal return null in the banner, but this dial still renders the defaulted component sum as zero."
+        }
+      ]
     }
   }
 }
