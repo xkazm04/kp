@@ -22413,7 +22413,11 @@
           "revision": 3,
           "changedAt": "2026-09-20",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/shared/matchTypes.ts:181 The shared match scoring model defines gaps as unstructured prose strings rather than computed objects with target distances, impact in rubric space, effort estimates, and action priorities.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:476078a37f34137d",
+          "evaluatedRevision": 3
         },
         {
           "subject": "import-normalization",
