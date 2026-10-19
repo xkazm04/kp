@@ -9528,7 +9528,11 @@
           "revision": 5,
           "changedAt": "2026-09-26",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "app/features/tools/analyze/useAnalyzeGlobalFileDrag.ts:17 The global file drag hook coordinates window-level file intake, tracks nested enter/leave depth, and routes dropped files to the intake planner.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:31c96c1f832f7148",
+          "evaluatedRevision": 5
         },
         {
           "subject": "quality-gates",

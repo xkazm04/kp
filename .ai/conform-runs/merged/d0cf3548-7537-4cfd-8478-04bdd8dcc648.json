@@ -1,0 +1,96 @@
+{
+  "schema": "conform-run/1",
+  "worker": "d0cf3548-7537-4cfd-8478-04bdd8dcc648",
+  "subject": "drag-drop",
+  "evaluatedAt": "2026-10-19T09:23:27.596958+00:00",
+  "provider": "agy",
+  "model": "gemini-3.8-flash-high",
+  "pairs": [
+    {
+      "context": "cv-analyze-intake",
+      "subject": "drag-drop",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evidence": "app/features/tools/analyze/useAnalyzeGlobalFileDrag.ts:17 The global file drag hook coordinates window-level file intake, tracks nested enter/leave depth, and routes dropped files to the intake planner.",
+      "techniques": [
+        {
+          "technique": "drag-lifecycle",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/useAnalyzeGlobalFileDrag.ts:76 Resets drag depth to zero on dragend as an explicit backstop for ESC-cancelled drags and off-window releases."
+        },
+        {
+          "technique": "drop-affordances",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/useAnalyzeFileAccept.ts:34 Formats explicit refusal messages naming the rejected file and reason rather than silently dropping invalid files."
+        },
+        {
+          "technique": "keyboard-alternatives",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/useAnalyzeFileAccept.ts:78 Routes keyboard-accessible picker selections through the identical planDrop pipeline used by drag-and-drop."
+        },
+        {
+          "technique": "cross-surface-handoff",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/useAnalyzeGlobalFileDrag.ts:64 Suppresses browser default document navigation on file drops across the OS window boundary to capture files for the intake router."
+        },
+        {
+          "technique": "payload-and-identity",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/useAnalyzeGlobalFileDrag.ts:68 Snapshots files directly from event dataTransfer during dispatch rather than reading from ambient dragging state."
+        },
+        {
+          "technique": "ownership-boundaries",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/analyzeCvIntake.ts:77 Enforces the live variant cap authority at commit time after asynchronous hashing, guarding against concurrent drop races."
+        }
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "drag-drop",
+      "context": "analyze-engine",
+      "reason": "withdrawn after review: reviewer (sonnet): The primary anchor (planDrop at analyzeDropRouting.ts:111) is correct, but the dragend reset, depth highlight and replaceCv technique anchors are in useAnalyzeDropZoneHighlight.ts and useAnalyzeFileAccept.ts, which are not among this context's files, so the drag-drop conformance claim is mostly abou"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-19T09:23:27.596958+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "drag-drop"
+      ],
+      "techniques": [
+        "cross-surface-handoff",
+        "drag-lifecycle",
+        "drop-affordances",
+        "keyboard-alternatives",
+        "ownership-boundaries",
+        "payload-and-identity"
+      ],
+      "deviations": 0,
+      "context": "cv-analyze-intake",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-19T09:23:27.596958+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "drag-drop"
+      ],
+      "techniques": [
+        "cross-surface-handoff",
+        "drag-lifecycle",
+        "drop-affordances",
+        "keyboard-alternatives",
+        "ownership-boundaries",
+        "payload-and-identity"
+      ],
+      "deviations": 0,
+      "context": "analyze-engine",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    }
+  ]
+}

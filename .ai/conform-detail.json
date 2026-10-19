@@ -14327,6 +14327,93 @@
         "at": "2026-10-19T08:33:42.490363+00:00",
         "reason": "reviewer (sonnet): The claims hold in the code, but I could not confirm the verdict belongs to this context. ArchetypeManagerEditPanel.tsx, the evidence anchor, and ArchetypeManager.tsx, which defines `cancel`, are not among the context's listed files. The technique anchor profileCompletenessFields.ts is also missing "
       }
+    },
+    "01cf5f88-41a1-47e6-9310-186589ebf384/drag-drop": {
+      "context": "cv-analyze-intake",
+      "subject": "drag-drop",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T09:23:27.596Z",
+      "worker": "d0cf3548-7537-4cfd-8478-04bdd8dcc648",
+      "techniques": [
+        {
+          "technique": "drag-lifecycle",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/useAnalyzeGlobalFileDrag.ts:76 Resets drag depth to zero on dragend as an explicit backstop for ESC-cancelled drags and off-window releases."
+        },
+        {
+          "technique": "drop-affordances",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/useAnalyzeFileAccept.ts:34 Formats explicit refusal messages naming the rejected file and reason rather than silently dropping invalid files."
+        },
+        {
+          "technique": "keyboard-alternatives",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/useAnalyzeFileAccept.ts:78 Routes keyboard-accessible picker selections through the identical planDrop pipeline used by drag-and-drop."
+        },
+        {
+          "technique": "cross-surface-handoff",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/useAnalyzeGlobalFileDrag.ts:64 Suppresses browser default document navigation on file drops across the OS window boundary to capture files for the intake router."
+        },
+        {
+          "technique": "payload-and-identity",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/useAnalyzeGlobalFileDrag.ts:68 Snapshots files directly from event dataTransfer during dispatch rather than reading from ambient dragging state."
+        },
+        {
+          "technique": "ownership-boundaries",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/analyzeCvIntake.ts:77 Enforces the live variant cap authority at commit time after asynchronous hashing, guarding against concurrent drop races."
+        }
+      ]
+    },
+    "1a8b63b3-ac28-4460-a74c-fbbe54884aec/drag-drop": {
+      "context": "analyze-engine",
+      "subject": "drag-drop",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T09:23:27.596Z",
+      "techniques": [
+        {
+          "technique": "drag-lifecycle",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/useAnalyzeDropZoneHighlight.ts:63 Resets the zone drag depth on dragend to ensure drop zones do not remain highlighted if a drag is cancelled via ESC."
+        },
+        {
+          "technique": "drop-affordances",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/useAnalyzeDropZoneHighlight.ts:31 Updates the zone's active highlight state dynamically based on counted drag depth across child elements."
+        },
+        {
+          "technique": "keyboard-alternatives",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/useAnalyzeFileAccept.ts:86 Provides a non-drag replacement path for CV variants evaluated through the same single-slot plan."
+        },
+        {
+          "technique": "cross-surface-handoff",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/analyzeDropRouting.ts:22 Defines the closed vocabulary of drop zone identifiers recognized across intake surfaces."
+        },
+        {
+          "technique": "payload-and-identity",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/analyzeCvIntake.ts:60 Establishes entity identity through content byte hashing rather than volatile UI indices or filenames."
+        },
+        {
+          "technique": "ownership-boundaries",
+          "verdict": "conformant",
+          "evidence": "app/features/tools/analyze/useAnalyzeCvFiles.ts:48 Re-verifies capacity limits against the live state ref post-hash to enforce authority boundaries against concurrent intake."
+        }
+      ],
+      "withdrawn": {
+        "worker": "d0cf3548-7537-4cfd-8478-04bdd8dcc648",
+        "state": "conformant",
+        "at": "2026-10-19T09:24:24.136305+00:00",
+        "reason": "reviewer (sonnet): The primary anchor (planDrop at analyzeDropRouting.ts:111) is correct, but the dragend reset, depth highlight and replaceCv technique anchors are in useAnalyzeDropZoneHighlight.ts and useAnalyzeFileAccept.ts, which are not among this context's files, so the drag-drop conformance claim is mostly abou"
+      }
     }
   }
 }
