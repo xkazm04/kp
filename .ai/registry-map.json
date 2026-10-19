@@ -23408,7 +23408,11 @@
           "revision": 11,
           "changedAt": "2026-09-03",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/webhook-idempotency.ts:44 Silently truncating sender identifiers makes distinct deliveries sharing their first 200 characters collide, allowing a genuine delivery to be discarded as a duplicate.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:42ae9b9486b8352d",
+          "evaluatedRevision": 11
         },
         {
           "subject": "concurrency-guards",

@@ -15362,6 +15362,22 @@
         "at": "2026-10-19T12:05:26.876849+00:00",
         "reason": "reviewer (sonnet): The anchor BillingTab.tsx:48 is a blank line, so it shows nothing, and the claim leaves out usage-pricing material that is in the context: included allowances, 'billed as overage' for hires (meterForecast.ts, BillingUsageMeterRow.tsx), and per-minute billing facts (SpendVoiceFacts.tsx). The seat nev"
       }
+    },
+    "072ae351-6062-4edf-ae14-acf4260e4c19/webhook-ingestion": {
+      "context": "ops-observability",
+      "subject": "webhook-ingestion",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T12:13:50.037Z",
+      "worker": "f939edff-ad59-42af-9170-48b988202081",
+      "techniques": [
+        {
+          "technique": "duplicate-and-replay-dedup",
+          "verdict": "deviation",
+          "evidence": "app/_lib/webhook-idempotency.ts:44 The sender's delivery identity is shortened without rejecting overlong identifiers; two 201-character identifiers differing only at the last character produce the same key."
+        }
+      ]
     }
   }
 }
