@@ -38,6 +38,7 @@ to be true for it to change?*
 - add an API route, or put a gate / rate limit / meter on one → [0026](0026-route-chain-refusal-order.md)
 - change how a candidate's AI collaboration is scored, or add AI-keyword or tool-noun weight to a match → [0027](0027-candidates-are-scored-on-proof-of-how-they-work-with-ai.md)
 - add an outbound connector or channel, change how a receipt is matched to a send, or let a message reach a candidate without a named approver → [0028](0028-one-message-identity-and-one-egress-seal-for-every-channel.md)
+- run a unit-test launcher beside another suite, or treat a gate failure that only appears beside another lane as a flake → [0029](0029-one-unit-suite-per-machine.md)
 
 ## Index
 
@@ -71,6 +72,7 @@ to be true for it to change?*
 | [0026](0026-route-chain-refusal-order.md) | Every workspace-scoped route enters through route(...); the session is the first refusal, guards come next, the handler's own gates last | accepted | 2026-10-16 |
 | [0027](0027-candidates-are-scored-on-proof-of-how-they-work-with-ai.md) | Candidates are scored on proof of how they work with AI, through one channel-neutral evidence ladder, with a human at every gate | accepted | 2026-10-17 |
 | [0028](0028-one-message-identity-and-one-egress-seal-for-every-channel.md) | Every channel shares one message identity and one egress seal, and a person releases what reaches a candidate | accepted | 2026-10-17 |
+| [0029](0029-one-unit-suite-per-machine.md) | The unit-test launcher runs one suite per machine at a time | accepted | 2026-10-18 |
 
 ## Writing a new one
 
