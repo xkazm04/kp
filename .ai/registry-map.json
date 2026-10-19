@@ -14178,7 +14178,11 @@
           "revision": 10,
           "changedAt": "2026-09-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "e2e/token-doors-axe.spec.ts:110 The documented contrast exception excludes matching elements from every axe rule, creating a broader blind spot than the accepted finding warrants.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:58a3b7c0b9efb42c",
+          "evaluatedRevision": 10
         },
         {
           "subject": "eval-harness",
