@@ -14517,6 +14517,27 @@
           "evidence": "app/landing/spark/market/data.ts:215 EN-DATE: MarketPulseApp.tsx inserts this numeric-month output into the header’s “as of {date}” prose."
         }
       ]
+    },
+    "3e2ec5d8-185d-40bc-99f9-c132975277b4/evidence-provenance-weighting": {
+      "context": "results-detail-tabs",
+      "subject": "evidence-provenance-weighting",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T10:20:36.341Z",
+      "worker": "4b8a8800-a3ec-4ba8-889b-fa12789db9f3",
+      "techniques": [
+        {
+          "technique": "provenance-trust-ladder",
+          "verdict": "deviation",
+          "evidence": "app/_components/results/job-fit/SkillChips.tsx:79 Matching skills render with undifferentiated green checkmarks rather than displaying provenance tiers on screen."
+        },
+        {
+          "technique": "unproven-versus-missing-distinction",
+          "verdict": "conformant",
+          "evidence": "app/_components/results/job-fit/JobFitTab.tsx:141 Renders unproven skills in a dedicated amber bucket distinct from missing skills, mapping the reason taxonomy and preserving strength."
+        }
+      ]
     }
   }
 }

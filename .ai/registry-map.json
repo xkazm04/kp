@@ -26816,7 +26816,11 @@
           "revision": 2,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_components/results/job-fit/SkillChips.tsx:79 Matching skills are rendered with undifferentiated green checkmarks regardless of evidence origin, failing to display provenance tiers on screen as required by the trust ladder.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:661140f7c0d8af58",
+          "evaluatedRevision": 2
         },
         {
           "subject": "voice-interview-fidelity",
