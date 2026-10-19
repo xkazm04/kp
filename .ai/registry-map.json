@@ -26668,7 +26668,11 @@
           "revision": 2,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_components/results/interview/SoftSignalsSection.tsx:24 The exported checklist places every risk before every strength without an item cap or decision-impact ordering, preserving a detector list instead of the required bounded agenda.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:8652a467dc7229b0",
+          "evaluatedRevision": 2
         },
         {
           "subject": "interview-story-portfolio",

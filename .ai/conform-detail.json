@@ -13007,6 +13007,139 @@
           "evidence": "app/_lib/useJsonFetch.ts:53 The generic fallback is hardcoded English; inspected QualityInstrument callers omit errorLabel, bypassing localized failure copy for uncoded failures."
         }
       ]
+    },
+    "a4026dc2-d6bb-4214-914a-29103ca51fd8/hypothesis-not-verdict-soft-signals": {
+      "context": "devcase-detail",
+      "subject": "hypothesis-not-verdict-soft-signals",
+      "bundle": "recruiting",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T00:02:04.389Z",
+      "techniques": [
+        {
+          "technique": "a-confirmation-probe-per-signal",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/devcases/DevCaseDetailInternal.tsx:38 These are assignment cover probes, not questions generated from career-document signals."
+        },
+        {
+          "technique": "antipattern-and-hidden-strength-pairing",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/devcases/DevCaseDetailShortlist.tsx:46 The shortlist renders assessed submissions rather than adverse and favourable document-shape detectors."
+        },
+        {
+          "technique": "benign-alternative-stated-alongside-the-risk",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/devcases/DevCohortProbePanel.tsx:39 The flag concerns assignment calibration measured across submissions."
+        },
+        {
+          "technique": "claim-versus-evidence-overclaim-detection",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/devcases/DevCaseDetailInternal.tsx:59 This panel displays role requirements rather than comparing a career document's claims with outcomes."
+        },
+        {
+          "technique": "signal-source-trust-ordering",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/devcases/DevProvenanceStrip.tsx:58 Provenance describes assessment-generation steps, not mixed sources of career hypotheses."
+        },
+        {
+          "technique": "what-to-confirm-checklist-not-a-dossier",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/devcases/DevCaseDetailChannels.tsx:54 The channel surface collects assignment submissions rather than presenting a soft-signal checklist."
+        }
+      ],
+      "withdrawn": {
+        "worker": "5c886005-31d1-4c07-80cc-05e311fc089a",
+        "state": "not-applicable",
+        "at": "2026-10-19T00:03:19.988666+00:00",
+        "reason": "reviewer (sonnet): Both not-applicable verdicts are contradicted: pipeline/jobfit/soft_signals.py `panel_to_probe_briefs` feeds CV-hypothesis briefs into `design_case(focus_probes=…)`, so devcase cover probes (ProbeRow in DevCaseDetailInternal and DevAnalysisDesignCard) can come from career-document soft signals; the "
+      }
+    },
+    "3e2ec5d8-185d-40bc-99f9-c132975277b4/hypothesis-not-verdict-soft-signals": {
+      "context": "results-detail-tabs",
+      "subject": "hypothesis-not-verdict-soft-signals",
+      "bundle": "recruiting",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T00:02:04.389Z",
+      "worker": "5c886005-31d1-4c07-80cc-05e311fc089a",
+      "techniques": [
+        {
+          "technique": "a-confirmation-probe-per-signal",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/soft_signals.py:317 Every folded model flag receives this generic interviewer instruction rather than a specific, verbatim-askable question with a defined resolution."
+        },
+        {
+          "technique": "antipattern-and-hidden-strength-pairing",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/soft_signals.py:96 The claim-attachment detector emits an adverse record without a favourable reading of the same property; the panel's strength detectors do not supply that counterpart."
+        },
+        {
+          "technique": "benign-alternative-stated-alongside-the-risk",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/soft_signals.py:97 This exported detail supplies no benign alternative, although the tenure detector does."
+        },
+        {
+          "technique": "claim-versus-evidence-overclaim-detection",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/tests/test_soft_signals.py:33 The fixture above contains one strong claim and one described role, yet requires an adverse signal, violating the standard's minimum-sample rule."
+        },
+        {
+          "technique": "signal-source-trust-ordering",
+          "verdict": "deviation",
+          "evidence": "pipeline/jobfit/soft_signals.py:315 Model flags share the source identifier used by deterministic document hypotheses, preventing the renderer from distinguishing the required fourth, lowest-trust tier."
+        },
+        {
+          "technique": "what-to-confirm-checklist-not-a-dossier",
+          "verdict": "deviation",
+          "evidence": "app/_components/results/interview/SoftSignalsSection.tsx:108 The component renders every supplied row in separate risk and strength groups, without a three-to-five-item cap or resolution controls."
+        }
+      ]
+    },
+    "7d113095-ed5e-4399-8e75-50a1ecb523d5/hypothesis-not-verdict-soft-signals": {
+      "context": "devcase-lifecycle",
+      "subject": "hypothesis-not-verdict-soft-signals",
+      "bundle": "recruiting",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T00:02:04.389Z",
+      "techniques": [
+        {
+          "technique": "a-confirmation-probe-per-signal",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/devcases/DevInterviewKit.tsx:34 Follow-ups originate in submission evaluation and authorship verification, which the standard distinguishes from career-shape hypotheses."
+        },
+        {
+          "technique": "antipattern-and-hidden-strength-pairing",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/devcases/DevAnalysisDesignCard.tsx:64 The design card presents probes embedded in an assignment rather than behavioural detectors over a career document."
+        },
+        {
+          "technique": "benign-alternative-stated-alongside-the-risk",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/devcases/DevAnalysisReflectionCard.tsx:45 These risks belong to the role and codebase needs analysis, not a reading of a candidate's career."
+        },
+        {
+          "technique": "claim-versus-evidence-overclaim-detection",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/devcases/DevAnalysisView.tsx:71 The analysis reads repository snapshots rather than capability claims and career outcomes."
+        },
+        {
+          "technique": "signal-source-trust-ordering",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/devcases/DevAnalysisDesignCard.tsx:30 The displayed sources describe generation of the assessment design, not career-signal trust tiers."
+        },
+        {
+          "technique": "what-to-confirm-checklist-not-a-dossier",
+          "verdict": "not-applicable",
+          "evidence": "app/features/tools/devcases/DevInterviewKit.tsx:199 This records human findings against submission-authorship follow-ups, outside the subject's career-document checklist."
+        }
+      ],
+      "withdrawn": {
+        "worker": "5c886005-31d1-4c07-80cc-05e311fc089a",
+        "state": "not-applicable",
+        "at": "2026-10-19T00:03:19.988666+00:00",
+        "reason": "reviewer (sonnet): Both not-applicable verdicts are contradicted: pipeline/jobfit/soft_signals.py `panel_to_probe_briefs` feeds CV-hypothesis briefs into `design_case(focus_probes=…)`, so devcase cover probes (ProbeRow in DevCaseDetailInternal and DevAnalysisDesignCard) can come from career-document soft signals; the "
+      }
     }
   }
 }
