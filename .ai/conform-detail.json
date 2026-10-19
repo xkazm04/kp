@@ -13540,6 +13540,129 @@
           "evidence": "app/features/library/jds/intake/jdsIntakeLogic.ts:441 send accepts only a message string, appends it as candidate text, and transmits only that text; the selection origin and selected option identifiers are not carried."
         }
       ]
+    },
+    "0124a9c7-731c-4ebd-a444-51cb4fd6ddf9/search": {
+      "context": "workspace-command-palette",
+      "subject": "search",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T00:59:57.994Z",
+      "worker": "be7c9f94-476d-4978-9657-18d11a1cd455",
+      "techniques": [
+        {
+          "technique": "command-surface",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/useWorkspaceCommandPaletteItems.ts:139 Substring membership replaces weighted fuzzy matching; asynchronously arriving entity hits also precede local navigation results."
+        },
+        {
+          "technique": "faceting-and-filters",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/WorkspacePaletteLedger.tsx:66 Groups summarize navigation results; they are not selectable filter dimensions."
+        },
+        {
+          "technique": "query-parsing",
+          "verdict": "deviation",
+          "evidence": "app/features/shell/useWorkspaceCommandPaletteItems.ts:90 Local matching folds case without folding diacritics and implements its policy separately from the server matcher."
+        },
+        {
+          "technique": "ranking-and-excerpts",
+          "verdict": "deviation",
+          "evidence": "app/_lib/db/analytics.ts:1197 Profile hits end their ordering at a timestamp; tied timestamps lack the required unique identity tiebreaker."
+        },
+        {
+          "technique": "saved-views",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/WorkspaceCommandPalette.tsx:65 Opening deliberately resets this navigation query; the inspected palette offers no named query/filter artifacts."
+        },
+        {
+          "technique": "typed-filter-language",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/useWorkspaceCommandPaletteSearch.ts:80 The input conveys search text, not a user-authored predicate program."
+        }
+      ]
+    },
+    "a84a06f8-4280-473d-acc3-0cdcf6f98cad/search": {
+      "context": "pipeline-board-ui",
+      "subject": "search",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T00:59:57.994Z",
+      "worker": "be7c9f94-476d-4978-9657-18d11a1cd455",
+      "techniques": [
+        {
+          "technique": "command-surface",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/pipeline/orbit/orbitModel.ts:285 The slash-focused role/person navigator requires substring matches rather than supporting scored initials and subsequences."
+        },
+        {
+          "technique": "faceting-and-filters",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/pipeline/orbit/OrbitMatches.tsx:79 URL filters remain effective, but the mounted results UI exposes only the query description and a clear-all button."
+        },
+        {
+          "technique": "query-parsing",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/pipeline/pipelineBoardFilters.ts:118 The live URL-filter path uses its own lowercase-only matcher, without diacritic folding or the shared normalization used by Orbit search."
+        },
+        {
+          "technique": "ranking-and-excerpts",
+          "verdict": "deviation",
+          "evidence": "app/features/hiring/pipeline/orbit/orbitModel.ts:296 Navigation hits tie on rank and waiting count without a final stable role/person identity."
+        },
+        {
+          "technique": "typed-filter-language",
+          "verdict": "not-applicable",
+          "evidence": "app/features/hiring/pipeline/pipelineBoardFilters.ts:121 Filters are fixed application-defined criteria, not expressions authored in an exposed programming grammar."
+        }
+      ]
+    },
+    "c6367667-9117-4b74-8800-3bdd54e304f2/search": {
+      "context": "shell-palette-preview",
+      "subject": "search",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T00:59:57.994Z",
+      "worker": "be7c9f94-476d-4978-9657-18d11a1cd455",
+      "techniques": [
+        {
+          "technique": "command-surface",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/palette/PalettePreviewPane.tsx:30 This pane consumes the host's selected item; it does not select or rank commands."
+        },
+        {
+          "technique": "faceting-and-filters",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/palette/PreviewHiring.tsx:17 Stage figures form a read-only preview summary, not selectable facets."
+        },
+        {
+          "technique": "full-text-indexing",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/palette/usePalettePreview.ts:73 The request retrieves a selected destination's preview rather than matching a text corpus."
+        },
+        {
+          "technique": "query-parsing",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/palette/usePalettePreview.ts:34 The request serializes an existing tab identity, not raw user search text."
+        },
+        {
+          "technique": "ranking-and-excerpts",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/palette/PreviewEntities.tsx:36 Entity panels present contextual facts; they do not produce ranked search results or query excerpts."
+        },
+        {
+          "technique": "saved-views",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/palette/previewCache.ts:31 The short-lived preview memo is not a durable named predicate."
+        },
+        {
+          "technique": "typed-filter-language",
+          "verdict": "not-applicable",
+          "evidence": "app/features/shell/palette/previewCache.ts:129 Rendering selects a resolved preview by key rather than evaluating a user-authored rule."
+        }
+      ]
     }
   }
 }

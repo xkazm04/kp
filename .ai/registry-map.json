@@ -24571,7 +24571,11 @@
           "revision": 5,
           "changedAt": "2026-09-24",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/hiring/pipeline/orbit/OrbitMatches.tsx:79 The current filtered-results surface names only the text query, leaving active stage, source, quick and score clauses undisclosed and without individual removal.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:395e660a5e607abe",
+          "evaluatedRevision": 6
         },
         {
           "subject": "pipeline-aging-and-attention-triage",
@@ -29176,7 +29180,11 @@
           "revision": 5,
           "changedAt": "2026-09-24",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/shell/palette/usePalettePreview.ts:33 Repository searches located search implementations elsewhere but found no fuzzy, tokenizer or bm25 hits in the preview directory, whose requests retrieve facts for an already selected identity.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:395e660a5e607abe",
+          "evaluatedRevision": 6
         },
         {
           "subject": "fleet-orchestration",
@@ -33275,7 +33283,11 @@
           "revision": 5,
           "changedAt": "2026-09-24",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/shell/useWorkspaceCommandPaletteItems.ts:139 Tab navigation requires literal substrings, so initials and subsequences cannot receive the predictable fuzzy ranking required by the command-surface technique.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:395e660a5e607abe",
+          "evaluatedRevision": 6
         },
         {
           "subject": "mcp-tools",
