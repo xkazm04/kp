@@ -18759,7 +18759,11 @@
           "revision": 2,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/_lib/salary-band.ts:92 The helper replaces parsed pay with a market-analysis band and removes its default marker without requiring evidence that the employer stated or approved that band.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:abfb1c8b83b3beac",
+          "evaluatedRevision": 2
         },
         {
           "subject": "quality-gates",
@@ -19330,7 +19334,11 @@
           "revision": 2,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "app/features/library/jobs/jobsMarkdown.ts:158 The job-board Markdown includes defaulted salary estimates, whereas the standard requires assumed bands to remain absent from advertisement copy.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:abfb1c8b83b3beac",
+          "evaluatedRevision": 2
         },
         {
           "subject": "test-harness",
@@ -21104,7 +21112,11 @@
           "revision": 2,
           "changedAt": "2026-09-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "scripts/lint/ts-ratchet.mjs:356 Searches for jd-lint, digital native, exclusionary, and competitive salary found no hits in scripts/lint, scripts/perf, or scripts/design, whose checks concern source-code suppressions, performance, and design tokens.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:abfb1c8b83b3beac",
+          "evaluatedRevision": 2
         }
       ],
       "governance": "governed"
