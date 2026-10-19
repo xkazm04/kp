@@ -21,6 +21,7 @@
 // throwaway database); conversations then only talk to their providers.
 
 import { mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { randomBytes } from "node:crypto";
 import path from "node:path";
 
 import { CANDIDATE_HARNESS_PREAMBLE, INTERVIEWER_HARNESS_PREAMBLE, runConversation, type SimConversationDump, type SimLimits } from "./engine";
@@ -107,8 +108,10 @@ export function formatSummaryLine(s: ConversationSummary, position?: string): st
 }
 
 function writeJsonAtomic(file: string, value: unknown): void {
-  const tmp = `${file}.${process.pid}.tmp`;
-  writeFileSync(tmp, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+  // Unguessable name, created exclusively and owner-only: a pre-planted file or link at a
+  // predictable path can never be written through (js/insecure-temporary-file).
+  const tmp = `${file}.${process.pid}.${randomBytes(6).toString("hex")}.tmp`;
+  writeFileSync(tmp, `${JSON.stringify(value, null, 2)}\n`, { encoding: "utf8", flag: "wx", mode: 0o600 });
   renameSync(tmp, file);
 }
 

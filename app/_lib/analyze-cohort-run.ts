@@ -268,7 +268,7 @@ const FINISHED: readonly MemberRunState[] = ["reused", "done", "failed"];
 /** The first CV link a GitHub handle parses from (github.com only). */
 export function githubLinkFor(analysis: Analysis, parse: (link: string) => string | null): string | null {
   for (const link of analysis.candidate?.links ?? []) {
-    if (typeof link === "string" && /github\.com/i.test(link) && parse(link)) return link;
+    if (typeof link === "string" && /^\s*(?:https?:\/\/)?(?:www\.)?github\.com\//i.test(link) && parse(link)) return link;
   }
   return null;
 }

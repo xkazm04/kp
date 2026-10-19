@@ -283,7 +283,12 @@ async function main(argv) {
   const { isPublicPath } = await import('../../app/_lib/auth/public-routes.ts');
   const actual = readRoutes(isPublicPath);
   const docFile = path.join(REPO_ROOT, DOC_PATH);
-  const existing = fs.existsSync(docFile) ? fs.readFileSync(docFile, 'utf8') : null;
+  let existing = null;
+  try {
+    existing = fs.readFileSync(docFile, 'utf8');
+  } catch (e) {
+    if (e?.code !== 'ENOENT') throw e;
+  }
 
   if (!argv.includes('--check')) {
     if (existing === null) {

@@ -332,7 +332,7 @@ export function resolveCohortSalary(members: ProjectedMember[]): ProjectedMember
 /** The first CV link that is a github.com profile (parsed by the shared handle grammar). */
 export function githubLinkOf(analysis: Analysis): string | null {
   for (const link of analysis.candidate.links ?? []) {
-    if (/github\.com/i.test(link) && parseGithubUsername(link)) return link;
+    if (/^\s*(?:https?:\/\/)?(?:www\.)?github\.com\//i.test(link) && parseGithubUsername(link)) return link;
   }
   return null;
 }

@@ -188,8 +188,14 @@ function writeIfAbsent(file: string, content: string): boolean {
 
 /** kp's own file, rewritten when its content differs. True = it did not exist before. */
 function writeOwned(file: string, content: string): boolean {
-  const existed = existsSync(file);
-  if (existed && readFileSync(file, "utf8") === content) return false;
+  // Read-or-ENOENT in one step rather than existsSync-then-read (js/file-system-race).
+  let existed = true;
+  try {
+    if (readFileSync(file, "utf8") === content) return false;
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw e;
+    existed = false;
+  }
   writeFileSync(file, content, { encoding: "utf8" });
   return !existed;
 }

@@ -2025,7 +2025,7 @@ check PLAN-STATUS was mirrored, approve with the checklist, mark sent, record `a
 note "e2e live run", and sync to retire the persona.
 
 It prints the gig id at creation and a table (step, status, duration, cost: each plan seat and
-the persona run), and writes a JSON report to `<os tmp>/kp-e2e-gigs-live/<runId>.json` (the repo
+the persona run), and writes a JSON report to `<os tmp>/kp-e2e-gigs-live-XXXXXX/<runId>.json` (a fresh private directory per run; the path is printed) (the repo
 has no gitignored scratch folder).
 
 Guards:

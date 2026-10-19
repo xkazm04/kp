@@ -266,7 +266,8 @@ that only `ci.yml` blocks the loop this budget exists to protect.
   committed state is malformed is a gate that silently never fires.
 - **What the browser loads first.** This budget walks dynamic imports and server code, so a
   lazy-loading win cannot move it. `scripts/perf/first-load.mjs` walks STATIC client imports only
-  (shell, each workspace tab chunk, the gate routes; it stops at `'use server'`), and
+  (shell, each workspace tab chunk, the gate routes; it stops at `'use server'`, found by a linear
+  scan past leading comments rather than a backtracking pattern), and
   `npm run perf:vitals` measures cold loads and warm tab switches in a browser. Both are report-only;
   see [`../design/instruments.md`](../design/instruments.md).
 - **Client bundle bytes.** A worthwhile second metric, and it needs a build

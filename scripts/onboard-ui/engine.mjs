@@ -689,7 +689,7 @@ function exactKey(toolName, input) {
  * typed SSE event, so the operator never sees the syntax.
  * ------------------------------------------------------------------ */
 
-const MARKER_RE = /^\s*\[\[wizard:([a-z]+)((?:\s+[a-z]+=(?:"[^"]*"|[^\s\]]+))*)\s*\]\]\s*$/;
+const MARKER_RE = /^\s*\[\[wizard:([a-z]+)((?:\s+[a-z]+=(?:"[^"]*"|[^\s\]"][^\s\]]*))*)\s*\]\]\s*$/;
 /**
  * Phase ids used to be a closed set (welcome, mode, checks, capabilities, boot,
  * voice, done). Since v0.3 the recon-first run DECLARES its own steps with a
@@ -1003,9 +1003,12 @@ export function mergeEnv(name, value, { overwrite = false } = {}) {
   const existing = envValueOf(name);
   if (existing !== undefined && existing.trim() !== "" && !overwrite) return "exists";
   const serialized = `${name}=${value}`;
-  if (!existsSync(ENV_FILE)) {
-    writeFileSync(ENV_FILE, `${serialized}\n`, { encoding: "utf8", mode: 0o600 });
+  try {
+    // Exclusive create: no check-then-write window (js/file-system-race).
+    writeFileSync(ENV_FILE, `${serialized}\n`, { encoding: "utf8", mode: 0o600, flag: "wx" });
     return "created";
+  } catch (e) {
+    if (e?.code !== "EEXIST") throw e;
   }
   const lines = readEnvLines();
   const idx = lines.findIndex((l) => {
