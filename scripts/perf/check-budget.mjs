@@ -553,7 +553,8 @@ export function record(root = REPO_ROOT, slackPercent = 15) {
     budget.barrels[rel] = { maxValueImporters: findValueImporters(rel, root).length, why };
   }
 
-  fs.writeFileSync(file, JSON.stringify(budget, null, 2) + '\n');
+  // 'wx': an exclusive create, so a budget written between the existsSync guard above and here is not overwritten.
+  fs.writeFileSync(file, JSON.stringify(budget, null, 2) + '\n', { flag: 'wx' });
   console.log(`perf:budget --record: wrote ${BUDGET_FILE} from the current tree. Read every ceiling before committing it.`);
   return 0;
 }
