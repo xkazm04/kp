@@ -73,8 +73,7 @@ export function tailJsonl(filename: string, maxLines = SAMPLE_LINES): Record<str
 
 function withinWeek(rec: Record<string, unknown>, now: number): boolean {
   const ts = typeof rec.ts === "string" ? Date.parse(rec.ts) : NaN;
-  const age = now - ts;
-  return Number.isFinite(ts) && age >= 0 && age <= WEEK_MS;
+  return ts <= now && now - ts <= WEEK_MS;
 }
 
 export type AnalyzeTelemetry = { sampled: number; cacheHitRatePct: number | null; avgDurationMs: number | null };

@@ -156,12 +156,7 @@ export function DecisionRecordsTable({
   return (
     <>
       <p className={`mt-3 ${META_LABEL}`}>{t("timeZoneNote", { zone })}</p>
-      <TableStatus
-        columnTitle={sortTitle[sort.col]}
-        dir={sort.dir}
-        matched={filtered.length}
-        filtered={Boolean(kind || actor || subject)}
-      />
+      <TableStatus columnTitle={sortTitle[sort.col]} dir={sort.dir} matched={filtered.length} filtered={Boolean(kind || actor || subject)} />
       {dossierError ? (
         <p role="alert" className="mt-2 text-sm text-red-700">
           {dossierError}

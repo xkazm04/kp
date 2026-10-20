@@ -144,7 +144,8 @@ means growth, not a new dependency edge.
 comms release card (+2 modules, ~14 KB on `app/page.tsx`) and the interview
 AI-tools axis (~2 KB) landed, with 30 routes 1 to 5 KB over from small
 follow-ups. The ceilings were raised to the measured values in one commit whose
-`why` names those changes; no slack was added.
+`why` names those changes; no slack was added. The same day the analytics a11y harvest (TableStatus on two
+tables, 1 KB) raised `app/page.tsx` from 11707 to 11708 KB the same way.
 
 ## When it fails
 
