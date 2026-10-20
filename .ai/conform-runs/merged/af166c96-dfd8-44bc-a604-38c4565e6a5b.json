@@ -1,0 +1,17 @@
+{
+ "schema": "conform-run/1",
+ "worker": "af166c96-dfd8-44bc-a604-38c4565e6a5b",
+ "subject": "codegen",
+ "evaluatedAt": "2026-10-20T21:20:10.890855+00:00",
+ "provider": "agy",
+ "model": "gemini-3.8-flash-high",
+ "pairs": [],
+ "declined": [
+  {
+   "subject": "codegen",
+   "context": "shell-tasks",
+   "reason": "Preconditions for codegen do not hold: shell-tasks consists of frontend UI components, hooks, and helpers for polling and rendering runtime background server tasks (JD generation, CV analysis, bulk sends) within the workspace shell. It contains no derived source code pipelines, generation task registries, drift gates, or code generator machinery. Per the seat rule that not-applicable is not accepted, this pair is declined."
+  }
+ ],
+ "consults": []
+}
