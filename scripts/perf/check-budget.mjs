@@ -515,10 +515,6 @@ const percentile = (sorted, p) => sorted[Math.min(sorted.length - 1, Math.floor(
  */
 export function record(root = REPO_ROOT, slackPercent = 15) {
   const file = path.join(root, BUDGET_FILE);
-  if (fs.existsSync(file)) {
-    console.error(`perf:budget --record: ${BUDGET_FILE} already exists. Use --tighten to lower ceilings, or edit it to raise one.`);
-    return 1;
-  }
   const budget = { version: 1, slackPercent, entries: {}, groups: {}, barrels: {} };
 
   for (const [rel, why] of Object.entries(DEFAULT_TARGETS.entries)) {
@@ -553,8 +549,17 @@ export function record(root = REPO_ROOT, slackPercent = 15) {
     budget.barrels[rel] = { maxValueImporters: findValueImporters(rel, root).length, why };
   }
 
-  // 'wx': an exclusive create, so a budget written between the existsSync guard above and here is not overwritten.
-  fs.writeFileSync(file, JSON.stringify(budget, null, 2) + '\n', { flag: 'wx' });
+  // 'wx' is an exclusive create: the refusal to overwrite a signed budget is made by the
+  // write itself, not by an existsSync check that a concurrent --record could slip past.
+  try {
+    fs.writeFileSync(file, JSON.stringify(budget, null, 2) + '\n', { flag: 'wx' });
+  } catch (err) {
+    if (err && err.code === 'EEXIST') {
+      console.error(`perf:budget --record: ${BUDGET_FILE} already exists. Use --tighten to lower ceilings, or edit it to raise one.`);
+      return 1;
+    }
+    throw err;
+  }
   console.log(`perf:budget --record: wrote ${BUDGET_FILE} from the current tree. Read every ceiling before committing it.`);
   return 0;
 }
