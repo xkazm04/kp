@@ -90,7 +90,7 @@ SCENARIOS: list[Scenario] = [
     ),
     Scenario(
         "bau_weak",
-        MatchCandidate(skills=["Python"], seniority="senior", role_family="software_engineering", languages=["English"], archetype="bau"),
+        MatchCandidate(skills=["Python"], seniority="senior", role_family="software_engineering", languages=["English"], archetype="bau", provenance_default="professional"),
         _job(title="Senior PM", role_family="product_project", requirements=[{"skill": "product management", "kind": "must_have", "hardness": "prerequisite"}]),
     ),
     Scenario(

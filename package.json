@@ -117,17 +117,17 @@
     "framer-motion": "^14.0.0",
     "linkedom": "^0.18.13",
     "lucide-react": "^1.54.0",
-    "next": "16.4.0",
+    "next": "16.4.2",
     "next-intl": "^4.14.5",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
-    "react-is": "^19.3.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-is": "^19.3.1",
     "recharts": "^3.10.1",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
-    "@babel/core": "^7.29.7",
+    "@babel/core": "^8.0.7",
     "@playwright/test": "^1.64.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/better-sqlite3": "^9.6.0",
@@ -138,9 +138,9 @@
     "cross-env": "^10.1.0",
     "dotenv": "^18.0.6",
     "eslint": "^9.39.4",
-    "eslint-config-next": "16.4.0",
+    "eslint-config-next": "16.4.2",
     "eslint-plugin-i18next": "^6.1.5",
-    "postcss": "^8.5.29",
+    "postcss": "^8.5.30",
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3"
   }

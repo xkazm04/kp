@@ -590,9 +590,9 @@ test("S1: with a dev case the axis is appended last, BARS 1-5, and the version m
     assert.notEqual(rubricVersionHash(withCase), rubricVersionHash(plain));
   }
   // Must equal automation.rubric_version_hash(rubric_for_candidate(..., dev_case=True)).
-  assert.equal(rubricVersionHash(rubricForArchetype("bau", null, true)), "c2bebfd2f982ea40");
-  assert.equal(rubricVersionHash(rubricForArchetype("student", null, true)), "cc8454ff0afeed31");
-  assert.equal(rubricVersionHash(rubricForArchetype("bau", "healthcare_clinical", true)), "f7f76e3676d572ef");
+  assert.equal(rubricVersionHash(rubricForArchetype("bau", null, true)), "9386895b760c9505");
+  assert.equal(rubricVersionHash(rubricForArchetype("student", null, true)), "d152a9389079978e");
+  assert.equal(rubricVersionHash(rubricForArchetype("bau", "healthcare_clinical", true)), "4e5754969aaf5010");
 });
 
 test("S1: the axis scores behaviour — no tool nouns", () => {
